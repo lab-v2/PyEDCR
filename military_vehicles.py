@@ -8,8 +8,7 @@ from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_sc
 
 # %% Data load
 
-data_file_path = ('' if os.getcwd().endswith('military_vehicles') else
-                  'military_vehicles/') + rf'data/WEO_Data_Sheet.xlsx'
+data_file_path = rf'data/WEO_Data_Sheet.xlsx'
 dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 
 fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
@@ -112,7 +111,12 @@ def get_class(image_name: str,
 
 # %% Bowen's code
 
-def generate_chart(charts):
+def generate_chart(charts: list[list[int]]) -> list[list[int]]:
+    """
+    :param initial data structure before processing:
+    :return: fully encoded data structure for the algorithm (list of list of ints)
+    appends true positive and false positive encodings into the data structure
+    """
     all_charts = [[] for _ in range(len(fine_grain_classes))]
     for data in charts:
         for count, jj in enumerate(all_charts):
@@ -141,22 +145,40 @@ def generate_chart(charts):
 
 
 charts = []
-m = zeros_and_ones_df.shape[0]
+number_of_samples = zeros_and_ones_df.shape[0]
 
+high_scores = [0.55, 0.60]  # >0.95 is one rule, >0.98 is another rule, in total 4*24
+low_scores = [0.05, 0.02]
 
-def rules1(image_name):
+def rules1(image_name: str) -> list[int]:
+    """
+    :param image_name:
+    :return: encoded rules for the algorithm
+    create an encoded version of the rules
+    """
     rule_scores = []
     one_hot = get_example_fine_grain_one_hot_classes(image_name).ravel()
 
     for class_prediction in one_hot:
-        rule_scores += [class_prediction, 1 - class_prediction]
+        for score in high_scores:
+            if class_prediction > score:
+                rule_scores.append(1)
+            else:
+                rule_scores.append(0)
+        for score in low_scores:
+            if class_prediction < score:
+                rule_scores.append(1)
+            else:
+                rule_scores.append(0)
     return rule_scores
-
 
 pred_data = [get_fine_grain_predicted_index(image_name) for image_name in image_names]
 true_data = [get_fine_grain_true_index(image_name) for image_name in image_names]
 
-for i in range(m):
+for i in range(number_of_samples):
+    """
+    
+    """
     image_name = image_names[i]
 
     tmp_charts = []
@@ -169,7 +191,7 @@ all_charts = generate_chart(charts)
 
 # %%
 
-def GreedyNegRuleSelect(i, epsilon, all_charts):
+def GreedyNegRuleSelect(i: int, epsilon: float, all_charts: list[list[int]]):
     count = i
     chart = all_charts[i]
     chart = np.array(chart)
