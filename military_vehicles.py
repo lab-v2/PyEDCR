@@ -2,6 +2,7 @@
 
 # import matplotlib.pyplot as plt
 # import os
+
 import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
@@ -199,8 +200,8 @@ def GreedyNegRuleSelect(i: int,
 
         NCn = []
         for rule in rule_indexs:
-            negi_score = np.sum(chart[:, 2] * chart[:, rule])
-            if negi_score < quantity:
+            neg_i_score = np.sum(chart[:, 2] * chart[:, rule])
+            if neg_i_score < quantity:
                 NCn.append(rule)
 
         while NCn:
@@ -248,28 +249,34 @@ def DetUSMPosRuleSelect(i: int,
     count = i
     chart = all_charts[i]
     chart = np.array(chart)
-    rule_indexs = [i for i in range(4, len(chart[0]))]
+    rule_indices = [i for i in range(4, len(chart[0]))]
     each_sum = np.sum(chart, axis=0)
     tpi = each_sum[2]
     fpi = each_sum[3]
     pi = tpi * 1.0 / (tpi + fpi)
 
     pb_scores = []
-    for ri in rule_indexs:
-        posi = np.sum(chart[:, 1] * chart[:, ri], axis=0)
-        bodyi = np.sum(chart[:, ri], axis=0)
-        score = posi * 1.0 / bodyi
+
+    for ri in rule_indices:
+        pos_i = np.sum(chart[:, 1] * chart[:, ri], axis=0)
+        body_i = np.sum(chart[:, ri], axis=0)
+        score = pos_i * 1.0 / body_i
+
         if score > pi:
             pb_scores.append((score, ri))
+
     pb_scores = sorted(pb_scores)
+
     cci = []
     ccn = pb_scores
-    for (score, ri) in pb_scores:
 
+    for (score, ri) in pb_scores:
         cii = 0
         ciij = 0
+
         for (cs, ci) in cci:
             cii = cii | chart[:, ci]
+
         POScci = np.sum(cii * chart[:, 1], axis=0)
         BODcci = np.sum(cii, axis=0)
         POSccij = np.sum((cii | chart[:, ri]) * chart[:, 1], axis=0)
