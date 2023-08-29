@@ -284,18 +284,22 @@ def DetUSMPosRuleSelect(i: int,
 
         cni = 0
         cnij = 0
+
         for (cs, ci) in ccn:
-            cni = (cni | chart[:, ci])
+            cni |= chart[:, ci]
             if ci == ri:
                 continue
-            cnij = (cnij | chart[:, ci])
+            cnij |= chart[:, ci]
+
         POScni = np.sum(cni * chart[:, 1], axis=0)
         BODcni = np.sum(cni, axis=0)
         POScnij = np.sum(cnij * chart[:, 1], axis=0)
         BODcnij = np.sum(cnij, axis=0)
 
+
         a = POSccij * 1.0 / (BODccij + 0.001) - POScci * 1.0 / (BODcci + 0.001)
         b = POScnij * 1.0 / (BODcnij + 0.001) - POScni * 1.0 / (BODcni + 0.001)
+
         if a >= b:
             cci.append((score, ri))
         else:
@@ -307,8 +311,10 @@ def DetUSMPosRuleSelect(i: int,
     POScci = np.sum(cii * chart[:, 1], axis=0)
     BODcci = np.sum(cii, axis=0)
     new_pre = POScci * 1.0 / (BODcci + 0.001)
+
     if new_pre < pi:
         cci = []
+
     cci = [c[1] for c in cci]
     print(f"class{count}, cci:{cci}, new_pre:{new_pre}, pre:{pi}")
 
@@ -341,18 +347,21 @@ def ruleForNegativeCorrection(all_charts: list[list[int]],
         posi_count = 0
 
         predict_result = np.copy(chart[:, 0])
-        tem_cond = 0
+        tem_cond = np.array([0])
+
         for cc in NCi:
             tem_cond |= chart[:, cc]
+
         if np.sum(tem_cond) > 0:
-            for ct, cv in enumerate(chart):
-                if tem_cond[ct] and predict_result[ct]:
+            for w in range(len(chart)):
+                if tem_cond[w] and predict_result[w]:
                     negi_count += 1
-                    predict_result[ct] = 0
+                    predict_result[w] = 0
 
         CCi = []
         scores_cor = get_scores(chart[:, 1], predict_result)
-        results.extend(scores_cor + [negi_count, posi_count, len(NCi), len(CCi)])
+        results += scores_cor + [negi_count, posi_count, len(NCi), len(CCi)]
+
     results.extend(get_scores(true_data, total_results))
 
     return results
@@ -369,7 +378,8 @@ def ruleForNPCorrection(all_charts: list[list[int]],
         posi_count = 0
 
         predict_result = np.copy(chart[:, 0])
-        tem_cond = 0
+        tem_cond = np.array([0])
+
         for cc in NCi:
             tem_cond |= chart[:, cc]
         if np.sum(tem_cond) > 0:
@@ -379,24 +389,25 @@ def ruleForNPCorrection(all_charts: list[list[int]],
                     predict_result[ct] = 0
 
         CCi = DetUSMPosRuleSelect(count, all_charts)
-        tem_cond = 0
-        rec_true = []
-        rec_pred = []
+        tem_cond = np.array([0])
+        # rec_true = []
+        # rec_pred = []
+
         for cc in CCi:
             tem_cond |= chart[:, cc]
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
-                if tem_cond[ct]:
-                    if not predict_result[ct]:
-                        posi_count += 1
-                        predict_result[ct] = 1
-                        total_results[ct] = count
-                else:
-                    rec_true.append(cv[1])
-                    rec_pred.append(cv[0])
+                if tem_cond[ct] and not predict_result[ct]:
+                    posi_count += 1
+                    predict_result[ct] = 1
+                    total_results[ct] = count
+                # else:
+                #     rec_true.append(cv[1])
+                #     rec_pred.append(cv[0])
 
         scores_cor = get_scores(chart[:, 1], predict_result)
         results.extend(scores_cor + [negi_count, posi_count, len(NCi), len(CCi)])
+
     results.extend(get_scores(true_data, total_results))
     return results
 
@@ -449,6 +460,7 @@ for count, chart in enumerate(all_charts):
 
 result0.extend(get_scores(true_data, pred_data))
 results.append(result0)
+
 epsilon = [0.0001 * i for i in range(0, 101, 1)]
 print(epsilon)
 
@@ -479,4 +491,4 @@ for ep in epsilon:
     print(f"ep:{ep}\n{result}")
 
 df = pd.DataFrame(results, columns=['epsilon'] + col * n + ['acc', 'macro-F1', 'micro-F1'])
-df.to_csv("rule_for_PNcorrection.csv")
+df.to_csv("final_result.csv")
