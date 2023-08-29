@@ -112,6 +112,11 @@ def get_class(image_name: str,
 # %% Bowen's code
 
 def generate_chart(charts: list[list[int]]) -> list[list[int]]:
+    """
+    :param initial data structure before processing:
+    :return: fully encoded data structure for the algorithm (list of list of ints)
+    appends true positive and false positive encodings into the data structure
+    """
     all_charts = [[] for _ in range(len(fine_grain_classes))]
     for data in charts:
         for count, jj in enumerate(all_charts):
@@ -146,8 +151,12 @@ number_of_samples = zeros_and_ones_df.shape[0]
 high_scores = [0.55, 0.60]  # >0.95 is one rule, >0.98 is another rule, in total 4*24
 low_scores = [0.05, 0.02]
 
-
 def rules_values(image_name: str) -> list[int]:
+    """
+    :param image_name:
+    :return: encoded rules for the algorithm
+    create an encoded version of the rules
+    """
     rule_scores = []
     one_hot = get_example_fine_grain_one_hot_classes(image_name).ravel()
 
@@ -164,7 +173,6 @@ def rules_values(image_name: str) -> list[int]:
                 rule_scores.append(0)
     return rule_scores
 
-
 pred_data = [get_fine_grain_predicted_index(image_name) for image_name in image_names]
 true_data = [get_fine_grain_true_index(image_name) for image_name in image_names]
 
@@ -177,7 +185,6 @@ for i in range(number_of_samples):
     charts.append(tmp_charts)
 
 all_charts = generate_chart(charts)
-
 
 def GreedyNegRuleSelect(i: int,
                         epsilon: float,
