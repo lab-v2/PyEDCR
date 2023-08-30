@@ -1,10 +1,3 @@
-# tout_data is about the speed rule which is not included in this code.
-# ruleForNegativeCorrection/ruleForNPCorrection/ruleForPNCorrection is 
-# a different combination for negtive rule and positive rule. 
-# for NP, negtive first, positive second, PN positive first, negetive second.
-# for ruleForNegativeCorrection, negative only.
-# In the paper, we use NPCorrection.
-
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
@@ -15,13 +8,8 @@ base_path1 = 'no_overlap_sequential_10/'
 results_file = base_path0 + "rule_for_NPcorrection.csv"
 epsilons = [0.001 * i for i in range(1, 100, 1)]
 
-true_file = base_path0 + "test_true.npy"
-pred_file = base_path0 + "test_pred.npy"
-tout_file = base_path0 + 'test_out.npy'
-
-true_data = np.load(true_file, allow_pickle=True)
-pred_data = np.load(pred_file, allow_pickle=True)
-tout_data = np.load(tout_file, allow_pickle=True)
+true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
+pred_data = np.load(base_path0 + "test_pred.npy", allow_pickle=True)
 
 cla4_data = np.load(base_path1 + "test_out_cla4.npy", allow_pickle=True)
 cla3_data = np.load(base_path1 + "test_out_cla3.npy", allow_pickle=True)
@@ -31,22 +19,15 @@ cla0_data = np.load(base_path1 + "test_out_cla0.npy", allow_pickle=True)
 
 labels = set(true_data.flatten())
 len_labels = len(labels)
-
 n_classes = len_labels
 
-def rules1(i):
+
+def rules1(i: int):
     rule_scores = []
+
     for cls in cla_datas:
-        for score in high_scores:
-            if cls[i] > score:
-                rule_scores.append(1)
-            else:
-                rule_scores.append(0)
-        for score in low_scores:
-            if cls[i] < score:
-                rule_scores.append(1)
-            else:
-                rule_scores.append(0)
+        rule_scores += [int(cls[i]), 1 - int(cls[i])]
+
     return rule_scores
 
 
@@ -223,30 +204,33 @@ def ruleForNPCorrection(all_charts, epsilon):
     for count, chart in enumerate(all_charts):
         chart = np.array(chart)
         NCi = GreedyNegRuleSelect(count, epsilon, all_charts)
-        negi_count = 0
-        posi_count = 0
+        neg_i_count = 0
+        pos_i_count = 0
 
         predict_result = np.copy(chart[:, 0])
-        tem_cond = 0
+        tem_cond = np.zeros_like(chart[:, 0])
+
         for cc in NCi:
             tem_cond |= chart[:, cc]
+
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct] and predict_result[ct]:
-                    negi_count += 1
+                    neg_i_count += 1
                     predict_result[ct] = 0
 
         CCi = DetUSMPosRuleSelect(count, all_charts)
-        tem_cond = 0
+        tem_cond = np.zeros_like(chart[:, 0])
         rec_true = []
         rec_pred = []
+
         for cc in CCi:
             tem_cond |= chart[:, cc]
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct]:
                     if not predict_result[ct]:
-                        posi_count += 1
+                        pos_i_count += 1
                         predict_result[ct] = 1
                         total_results[ct] = count
                 else:
@@ -254,12 +238,9 @@ def ruleForNPCorrection(all_charts, epsilon):
                     rec_pred.append(cv[0])
 
         scores_cor = get_scores(chart[:, 1], predict_result)
-        results.extend(scores_cor + [negi_count, posi_count, len(NCi), len(CCi)])
+        results.extend(scores_cor + [neg_i_count, pos_i_count, len(NCi), len(CCi)])
     results.extend(get_scores(true_data, total_results))
     return results
-
-
-
 
 
 if __name__ == '__main__':
@@ -271,10 +252,7 @@ if __name__ == '__main__':
 
     m = true_data.shape[0]
     for i in range(m):
-        tmp_charts = []
-        tmp_charts.extend([pred_data[i], true_data[i]])
-        tmp_charts += rules1(i)
-        charts.append(tmp_charts)
+        charts.append([pred_data[i], true_data[i]] + rules1(i))
 
     all_charts = generate_chart(charts)
 
@@ -287,14 +265,12 @@ if __name__ == '__main__':
     result0.extend(get_scores(true_data, pred_data))
     results.append(result0)
 
-
     for ep in epsilons:
         result = ruleForNPCorrection(all_charts, ep)
         results.append([ep] + result)
         print(f"ep:{ep}\n{result}")
     col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
     df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
-
 
     df.to_csv(results_file)
 
