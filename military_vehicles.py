@@ -1,9 +1,20 @@
 # %% Imports
-
 import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import matplotlib.pyplot as plt
+
+data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+
+fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+fine_grain_classes = fine_grain_results_df['Class Name'].values
+n = len(fine_grain_classes)
+coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
+coarse_grain_classes = coarse_grain_results_df['Class Name'].values
+
+zeros_and_ones_df = dataframes_by_sheet['1s_0s_Sheet']
+image_names = zeros_and_ones_df['Image Name'].values
 
 
 def get_example_info(image_name: str) -> pd.Series:
@@ -101,7 +112,7 @@ def generate_chart(charts: list[list[int]]) -> list[list[int]]:
     :return: fully encoded data structure for the algorithm (list of list of ints)
     appends true positive and false positive encodings into the data structure
     """
-    all_charts = [[] for _ in range(len(fine_grain_classes))]
+    all_charts = [[] for _ in range(n_classes)]
     for data in charts:
         for count, jj in enumerate(all_charts):
             # pred, corr, tp, fp, cond1, cond2 ... condn
@@ -368,24 +379,49 @@ def plot(df: pd.DataFrame,
         plt.grid()
 
 
+def rules1(i):
+    rule_scores = []
+    for cls in cla_datas:
+        for score in high_scores:
+            if cls[i] > score:
+                rule_scores.append(1)
+            else:
+                rule_scores.append(0)
+        for score in low_scores:
+            if cls[i] < score:
+                rule_scores.append(1)
+            else:
+                rule_scores.append(0)
+    return rule_scores
+
+
 if __name__ == '__main__':
 
     # %% Data load
 
-    data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-    dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+    base_path0 = 'LRCN_F1_no_overlap_sequential'  # neural network predict and true label
+    base_path1 = 'no_overlap_sequential_10'  # rules
+    true_file = base_path0 + "/test_true.npy"
+    pred_file = base_path0 + "/test_pred.npy"
+    tout_file = base_path0 + '/test_out.npy'
 
-    fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-    fine_grain_classes = fine_grain_results_df['Class Name'].values
-    n = len(fine_grain_classes)
-    coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-    coarse_grain_classes = coarse_grain_results_df['Class Name'].values
+    true_data = np.load(true_file, allow_pickle=True)
+    pred_data = np.load(pred_file, allow_pickle=True)
+    tout_data = np.load(tout_file, allow_pickle=True)
+    cla4_data = np.load(base_path1 + "/test_out_cla4.npy", allow_pickle=True)
+    cla3_data = np.load(base_path1 + "/test_out_cla3.npy", allow_pickle=True)
+    cla2_data = np.load(base_path1 + "/test_out_cla2.npy", allow_pickle=True)
+    cla1_data = np.load(base_path1 + "/test_out_cla1.npy", allow_pickle=True)
+    cla0_data = np.load(base_path1 + "/test_out_cla0.npy", allow_pickle=True)
 
-    zeros_and_ones_df = dataframes_by_sheet['1s_0s_Sheet']
-    image_names = zeros_and_ones_df['Image Name'].values
+    # labels = set(true_data.flatten())
+    # len_labels = len(labels)
+    n_classes = 5
+    count = 0
+    cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
 
-    pred_data = [get_fine_grain_predicted_index(image_name) for image_name in image_names]
-    true_data = [get_fine_grain_true_index(image_name) for image_name in image_names]
+    # pred_data = [get_fine_grain_predicted_index(image_name) for image_name in image_names]
+    # true_data = [get_fine_grain_true_index(image_name) for image_name in image_names]
 
     charts = []
     number_of_samples = zeros_and_ones_df.shape[0]
@@ -393,12 +429,20 @@ if __name__ == '__main__':
     high_scores = [0.55, 0.60]  # >0.95 is one rule, >0.98 is another rule, in total 4*24
     low_scores = [0.05, 0.02]
 
-    for i in range(number_of_samples):
-        image_name = image_names[i]
+    # for i in range(number_of_samples):
+    #     image_name = image_names[i]
+    #
+    #     tmp_charts = []
+    #     tmp_charts.extend([get_fine_grain_predicted_index(image_name), get_fine_grain_true_index(image_name)])
+    #     tmp_charts += rules_values(image_name)
+    #     charts.append(tmp_charts)
 
+    m = true_data.shape[0]
+    for i in range(m):
         tmp_charts = []
-        tmp_charts.extend([get_fine_grain_predicted_index(image_name), get_fine_grain_true_index(image_name)])
-        tmp_charts += rules_values(image_name)
+        tmp_charts.extend([pred_data[i], true_data[i]])
+        tmp_charts += rules1(i)
+
         charts.append(tmp_charts)
 
     all_charts = generate_chart(charts)
@@ -413,7 +457,7 @@ if __name__ == '__main__':
 
     result0.extend(get_scores(true_data, pred_data))
     results.append(result0)
-    #
+
     epsilons = [0.0001 * i for i in range(0, 101, 1)]
     col = ['precision', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
     results = [result0]
@@ -423,12 +467,12 @@ if __name__ == '__main__':
         results.append([epsilon] + result)
         print(f"ep:{epsilon}\n{result}")
 
-    df = pd.DataFrame(results, columns=['epsilon'] + col * n + ['acc', 'macro-F1', 'micro-F1'])
+    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
 
     results_filename = "results.csv"
     df.to_csv(results_filename)
 
     df = pd.read_csv(results_filename)
     plot(df=df,
-         n=n,
+         n=n_classes,
          epsilons=epsilons)
