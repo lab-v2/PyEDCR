@@ -1,4 +1,4 @@
-# %% Imports
+# Imports
 
 # import matplotlib.pyplot as plt
 # import os
@@ -7,20 +7,8 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 
-# %% Data load
 
-data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
-
-fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-fine_grain_classes = fine_grain_results_df['Class Name'].values
-n = len(fine_grain_classes)
-coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-coarse_grain_classes = coarse_grain_results_df['Class Name'].values
-
-zeros_and_ones_df = dataframes_by_sheet['1s_0s_Sheet']
-image_names = zeros_and_ones_df['Image Name'].values
-
+# Military data extraction
 
 def get_example_info(image_name: str) -> pd.Series:
     """
@@ -31,7 +19,7 @@ def get_example_info(image_name: str) -> pd.Series:
     return zeros_and_ones_df[zeros_and_ones_df['Image Name'] == image_name]
 
 
-def get_example_fine_grain_one_hot_classes(image_name: str):
+def get_example_fine_grain_one_hot_classes(image_name: str) -> pd.Series:
     """
     :param image_name: The image name of the example to consider
     :return: One-hot prediction vectors for all the classes on the image
@@ -113,15 +101,17 @@ def get_class(image_name: str,
 
 def generate_chart(charts: list[list[int]]) -> list[list[int]]:
     """
-    :param initial data structure before processing:
+    :param charts: initial data structure before processing
     :return: fully encoded data structure for the algorithm (list of list of ints)
     appends true positive and false positive encodings into the data structure
     """
+
     all_charts = [[] for _ in range(len(fine_grain_classes))]
     for data in charts:
         for count, jj in enumerate(all_charts):
             # pred, corr, tp, fp, cond1, cond2 ... condn
             each_items = []
+
             for d in data[:2]:
                 if d == count:
                     each_items.append(1)
@@ -129,62 +119,36 @@ def generate_chart(charts: list[list[int]]) -> list[list[int]]:
                     each_items.append(0)
 
             # tp
-            if each_items[0] == 1 and each_items[1] == 1:
-                each_items.append(1)
-            else:
-                each_items.append(0)
+            each_items += [int(each_items[0] == 1 and each_items[1] == 1)]
 
             # fp
-            if each_items[0] == 1 and each_items[1] == 0:
-                each_items.append(1)
-            else:
-                each_items.append(0)
+            each_items += [int(each_items[0] == 1 and each_items[1] == 0)]
+
             each_items.extend(data[2:])
             jj.append(each_items)
 
     return all_charts
 
 
-charts = []
-number_of_samples = zeros_and_ones_df.shape[0]
-
-high_scores = [0.55, 0.60]  # >0.95 is one rule, >0.98 is another rule, in total 4*24
-low_scores = [0.05, 0.02]
-
 def rules_values(image_name: str) -> list[int]:
     """
     :param image_name:
     :return: encoded rules for the algorithm
-    create an encoded version of the rules
+    Creates an encoded version of the rules
     """
+
     rule_scores = []
     one_hot = get_example_fine_grain_one_hot_classes(image_name).ravel()
 
     for class_prediction in one_hot:
         for score in high_scores:
-            if class_prediction > score:
-                rule_scores.append(1)
-            else:
-                rule_scores.append(0)
+            rule_scores += [int(class_prediction > score)]
+
         for score in low_scores:
-            if class_prediction < score:
-                rule_scores.append(1)
-            else:
-                rule_scores.append(0)
+            rule_scores += [int(class_prediction < score)]
+
     return rule_scores
 
-pred_data = [get_fine_grain_predicted_index(image_name) for image_name in image_names]
-true_data = [get_fine_grain_true_index(image_name) for image_name in image_names]
-
-for i in range(number_of_samples):
-    image_name = image_names[i]
-
-    tmp_charts = []
-    tmp_charts.extend([get_fine_grain_predicted_index(image_name), get_fine_grain_true_index(image_name)])
-    tmp_charts += rules_values(image_name)
-    charts.append(tmp_charts)
-
-all_charts = generate_chart(charts)
 
 def GreedyNegRuleSelect(i: int,
                         epsilon: float,
@@ -228,11 +192,9 @@ def GreedyNegRuleSelect(i: int,
                     best_score = posi_score
                     best_index = c
 
-            # add c_best to NCi
-            NCi.append(best_index)
+            NCi.append(best_index)  # add c_best to NCi
 
-            # remove c_best to from NCn
-            NCn.remove(best_index)
+            NCn.remove(best_index)  # remove c_best to from NCn
 
             tem_cond = 0
             for cc in NCi:
@@ -279,7 +241,6 @@ def DetUSMPosRuleSelect(i: int,
 
     for (score, ri) in pb_scores:
         cii = 0
-        ciij = 0
 
         for (cs, ci) in cci:
             cii = cii | chart[:, ci]
@@ -302,7 +263,6 @@ def DetUSMPosRuleSelect(i: int,
         BODcni = np.sum(cni, axis=0)
         POScnij = np.sum(cnij * chart[:, 1], axis=0)
         BODcnij = np.sum(cnij, axis=0)
-
 
         a = POSccij * 1.0 / (BODccij + 0.001) - POScci * 1.0 / (BODcci + 0.001)
         b = POScnij * 1.0 / (BODcnij + 0.001) - POScni * 1.0 / (BODcni + 0.001)
@@ -328,33 +288,37 @@ def DetUSMPosRuleSelect(i: int,
     return cci
 
 
-def get_scores(y_true: np.array, y_pred: np.array) -> list[float]:
+def get_metrics(y_true: np.array,
+                y_pred: np.array) -> list[float]:
     try:
-        pre = precision_score(y_true, y_pred)
-        rec = recall_score(y_true, y_pred)
-        f1 = f1_score(y_true, y_pred)
+        pre = precision_score(y_true=y_true, y_pred=y_pred)
+        rec = recall_score(y_true=y_true, y_pred=y_pred)
+        f1 = f1_score(y_true=y_true, y_pred=y_pred)
 
         return [pre, rec, f1]
     except:
-        pre = accuracy_score(y_true, y_pred)
-        f1 = f1_score(y_true, y_pred, average='macro')
-        f1micro = f1_score(y_true, y_pred, average='micro')
+        pre = accuracy_score(y_true=y_true, y_pred=y_pred)
+        f1 = f1_score(y_true=y_true, y_pred=y_pred, average='macro')
+        f1micro = f1_score(y_true=y_true, y_pred=y_pred, average='micro')
 
         return [pre, f1, f1micro]
 
 
-def ruleForNegativeCorrection(all_charts: list[list[int]],
-                              epsilon: float):  # how to use
+def run_negative_rules_pipeline(all_charts: list[list[int]],
+                                epsilon: float) -> list[float]:
     results = []
-    total_results = np.copy(pred_data)
-    for count, chart in enumerate(all_charts):
+    total_results = np.copy(predicted)
+
+    for i, chart in enumerate(all_charts):
         chart = np.array(chart)
-        NCi = GreedyNegRuleSelect(count, epsilon, all_charts)
-        negi_count = 0
-        posi_count = 0
+        NCi = GreedyNegRuleSelect(i=i,
+                                  epsilon=epsilon,
+                                  all_charts=all_charts)
+        neg_i_count = 0
+        pos_i_count = 0
 
         predict_result = np.copy(chart[:, 0])
-        tem_cond = np.array([0])
+        tem_cond = np.zeros_like(chart[:, 0])
 
         for cc in NCi:
             tem_cond |= chart[:, cc]
@@ -362,66 +326,67 @@ def ruleForNegativeCorrection(all_charts: list[list[int]],
         if np.sum(tem_cond) > 0:
             for w in range(len(chart)):
                 if tem_cond[w] and predict_result[w]:
-                    negi_count += 1
+                    neg_i_count += 1
                     predict_result[w] = 0
 
         CCi = []
-        scores_cor = get_scores(chart[:, 1], predict_result)
-        results += scores_cor + [negi_count, posi_count, len(NCi), len(CCi)]
+        scores_cor = get_metrics(y_true=chart[:, 1],
+                                 y_pred=predict_result)
 
-    results.extend(get_scores(true_data, total_results))
+        results += scores_cor + [neg_i_count, pos_i_count, len(NCi), len(CCi)]
+
+    results += get_metrics(y_true=ground_truth,
+                           y_pred=total_results)
 
     return results
 
 
-def ruleForNPCorrection(all_charts: list[list[int]],
-                        epsilon: float):
+def run_positive_rules_pipeline(all_charts: list[list[int]],
+                                epsilon: float):
     results = []
-    total_results = np.copy(pred_data)
+    total_results = np.copy(predicted)
+
     for count, chart in enumerate(all_charts):
         chart = np.array(chart)
         NCi = GreedyNegRuleSelect(count, epsilon, all_charts)
-        negi_count = 0
-        posi_count = 0
+        neg_i_count = 0
+        pos_i_count = 0
 
         predict_result = np.copy(chart[:, 0])
-        tem_cond = np.array([0])
+        tem_cond = np.zeros_like(chart[:, 0])
 
         for cc in NCi:
             tem_cond |= chart[:, cc]
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct] and predict_result[ct]:
-                    negi_count += 1
+                    neg_i_count += 1
                     predict_result[ct] = 0
 
         CCi = DetUSMPosRuleSelect(count, all_charts)
-        tem_cond = np.array([0])
-        # rec_true = []
-        # rec_pred = []
+        tem_cond = np.zeros_like(chart[:, 0])
 
         for cc in CCi:
             tem_cond |= chart[:, cc]
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct] and not predict_result[ct]:
-                    posi_count += 1
+                    pos_i_count += 1
                     predict_result[ct] = 1
                     total_results[ct] = count
-                # else:
-                #     rec_true.append(cv[1])
-                #     rec_pred.append(cv[0])
 
-        scores_cor = get_scores(chart[:, 1], predict_result)
-        results.extend(scores_cor + [negi_count, posi_count, len(NCi), len(CCi)])
+        scores_cor = get_metrics(chart[:, 1], predict_result)
+        results.extend(scores_cor + [neg_i_count, pos_i_count, len(NCi), len(CCi)])
 
-    results.extend(get_scores(true_data, total_results))
+    results.extend(get_metrics(ground_truth, total_results))
+
     return results
 
 
-def ruleForPNCorrection(all_charts: list[list[int]], epsilon: float):
+def ruleForPNCorrection(all_charts: list[list[int]],
+                        epsilon: float):
     results = []
-    total_results = np.copy(pred_data)
+    total_results = np.copy(predicted)
     for count, chart in enumerate(all_charts):
         chart = np.array(chart)
         negi_count = 0
@@ -429,7 +394,8 @@ def ruleForPNCorrection(all_charts: list[list[int]], epsilon: float):
 
         predict_result = np.copy(chart[:, 0])
         CCi = DetUSMPosRuleSelect(count, all_charts)
-        tem_cond = 0
+        tem_cond = np.zeros_like(chart[:, 0])
+
         for cc in CCi:
             tem_cond |= chart[:, cc]
         if np.sum(tem_cond) > 0:
@@ -442,7 +408,7 @@ def ruleForPNCorrection(all_charts: list[list[int]], epsilon: float):
 
         NCi = GreedyNegRuleSelect(count, epsilon, all_charts)
 
-        tem_cond = 0
+        tem_cond = np.zeros_like(chart[:, 0])
         for cc in NCi:
             tem_cond |= chart[:, cc]
         if np.sum(tem_cond) > 0:
@@ -451,51 +417,92 @@ def ruleForPNCorrection(all_charts: list[list[int]], epsilon: float):
                     negi_count += 1
                     predict_result[ct] = 0
 
-        scores_cor = get_scores(chart[:, 1], predict_result)
+        scores_cor = get_metrics(chart[:, 1], predict_result)
         results.extend(scores_cor + [negi_count, posi_count, len(NCi), len(CCi)])
-    results.extend(get_scores(true_data, total_results))
+
+    results.extend(get_metrics(ground_truth, total_results))
+
     return results
 
 
-results = []
-result0 = [0]
+if __name__ == '__main__':
+    # Data loading
 
-for count, chart in enumerate(all_charts):
-    chart = np.array(chart)
-    result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-    result0.extend([0, 0, 0, 0])
+    data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+    dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 
-result0.extend(get_scores(true_data, pred_data))
-results.append(result0)
+    fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+    fine_grain_classes = fine_grain_results_df['Class Name'].values
+    n = len(fine_grain_classes)
+    coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
+    coarse_grain_classes = coarse_grain_results_df['Class Name'].values
 
-epsilon = [0.0001 * i for i in range(0, 101, 1)]
-print(epsilon)
+    zeros_and_ones_df = dataframes_by_sheet['1s_0s_Sheet']
+    image_names = zeros_and_ones_df['Image Name'].values
 
-for ep in epsilon:
-    result = ruleForNegativeCorrection(all_charts, ep)
-    results.append([ep] + result)
-    print(f"ep:{ep}\n{result}")
+    number_of_samples = zeros_and_ones_df.shape[0]
 
-col = ['precision', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-df = pd.DataFrame(results, columns=['epsilon'] + col * n + ['acc', 'macro-F1', 'micro-F1'])
-df.to_csv("post_negative_rules.csv")
-#
-results = [result0]
+    high_scores = [0.55, 0.60]  # >0.95 is one rule, >0.98 is another rule, in total 4*24
+    low_scores = [0.05, 0.02]
 
-for ep in epsilon:
-    result = ruleForNPCorrection(all_charts, ep)
-    results.append([ep] + result)
-    print(f"ep:{ep}\n{result}")
+    charts = []
+    predicted = []
+    ground_truth = []
 
-df = pd.DataFrame(results, columns=['epsilon'] + col * n + ['acc', 'macro-F1', 'micro-F1'])
-df.to_csv("post_positive_rules.csv")
+    for image_name in image_names:
+        predicted_class = get_fine_grain_predicted_index(image_name)
+        ground_truth_class = get_fine_grain_true_index(image_name)
 
-results = [result0]
+        predicted += [predicted_class]
+        ground_truth += [ground_truth_class]
 
-for ep in epsilon:
-    result = ruleForPNCorrection(all_charts, ep)
-    results.append([ep] + result)
-    print(f"ep:{ep}\n{result}")
+        tmp_charts = [predicted_class, ground_truth_class] + rules_values(image_name)
+        charts += [tmp_charts]
 
-df = pd.DataFrame(results, columns=['epsilon'] + col * n + ['acc', 'macro-F1', 'micro-F1'])
-df.to_csv("final_result.csv")
+    all_charts = generate_chart(charts)
+
+    results = []
+    result0 = [0]
+
+    for count, chart in enumerate(all_charts):
+        chart = np.array(chart)
+        result0 += get_metrics(y_true=chart[:, 1],
+                               y_pred=chart[:, 0])
+        result0 += [0, 0, 0, 0]
+
+    result0 += get_metrics(y_true=predicted,
+                           y_pred=ground_truth)
+    results += result0
+
+    epsilon = [0.0001 * i for i in range(0, 101, 1)]
+    print(epsilon)
+
+    for ep in epsilon:
+        result = run_negative_rules_pipeline(all_charts=all_charts,
+                                             epsilon=ep)
+        results += [[ep] + result]
+        print(f"ep:{ep}\n{result}")
+
+    col = ['precision', 'recall', 'F1', 'NEG_i', 'POS_i', 'NRC', 'PRC']
+    df = pd.DataFrame(results, columns=['epsilon'] + col * n + ['acc', 'macro-F1', 'micro-F1'])
+    df.to_csv("post_negative_rules.csv")
+
+    # results = [result0]
+    #
+    # for ep in epsilon:
+    #     result = run_positive_rules_pipeline(all_charts, ep)
+    #     results += [[ep] + result]
+    #     print(f"ep:{ep}\n{result}")
+    #
+    # df = pd.DataFrame(results, columns=['epsilon'] + col * n + ['acc', 'macro-F1', 'micro-F1'])
+    # df.to_csv("post_positive_rules.csv")
+    #
+    # results = [result0]
+    #
+    # for ep in epsilon:
+    #     result = ruleForPNCorrection(all_charts, ep)
+    #     results += [[ep] + result]
+    #     print(f"ep:{ep}\n{result}")
+    #
+    # df = pd.DataFrame(results, columns=['epsilon'] + col * n + ['acc', 'macro-F1', 'micro-F1'])
+    # df.to_csv("final_result.csv")
