@@ -414,14 +414,12 @@ if __name__ == '__main__':
     cla1_data = np.load(base_path1 + "/test_out_cla1.npy", allow_pickle=True)
     cla0_data = np.load(base_path1 + "/test_out_cla0.npy", allow_pickle=True)
 
-    # labels = set(true_data.flatten())
-    # len_labels = len(labels)
     n_classes = 5
     count = 0
     cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
 
-    # pred_data = [get_fine_grain_predicted_index(image_name) for image_name in image_names]
-    # true_data = [get_fine_grain_true_index(image_name) for image_name in image_names]
+    pred_data = [get_fine_grain_predicted_index(image_name) for image_name in image_names]
+    true_data = [get_fine_grain_true_index(image_name) for image_name in image_names]
 
     charts = []
     number_of_samples = zeros_and_ones_df.shape[0]
