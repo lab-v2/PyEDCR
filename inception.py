@@ -179,7 +179,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
               f'\ntraining loss: {round(running_loss / len(train_loader), 3)}')
         print(f'training accuracy: {round(acc, 3)}\n')
 
-        if acc < 0.5 * train_acc[-1]:
+        if len(train_acc) and acc < 0.5 * train_acc[-1]:
             raise RuntimeError('Training accuracy reduced by too much, stopped learning')
 
         train_acc += [acc]
