@@ -1,4 +1,3 @@
-# %% Imports
 import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
@@ -399,15 +398,11 @@ if __name__ == '__main__':
 
     # %% Data load
 
-    base_path0 = 'LRCN_F1_no_overlap_sequential'  # neural network predict and true label
-    base_path1 = 'no_overlap_sequential_10'  # rules
-    true_file = base_path0 + "/test_true.npy"
-    pred_file = base_path0 + "/test_pred.npy"
-    tout_file = base_path0 + '/test_out.npy'
+    true_data = np.load("inception_true.npy", allow_pickle=True)
+    pred_data = np.load("inception_pred.npy", allow_pickle=True)
+    cla_datas = np.load('vit_pred.npy', allow_pickle=True)
 
-    true_data = np.load(true_file, allow_pickle=True)
-    pred_data = np.load(pred_file, allow_pickle=True)
-    tout_data = np.load(tout_file, allow_pickle=True)
+
     cla4_data = np.load(base_path1 + "/test_out_cla4.npy", allow_pickle=True)
     cla3_data = np.load(base_path1 + "/test_out_cla3.npy", allow_pickle=True)
     cla2_data = np.load(base_path1 + "/test_out_cla2.npy", allow_pickle=True)
@@ -418,8 +413,6 @@ if __name__ == '__main__':
     count = 0
     cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
 
-    pred_data = [get_fine_grain_predicted_index(image_name) for image_name in image_names]
-    true_data = [get_fine_grain_true_index(image_name) for image_name in image_names]
 
     charts = []
     number_of_samples = zeros_and_ones_df.shape[0]
@@ -437,8 +430,7 @@ if __name__ == '__main__':
 
     m = true_data.shape[0]
     for i in range(m):
-        tmp_charts = []
-        tmp_charts.extend([pred_data[i], true_data[i]])
+        tmp_charts = [pred_data[i], true_data[i]]
         tmp_charts += rules1(i)
 
         charts.append(tmp_charts)
