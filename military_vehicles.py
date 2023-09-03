@@ -366,22 +366,36 @@ if __name__ == '__main__':
 
     # %% Data load
 
-    true_data = np.load("inception_true.npy")
-    assert np.all(true_data == np.load('vit_true.npy'))
+    # true_data = np.load("inception_true.npy")
+    # assert np.all(true_data == np.load('vit_true.npy'))
+    #
+    # pred_data = np.load("inception_pred.npy")
+    # print(f'Inception accuracy: {accuracy_score(y_true=true_data, y_pred=pred_data)}')
+    # cla_datas = np.load('vit_pred.npy')
+    # print(f'VIT accuracy: {accuracy_score(y_true=true_data, y_pred=cla_datas)}')
 
-    pred_data = np.load("inception_pred.npy")
-    print(f'Inception accuracy: {accuracy_score(y_true=true_data, y_pred=pred_data)}')
-    cla_datas = np.load('vit_pred.npy')
-    print(f'VIT accuracy: {accuracy_score(y_true=true_data, y_pred=cla_datas)}')
+    base_path0 = 'LRCN_F1_no_overlap_sequential/'
+    base_path1 = 'no_overlap_sequential_10/'
+
+    true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
+    pred_data = np.load(base_path0 + "test_pred.npy", allow_pickle=True)
+
+    cla4_data = np.load(base_path1 + "test_out_cla4.npy", allow_pickle=True)
+    cla3_data = np.load(base_path1 + "test_out_cla3.npy", allow_pickle=True)
+    cla2_data = np.load(base_path1 + "test_out_cla2.npy", allow_pickle=True)
+    cla1_data = np.load(base_path1 + "test_out_cla1.npy", allow_pickle=True)
+    cla0_data = np.load(base_path1 + "test_out_cla0.npy", allow_pickle=True)
+    cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
 
     n = np.max(cla_datas) + 1
-    cla_datas = np.eye(n)[cla_datas]
+    # cla_datas = np.eye(n)[cla_datas]
 
     charts = []
 
     m = true_data.shape[0]
     for i in range(m):
-        tmp_charts = [pred_data[i], true_data[i]] + [int(cls[i]) for cls in cla_datas.T]
+        rules = [int(cls[i]) for cls in cla_datas]
+        tmp_charts = [pred_data[i], true_data[i]] + rules
         charts.append(tmp_charts)
 
     all_charts = generate_chart(charts)
