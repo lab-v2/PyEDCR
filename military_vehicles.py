@@ -159,57 +159,57 @@ def GreedyNegRuleSelect(i: int,
         ri = tpi * 1.0 / each_sum[1]
         ni = each_sum[0]
         quantity = epsilon * ni * pi / ri
-        print(f"class{count}, quantity:{quantity}")
+        if quantity:
+            print(f"class{count}, quantity:{quantity}")
 
-        NCn = []
-        for rule in rule_indexs:
-            neg_i_score = np.sum(chart[:, 2] * chart[:, rule])
-            if neg_i_score < quantity:
-                NCn.append(rule)
+            NCn = []
+            for rule in rule_indexs:
+                neg_i_score = np.sum(chart[:, 2] * chart[:, rule])
+                if neg_i_score < quantity:
+                    NCn.append(rule)
 
-        while NCn:
-            # argmax c \in NCn POS_{NCi + [c]}
-            best_score = -1
-            best_index = -1
+            while NCn:
+                # argmax c \in NCn POS_{NCi + [c]}
+                best_score = -1
+                best_index = -1
 
-            for c in NCn:
+                for c in NCn:
+                    tem_cond = 0
+
+                    for cc in NCi:
+                        tem_cond |= chart[:, cc]
+                    tem_cond |= chart[:, c]
+                    posi_score = np.sum(chart[:, 3] * tem_cond)
+
+                    if best_score < posi_score:
+                        best_score = posi_score
+                        best_index = c
+
+                # add c_best to NCi
+                NCi.append(best_index)
+
+                # remove c_best to from NCn
+                NCn.remove(best_index)
+
                 tem_cond = 0
-
                 for cc in NCi:
                     tem_cond |= chart[:, cc]
-                tem_cond |= chart[:, c]
-                posi_score = np.sum(chart[:, 3] * tem_cond)
 
-                if best_score < posi_score:
-                    best_score = posi_score
-                    best_index = c
+                tmp_NCn = []
 
-            # add c_best to NCi
-            NCi.append(best_index)
-
-            # remove c_best to from NCn
-            NCn.remove(best_index)
-
-            tem_cond = 0
-            for cc in NCi:
-                tem_cond |= chart[:, cc]
-
-            tmp_NCn = []
-
-            for c in NCn:
-                tem = tem_cond | chart[:, c]
-                negi_score = np.sum(chart[:, 2] * tem)
-                if negi_score < quantity:
-                    tmp_NCn.append(c)
-            NCn = tmp_NCn
-        print(f"class:{count}, NCi:{NCi}")
+                for c in NCn:
+                    tem = tem_cond | chart[:, c]
+                    negi_score = np.sum(chart[:, 2] * tem)
+                    if negi_score < quantity:
+                        tmp_NCn.append(c)
+                NCn = tmp_NCn
+            print(f"class:{count}, NCi:{NCi}")
 
     return NCi
 
 
 def DetUSMPosRuleSelect(i: int,
                         all_charts: list[list[int]]):
-    count = i
     chart = all_charts[i]
     chart = np.array(chart)
     rule_indices = [i for i in range(4, len(chart[0]))]
@@ -299,40 +299,42 @@ def get_scores(y_true: np.array, y_pred: np.array) -> list[float]:
         return [pre, f1, f1micro]
 
 
-def ruleForNPCorrection(all_charts: list[list[int]],
+def ruleForNPCorrection(class_datas: list[list[int]],
                         epsilon: float):
     results = []
     total_results = np.copy(pred_data)
-    for count, chart in enumerate(all_charts):
-        chart = np.array(chart)
-        NCi = GreedyNegRuleSelect(count, epsilon, all_charts)
+
+    for i, data_i in enumerate(class_datas):
+        data_i = np.array(data_i)
+        NCi = GreedyNegRuleSelect(i, epsilon, class_datas)
         negi_count = 0
         posi_count = 0
 
-        predict_result = np.copy(chart[:, 0])
-        tem_cond = np.zeros_like(chart[:, 0])
+        predict_result = np.copy(data_i[:, 0])
+        tem_cond = np.zeros_like(data_i[:, 0])
 
         for cc in NCi:
-            tem_cond |= chart[:, cc]
+            tem_cond |= data_i[:, cc]
+
         if np.sum(tem_cond) > 0:
-            for ct, cv in enumerate(chart):
+            for ct, cv in enumerate(data_i):
                 if tem_cond[ct] and predict_result[ct]:
                     negi_count += 1
                     predict_result[ct] = 0
 
-        CCi = DetUSMPosRuleSelect(count, all_charts)
-        tem_cond = np.zeros_like(chart[:, 0])
+        CCi = DetUSMPosRuleSelect(i, class_datas)
+        tem_cond = np.zeros_like(data_i[:, 0])
 
         for cc in CCi:
-            tem_cond |= chart[:, cc]
+            tem_cond |= data_i[:, cc]
         if np.sum(tem_cond) > 0:
-            for ct, cv in enumerate(chart):
+            for ct, cv in enumerate(data_i):
                 if tem_cond[ct] and not predict_result[ct]:
                     posi_count += 1
                     predict_result[ct] = 1
-                    total_results[ct] = count
+                    total_results[ct] = i
 
-        scores_cor = get_scores(chart[:, 1], predict_result)
+        scores_cor = get_scores(data_i[:, 1], predict_result)
         results.extend(scores_cor + [negi_count, posi_count, len(NCi), len(CCi)])
 
     results.extend(get_scores(true_data, total_results))
@@ -395,7 +397,7 @@ if __name__ == '__main__':
     result0.extend(get_scores(true_data, pred_data))
     results.append(result0)
 
-    epsilons = [0.0001 * i for i in range(0, 101, 1)]
+    epsilons = [0.1 * i for i in range(0, 101, 1)]
     col = ['precision', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
     results = [result0]
 
