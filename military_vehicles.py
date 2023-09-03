@@ -111,7 +111,7 @@ def generate_chart(charts: list[list[int]]) -> list[list[int]]:
     :return: fully encoded data structure for the algorithm (list of list of ints)
     appends true positive and false positive encodings into the data structure
     """
-    all_charts = [[] for _ in range(n_classes)]
+    all_charts = [[] for _ in range(n)]
     for data in charts:
         for count, jj in enumerate(all_charts):
             # pred, corr, tp, fp, cond1, cond2 ... condn
@@ -139,29 +139,6 @@ def generate_chart(charts: list[list[int]]) -> list[list[int]]:
     return all_charts
 
 
-def rules_values(image_name: str) -> list[int]:
-    """
-    :param image_name:
-    :return: encoded rules for the algorithm
-    create an encoded version of the rules
-    """
-    rule_scores = []
-    one_hot = get_example_fine_grain_one_hot_classes(image_name).ravel()
-
-    for class_prediction in one_hot:
-        for score in high_scores:
-            if class_prediction > score:
-                rule_scores.append(1)
-            else:
-                rule_scores.append(0)
-        for score in low_scores:
-            if class_prediction < score:
-                rule_scores.append(1)
-            else:
-                rule_scores.append(0)
-    return rule_scores
-
-
 def GreedyNegRuleSelect(i: int,
                         epsilon: float,
                         all_charts: list[list[int]]) -> list[int]:
@@ -172,10 +149,13 @@ def GreedyNegRuleSelect(i: int,
     each_sum = np.sum(chart, axis=0)
     tpi = each_sum[2]
     fpi = each_sum[3]
-    pi = tpi * 1.0 / (tpi + fpi)
+
     NCi = []
+    positive_i = tpi + fpi
+
 
     if each_sum[1] and tpi:
+        pi = tpi * 1.0 / positive_i
         ri = tpi * 1.0 / each_sum[1]
         ni = each_sum[0]
         quantity = epsilon * ni * pi / ri
@@ -243,10 +223,11 @@ def DetUSMPosRuleSelect(i: int,
     for ri in rule_indices:
         pos_i = np.sum(chart[:, 1] * chart[:, ri], axis=0)
         body_i = np.sum(chart[:, ri], axis=0)
-        score = pos_i * 1.0 / body_i
+        if body_i:
+            score = pos_i * 1.0 / body_i
 
-        if score > pi:
-            pb_scores.append((score, ri))
+            if score > pi:
+                pb_scores.append((score, ri))
 
     pb_scores = sorted(pb_scores)
 
@@ -254,18 +235,19 @@ def DetUSMPosRuleSelect(i: int,
     ccn = pb_scores
 
     for (score, ri) in pb_scores:
-        cii = 0
+        cii = np.zeros_like(chart[:, ri])
 
         for (cs, ci) in cci:
             cii = cii | chart[:, ci]
 
         POScci = np.sum(cii * chart[:, 1], axis=0)
         BODcci = np.sum(cii, axis=0)
-        POSccij = np.sum((cii | chart[:, ri]) * chart[:, 1], axis=0)
-        BODccij = np.sum((cii | chart[:, ri]), axis=0)
+        bitwise_or = cii | chart[:, ri]
+        POSccij = np.sum(bitwise_or * chart[:, 1], axis=0)
+        BODccij = np.sum(bitwise_or, axis=0)
 
-        cni = 0
-        cnij = 0
+        cni = np.zeros_like(chart[:, ri])
+        cnij = np.zeros_like(chart[:, ri])
 
         for (cs, ci) in ccn:
             cni |= chart[:, ci]
@@ -286,7 +268,7 @@ def DetUSMPosRuleSelect(i: int,
         else:
             ccn.remove((score, ri))
 
-    cii = 0
+    cii = np.zeros_like(chart[:, 0])
     for (cs, ci) in cci:
         cii = cii | chart[:, ci]
     POScci = np.sum(cii * chart[:, 1], axis=0)
@@ -374,65 +356,30 @@ def plot(df: pd.DataFrame,
         plt.title(f'cls - {i}')
         plt.legend()
         plt.tight_layout()
-        plt.show()
         plt.grid()
-
-
-def rules1(i):
-    rule_scores = []
-    for cls in cla_datas:
-        for score in high_scores:
-            if cls[i] > score:
-                rule_scores.append(1)
-            else:
-                rule_scores.append(0)
-        for score in low_scores:
-            if cls[i] < score:
-                rule_scores.append(1)
-            else:
-                rule_scores.append(0)
-    return rule_scores
+        plt.show()
 
 
 if __name__ == '__main__':
 
     # %% Data load
 
-    true_data = np.load("inception_true.npy", allow_pickle=True)
-    pred_data = np.load("inception_pred.npy", allow_pickle=True)
-    cla_datas = np.load('vit_pred.npy', allow_pickle=True)
+    true_data = np.load("inception_true.npy")
+    assert np.all(true_data == np.load('vit_true.npy'))
 
+    pred_data = np.load("inception_pred.npy")
+    print(f'Inception accuracy: {accuracy_score(y_true=true_data, y_pred=pred_data)}')
+    cla_datas = np.load('vit_pred.npy')
+    print(f'VIT accuracy: {accuracy_score(y_true=true_data, y_pred=cla_datas)}')
 
-    cla4_data = np.load(base_path1 + "/test_out_cla4.npy", allow_pickle=True)
-    cla3_data = np.load(base_path1 + "/test_out_cla3.npy", allow_pickle=True)
-    cla2_data = np.load(base_path1 + "/test_out_cla2.npy", allow_pickle=True)
-    cla1_data = np.load(base_path1 + "/test_out_cla1.npy", allow_pickle=True)
-    cla0_data = np.load(base_path1 + "/test_out_cla0.npy", allow_pickle=True)
-
-    n_classes = 5
-    count = 0
-    cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
-
+    n = np.max(cla_datas) + 1
+    cla_datas = np.eye(n)[cla_datas]
 
     charts = []
-    number_of_samples = zeros_and_ones_df.shape[0]
-
-    high_scores = [0.55, 0.60]  # >0.95 is one rule, >0.98 is another rule, in total 4*24
-    low_scores = [0.05, 0.02]
-
-    # for i in range(number_of_samples):
-    #     image_name = image_names[i]
-    #
-    #     tmp_charts = []
-    #     tmp_charts.extend([get_fine_grain_predicted_index(image_name), get_fine_grain_true_index(image_name)])
-    #     tmp_charts += rules_values(image_name)
-    #     charts.append(tmp_charts)
 
     m = true_data.shape[0]
     for i in range(m):
-        tmp_charts = [pred_data[i], true_data[i]]
-        tmp_charts += rules1(i)
-
+        tmp_charts = [pred_data[i], true_data[i]] + [int(cls[i]) for cls in cla_datas.T]
         charts.append(tmp_charts)
 
     all_charts = generate_chart(charts)
@@ -457,12 +404,12 @@ if __name__ == '__main__':
         results.append([epsilon] + result)
         print(f"ep:{epsilon}\n{result}")
 
-    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+    df = pd.DataFrame(results, columns=['epsilon'] + col * n + ['acc', 'macro-F1', 'micro-F1'])
 
     results_filename = "results.csv"
     df.to_csv(results_filename)
 
     df = pd.read_csv(results_filename)
     plot(df=df,
-         n=n_classes,
+         n=n,
          epsilons=epsilons)
