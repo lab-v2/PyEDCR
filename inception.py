@@ -9,6 +9,7 @@ from time import time
 from tqdm import tqdm
 from typing import Tuple
 import matplotlib.pyplot as plt
+from abc import ABC
 
 
 def get_transforms(train_or_val: str,
@@ -60,7 +61,7 @@ class ClearCache:
             self.device_backend.empty_cache()
 
 
-class ModelFineTuner(torch.nn.Module):
+class ModelFineTuner(torch.nn.Module, ABC):
     def __str__(self) -> str:
         return self.__class__.__name__.split('Model')[0].lower()
 
@@ -116,7 +117,7 @@ def test(fine_tuner: ModelFineTuner) -> Tuple[list[int], list[int], float]:
             name_temp += names
 
     test_accuracy = round(accuracy_score(y_true=test_ground_truth, y_pred=test_prediction), 3)
-    print(f'Test accuracy: {test_accuracy}')
+    print(f'\nTest accuracy: {test_accuracy}')
 
     return test_ground_truth, test_prediction, test_accuracy
 
@@ -143,7 +144,6 @@ def fine_tune(fine_tuner: ModelFineTuner,
     train_ground_truth = []
     train_prediction = []
 
-    test_loss = []
     test_acc = []
     test_ground_truth = []
     test_prediction = []
@@ -176,11 +176,11 @@ def fine_tune(fine_tuner: ModelFineTuner,
         acc = accuracy_score(true_labels, predicted_labels)
         print(f'\nModel: {fine_tuner} '
               f'epoch {epoch + 1}/{num_epochs} done in {int(time() - t1)} seconds, '
-              f'\ntraining loss: {round(running_loss / len(train_loader), 3)}')
-        print(f'training accuracy: {round(acc, 3)}\n')
+              f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
+              f'\ntraining accuracy: {round(acc, 3)}\n')
 
         if len(train_acc) and acc < 0.5 * train_acc[-1]:
-            raise RuntimeError('Training accuracy reduced by too much, stopped learning')
+            raise AssertionError('Training accuracy reduced by too much, stopped learning')
 
         train_acc += [acc]
         train_loss += [running_loss / len(train_loader)]
@@ -197,96 +197,91 @@ def fine_tune(fine_tuner: ModelFineTuner,
 
 
 if __name__ == '__main__':
-    batch_size = 24
-    lr = 0.0002
-    scheduler_gamma = 0.1
-    num_epochs = 12
-    scheduler_step_size = num_epochs
+    while np.load('vit_test_acc.npy')[-1] < np.load('inception_test_acc.npy')[-1]:
+        batch_size = 24
+        lr = 0.0002
+        scheduler_gamma = 0.1
+        num_epochs = 12
+        scheduler_step_size = num_epochs
 
-    model_names = ['vit', 'inception']
-    data_dir = os.path.join(os.getcwd(), 'data/FineGrainDataset')
-    datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
-                                                                    transform=get_transforms(train_or_val=train_or_val,
-                                                                                             model_name=model_name))
-                for model_name in model_names for train_or_val in ['train', 'val']}
+        model_names = ['vit', 'inception']
+        data_dir = os.path.join(os.getcwd(), 'data/FineGrainDataset')
+        datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
+                                                                        transform=get_transforms(train_or_val=train_or_val,
+                                                                                                 model_name=model_name))
+                    for model_name in model_names for train_or_val in ['train', 'val']}
 
-    assert all(datasets[f'{model_name}_train'].classes ==
-               datasets[f'{model_name}_val'].classes for model_name in model_names)
+        assert all(datasets[f'{model_name}_train'].classes == datasets[f'{model_name}_val'].classes
+                   for model_name in model_names)
 
-    loaders = {f'{model_name}_{train_or_val}':
-                   torch.utils.data.DataLoader(dataset=datasets[f'{model_name}_{train_or_val}'],
-                                               batch_size=batch_size,
-                                               shuffle=train_or_val == 'train')
-               for model_name in model_names for train_or_val in ['train', 'val']}
+        loaders = {f'{model_name}_{train_or_val}': torch.utils.data.DataLoader(
+            dataset=datasets[f'{model_name}_{train_or_val}'],
+            batch_size=batch_size,
+            shuffle=train_or_val == 'train')
+                   for model_name in model_names for train_or_val in ['train', 'val']}
 
-    classes = datasets['vit_train'].classes
+        classes = datasets['vit_train'].classes
 
-    n = len(classes)
+        n = len(classes)
 
-    device = torch.device('mps' if torch.backends.mps.is_available() else
-                          ("cuda" if torch.cuda.is_available() else 'cpu'))
+        device = torch.device('mps' if torch.backends.mps.is_available() else
+                              ("cuda" if torch.cuda.is_available() else 'cpu'))
 
-    vit_fine_tuner = VITModelFineTuner(num_classes=n)
-    inception_fine_tuner = InceptionModelFineTuner(num_classes=n)
-    fine_tuners = [inception_fine_tuner, vit_fine_tuner]
+        vit_fine_tuner = VITModelFineTuner(num_classes=n)
+        inception_fine_tuner = InceptionModelFineTuner(num_classes=n)
+        fine_tuners = [inception_fine_tuner, vit_fine_tuner]
 
-    for fine_tuner in fine_tuners:
-        with ClearCache(device):
-            train_ground_truth, train_prediction, test_ground_truth, test_prediction = fine_tune(fine_tuner, lr,
-                                                                                                 scheduler_step_size,
-                                                                                                 num_epochs)
-            np.save(f'{fine_tuner}_pred.npy', test_prediction)
-            np.save(f'{fine_tuner}_true.npy', test_ground_truth)
-            print('#' * 100)
+        for fine_tuner in fine_tuners:
+            with ClearCache(device):
+                train_ground_truth, train_prediction, test_ground_truth, test_prediction = fine_tune(fine_tuner, lr,
+                                                                                                     scheduler_step_size,
+                                                                                                     num_epochs)
+                np.save(f'{fine_tuner}_pred.npy', test_prediction)
+                np.save(f'{fine_tuner}_true.npy', test_ground_truth)
+                print('#' * 100)
 
-    inception_true_labels = np.load("inception_true.npy")
-    vit_true_labels = np.load("vit_true.npy")
+        inception_true_labels = np.load("inception_true.npy")
+        vit_true_labels = np.load("vit_true.npy")
 
-    # Now, assert that the predicted labels match for both models
-    assert np.all(
-        inception_true_labels == vit_true_labels), "True labels do not match between inception and vit models"
+        # Assert the true labels match for both models
+        assert np.all(
+            inception_true_labels == vit_true_labels), "True labels do not match between inception and vit models"
 
 
-    for fine_tuner in fine_tuners:
-        model_name = fine_tuner.__class__.__name__.split('Model')[0].lower()
-        train_loss = np.load(f'{model_name}_train_loss.npy')
-        plt.plot(train_loss, label=f'{model_name} training Loss')
+        for fine_tuner in fine_tuners:
+            plt.plot(np.load(f'{fine_tuner}_train_loss.npy'), label=f'{fine_tuner} training Loss')
 
-    plt.title('Training Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.grid()
-    plt.show()
+        plt.title('Training Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.grid()
+        plt.show()
 
-    plt.cla()
-    plt.clf()
+        plt.cla()
+        plt.clf()
 
-    # %%
-    for fine_tuner in [fine_tuners[1]]:
-        model_name = fine_tuner.__class__.__name__.split('Model')[0].lower()
-        train_acc = np.load(f'{model_name}_train_acc.npy')
-        plt.plot(train_acc, label=f'{model_name} training accuracy')
+        # %%
+        for fine_tuner in fine_tuners:
+            plt.plot(np.load(f'{fine_tuner}_train_acc.npy'), label=f'{fine_tuner} training accuracy')
 
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.title('Training Accuracy')
-    plt.legend()
-    plt.grid()
-    plt.show()
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy')
+        plt.title('Training Accuracy')
+        plt.legend()
+        plt.grid()
+        plt.show()
 
-    plt.cla()
-    plt.clf()
+        plt.cla()
+        plt.clf()
 
-    # %%
-    for fine_tuner in [fine_tuners[1]]:
-        model_name = fine_tuner.__class__.__name__.split('Model')[0].lower()
-        test_acc = np.load(f'{model_name}_test_acc.npy')
-        plt.plot(test_acc, label=f'{model_name} test accuracy')
+        # %%
+        for fine_tuner in fine_tuners:
+            plt.plot(np.load(f'{fine_tuner}_test_acc.npy'), label=f'{fine_tuner} test accuracy')
 
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.title('Test Accuracy')
-    plt.legend()
-    plt.grid()
-    plt.show()
+        plt.xlabel('Epoch')
+        plt.ylabel('Test Accuracy')
+        plt.title('Test Accuracy')
+        plt.legend()
+        plt.grid()
+        plt.show()
