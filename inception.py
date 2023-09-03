@@ -139,20 +139,20 @@ def fine_tune(fine_tuner: ModelFineTuner,
                                                 step_size=scheduler_step_size,
                                                 gamma=scheduler_gamma)
 
-    train_loss = []
-    train_acc = []
-    train_ground_truth = []
-    train_prediction = []
+    train_losses = []
+    train_accuracies = []
+    train_ground_truths = []
+    train_predictions = []
 
-    test_acc = []
-    test_ground_truth = []
-    test_prediction = []
+    test_accuracies = []
+    test_ground_truths = []
+    test_predictions = []
 
     for epoch in range(num_epochs):
         t1 = time()
         running_loss = 0.0
-        train_prediction = []
-        train_ground_truth = []
+        train_predictions = []
+        train_ground_truths = []
 
         for i, data in tqdm(enumerate(train_loader, 0), total=len(train_loader)):
             inputs, labels = data[0].to(device), data[1].to(device)
@@ -168,32 +168,36 @@ def fine_tune(fine_tuner: ModelFineTuner,
             running_loss += loss.item()
 
             predicted = torch.max(outputs, 1)[1]
-            train_ground_truth += labels.tolist()
-            train_prediction += predicted.tolist()
+            train_ground_truths += labels.tolist()
+            train_predictions += predicted.tolist()
 
-        true_labels = np.array(train_ground_truth)
-        predicted_labels = np.array(train_prediction)
+        true_labels = np.array(train_ground_truths)
+        predicted_labels = np.array(train_predictions)
         acc = accuracy_score(true_labels, predicted_labels)
         print(f'\nModel: {fine_tuner} '
               f'epoch {epoch + 1}/{num_epochs} done in {int(time() - t1)} seconds, '
               f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
               f'\ntraining accuracy: {round(acc, 3)}\n')
 
-        if len(train_acc) and acc < 0.5 * train_acc[-1]:
+        if len(train_accuracies) and acc < 0.5 * train_accuracies[-1]:
             raise AssertionError('Training accuracy reduced by too much, stopped learning')
 
-        train_acc += [acc]
-        train_loss += [running_loss / len(train_loader)]
+        train_accuracies += [acc]
+        train_losses += [running_loss / len(train_loader)]
         scheduler.step()
-        test_ground_truth, test_prediction, test_accuracy = test(fine_tuner)
-        test_acc += [test_accuracy]
+        test_ground_truths, test_predictions, test_accuracy = test(fine_tuner)
+        test_accuracies += [test_accuracy]
         print('#' * 100)
 
-    np.save(f'{fine_tuner}_train_acc.npy', train_acc)
-    np.save(f'{fine_tuner}_train_loss.npy', train_loss)
-    np.save(f'{fine_tuner}_test_acc.npy', test_acc)
+        if str(fine_tuner) == 'vit' and test_accuracy > np.load('inception_test_acc.npy')[-1]:
+            print('vit test accuracy better than the inception test accuracy. Early stopping')
+            break
 
-    return train_ground_truth, train_prediction, test_ground_truth, test_prediction
+    np.save(f'{fine_tuner}_train_acc.npy', train_accuracies)
+    np.save(f'{fine_tuner}_train_loss.npy', train_losses)
+    np.save(f'{fine_tuner}_test_acc.npy', test_accuracies)
+
+    return train_ground_truths, train_predictions, test_ground_truths, test_predictions
 
 
 if __name__ == '__main__':
