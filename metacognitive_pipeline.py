@@ -6,7 +6,7 @@ from plotting import plot
 base_path0 = 'LRCN_F1_no_overlap_sequential/'
 base_path1 = 'no_overlap_sequential_10/'
 results_file = base_path0 + "rule_for_NPcorrection.csv"
-epsilons = [0.002 * i for i in range(1, 100, 1)]
+
 
 # true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
 # pred_data = np.load(base_path0 + "test_pred.npy", allow_pickle=True)
@@ -16,6 +16,8 @@ epsilons = [0.002 * i for i in range(1, 100, 1)]
 # cla2_data = np.load(base_path1 + "test_out_cla2.npy", allow_pickle=True)
 # cla1_data = np.load(base_path1 + "test_out_cla1.npy", allow_pickle=True)
 # cla0_data = np.load(base_path1 + "test_out_cla0.npy", allow_pickle=True)
+
+# cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
 
 true_data = np.load("inception_true.npy")
 pred_data = np.load("inception_pred.npy")
@@ -251,10 +253,11 @@ def ruleForNPCorrection(all_charts, epsilon):
 
 if __name__ == '__main__':
     charts = []
-    # cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
+
 
     high_scores = [0.8]
     low_scores = [0.2]
+    epsilons = [0.002 * i for i in range(1, 100, 1)]
 
     m = true_data.shape[0]
     for i in range(m):

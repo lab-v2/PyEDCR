@@ -174,6 +174,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
         true_labels = np.array(train_ground_truths)
         predicted_labels = np.array(train_predictions)
         acc = accuracy_score(true_labels, predicted_labels)
+
         print(f'\nModel: {fine_tuner} '
               f'epoch {epoch + 1}/{num_epochs} done in {int(time() - t1)} seconds, '
               f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
@@ -201,14 +202,16 @@ def fine_tune(fine_tuner: ModelFineTuner,
 
 
 if __name__ == '__main__':
-    while np.load('vit_test_acc.npy')[-1] < np.load('inception_test_acc.npy')[-1]:
+    while np.load('vit_test_acc.npy')[-1] < 0.8:
         batch_size = 24
         lr = 0.0002
         scheduler_gamma = 0.1
         num_epochs = 12
         scheduler_step_size = num_epochs
 
-        model_names = ['vit', 'inception']
+        model_names = ['vit',
+                       # 'inception'
+                       ]
         data_dir = os.path.join(os.getcwd(), 'data/FineGrainDataset')
         datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                         transform=get_transforms(train_or_val=train_or_val,
@@ -232,8 +235,11 @@ if __name__ == '__main__':
                               ("cuda" if torch.cuda.is_available() else 'cpu'))
 
         vit_fine_tuner = VITModelFineTuner(num_classes=n)
-        inception_fine_tuner = InceptionModelFineTuner(num_classes=n)
-        fine_tuners = [inception_fine_tuner, vit_fine_tuner]
+        # inception_fine_tuner = InceptionModelFineTuner(num_classes=n)
+        fine_tuners = [
+            # inception_fine_tuner,
+            vit_fine_tuner
+                       ]
 
         for fine_tuner in fine_tuners:
             with ClearCache(device):
@@ -244,12 +250,12 @@ if __name__ == '__main__':
                 np.save(f'{fine_tuner}_true.npy', test_ground_truth)
                 print('#' * 100)
 
-        inception_true_labels = np.load("inception_true.npy")
+        # inception_true_labels = np.load("inception_true.npy")
         vit_true_labels = np.load("vit_true.npy")
 
         # Assert the true labels match for both models
-        assert np.all(
-            inception_true_labels == vit_true_labels), "True labels do not match between inception and vit models"
+        # assert np.all(
+        #     inception_true_labels == vit_true_labels), "True labels do not match between inception and vit models"
 
 
         for fine_tuner in fine_tuners:

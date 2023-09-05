@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot(df: pd.DataFrame,
@@ -12,9 +13,9 @@ def plot(df: pd.DataFrame,
         rec_i = df_i.iloc[:, 1]
         f1_i = df_i.iloc[:, 2]
 
-        plt.plot(epsilons[1:], pre_i[1:], label='pre')
-        plt.plot(epsilons[1:], rec_i[1:], label='rec')
-        plt.plot(epsilons[1:], f1_i[1:], label='f1')
+        plt.plot(epsilons[2:], pre_i[1:], label='pre')
+        plt.plot(epsilons[2:], rec_i[1:], label='rec')
+        plt.plot(epsilons[2:], f1_i[1:], label='f1')
 
         plt.title(f'cls - {i}')
         plt.legend()
@@ -24,7 +25,10 @@ def plot(df: pd.DataFrame,
 
 
 if __name__ == '__main__':
-    from reup import results_file, n_classes, epsilons
-
+    base_path0 = 'LRCN_F1_no_overlap_sequential/'
+    results_file = base_path0 + "rule_for_NPcorrection.csv"
     df = pd.read_csv(results_file)
-    plot(df=df, n=n_classes, epsilons=epsilons)
+    cla_datas = np.load('vit_pred.npy')
+    n = np.max(cla_datas) + 1
+    epsilons = df['epsilon']
+    plot(df=df, n=n, epsilons=epsilons)
