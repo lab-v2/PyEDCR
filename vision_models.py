@@ -12,7 +12,13 @@ import matplotlib.pyplot as plt
 from abc import ABC
 from pathlib import Path
 
+batch_size = 24
+lr = 0.0002
+scheduler_gamma = 0.1
+num_epochs = 12
 cwd = Path(__file__).parent.resolve()
+vit_model = torchvision.models.vit_l_16
+vit_weights = torchvision.models.ViT_L_16_Weights.DEFAULT
 
 
 def get_transforms(train_or_val: str,
@@ -22,7 +28,7 @@ def get_transforms(train_or_val: str,
         means = [0.485, 0.456, 0.406]
         stds = [0.229, 0.224, 0.225]
     else:
-        resize_num = 224
+        resize_num = 518 if vit_model == torchvision.models.vit_h_14 else 224
         means = stds = [0.5] * 3
 
     return torchvision.transforms.Compose(
@@ -88,7 +94,7 @@ class InceptionModelFineTuner(ModelFineTuner):
 class VITModelFineTuner(ModelFineTuner):
     def __init__(self, num_classes: int):
         super().__init__()
-        self.vit = torchvision.models.vit_l_32(weights=torchvision.models.ViT_L_32_Weights.DEFAULT)
+        self.vit = vit_model(weights=vit_weights)
         self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim, out_features=num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -210,10 +216,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
 if __name__ == '__main__':
     while (np.load(Path.joinpath(cwd, 'vit_test_acc.npy'))[-1] <
            np.load(Path.joinpath(cwd, 'inception_test_acc.npy'))[-1]):
-        batch_size = 24
-        lr = 0.0004
-        scheduler_gamma = 0.1
-        num_epochs = 7
+
         scheduler_step_size = num_epochs
 
         model_names = ['vit',
