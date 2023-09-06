@@ -13,9 +13,9 @@ from abc import ABC
 from pathlib import Path
 
 batch_size = 24
-lr = 0.0002
+lr = 0.0001
 scheduler_gamma = 0.1
-num_epochs = 12
+num_epochs = 10
 cwd = Path(__file__).parent.resolve()
 vit_model = torchvision.models.vit_l_16
 vit_weights = torchvision.models.ViT_L_16_Weights.DEFAULT
