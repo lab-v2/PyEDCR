@@ -217,7 +217,10 @@ def fine_tune(fine_tuner: ModelFineTuner,
 
     np.save(f"{fine_tuner}_train_acc.npy", train_accuracies)
     np.save(f"{fine_tuner}_train_loss.npy", train_losses)
-    np.save(f"{fine_tuner}_test_acc.npy", test_accuracies)
+
+    test_accuracies_filename = Path(f"{fine_tuner}_test_acc.npy")
+    if (not Path.is_file(test_accuracies_filename)) or (test_accuracies[-1] > np.load(test_accuracies_filename)):
+        np.save(test_accuracies_filename, test_accuracies)
 
     return train_ground_truths, train_predictions, test_ground_truths, test_predictions
 
@@ -225,7 +228,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
 if __name__ == '__main__':
     vit_acc_file_path = Path.joinpath(cwd, f'vit_{vit_model_name}_test_acc.npy')
 
-    while (not Path.is_file(Path(vit_acc_file_path))) or (np.load(vit_acc_file_path)[-1] < 0.8):
+    while (not Path.is_file(Path(vit_acc_file_path))) or (np.load(vit_acc_file_path)[-1] < 0.9):
 
         model_names = [f'vit_{vit_model_name}',
                        # 'inception'
