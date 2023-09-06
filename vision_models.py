@@ -196,9 +196,9 @@ def fine_tune(fine_tuner: ModelFineTuner,
         test_accuracies += [test_accuracy]
         print('#' * 100)
 
-        # if str(fine_tuner) == 'vit' and test_accuracy > np.load('inception_test_acc.npy')[-1]:
-        #     print('vit test accuracy better than the inception test accuracy. Early stopping')
-        #     break
+        if str(fine_tuner) == 'vit' and test_accuracy > 0.8:
+            print('vit test accuracy better than the inception test accuracy. Early stopping')
+            break
 
     np.save(f'{fine_tuner}_train_acc.npy', train_accuracies)
     np.save(f'{fine_tuner}_train_loss.npy', train_losses)
