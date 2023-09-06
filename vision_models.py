@@ -216,7 +216,7 @@ if __name__ == '__main__':
         model_names = ['vit',
                        # 'inception'
                        ]
-        data_dir = os.path.join(os.getcwd(), 'data/FineGrainDataset')
+        data_dir = os.path.join(cwd, 'data/FineGrainDataset')
         datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                         transform=get_transforms(
                                                                             train_or_val=train_or_val,
