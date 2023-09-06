@@ -15,7 +15,7 @@ from pathlib import Path
 batch_size = 24
 lr = 0.00005
 scheduler_gamma = 0.1
-num_epochs = 1
+num_epochs = 2
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
@@ -107,6 +107,9 @@ class VITModelFineTuner(ModelFineTuner):
         x = self.vit(x)
         return x
 
+    def __str__(self):
+        return f'{super().__str__()}_{vit_model_name}'
+
 
 def test(fine_tuner: ModelFineTuner) -> Tuple[list[int], list[int], float]:
     test_loader = loaders[f'{fine_tuner}_val']
@@ -146,9 +149,8 @@ def fine_tune(fine_tuner: ModelFineTuner,
               scheduler_gamma: float) -> Tuple[list[int], list[int], list[int], list[int]]:
     fine_tuner.to(device)
     fine_tuner.train()
-    fine_tuner_name = str(fine_tuner)
 
-    train_loader = loaders[f'{fine_tuner_name}_train']
+    train_loader = loaders[f'{fine_tuner}_train']
     criterion = torch.nn.CrossEntropyLoss()
 
     optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -194,7 +196,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
         predicted_labels = np.array(train_predictions)
         acc = accuracy_score(true_labels, predicted_labels)
 
-        print(f'\nModel: {fine_tuner_name} with {len(fine_tuner)} parameters\n'
+        print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
               f'epoch {epoch + 1}/{num_epochs} done in {int(time() - t1)} seconds, '
               f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
               f'\ntraining accuracy: {round(acc, 3)}\n')
@@ -209,26 +211,23 @@ def fine_tune(fine_tuner: ModelFineTuner,
         test_accuracies += [test_accuracy]
         print('#' * 100)
 
-        if fine_tuner_name == 'vit' and test_accuracy > 0.8:
+        if str(fine_tuner).__contains__('vit') and test_accuracy > 0.8:
             print('vit test accuracy better than the inception test accuracy. Early stopping')
             break
 
-    np.save(f"{fine_tuner}_{f'{vit_model_name}_' if fine_tuner_name == 'vit' else ''}"
-            f"_train_acc.npy", train_accuracies)
-    np.save(f"{fine_tuner}_{f'{vit_model_name}_' if fine_tuner_name == 'vit' else ''}"
-            f"_train_loss.npy", train_losses)
-    np.save(f"{fine_tuner}_{f'{vit_model_name}_' if fine_tuner_name == 'vit' else ''}"
-            f"test_acc.npy", test_accuracies)
+    np.save(f"{fine_tuner}_train_acc.npy", train_accuracies)
+    np.save(f"{fine_tuner}_train_loss.npy", train_losses)
+    np.save(f"{fine_tuner}_test_acc.npy", test_accuracies)
 
     return train_ground_truths, train_predictions, test_ground_truths, test_predictions
 
 
 if __name__ == '__main__':
-    vit_acc_file_path = Path.joinpath(cwd, f'vit_test_{vit_model_name}_acc.npy')
+    vit_acc_file_path = Path.joinpath(cwd, f'vit_{vit_model_name}_test_acc.npy')
 
     while (not Path.is_file(Path(vit_acc_file_path))) or (np.load(vit_acc_file_path)[-1] < 0.8):
 
-        model_names = ['vit',
+        model_names = [f'vit_{vit_model_name}',
                        # 'inception'
                        ]
         data_dir = Path.joinpath(cwd, 'data/FineGrainDataset')
@@ -241,7 +240,7 @@ if __name__ == '__main__':
         assert all(datasets[f'{model_name}_train'].classes == datasets[f'{model_name}_val'].classes
                    for model_name in model_names)
 
-        loaders = {f'{model_name}_{train_or_val}': torch.utils.data.DataLoader(
+        loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
             dataset=datasets[f'{model_name}_{train_or_val}'],
             batch_size=batch_size,
             shuffle=train_or_val == 'train')
@@ -254,7 +253,7 @@ if __name__ == '__main__':
         device = torch.device('mps' if torch.backends.mps.is_available() else
                               ("cuda" if torch.cuda.is_available() else 'cpu'))
 
-        fine_tuners = [eval(f"{'VIT' if model_name == 'vit' else 'Inception'}"
+        fine_tuners = [eval(f"{'VIT' if model_name.__contains__('vit') else 'Inception'}"
                             f"ModelFineTuner(num_classes=n)") for model_name in model_names]
 
         for fine_tuner in fine_tuners:
@@ -263,16 +262,17 @@ if __name__ == '__main__':
                                                                                                      lr,
                                                                                                      scheduler_step_size,
                                                                                                      num_epochs)
-                np.save(f"{fine_tuner}_{f'{vit_model_name}_' if str(fine_tuner) == 'vit' else ''}pred.npy",
+                np.save(f"{fine_tuner}_pred.npy",
                         test_prediction)
-                np.save(f"{fine_tuner}_{f'{vit_model_name}_' if str(fine_tuner) == 'vit' else ''}true.npy",
+                np.save(f"{fine_tuner}_true.npy",
                         test_ground_truth)
                 print('#' * 100)
 
-        vit_true_labels = np.load(Path.joinpath(cwd, "vit_true.npy"))
+        vit_true_labels = np.load(Path.joinpath(cwd, f"vit_{vit_model_name}_true.npy"))
 
         for fine_tuner in fine_tuners:
-            plt.plot(np.load(f'{fine_tuner}_train_loss.npy'), label=f'{fine_tuner} training Loss')
+            vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
+            plt.plot(vit_train_loss, label=f'{fine_tuner} training Loss')
 
         plt.title('Training Loss')
         plt.xlabel('Epoch')
@@ -285,7 +285,8 @@ if __name__ == '__main__':
         plt.clf()
 
         for fine_tuner in fine_tuners:
-            plt.plot(np.load(f'{fine_tuner}_train_acc.npy'), label=f'{fine_tuner} training accuracy')
+            vit_train_acc = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_acc.npy'))
+            plt.plot(vit_train_acc, label=f'{fine_tuner} training accuracy')
 
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
@@ -297,9 +298,9 @@ if __name__ == '__main__':
         plt.cla()
         plt.clf()
 
-
         for fine_tuner in fine_tuners:
-            plt.plot(np.load(f'{fine_tuner}_test_acc.npy'), label=f'{fine_tuner} test accuracy')
+            vit_test_acc = np.load(f'{fine_tuner}_test_acc.npy')
+            plt.plot(vit_test_acc, label=f'{fine_tuner} test accuracy')
 
         plt.xlabel('Epoch')
         plt.ylabel('Test Accuracy')
