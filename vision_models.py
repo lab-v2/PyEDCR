@@ -13,12 +13,18 @@ from abc import ABC
 from pathlib import Path
 
 batch_size = 24
-lr = 0.0001
+lr = 0.00005
 scheduler_gamma = 0.1
-num_epochs = 10
+num_epochs = 1
 cwd = Path(__file__).parent.resolve()
-vit_model = torchvision.models.vit_l_16
-vit_weights = torchvision.models.ViT_L_16_Weights.DEFAULT
+scheduler_step_size = num_epochs
+
+vit_model_names = ['b_16', 'b_32', 'l_16', 'l_32', 'h_14']
+vit_model_index = 2
+vit_model_name = vit_model_names[vit_model_index]
+vit_model = eval(f'torchvision.models.vit_{vit_model_name}')
+vit_weights = eval(f"torchvision.models.ViT_"
+                   f"{'_'.join([s.upper() for s in vit_model_name.split('_')])}_Weights.DEFAULT")
 
 
 def get_transforms(train_or_val: str,
@@ -74,7 +80,7 @@ class ModelFineTuner(torch.nn.Module, ABC):
     def __str__(self) -> str:
         return self.__class__.__name__.split('Model')[0].lower()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return sum(p.numel() for p in self.parameters())
 
 
@@ -140,8 +146,9 @@ def fine_tune(fine_tuner: ModelFineTuner,
               scheduler_gamma: float) -> Tuple[list[int], list[int], list[int], list[int]]:
     fine_tuner.to(device)
     fine_tuner.train()
+    fine_tuner_name = str(fine_tuner)
 
-    train_loader = loaders[f'{fine_tuner}_train']
+    train_loader = loaders[f'{fine_tuner_name}_train']
     criterion = torch.nn.CrossEntropyLoss()
 
     optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -187,7 +194,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
         predicted_labels = np.array(train_predictions)
         acc = accuracy_score(true_labels, predicted_labels)
 
-        print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
+        print(f'\nModel: {fine_tuner_name} with {len(fine_tuner)} parameters\n'
               f'epoch {epoch + 1}/{num_epochs} done in {int(time() - t1)} seconds, '
               f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
               f'\ntraining accuracy: {round(acc, 3)}\n')
@@ -202,27 +209,29 @@ def fine_tune(fine_tuner: ModelFineTuner,
         test_accuracies += [test_accuracy]
         print('#' * 100)
 
-        if str(fine_tuner) == 'vit' and test_accuracy > 0.8:
+        if fine_tuner_name == 'vit' and test_accuracy > 0.8:
             print('vit test accuracy better than the inception test accuracy. Early stopping')
             break
 
-    np.save(f'{fine_tuner}_train_acc.npy', train_accuracies)
-    np.save(f'{fine_tuner}_train_loss.npy', train_losses)
-    np.save(f'{fine_tuner}_test_acc.npy', test_accuracies)
+    np.save(f"{fine_tuner}_{f'{vit_model_name}_' if fine_tuner_name == 'vit' else ''}"
+            f"_train_acc.npy", train_accuracies)
+    np.save(f"{fine_tuner}_{f'{vit_model_name}_' if fine_tuner_name == 'vit' else ''}"
+            f"_train_loss.npy", train_losses)
+    np.save(f"{fine_tuner}_{f'{vit_model_name}_' if fine_tuner_name == 'vit' else ''}"
+            f"test_acc.npy", test_accuracies)
 
     return train_ground_truths, train_predictions, test_ground_truths, test_predictions
 
 
 if __name__ == '__main__':
-    while (np.load(Path.joinpath(cwd, 'vit_test_acc.npy'))[-1] <
-           np.load(Path.joinpath(cwd, 'inception_test_acc.npy'))[-1]):
+    vit_acc_file_path = Path.joinpath(cwd, f'vit_test_{vit_model_name}_acc.npy')
 
-        scheduler_step_size = num_epochs
+    while (not Path.is_file(Path(vit_acc_file_path))) or (np.load(vit_acc_file_path)[-1] < 0.8):
 
         model_names = ['vit',
                        # 'inception'
                        ]
-        data_dir = os.path.join(cwd, 'data/FineGrainDataset')
+        data_dir = Path.joinpath(cwd, 'data/FineGrainDataset')
         datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                         transform=get_transforms(
                                                                             train_or_val=train_or_val,
@@ -238,35 +247,29 @@ if __name__ == '__main__':
             shuffle=train_or_val == 'train')
             for model_name in model_names for train_or_val in ['train', 'val']}
 
-        classes = datasets['vit_train'].classes
+        classes = datasets[f'{model_names[0]}_train'].classes
 
         n = len(classes)
 
         device = torch.device('mps' if torch.backends.mps.is_available() else
                               ("cuda" if torch.cuda.is_available() else 'cpu'))
 
-        vit_fine_tuner = VITModelFineTuner(num_classes=n)
-        # inception_fine_tuner = InceptionModelFineTuner(num_classes=n)
-        fine_tuners = [
-            # inception_fine_tuner,
-            vit_fine_tuner
-        ]
+        fine_tuners = [eval(f"{'VIT' if model_name == 'vit' else 'Inception'}"
+                            f"ModelFineTuner(num_classes=n)") for model_name in model_names]
 
         for fine_tuner in fine_tuners:
             with ClearCache(device):
-                train_ground_truth, train_prediction, test_ground_truth, test_prediction = fine_tune(fine_tuner, lr,
+                train_ground_truth, train_prediction, test_ground_truth, test_prediction = fine_tune(fine_tuner,
+                                                                                                     lr,
                                                                                                      scheduler_step_size,
                                                                                                      num_epochs)
-                np.save(f'{fine_tuner}_pred.npy', test_prediction)
-                np.save(f'{fine_tuner}_true.npy', test_ground_truth)
+                np.save(f"{fine_tuner}_{f'{vit_model_name}_' if str(fine_tuner) == 'vit' else ''}pred.npy",
+                        test_prediction)
+                np.save(f"{fine_tuner}_{f'{vit_model_name}_' if str(fine_tuner) == 'vit' else ''}true.npy",
+                        test_ground_truth)
                 print('#' * 100)
 
-        # inception_true_labels = np.load("inception_true.npy")
         vit_true_labels = np.load(Path.joinpath(cwd, "vit_true.npy"))
-
-        # Assert the true labels match for both models
-        # assert np.all(
-        #     inception_true_labels == vit_true_labels), "True labels do not match between inception and vit models"
 
         for fine_tuner in fine_tuners:
             plt.plot(np.load(f'{fine_tuner}_train_loss.npy'), label=f'{fine_tuner} training Loss')
@@ -281,7 +284,6 @@ if __name__ == '__main__':
         plt.cla()
         plt.clf()
 
-        # %%
         for fine_tuner in fine_tuners:
             plt.plot(np.load(f'{fine_tuner}_train_acc.npy'), label=f'{fine_tuner} training accuracy')
 
@@ -295,7 +297,7 @@ if __name__ == '__main__':
         plt.cla()
         plt.clf()
 
-        # %%
+
         for fine_tuner in fine_tuners:
             plt.plot(np.load(f'{fine_tuner}_test_acc.npy'), label=f'{fine_tuner} test accuracy')
 
