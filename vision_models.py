@@ -10,8 +10,9 @@ from tqdm import tqdm
 from typing import Tuple
 import matplotlib.pyplot as plt
 from abc import ABC
+from pathlib import Path
 
-cwd = os.getcwd()
+cwd = Path(__file__).parent.resolve()
 
 
 def get_transforms(train_or_val: str,
@@ -204,7 +205,8 @@ def fine_tune(fine_tuner: ModelFineTuner,
 
 
 if __name__ == '__main__':
-    while np.load(cwd + '/vit_test_acc.npy')[-1] < np.load(cwd + '/inception_test_acc.npy')[-1]:
+    while (np.load(Path.joinpath(cwd, 'vit_test_acc.npy'))[-1] <
+           np.load(Path.joinpath(cwd, 'inception_test_acc.npy'))[-1]):
         batch_size = 24
         lr = 0.0002
         scheduler_gamma = 0.1
@@ -254,14 +256,14 @@ if __name__ == '__main__':
                 print('#' * 100)
 
         # inception_true_labels = np.load("inception_true.npy")
-        vit_true_labels = np.load(cwd + "/vit_true.npy")
+        vit_true_labels = np.load(Path.joinpath(cwd, "vit_true.npy"))
 
         # Assert the true labels match for both models
         # assert np.all(
         #     inception_true_labels == vit_true_labels), "True labels do not match between inception and vit models"
 
         for fine_tuner in fine_tuners:
-            plt.plot(np.load(f'{cwd}/{fine_tuner}_train_loss.npy'), label=f'{fine_tuner} training Loss')
+            plt.plot(np.load(f'{fine_tuner}_train_loss.npy'), label=f'{fine_tuner} training Loss')
 
         plt.title('Training Loss')
         plt.xlabel('Epoch')
@@ -275,7 +277,7 @@ if __name__ == '__main__':
 
         # %%
         for fine_tuner in fine_tuners:
-            plt.plot(np.load(f'{cwd}/{fine_tuner}_train_acc.npy'), label=f'{fine_tuner} training accuracy')
+            plt.plot(np.load(f'{fine_tuner}_train_acc.npy'), label=f'{fine_tuner} training accuracy')
 
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
@@ -289,7 +291,7 @@ if __name__ == '__main__':
 
         # %%
         for fine_tuner in fine_tuners:
-            plt.plot(np.load(f'{cwd}/{fine_tuner}_test_acc.npy'), label=f'{fine_tuner} test accuracy')
+            plt.plot(np.load(f'{fine_tuner}_test_acc.npy'), label=f'{fine_tuner} test accuracy')
 
         plt.xlabel('Epoch')
         plt.ylabel('Test Accuracy')
