@@ -68,6 +68,9 @@ class ModelFineTuner(torch.nn.Module, ABC):
     def __str__(self) -> str:
         return self.__class__.__name__.split('Model')[0].lower()
 
+    def __len__(self):
+        return sum(p.numel() for p in self.parameters())
+
 
 class InceptionModelFineTuner(ModelFineTuner):
     def __init__(self, num_classes: int):
@@ -178,7 +181,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
         predicted_labels = np.array(train_predictions)
         acc = accuracy_score(true_labels, predicted_labels)
 
-        print(f'\nModel: {fine_tuner} '
+        print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters'
               f'epoch {epoch + 1}/{num_epochs} done in {int(time() - t1)} seconds, '
               f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
               f'\ntraining accuracy: {round(acc, 3)}\n')
