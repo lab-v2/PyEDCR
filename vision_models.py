@@ -88,7 +88,7 @@ class InceptionModelFineTuner(ModelFineTuner):
 class VITModelFineTuner(ModelFineTuner):
     def __init__(self, num_classes: int):
         super().__init__()
-        self.vit = torchvision.models.vit_l_16(weights=torchvision.models.ViT_L_16_Weights.DEFAULT)
+        self.vit = torchvision.models.vit_l_32(weights=torchvision.models.ViT_L_32_Weights.DEFAULT)
         self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim, out_features=num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -181,7 +181,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
         predicted_labels = np.array(train_predictions)
         acc = accuracy_score(true_labels, predicted_labels)
 
-        print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters'
+        print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
               f'epoch {epoch + 1}/{num_epochs} done in {int(time() - t1)} seconds, '
               f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
               f'\ntraining accuracy: {round(acc, 3)}\n')
@@ -211,9 +211,9 @@ if __name__ == '__main__':
     while (np.load(Path.joinpath(cwd, 'vit_test_acc.npy'))[-1] <
            np.load(Path.joinpath(cwd, 'inception_test_acc.npy'))[-1]):
         batch_size = 24
-        lr = 0.0002
+        lr = 0.0004
         scheduler_gamma = 0.1
-        num_epochs = 12
+        num_epochs = 7
         scheduler_step_size = num_epochs
 
         model_names = ['vit',
