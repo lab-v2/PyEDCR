@@ -287,5 +287,5 @@ if __name__ == '__main__':
 
     df.to_csv(results_file)
 
-    df = pd.read_csv(results_file)
+    # df = pd.read_csv(results_file)
     plot(df=df, n=n_classes, epsilons=epsilons)

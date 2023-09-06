@@ -17,7 +17,7 @@ def plot(df: pd.DataFrame,
         plt.plot(epsilons, rec_i, label='rec')
         plt.plot(epsilons, f1_i, label='f1')
 
-        plt.title(f'cls - {i}')
+        plt.title(f'class #{i}')
         plt.legend()
         plt.tight_layout()
         plt.grid()
