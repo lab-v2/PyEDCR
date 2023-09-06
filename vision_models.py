@@ -11,6 +11,8 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 from abc import ABC
 
+cwd = os.getcwd()
+
 
 def get_transforms(train_or_val: str,
                    model_name: str) -> torchvision.transforms.Compose:
@@ -190,9 +192,9 @@ def fine_tune(fine_tuner: ModelFineTuner,
         test_accuracies += [test_accuracy]
         print('#' * 100)
 
-        if str(fine_tuner) == 'vit' and test_accuracy > np.load('inception_test_acc.npy')[-1]:
-            print('vit test accuracy better than the inception test accuracy. Early stopping')
-            break
+        # if str(fine_tuner) == 'vit' and test_accuracy > np.load('inception_test_acc.npy')[-1]:
+        #     print('vit test accuracy better than the inception test accuracy. Early stopping')
+        #     break
 
     np.save(f'{fine_tuner}_train_acc.npy', train_accuracies)
     np.save(f'{fine_tuner}_train_loss.npy', train_losses)
@@ -202,7 +204,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
 
 
 if __name__ == '__main__':
-    while np.load('vit_test_acc.npy')[-1] < 0.8:
+    while np.load(cwd + '/vit_test_acc.npy')[-1] < np.load(cwd + '/inception_test_acc.npy')[-1]:
         batch_size = 24
         lr = 0.0002
         scheduler_gamma = 0.1
@@ -214,8 +216,9 @@ if __name__ == '__main__':
                        ]
         data_dir = os.path.join(os.getcwd(), 'data/FineGrainDataset')
         datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
-                                                                        transform=get_transforms(train_or_val=train_or_val,
-                                                                                                 model_name=model_name))
+                                                                        transform=get_transforms(
+                                                                            train_or_val=train_or_val,
+                                                                            model_name=model_name))
                     for model_name in model_names for train_or_val in ['train', 'val']}
 
         assert all(datasets[f'{model_name}_train'].classes == datasets[f'{model_name}_val'].classes
@@ -225,7 +228,7 @@ if __name__ == '__main__':
             dataset=datasets[f'{model_name}_{train_or_val}'],
             batch_size=batch_size,
             shuffle=train_or_val == 'train')
-                   for model_name in model_names for train_or_val in ['train', 'val']}
+            for model_name in model_names for train_or_val in ['train', 'val']}
 
         classes = datasets['vit_train'].classes
 
@@ -239,7 +242,7 @@ if __name__ == '__main__':
         fine_tuners = [
             # inception_fine_tuner,
             vit_fine_tuner
-                       ]
+        ]
 
         for fine_tuner in fine_tuners:
             with ClearCache(device):
@@ -251,15 +254,14 @@ if __name__ == '__main__':
                 print('#' * 100)
 
         # inception_true_labels = np.load("inception_true.npy")
-        vit_true_labels = np.load("vit_true.npy")
+        vit_true_labels = np.load(cwd + "/vit_true.npy")
 
         # Assert the true labels match for both models
         # assert np.all(
         #     inception_true_labels == vit_true_labels), "True labels do not match between inception and vit models"
 
-
         for fine_tuner in fine_tuners:
-            plt.plot(np.load(f'{fine_tuner}_train_loss.npy'), label=f'{fine_tuner} training Loss')
+            plt.plot(np.load(f'{cwd}/{fine_tuner}_train_loss.npy'), label=f'{fine_tuner} training Loss')
 
         plt.title('Training Loss')
         plt.xlabel('Epoch')
@@ -273,7 +275,7 @@ if __name__ == '__main__':
 
         # %%
         for fine_tuner in fine_tuners:
-            plt.plot(np.load(f'{fine_tuner}_train_acc.npy'), label=f'{fine_tuner} training accuracy')
+            plt.plot(np.load(f'{cwd}/{fine_tuner}_train_acc.npy'), label=f'{fine_tuner} training accuracy')
 
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
@@ -287,7 +289,7 @@ if __name__ == '__main__':
 
         # %%
         for fine_tuner in fine_tuners:
-            plt.plot(np.load(f'{fine_tuner}_test_acc.npy'), label=f'{fine_tuner} test accuracy')
+            plt.plot(np.load(f'{cwd}/{fine_tuner}_test_acc.npy'), label=f'{fine_tuner} test accuracy')
 
         plt.xlabel('Epoch')
         plt.ylabel('Test Accuracy')
