@@ -21,7 +21,11 @@ results_file = base_path0 + "rule_for_NPcorrection.csv"
 
 true_data = np.load("inception_true.npy")
 pred_data = np.load("inception_pred.npy")
-cla_datas = np.load('vit_pred.npy')
+
+vit_model_names = ['b_16', 'b_32', 'l_16', 'l_32', 'h_14']
+vit_model_index = 2
+vit_model_name = vit_model_names[vit_model_index]
+cla_datas = np.load(f'vit_{vit_model_name}_pred.npy')
 n = np.max(cla_datas) + 1
 cla_datas = np.eye(n)[cla_datas].T
 

@@ -13,9 +13,9 @@ def plot(df: pd.DataFrame,
         rec_i = df_i.iloc[:, 1]
         f1_i = df_i.iloc[:, 2]
 
-        plt.plot(epsilons[1:], pre_i, label='pre')
-        plt.plot(epsilons[1:], rec_i, label='rec')
-        plt.plot(epsilons[1:], f1_i, label='f1')
+        plt.plot(epsilons, pre_i, label='pre')
+        plt.plot(epsilons, rec_i, label='rec')
+        plt.plot(epsilons, f1_i, label='f1')
 
         plt.title(f'cls - {i}')
         plt.legend()

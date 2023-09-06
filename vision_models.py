@@ -15,7 +15,7 @@ from pathlib import Path
 batch_size = 24
 lr = 0.00005
 scheduler_gamma = 0.1
-num_epochs = 2
+num_epochs = 7
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
