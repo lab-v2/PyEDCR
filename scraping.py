@@ -7,14 +7,20 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
+
 # from PIL import Image
 
 num_images_to_scrape = 100
+images_path = 'images/'
+
 
 # Function to create a directory if it doesn't exist
 def create_directory(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
+
+
+create_directory(images_path)
 
 
 # Function to download an image from a URL
@@ -26,6 +32,7 @@ def download_image(url, directory, filename):
         if content_length > 2000:
             with open(os.path.join(directory, filename), 'wb') as file:
                 file.write(response.content)
+
 
 # Function to filter images (e.g., check if they contain a vehicle)
 # def filter_images(image_directory, output_directory):
@@ -47,7 +54,7 @@ def download_image(url, directory, filename):
 
 def scrape_images_for_class(class_string):
     # Create a directory for the images
-    image_directory = os.path.join('images', class_string)
+    image_directory = os.path.join(images_path, class_string)
     create_directory(image_directory)
 
     # Create a directory for the filtered images
@@ -57,19 +64,19 @@ def scrape_images_for_class(class_string):
     webdriver_path = 'chromedriver'  # Replace with the actual path
     service = ChromeService(executable_path=webdriver_path)
     options = webdriver.ChromeOptions()
+    options.binary_location = 'Chromium.app/Contents/MacOS/Chromium'
     options.add_argument("--start-maximized")  # Optional: Maximize the browser window
     driver = webdriver.Chrome(service=service, options=options)
 
     try:
         # Specify the path to the ChromeDriver executable
 
-
         driver.get("https://www.google.com/imghp")
 
         # Find the search input element and enter the class string
         # Find the search input element by name and enter your query
         search_input = driver.find_element(By.NAME, "q")
-        search_input.send_keys(class_string)
+        search_input.send_keys(f'{class_string} military')
         search_input.send_keys(Keys.RETURN)  # Simulate pressing Enter
 
         # Perform additional interactions to load more images (scroll, click "Load more," etc.)
@@ -102,7 +109,7 @@ def scrape_images_for_class(class_string):
         # Download the images using the extracted URLs
         for i, image_url in enumerate(image_urls):
             download_image(image_url, image_directory, f"{i}.jpg")
-            time.sleep(1)  # Add a delay to avoid overloading the server
+            time.sleep(0.1)  # Add a delay to avoid overloading the server
 
         # Filter the downloaded images (e.g., check if they contain a vehicle)
         # filter_images(image_directory, filtered_directory)
@@ -119,11 +126,14 @@ if __name__ == "__main__":
     dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
     fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
 
-
     coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
     coarse_grain_classes = coarse_grain_results_df['Class Name'].values
     fine_grain_classes = {k: v for k, v in enumerate(fine_grain_results_df['Class Name'].values)}
 
-    class_string = "T-72 tank"  # Replace with the desired class string
-    for c in list(fine_grain_classes.values())[12:]:
+    directories = {item for item in os.listdir(images_path) if os.path.isdir(os.path.join(images_path, item))}
+    classes_without_folder = sorted(list(set(fine_grain_classes.values()).difference(directories)))
+
+    print(f'classes_without_folder: {len(classes_without_folder)}\n{classes_without_folder}')
+
+    for c in classes_without_folder:
         scrape_images_for_class(c)
