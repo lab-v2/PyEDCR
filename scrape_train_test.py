@@ -130,7 +130,7 @@ def load_images_from_folder(folder_path):
 
 
 def assert_datasets(train_images_path, test_images_path):
-    for class_folder in os.listdir(train_images_path):
+    for class_folder in sorted(os.listdir(train_images_path)):
         if os.path.isdir(os.path.join(train_images_path, class_folder)):
             train_images = load_images_from_folder(os.path.join(train_images_path, class_folder))
             test_images = load_images_from_folder(os.path.join(test_images_path, class_folder))
