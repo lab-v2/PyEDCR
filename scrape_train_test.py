@@ -11,6 +11,7 @@ from PIL import Image
 import numpy as np
 from io import BytesIO
 from tqdm import tqdm
+from typing import Optional, List
 
 num_images_to_scrape_train = 100
 num_images_to_scrape_test = 50
@@ -19,7 +20,7 @@ test_images_path = 'test/'
 
 
 # Function to create a directory if it doesn't exist
-def create_directory(directory):
+def create_directory(directory: str) -> None:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -29,7 +30,7 @@ create_directory(test_images_path)
 
 
 # Function to check if an image is already in a directory
-def is_image_in_directory(image_array, directory):
+def is_image_in_directory(image_array: np.ndarray, directory: str) -> bool:
     for filename in os.listdir(directory):
         if filename.endswith('.jpg'):
             existing_image = Image.open(os.path.join(directory, filename))
@@ -40,7 +41,8 @@ def is_image_in_directory(image_array, directory):
 
 
 # Function to scrape images for a class
-def scrape_images_for_class(class_string, num_images_to_scrape, image_directory, removed_images=None):
+def scrape_images_for_class(class_string: str, num_images_to_scrape: int, image_directory: str,
+                            removed_images: Optional[List[np.ndarray]] = None) -> None:
     # Create a directory for the images
     create_directory(image_directory)
 
@@ -101,7 +103,7 @@ def scrape_images_for_class(class_string, num_images_to_scrape, image_directory,
         driver.quit()
 
 
-def load_images_from_folder(folder_path):
+def load_images_from_folder(folder_path: str) -> List[np.ndarray]:
     images = []
     for filename in os.listdir(folder_path):
         if filename.endswith('.jpg'):
@@ -110,7 +112,7 @@ def load_images_from_folder(folder_path):
     return images
 
 
-def assert_datasets(train_images_path, test_images_path):
+def assert_datasets(train_images_path: str, test_images_path: str) -> None:
     for class_folder in sorted(list(os.listdir(test_images_path))):
         if os.path.isdir(os.path.join(train_images_path, class_folder)):
             train_images = load_images_from_folder(os.path.join(train_images_path, class_folder))
@@ -118,7 +120,6 @@ def assert_datasets(train_images_path, test_images_path):
 
             assert len(
                 train_images) == num_images_to_scrape_train, f"Train images count mismatch for class {class_folder}"
-            # assert len(test_images) == num_images_to_scrape_test, f"Test images count mismatch for class {class_folder}"
 
             # Check for duplicate images and replace them in one go
             duplicates_to_replace = []
