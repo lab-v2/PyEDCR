@@ -7,11 +7,14 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
+import numpy as np
+from PIL import Image
 
-# from PIL import Image
 
-num_images_to_scrape = 100
+num_images_to_scrape_train = 100
+num_images_to_scrape_test = 50
 images_path = 'images/'
+test_images_path = 'test/'
 
 
 # Function to create a directory if it doesn't exist
@@ -40,10 +43,18 @@ create_directory(images_path)
 #         except Exception as e:
 #             print(f"Error processing {filename}: {str(e)}")
 
+def load_train_images(image_directory):
+    train_images = []
+    for filename in os.listdir(image_directory):
+        image_path = os.path.join(image_directory, filename)
+        # Convert the image to a numpy array and add it to the list
+        image_np = np.array(Image.open(image_path))
+        train_images.append(image_np)
+    return train_images
 
-def scrape_images_for_class(class_string):
+def scrape_images_for_class(class_string, num_images_to_scrape, image_directory):
     # Create a directory for the images
-    image_directory = os.path.join(images_path, class_string)
+    # image_directory = os.path.join(images_path, class_string)
     create_directory(image_directory)
 
     webdriver_path = 'chromedriver'  # Replace with the actual path
@@ -105,10 +116,17 @@ if __name__ == "__main__":
     coarse_grain_classes = coarse_grain_results_df['Class Name'].values
     fine_grain_classes = {k: v for k, v in enumerate(fine_grain_results_df['Class Name'].values)}
 
-    directories = {item for item in os.listdir(images_path) if os.path.isdir(os.path.join(images_path, item))}
-    classes_without_folder = sorted(list(set(fine_grain_classes.values()).difference(directories)))
+    train_directories = {item for item in os.listdir(images_path) if os.path.isdir(os.path.join(images_path, item))}
+    classes_without_train_folder = sorted(list(set(fine_grain_classes.values()).difference(train_directories)))
 
-    print(f'classes_without_folder: {len(classes_without_folder)}\n{classes_without_folder}')
+    print(f'classes_without_folder: {len(classes_without_train_folder)}\n{classes_without_train_folder}')
 
-    for c in classes_without_folder:
-        scrape_images_for_class(c)
+    for c in classes_without_train_folder:
+        scrape_images_for_class(c, num_images_to_scrape_train, os.path.join(images_path, c))
+
+    test_directories = {item for item in os.listdir(images_path) if os.path.isdir(os.path.join(test_images_path, item))}
+    classes_without_test_folder = sorted(list(set(fine_grain_classes.values()).difference(test_directories)))
+
+    # Scrape additional 50 images for the test set
+    for c in classes_without_test_folder:
+        scrape_images_for_class(c, num_images_to_scrape_test, os.path.join(test_images_path, c))
