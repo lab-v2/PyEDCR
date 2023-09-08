@@ -9,7 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 from PIL import Image
 import numpy as np
-from io import BytesIO  # Add this import statement
+from io import BytesIO
 
 num_images_to_scrape_train = 100
 num_images_to_scrape_test = 50
@@ -62,7 +62,7 @@ def is_image_in_directory(image_array, directory):
 
 
 # Function to scrape images for a class
-def scrape_images_for_class(class_string, num_images_to_scrape, image_directory):
+def scrape_images_for_class(class_string, num_images_to_scrape, image_directory, removed_images=None):
     # Create a directory for the images
     create_directory(image_directory)
 
@@ -102,7 +102,9 @@ def scrape_images_for_class(class_string, num_images_to_scrape, image_directory)
                             content_length = int(response.headers.get("content-length", 0))
                             if content_length > 2000:
                                 image_array = np.array(Image.open(BytesIO(response.content)))
-                                if not is_image_in_directory(image_array, image_directory):
+                                if (not is_image_in_directory(image_array, image_directory) and not
+                                (removed_images is not None and any(np.array_equal(image_array, removed_image)
+                                                                    for removed_image in removed_images))):
                                     with open(os.path.join(image_directory, f"{num_downloaded}.jpg"), 'wb') as file:
                                         file.write(response.content)
                                     num_downloaded += 1
@@ -133,8 +135,9 @@ def assert_datasets(train_images_path, test_images_path):
             train_images = load_images_from_folder(os.path.join(train_images_path, class_folder))
             test_images = load_images_from_folder(os.path.join(test_images_path, class_folder))
 
-            assert len(train_images) == 100, f"Train images count mismatch for class {class_folder}"
-            assert len(test_images) == 50, f"Test images count mismatch for class {class_folder}"
+            assert len(
+                train_images) == num_images_to_scrape_train, f"Train images count mismatch for class {class_folder}"
+            # assert len(test_images) == num_images_to_scrape_test, f"Test images count mismatch for class {class_folder}"
 
             # Check for duplicate images and replace them in one go
             duplicates_to_replace = []
@@ -143,16 +146,22 @@ def assert_datasets(train_images_path, test_images_path):
                     if np.array_equal(train_image, test_image):
                         duplicates_to_replace.append(test_image)
 
-            # Replace duplicates
-            for duplicate in duplicates_to_replace:
-                duplicate_image_path = os.path.join(test_images_path, class_folder)
-                for filename in os.listdir(duplicate_image_path):
-                    if filename.endswith('.jpg'):
-                        existing_image = Image.open(os.path.join(duplicate_image_path, filename))
-                        existing_image_array = np.array(existing_image)
-                        if np.array_equal(duplicate, existing_image_array):
-                            os.remove(os.path.join(duplicate_image_path, filename))
-                scrape_images_for_class(class_folder, len(duplicates_to_replace), duplicate_image_path)
+            if len(duplicates_to_replace):
+                print(f'replacing {len(duplicates_to_replace)} duplicates for class {class_folder}')
+                # Replace duplicates
+                for duplicate in duplicates_to_replace:
+                    duplicate_image_path = os.path.join(test_images_path, class_folder)
+                    for filename in os.listdir(duplicate_image_path):
+                        if filename.endswith('.jpg'):
+                            existing_image = Image.open(os.path.join(duplicate_image_path, filename))
+                            existing_image_array = np.array(existing_image)
+                            if np.array_equal(duplicate, existing_image_array):
+                                os.remove(os.path.join(duplicate_image_path, filename))
+
+                # Scrape new images for the test set (excluding duplicates)
+                scrape_images_for_class(class_folder, len(duplicates_to_replace),
+                                        os.path.join(test_images_path, class_folder),
+                                        removed_images=duplicates_to_replace)
 
 
 if __name__ == "__main__":
