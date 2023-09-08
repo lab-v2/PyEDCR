@@ -13,7 +13,7 @@ from io import BytesIO  # Add this import statement
 
 num_images_to_scrape_train = 100
 num_images_to_scrape_test = 50
-images_path = 'images/'
+train_images_path = 'images/'
 test_images_path = 'test/'
 
 
@@ -23,7 +23,7 @@ def create_directory(directory):
         os.makedirs(directory)
 
 
-create_directory(images_path)
+create_directory(train_images_path)
 create_directory(test_images_path)
 
 
@@ -118,6 +118,43 @@ def scrape_images_for_class(class_string, num_images_to_scrape, image_directory)
         driver.quit()
 
 
+def load_images_from_folder(folder_path):
+    images = []
+    for filename in os.listdir(folder_path):
+        if filename.endswith('.jpg'):
+            image = Image.open(os.path.join(folder_path, filename))
+            images.append(np.array(image))
+    return images
+
+
+def assert_datasets(train_images_path, test_images_path):
+    for class_folder in os.listdir(train_images_path):
+        if os.path.isdir(os.path.join(train_images_path, class_folder)):
+            train_images = load_images_from_folder(os.path.join(train_images_path, class_folder))
+            test_images = load_images_from_folder(os.path.join(test_images_path, class_folder))
+
+            assert len(train_images) == 100, f"Train images count mismatch for class {class_folder}"
+            assert len(test_images) == 50, f"Test images count mismatch for class {class_folder}"
+
+            # Check for duplicate images and replace them in one go
+            duplicates_to_replace = []
+            for train_image in train_images:
+                for test_image in test_images:
+                    if np.array_equal(train_image, test_image):
+                        duplicates_to_replace.append(test_image)
+
+            # Replace duplicates
+            for duplicate in duplicates_to_replace:
+                duplicate_image_path = os.path.join(test_images_path, class_folder)
+                for filename in os.listdir(duplicate_image_path):
+                    if filename.endswith('.jpg'):
+                        existing_image = Image.open(os.path.join(duplicate_image_path, filename))
+                        existing_image_array = np.array(existing_image)
+                        if np.array_equal(duplicate, existing_image_array):
+                            os.remove(os.path.join(duplicate_image_path, filename))
+                scrape_images_for_class(class_folder, len(duplicates_to_replace), duplicate_image_path)
+
+
 if __name__ == "__main__":
     data_file_path = rf'data/WEO_Data_Sheet.xlsx'
     dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
@@ -128,8 +165,8 @@ if __name__ == "__main__":
     fine_grain_classes = {k: v for k, v in enumerate(fine_grain_results_df['Class Name'].values)}
 
     # Directories that don't have train or test folders
-    directories_without_train = {item for item in os.listdir(images_path) if
-                                 os.path.isdir(os.path.join(images_path, item))}
+    directories_without_train = {item for item in os.listdir(train_images_path) if
+                                 os.path.isdir(os.path.join(train_images_path, item))}
     directories_without_test = {item for item in os.listdir(test_images_path) if
                                 os.path.isdir(os.path.join(test_images_path, item))}
 
@@ -139,7 +176,7 @@ if __name__ == "__main__":
     print(f'classes_to_scrape_train: {len(classes_to_scrape_train)}\n{classes_to_scrape_train}')
 
     for c in classes_to_scrape_train:
-        scrape_images_for_class(c, num_images_to_scrape_train, os.path.join(images_path, c))
+        scrape_images_for_class(c, num_images_to_scrape_train, os.path.join(train_images_path, c))
 
     # Classes to scrape for the test
     classes_to_scrape_test = sorted(list(set(fine_grain_classes.values()).difference(directories_without_test)))
@@ -148,3 +185,7 @@ if __name__ == "__main__":
 
     for c in classes_to_scrape_test:
         scrape_images_for_class(c, num_images_to_scrape_test, os.path.join(test_images_path, c))
+
+    # Check and replace duplicates
+    assert_datasets(train_images_path, test_images_path)
+    print("Assertions passed successfully.")
