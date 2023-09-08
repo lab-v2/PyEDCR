@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from PIL import Image
 import numpy as np
 from io import BytesIO
+from tqdm import tqdm
 
 num_images_to_scrape_train = 100
 num_images_to_scrape_test = 50
@@ -25,29 +26,6 @@ def create_directory(directory):
 
 create_directory(train_images_path)
 create_directory(test_images_path)
-
-
-# Function to check if there are images in a directory
-def has_images(directory):
-    return any(filename.endswith('.jpg') for filename in os.listdir(directory))
-
-
-# Function to filter images (e.g., check if they contain a vehicle)
-def filter_images(image_directory, output_directory):
-    create_directory(output_directory)
-
-    for filename in os.listdir(image_directory):
-        image_path = os.path.join(image_directory, filename)
-        try:
-            # Open the image using Pillow (PIL)
-            img = Image.open(image_path)
-
-            # Implement your filtering logic here (e.g., using machine learning models)
-            # For simplicity, let's assume all downloaded images are relevant for now
-            img.save(os.path.join(output_directory, filename))
-            print()
-        except Exception as e:
-            print(f"Error processing {filename}: {str(e)}")
 
 
 # Function to check if an image is already in a directory
@@ -86,30 +64,33 @@ def scrape_images_for_class(class_string, num_images_to_scrape, image_directory,
 
         scroll_pause_time = 2  # Adjust as needed
 
-        while num_downloaded < num_images_to_scrape:
-            # Scroll down to load more images
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(scroll_pause_time)
+        # Add tqdm progress bar
+        with tqdm(total=num_images_to_scrape, unit='image') as pbar:
+            while num_downloaded < num_images_to_scrape:
+                # Scroll down to load more images
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(scroll_pause_time)
 
-            soup = BeautifulSoup(driver.page_source, 'html.parser')
-            image_tags = soup.find_all('img')
-            for img_tag in image_tags:
-                if 'data-src' in img_tag.attrs:
-                    image_url = img_tag['data-src']
-                    if image_url not in image_urls:
-                        response = requests.get(image_url)
-                        if response.status_code == 200:
-                            content_length = int(response.headers.get("content-length", 0))
-                            if content_length > 2000:
-                                image_array = np.array(Image.open(BytesIO(response.content)))
-                                if (not is_image_in_directory(image_array, image_directory) and not
-                                (removed_images is not None and any(np.array_equal(image_array, removed_image)
-                                                                    for removed_image in removed_images))):
-                                    with open(os.path.join(image_directory, f"{num_downloaded}.jpg"), 'wb') as file:
-                                        file.write(response.content)
-                                    num_downloaded += 1
-                                    if num_downloaded == num_images_to_scrape:
-                                        break
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                image_tags = soup.find_all('img')
+                for img_tag in image_tags:
+                    if 'data-src' in img_tag.attrs:
+                        image_url = img_tag['data-src']
+                        if image_url not in image_urls:
+                            response = requests.get(image_url)
+                            if response.status_code == 200:
+                                content_length = int(response.headers.get("content-length", 0))
+                                if content_length > 2000:
+                                    image_array = np.array(Image.open(BytesIO(response.content)))
+                                    if (not is_image_in_directory(image_array, image_directory) and not
+                                    (removed_images is not None and any(np.array_equal(image_array, removed_image)
+                                                                        for removed_image in removed_images))):
+                                        with open(os.path.join(image_directory, f"{num_downloaded}.jpg"), 'wb') as file:
+                                            file.write(response.content)
+                                        num_downloaded += 1
+                                        pbar.update(1)
+                                        if num_downloaded == num_images_to_scrape:
+                                            break
 
         print(f'Downloaded {num_downloaded} images for {class_string}')
 
@@ -130,7 +111,7 @@ def load_images_from_folder(folder_path):
 
 
 def assert_datasets(train_images_path, test_images_path):
-    for class_folder in sorted(os.listdir(train_images_path)):
+    for class_folder in sorted(list(os.listdir(test_images_path))):
         if os.path.isdir(os.path.join(train_images_path, class_folder)):
             train_images = load_images_from_folder(os.path.join(train_images_path, class_folder))
             test_images = load_images_from_folder(os.path.join(test_images_path, class_folder))
@@ -141,8 +122,8 @@ def assert_datasets(train_images_path, test_images_path):
 
             # Check for duplicate images and replace them in one go
             duplicates_to_replace = []
-            for train_image in train_images:
-                for test_image in test_images:
+            for test_image in test_images:
+                for train_image in train_images:
                     if np.array_equal(train_image, test_image):
                         duplicates_to_replace.append(test_image)
 
@@ -151,6 +132,7 @@ def assert_datasets(train_images_path, test_images_path):
                 # Replace duplicates
                 for duplicate in duplicates_to_replace:
                     duplicate_image_path = os.path.join(test_images_path, class_folder)
+
                     for filename in os.listdir(duplicate_image_path):
                         if filename.endswith('.jpg'):
                             existing_image = Image.open(os.path.join(duplicate_image_path, filename))
