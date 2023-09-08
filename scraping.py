@@ -23,17 +23,6 @@ def create_directory(directory):
 create_directory(images_path)
 
 
-# Function to download an image from a URL
-def download_image(url, directory, filename):
-    response = requests.get(url)
-    if response.status_code == 200:
-        content_length = int(response.headers.get("content-length", 0))
-        # Check if the image size is larger than 2 KB (adjust as needed)
-        if content_length > 2000:
-            with open(os.path.join(directory, filename), 'wb') as file:
-                file.write(response.content)
-
-
 # Function to filter images (e.g., check if they contain a vehicle)
 # def filter_images(image_directory, output_directory):
 #     create_directory(output_directory)
@@ -57,10 +46,6 @@ def scrape_images_for_class(class_string):
     image_directory = os.path.join(images_path, class_string)
     create_directory(image_directory)
 
-    # Create a directory for the filtered images
-    # filtered_directory = os.path.join('filtered_images', class_string)
-    # create_directory(filtered_directory)
-
     webdriver_path = 'chromedriver'  # Replace with the actual path
     service = ChromeService(executable_path=webdriver_path)
     options = webdriver.ChromeOptions()
@@ -69,50 +54,40 @@ def scrape_images_for_class(class_string):
     driver = webdriver.Chrome(service=service, options=options)
 
     try:
-        # Specify the path to the ChromeDriver executable
-
         driver.get("https://www.google.com/imghp")
 
         # Find the search input element and enter the class string
-        # Find the search input element by name and enter your query
         search_input = driver.find_element(By.NAME, "q")
         search_input.send_keys(f'{class_string} military')
         search_input.send_keys(Keys.RETURN)  # Simulate pressing Enter
 
-        # Perform additional interactions to load more images (scroll, click "Load more," etc.)
-        # You may need to adjust this part based on Google Images' current structure
-        # This may also depend on the language and region settings of your browser
-
-        # Extract image URLs from the search results
-        # This part may involve parsing the HTML, which can be complex
-        # You can use BeautifulSoup to help with HTML parsing
         image_urls = []
-
-        # Keep scrolling to load more images until a certain number is reached (e.g., 100 images)
+        num_downloaded = 0
 
         scroll_pause_time = 2  # Adjust as needed
 
-        while len(image_urls) < num_images_to_scrape:
+        while num_downloaded < num_images_to_scrape:
             # Scroll down to load more images
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(scroll_pause_time)
 
-            # Extract image URLs from the updated page source
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             image_tags = soup.find_all('img')
             for img_tag in image_tags:
                 if 'data-src' in img_tag.attrs:
                     image_url = img_tag['data-src']
                     if image_url not in image_urls:
-                        image_urls.append(image_url)
+                        response = requests.get(image_url)
+                        if response.status_code == 200:
+                            content_length = int(response.headers.get("content-length", 0))
+                            if content_length > 2000:
+                                with open(os.path.join(image_directory, f"{num_downloaded}.jpg"), 'wb') as file:
+                                    file.write(response.content)
+                                num_downloaded += 1
+                                if num_downloaded == num_images_to_scrape:
+                                    break
 
-        # Download the images using the extracted URLs
-        for i, image_url in enumerate(image_urls):
-            download_image(image_url, image_directory, f"{i}.jpg")
-            time.sleep(0.1)  # Add a delay to avoid overloading the server
-
-        # Filter the downloaded images (e.g., check if they contain a vehicle)
-        # filter_images(image_directory, filtered_directory)
+        print(f'Downloaded {num_downloaded} images for {class_string}')
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")
