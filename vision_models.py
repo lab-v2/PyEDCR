@@ -115,13 +115,15 @@ class VITModelFineTuner(ModelFineTuner):
 
 
 def test(fine_tuner: ModelFineTuner) -> Tuple[list[int], list[int], float]:
-    test_loader = loaders[f'{fine_tuner}_val']
+    test_loader = loaders[f'{fine_tuner}_{test_folder_name}']
     fine_tuner.eval()
     correct = 0
     total = 0
     test_prediction = []
     test_ground_truth = []
     name_list = []
+
+    print(f'Started testing {fine_tuner} on {device}...')
 
     with torch.no_grad():
         for i, data in tqdm(enumerate(test_loader), total=len(test_loader)):
@@ -172,7 +174,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
     test_ground_truths = []
     test_predictions = []
 
-    print(f'Started fine-tuning {fine_tuner}...')
+    print(f'Started fine-tuning {fine_tuner} on {device}...')
 
     for epoch in range(num_epochs):
         t1 = time()

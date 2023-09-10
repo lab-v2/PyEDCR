@@ -13,6 +13,9 @@ from io import BytesIO
 from tqdm import tqdm
 from typing import Optional, Sequence
 import multiprocessing as mp
+import matplotlib.pyplot as plt
+import torchvision
+import torch.utils.data
 
 num_images_to_scrape_train = 100
 num_images_to_scrape_test = 50
@@ -166,43 +169,87 @@ def assert_datasets(train_images_path: str, test_images_path: str) -> None:
                                         train_images=train_images)
 
 
+def plot_dataset_class_frequencies():
+    # Define data transformations and loaders for train and test datasets
+    transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
+
+    train_dataset = torchvision.datasets.ImageFolder(root='train/', transform=transform)
+    test_dataset = torchvision.datasets.ImageFolder(root='test/', transform=transform)
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32, shuffle=False)
+
+    # Calculate class frequencies
+    train_class_freq = [0] * len(train_dataset.classes)
+    test_class_freq = [0] * len(test_dataset.classes)
+
+    for _, target in train_loader.dataset.samples:
+        train_class_freq[target] += 1
+
+    for _, target in test_loader.dataset.samples:
+        test_class_freq[target] += 1
+
+    # Get class names
+    class_names = train_dataset.classes
+
+    # Plot class distributions with rotated labels
+    fig, ax = plt.subplots(figsize=(12, 6))
+    bar_width = 0.35
+    index = np.arange(len(class_names))
+
+    bar1 = ax.bar(index, train_class_freq, bar_width, label='Train')
+    bar2 = ax.bar(index + bar_width, test_class_freq, bar_width, label='Test')
+
+    ax.set_xlabel('Classes')
+    ax.set_ylabel('Frequency')
+    ax.set_title('Class Distribution Comparison')
+    ax.set_xticks(index + bar_width / 2)
+    ax.set_xticklabels(class_names, rotation=90)  # Rotate labels 90 degrees
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
-    data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-    dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
-    fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-
-    coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-    coarse_grain_classes = coarse_grain_results_df['Class Name'].values
-    fine_grain_classes = {k: v for k, v in enumerate(fine_grain_results_df['Class Name'].values)}
-
-    # Directories that don't have train folders
-    directories_without_train = {item for item in os.listdir(train_images_path) if
-                                 os.path.isdir(os.path.join(train_images_path, item))}
-    classes_to_scrape_train = sorted(list(set(fine_grain_classes.values()).difference(directories_without_train)))
-    print(f'classes_to_scrape_train: {len(classes_to_scrape_train)}\n{classes_to_scrape_train}')
-
-    # Multiprocessing for scraping train images
-    pool = mp.Pool(processes=mp.cpu_count())
-    pool.starmap(scrape_images_for_class,
-                 [(cls, num_images_to_scrape_train, os.path.join(train_images_path, cls), [], False) for cls in
-                  classes_to_scrape_train])
-    pool.close()
-    pool.join()
-
-    # Directories that don't have test folders
-    directories_without_test = {item for item in os.listdir(test_images_path) if
-                                os.path.isdir(os.path.join(test_images_path, item))}
-    classes_to_scrape_test = sorted(list(set(fine_grain_classes.values()).difference(directories_without_test)))
-    print(f'classes_to_scrape_test: {len(classes_to_scrape_test)}\n{classes_to_scrape_test}')
-
-    # Multiprocessing for scraping test images
-    pool = mp.Pool(processes=mp.cpu_count())
-    pool.starmap(scrape_images_for_class,
-                 [(cls, num_images_to_scrape_test, os.path.join(test_images_path, cls), [], True) for cls in
-                  classes_to_scrape_test])
-    pool.close()
-    pool.join()
+    # data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+    # dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+    # fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+    #
+    # coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
+    # coarse_grain_classes = coarse_grain_results_df['Class Name'].values
+    # fine_grain_classes = {k: v for k, v in enumerate(fine_grain_results_df['Class Name'].values)}
+    #
+    # # Directories that don't have train folders
+    # directories_without_train = {item for item in os.listdir(train_images_path) if
+    #                              os.path.isdir(os.path.join(train_images_path, item))}
+    # classes_to_scrape_train = sorted(list(set(fine_grain_classes.values()).difference(directories_without_train)))
+    # print(f'classes_to_scrape_train: {len(classes_to_scrape_train)}\n{classes_to_scrape_train}')
+    #
+    # # Multiprocessing for scraping train images
+    # pool = mp.Pool(processes=mp.cpu_count())
+    # pool.starmap(scrape_images_for_class,
+    #              [(cls, num_images_to_scrape_train, os.path.join(train_images_path, cls), [], False) for cls in
+    #               classes_to_scrape_train])
+    # pool.close()
+    # pool.join()
+    #
+    # # Directories that don't have test folders
+    # directories_without_test = {item for item in os.listdir(test_images_path) if
+    #                             os.path.isdir(os.path.join(test_images_path, item))}
+    # classes_to_scrape_test = sorted(list(set(fine_grain_classes.values()).difference(directories_without_test)))
+    # print(f'classes_to_scrape_test: {len(classes_to_scrape_test)}\n{classes_to_scrape_test}')
+    #
+    # # Multiprocessing for scraping test images
+    # pool = mp.Pool(processes=mp.cpu_count())
+    # pool.starmap(scrape_images_for_class,
+    #              [(cls, num_images_to_scrape_test, os.path.join(test_images_path, cls), [], True) for cls in
+    #               classes_to_scrape_test])
+    # pool.close()
+    # pool.join()
 
     # Check and replace duplicates
     assert_datasets(train_images_path, test_images_path)
     print("Assertions passed successfully.")
+
+    plot_dataset_class_frequencies()
