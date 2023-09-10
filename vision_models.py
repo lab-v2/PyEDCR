@@ -26,6 +26,9 @@ vit_model = eval(f'torchvision.models.vit_{vit_model_name}')
 vit_weights = eval(f"torchvision.models.ViT_"
                    f"{'_'.join([s.upper() for s in vit_model_name.split('_')])}_Weights.DEFAULT")
 
+train_folder_name = 'train'
+test_folder_name = 'test'
+
 
 def get_transforms(train_or_val: str,
                    model_name: str) -> torchvision.transforms.Compose:
@@ -39,7 +42,7 @@ def get_transforms(train_or_val: str,
 
     return torchvision.transforms.Compose(
         ([torchvision.transforms.RandomResizedCrop(resize_num),
-          torchvision.transforms.RandomHorizontalFlip()] if train_or_val == 'train' else
+          torchvision.transforms.RandomHorizontalFlip()] if train_or_val == train_folder_name else
          [torchvision.transforms.Resize(int(resize_num / 224 * 256)),
           torchvision.transforms.CenterCrop(resize_num)]) +
         [torchvision.transforms.ToTensor(),
@@ -150,7 +153,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
     fine_tuner.to(device)
     fine_tuner.train()
 
-    train_loader = loaders[f'{fine_tuner}_train']
+    train_loader = loaders[f'{fine_tuner}_{train_folder_name}']
     criterion = torch.nn.CrossEntropyLoss()
 
     optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -168,6 +171,8 @@ def fine_tune(fine_tuner: ModelFineTuner,
     test_accuracies = []
     test_ground_truths = []
     test_predictions = []
+
+    print(f'Started fine-tuning {fine_tuner}...')
 
     for epoch in range(num_epochs):
         t1 = time()
@@ -231,25 +236,26 @@ if __name__ == '__main__':
     while (not Path.is_file(Path(vit_acc_file_path))) or (np.load(vit_acc_file_path)[-1] < 0.9):
 
         model_names = [f'vit_{vit_model_name}',
-                       # 'inception'
+                       'inception'
                        ]
-        data_dir = Path.joinpath(cwd, 'data/FineGrainDataset')
+        data_dir = Path.joinpath(cwd, '.')
         datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                         transform=get_transforms(
                                                                             train_or_val=train_or_val,
                                                                             model_name=model_name))
-                    for model_name in model_names for train_or_val in ['train', 'val']}
+                    for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
 
-        assert all(datasets[f'{model_name}_train'].classes == datasets[f'{model_name}_val'].classes
+        assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
+                   datasets[f'{model_name}_{test_folder_name}'].classes
                    for model_name in model_names)
 
         loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
             dataset=datasets[f'{model_name}_{train_or_val}'],
             batch_size=batch_size,
-            shuffle=train_or_val == 'train')
-            for model_name in model_names for train_or_val in ['train', 'val']}
+            shuffle=train_or_val == train_folder_name)
+            for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
 
-        classes = datasets[f'{model_names[0]}_train'].classes
+        classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
 
         n = len(classes)
 
@@ -261,10 +267,11 @@ if __name__ == '__main__':
 
         for fine_tuner in fine_tuners:
             with ClearCache(device):
-                train_ground_truth, train_prediction, test_ground_truth, test_prediction = fine_tune(fine_tuner,
-                                                                                                     lr,
-                                                                                                     scheduler_step_size,
-                                                                                                     num_epochs)
+                train_ground_truth, train_prediction, \
+                    test_ground_truth, test_prediction = fine_tune(fine_tuner,
+                                                                   lr,
+                                                                   scheduler_step_size,
+                                                                   num_epochs)
                 np.save(f"{fine_tuner}_pred.npy",
                         test_prediction)
                 np.save(f"{fine_tuner}_true.npy",
