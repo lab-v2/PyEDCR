@@ -7,7 +7,6 @@ base_path0 = 'LRCN_F1_no_overlap_sequential/'
 base_path1 = 'no_overlap_sequential_10/'
 results_file = base_path0 + "rule_for_NPcorrection.csv"
 
-
 # true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
 # pred_data = np.load(base_path0 + "test_pred.npy", allow_pickle=True)
 #
@@ -38,7 +37,7 @@ def rules1(i: int):
     rule_scores = []
 
     for cls in cla_datas:
-        rule_scores += [int(cls[i]), 1 - int(cls[i])]
+        rule_scores += [int(cls[i])]
 
     return rule_scores
 
@@ -256,36 +255,35 @@ def ruleForNPCorrection(all_charts, epsilon):
 
 
 if __name__ == '__main__':
-    charts = []
+    # charts = []
+    #
+    # high_scores = [0.8]
+    # low_scores = [0.2]
+    # epsilons = [0.002 * i for i in range(1, 100, 1)]
+    #
+    # m = true_data.shape[0]
+    # for i in range(m):
+    #     charts.append([pred_data[i], true_data[i]] + rules1(i))
+    #
+    # all_charts = generate_chart(charts)
+    #
+    # results = []
+    # result0 = [0]
+    # for count, chart in enumerate(all_charts):
+    #     chart = np.array(chart)
+    #     result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+    #     result0.extend([0, 0, 0, 0])
+    # result0.extend(get_scores(true_data, pred_data))
+    # results.append(result0)
+    #
+    # for ep in epsilons:
+    #     result = ruleForNPCorrection(all_charts, ep)
+    #     results.append([ep] + result)
+    #     print(f"ep:{ep}\n{result}")
+    # col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+    # df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+    #
+    # df.to_csv(results_file)
 
-
-    high_scores = [0.8]
-    low_scores = [0.2]
-    epsilons = [0.002 * i for i in range(1, 100, 1)]
-
-    m = true_data.shape[0]
-    for i in range(m):
-        charts.append([pred_data[i], true_data[i]] + rules1(i))
-
-    all_charts = generate_chart(charts)
-
-    results = []
-    result0 = [0]
-    for count, chart in enumerate(all_charts):
-        chart = np.array(chart)
-        result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-        result0.extend([0, 0, 0, 0])
-    result0.extend(get_scores(true_data, pred_data))
-    results.append(result0)
-
-    for ep in epsilons:
-        result = ruleForNPCorrection(all_charts, ep)
-        results.append([ep] + result)
-        print(f"ep:{ep}\n{result}")
-    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
-
-    df.to_csv(results_file)
-
-    # df = pd.read_csv(results_file)
-    plot(df=df, n=n_classes, epsilons=epsilons)
+    df = pd.read_csv(results_file)
+    plot(df=df, n=n_classes, epsilons=df['epsilon'][1:])

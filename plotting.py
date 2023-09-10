@@ -9,9 +9,10 @@ def plot(df: pd.DataFrame,
     for i in range(n):
         df_i = df.iloc[1:, 2 + i * 7:2 + (i + 1) * 7]
 
-        pre_i = df_i.iloc[:, 0]
-        rec_i = df_i.iloc[:, 1]
-        f1_i = df_i.iloc[:, 2]
+        added_str = f'.{i}' if i else ''
+        pre_i = df_i[f'pre{added_str}']
+        rec_i = df_i[f'recall{added_str}']
+        f1_i = df_i[f'F1{added_str}']
 
         plt.plot(epsilons, pre_i, label='pre')
         plt.plot(epsilons, rec_i, label='rec')
@@ -22,6 +23,7 @@ def plot(df: pd.DataFrame,
         plt.tight_layout()
         plt.grid()
         plt.show()
+
 
 
 if __name__ == '__main__':

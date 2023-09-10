@@ -34,7 +34,8 @@ create_directory(test_images_path)
 
 
 # Function to check if an image is already in a directory
-def is_image_in_directory(candidate_image_array: np.array, directory: str) -> bool:
+def is_image_in_directory(candidate_image_array: np.array,
+                          directory: str) -> bool:
     for filename in os.listdir(directory):
         if filename.endswith('.jpg'):
             existing_image = Image.open(os.path.join(directory, filename))
@@ -128,7 +129,8 @@ def load_images_from_folder(folder_path: str) -> Sequence[np.array]:
     return images
 
 
-def assert_datasets(train_images_path: str, test_images_path: str) -> None:
+def assert_datasets(train_images_path: str,
+                    test_images_path: str) -> None:
     for class_folder in sorted(list(os.listdir(test_images_path))):
         if os.path.isdir(os.path.join(train_images_path, class_folder)):
             train_images = load_images_from_folder(os.path.join(train_images_path, class_folder))
