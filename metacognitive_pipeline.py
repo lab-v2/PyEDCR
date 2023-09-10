@@ -2,31 +2,35 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 from plotting import plot
+from vision_models import vit_model_name
 
 base_path0 = 'LRCN_F1_no_overlap_sequential/'
-base_path1 = 'no_overlap_sequential_10/'
 results_file = base_path0 + "rule_for_NPcorrection.csv"
 
-# true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
-# pred_data = np.load(base_path0 + "test_pred.npy", allow_pickle=True)
-#
-# cla4_data = np.load(base_path1 + "test_out_cla4.npy", allow_pickle=True)
-# cla3_data = np.load(base_path1 + "test_out_cla3.npy", allow_pickle=True)
-# cla2_data = np.load(base_path1 + "test_out_cla2.npy", allow_pickle=True)
-# cla1_data = np.load(base_path1 + "test_out_cla1.npy", allow_pickle=True)
-# cla0_data = np.load(base_path1 + "test_out_cla0.npy", allow_pickle=True)
 
-# cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
+def load_data(bowen: bool = False):
+    if bowen:
 
-true_data = np.load("inception_true.npy")
-pred_data = np.load("inception_pred.npy")
+        base_path1 = 'no_overlap_sequential_10/'
+        true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
+        pred_data = np.load(base_path0 + "test_pred.npy", allow_pickle=True)
+        cla4_data = np.load(base_path1 + "test_out_cla4.npy", allow_pickle=True)
+        cla3_data = np.load(base_path1 + "test_out_cla3.npy", allow_pickle=True)
+        cla2_data = np.load(base_path1 + "test_out_cla2.npy", allow_pickle=True)
+        cla1_data = np.load(base_path1 + "test_out_cla1.npy", allow_pickle=True)
+        cla0_data = np.load(base_path1 + "test_out_cla0.npy", allow_pickle=True)
 
-vit_model_names = ['b_16', 'b_32', 'l_16', 'l_32', 'h_14']
-vit_model_index = 2
-vit_model_name = vit_model_names[vit_model_index]
-cla_datas = np.load(f'vit_{vit_model_name}_pred.npy')
-n = np.max(cla_datas) + 1
-cla_datas = np.eye(n)[cla_datas].T
+        cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
+    else:
+        true_data = np.load("inception_true.npy")
+        pred_data = np.load("inception_pred.npy")
+        cla_datas = np.load(f'vit_{vit_model_name}_pred.npy')
+        cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
+
+    return true_data, pred_data, cla_datas
+
+
+true_data, pred_data, cla_datas = load_data()
 
 labels = set(true_data.flatten())
 len_labels = len(labels)
@@ -255,35 +259,31 @@ def ruleForNPCorrection(all_charts, epsilon):
 
 
 if __name__ == '__main__':
-    # charts = []
-    #
-    # high_scores = [0.8]
-    # low_scores = [0.2]
-    # epsilons = [0.002 * i for i in range(1, 100, 1)]
-    #
-    # m = true_data.shape[0]
-    # for i in range(m):
-    #     charts.append([pred_data[i], true_data[i]] + rules1(i))
-    #
-    # all_charts = generate_chart(charts)
-    #
-    # results = []
-    # result0 = [0]
-    # for count, chart in enumerate(all_charts):
-    #     chart = np.array(chart)
-    #     result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-    #     result0.extend([0, 0, 0, 0])
-    # result0.extend(get_scores(true_data, pred_data))
-    # results.append(result0)
-    #
-    # for ep in epsilons:
-    #     result = ruleForNPCorrection(all_charts, ep)
-    #     results.append([ep] + result)
-    #     print(f"ep:{ep}\n{result}")
-    # col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-    # df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
-    #
-    # df.to_csv(results_file)
+    high_scores = [0.8]
+    low_scores = [0.2]
+    epsilons = [0.002 * i for i in range(1, 100, 1)]
+
+    m = true_data.shape[0]
+    charts = [[pred_data[i], true_data[i]] + rules1(i) for i in range(m)]
+    all_charts = generate_chart(charts)
+
+    results = []
+    result0 = [0]
+    for count, chart in enumerate(all_charts):
+        chart = np.array(chart)
+        result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+        result0.extend([0, 0, 0, 0])
+    result0.extend(get_scores(true_data, pred_data))
+    results.append(result0)
+
+    for ep in epsilons:
+        result = ruleForNPCorrection(all_charts, ep)
+        results.append([ep] + result)
+        print(f"ep:{ep}\n{result}")
+    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+
+    df.to_csv(results_file)
 
     df = pd.read_csv(results_file)
-    plot(df=df, n=n_classes, epsilons=df['epsilon'][1:])
+    plot(df=df, n_classes=n_classes, col_num=len(col), x_valeus=df['epsilon'][1:])
