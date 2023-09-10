@@ -12,6 +12,7 @@ import numpy as np
 from io import BytesIO
 from tqdm import tqdm
 from typing import Optional, Sequence
+import multiprocessing as mp
 
 num_images_to_scrape_train = 100
 num_images_to_scrape_test = 50
@@ -180,8 +181,13 @@ if __name__ == "__main__":
     classes_to_scrape_train = sorted(list(set(fine_grain_classes.values()).difference(directories_without_train)))
     print(f'classes_to_scrape_train: {len(classes_to_scrape_train)}\n{classes_to_scrape_train}')
 
-    for cls in classes_to_scrape_train:
-        scrape_images_for_class(cls, num_images_to_scrape_train, os.path.join(train_images_path, cls))
+    # Multiprocessing for scraping train images
+    pool = mp.Pool(processes=mp.cpu_count())
+    pool.starmap(scrape_images_for_class,
+                 [(cls, num_images_to_scrape_train, os.path.join(train_images_path, cls), [], False) for cls in
+                  classes_to_scrape_train])
+    pool.close()
+    pool.join()
 
     # Directories that don't have test folders
     directories_without_test = {item for item in os.listdir(test_images_path) if
@@ -189,11 +195,13 @@ if __name__ == "__main__":
     classes_to_scrape_test = sorted(list(set(fine_grain_classes.values()).difference(directories_without_test)))
     print(f'classes_to_scrape_test: {len(classes_to_scrape_test)}\n{classes_to_scrape_test}')
 
-    for cls in classes_to_scrape_test:
-        scrape_images_for_class(class_string=cls,
-                                num_images_to_scrape=num_images_to_scrape_test,
-                                image_directory=os.path.join(test_images_path, cls),
-                                scraping_for_test=True)
+    # Multiprocessing for scraping test images
+    pool = mp.Pool(processes=mp.cpu_count())
+    pool.starmap(scrape_images_for_class,
+                 [(cls, num_images_to_scrape_test, os.path.join(test_images_path, cls), [], True) for cls in
+                  classes_to_scrape_test])
+    pool.close()
+    pool.join()
 
     # Check and replace duplicates
     assert_datasets(train_images_path, test_images_path)
