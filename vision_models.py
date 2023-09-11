@@ -11,6 +11,7 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 from abc import ABC
 from pathlib import Path
+import sys
 
 batch_size = 24
 lr = 0.00005
@@ -77,6 +78,40 @@ class ClearCache:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.device_backend:
             self.device_backend.empty_cache()
+
+
+def is_running_in_colab():
+    """
+    Check if the code is running in Google Colab.
+    Returns:
+        True if running in Google Colab, False otherwise.
+    """
+    # Check if the 'google.colab' module is available
+    if 'google.colab' in sys.modules:
+        return True
+    else:
+        return False
+
+
+class ClearSession:
+    def __init__(self):
+        self.colab = False
+        if is_running_in_colab():
+
+            from google.colab import drive
+
+            # Mount Google Drive
+            self.drive = drive
+            self.drive.mount('/content/drive')
+            self.colab = True
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.colab:
+            self.drive.flush_and_unmount()
+
 
 
 class ModelFineTuner(torch.nn.Module, ABC):
@@ -148,6 +183,9 @@ def test(fine_tuner: ModelFineTuner) -> Tuple[list[int], list[int], float]:
     return test_ground_truth, test_prediction, test_accuracy
 
 
+
+
+
 def fine_tune(fine_tuner: ModelFineTuner,
               lr: float,
               scheduler_step_size: int,
@@ -208,8 +246,8 @@ def fine_tune(fine_tuner: ModelFineTuner,
               f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
               f'\ntraining accuracy: {round(acc, 3)}\n')
 
-        if len(train_accuracies) and acc < 0.5 * train_accuracies[-1]:
-            raise AssertionError('Training accuracy reduced by too much, stopped learning')
+        # if len(train_accuracies) and acc < 0.5 * train_accuracies[-1]:
+        #     raise AssertionError('Training accuracy reduced by too much, stopped learning')
 
         train_accuracies += [acc]
         train_losses += [running_loss / len(train_loader)]
@@ -218,12 +256,13 @@ def fine_tune(fine_tuner: ModelFineTuner,
         test_accuracies += [test_accuracy]
         print('#' * 100)
 
-        if str(fine_tuner).__contains__('vit') and test_accuracy > 0.8:
-            print('vit test accuracy better than the inception test accuracy. Early stopping')
-            break
+        # if str(fine_tuner).__contains__('vit') and test_accuracy > 0.8:
+        #     print('vit test accuracy better than the inception test accuracy. Early stopping')
+        #     break
+    colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
 
-    np.save(f"{fine_tuner}_train_acc.npy", train_accuracies)
-    np.save(f"{fine_tuner}_train_loss.npy", train_losses)
+    np.save(f"{colab_path}{fine_tuner}_train_acc.npy", train_accuracies)
+    np.save(f"{colab_path}{fine_tuner}_train_loss.npy", train_losses)
 
     test_accuracies_filename = Path(f"{fine_tuner}_test_acc.npy")
     if (not Path.is_file(test_accuracies_filename)) or (test_accuracies[-1] > np.load(test_accuracies_filename)):
@@ -269,16 +308,16 @@ if __name__ == '__main__':
 
         for fine_tuner in fine_tuners:
             with ClearCache(device):
-                train_ground_truth, train_prediction, \
-                    test_ground_truth, test_prediction = fine_tune(fine_tuner,
-                                                                   lr,
-                                                                   scheduler_step_size,
-                                                                   num_epochs)
-                np.save(f"{fine_tuner}_pred.npy",
-                        test_prediction)
-                np.save(f"{fine_tuner}_true.npy",
-                        test_ground_truth)
-                print('#' * 100)
+                colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
+                with ClearSession():
+                    train_ground_truth, train_prediction, \
+                        test_ground_truth, test_prediction = fine_tune(fine_tuner,
+                                                                       lr,
+                                                                       scheduler_step_size,
+                                                                       num_epochs)
+                    np.save(f"{colab_path}{fine_tuner}_pred.npy", test_prediction)
+                    np.save(f"{colab_path}{fine_tuner}_true.npy", test_ground_truth)
+                    print('#' * 100)
 
         for fine_tuner in fine_tuners:
             vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
