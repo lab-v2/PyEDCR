@@ -11,14 +11,14 @@ from PIL import Image
 import numpy as np
 from io import BytesIO
 from tqdm import tqdm
-from typing import Optional, Sequence
+from typing import Sequence
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 import torchvision
 import torch.utils.data
 
-num_images_to_scrape_train = 100
-num_images_to_scrape_test = 50
+num_images_to_scrape_train = 800
+num_images_to_scrape_test = 200
 train_images_path = 'train/'
 test_images_path = 'test/'
 
@@ -49,9 +49,11 @@ def is_image_in_directory(candidate_image_array: np.array,
 def scrape_images_for_class(class_string: str,
                             num_images_to_scrape: int,
                             image_directory: str,
-                            removed_images: Optional[Sequence[np.array]] = None,
                             scraping_for_test: bool = False) -> None:
     # Create a directory for the images
+
+    print(f"Started scraping {num_images_to_scrape} {'test' if scraping_for_test else 'train'} "
+          f"images for class {class_string}")
     create_directory(image_directory)
 
     webdriver_path = 'chromedriver'  # Replace with the actual path
@@ -70,11 +72,20 @@ def scrape_images_for_class(class_string: str,
         search_input.send_keys(f'{class_string} military')
         search_input.send_keys(Keys.RETURN)  # Simulate pressing Enter
 
-        num_downloaded = 0
-
         scroll_pause_time = 2  # Adjust as needed
 
-        # Add tqdm progress bar
+        # Add this code to keep scrolling until no more "Show more results" button is found
+        while True:
+            try:
+                # Find the "Show more results" button and click it
+                show_more_button = driver.find_element(By.XPATH, '//input[@value="Show more results"]')
+                show_more_button.click()
+                time.sleep(scroll_pause_time)  # Wait for the page to load
+            except:
+                break  # No more "Show more results" button found, exit the loop
+
+        num_downloaded = 0
+
         with tqdm(total=num_images_to_scrape, unit='image') as pbar:
             while num_downloaded < num_images_to_scrape:
                 # Scroll down to load more images
@@ -93,16 +104,13 @@ def scrape_images_for_class(class_string: str,
                                 image_content = response.content
                                 image_array = np.array(Image.open(BytesIO(image_content)))
                                 image_in_directory = is_image_in_directory(image_array, image_directory)
-                                image_was_removed = removed_images is not None and \
-                                                    any(np.array_equal(image_array, removed_image)
-                                                        for removed_image in removed_images)
-                                image_in_train = scraping_for_test and \
-                                                 any(np.array_equal(image_array, train_image)
-                                                     for train_image in
-                                                     load_images_from_folder(
-                                                         os.path.join(train_images_path, class_string)))
+                                image_in_train = scraping_for_test and any(np.array_equal(image_array, train_image)
+                                                                           for train_image in
+                                                                           load_images_from_folder(
+                                                                               os.path.join(train_images_path,
+                                                                                            class_string)))
 
-                                if (not image_in_directory) and (not image_was_removed) and (not image_in_train):
+                                if (not image_in_directory) and (not image_in_train):
                                     filename = os.path.join(image_directory, f"{num_downloaded}.jpg")
                                     with open(filename, 'wb') as file:
                                         file.write(image_content)
@@ -198,41 +206,38 @@ def plot_dataset_class_frequencies():
 
 
 if __name__ == "__main__":
-    # data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-    # dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
-    # fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-    #
-    # coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-    # coarse_grain_classes = coarse_grain_results_df['Class Name'].values
-    # fine_grain_classes = {k: v for k, v in enumerate(fine_grain_results_df['Class Name'].values)}
-    #
-    # # Directories that don't have train folders
-    # directories_without_train = {item for item in os.listdir(train_images_path) if
-    #                              os.path.isdir(os.path.join(train_images_path, item))}
-    # classes_to_scrape_train = sorted(list(set(fine_grain_classes.values()).difference(directories_without_train)))
-    # print(f'classes_to_scrape_train: {len(classes_to_scrape_train)}\n{classes_to_scrape_train}')
-    #
-    # # Multiprocessing for scraping train images
-    # pool = mp.Pool(processes=mp.cpu_count())
-    # pool.starmap(scrape_images_for_class,
-    #              [(cls, num_images_to_scrape_train, os.path.join(train_images_path, cls), [], False) for cls in
-    #               classes_to_scrape_train])
-    # pool.close()
-    # pool.join()
-    #
-    # # Directories that don't have test folders
-    # directories_without_test = {item for item in os.listdir(test_images_path) if
-    #                             os.path.isdir(os.path.join(test_images_path, item))}
-    # classes_to_scrape_test = sorted(list(set(fine_grain_classes.values()).difference(directories_without_test)))
-    # print(f'classes_to_scrape_test: {len(classes_to_scrape_test)}\n{classes_to_scrape_test}')
-    #
-    # # Multiprocessing for scraping test images
-    # pool = mp.Pool(processes=mp.cpu_count())
-    # pool.starmap(scrape_images_for_class,
-    #              [(cls, num_images_to_scrape_test, os.path.join(test_images_path, cls), [], True) for cls in
-    #               classes_to_scrape_test])
-    # pool.close()
-    # pool.join()
+    data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+    dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+    fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+    fine_grain_classes = set(fine_grain_results_df['Class Name'].values)
+
+    # Directories that don't have train folders
+    directories_without_train = {item for item in os.listdir(train_images_path) if
+                                 os.path.isdir(os.path.join(train_images_path, item))}
+    classes_to_scrape_train = sorted(list(fine_grain_classes.difference(directories_without_train)))
+    print(f'classes_to_scrape_train: {len(classes_to_scrape_train)}\n{classes_to_scrape_train}')
+
+    # Scraping train images
+    pool = mp.Pool(processes=mp.cpu_count())
+    pool.starmap(scrape_images_for_class,
+                 [(cls, num_images_to_scrape_train, os.path.join(train_images_path, cls), False)
+                  for cls in [classes_to_scrape_train[0]]])
+    pool.close()
+    pool.join()
+
+    # Directories that don't have test folders
+    directories_without_test = {item for item in os.listdir(test_images_path) if
+                                os.path.isdir(os.path.join(test_images_path, item))}
+    classes_to_scrape_test = sorted(list(fine_grain_classes.difference(directories_without_test)))
+    print(f'classes_to_scrape_test: {len(classes_to_scrape_test)}\n{classes_to_scrape_test}')
+
+    # Scraping test images
+    pool = mp.Pool(processes=mp.cpu_count())
+    pool.starmap(scrape_images_for_class,
+                 [(cls, num_images_to_scrape_test, os.path.join(test_images_path, cls), True)
+                  for cls in classes_to_scrape_test])
+    pool.close()
+    pool.join()
 
     # Check and replace duplicates
     assert_datasets(train_images_path, test_images_path)
