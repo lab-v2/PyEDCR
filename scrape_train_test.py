@@ -47,7 +47,6 @@ def is_image_in_directory(candidate_image_array: np.array,
 
 # Function to scrape images for a class
 def scrape_images_for_class(class_string: str,
-                            # num_images_to_scrape: int,
                             image_directory: str,
                             scraping_for_test: bool = False) -> None:
     # Create a directory for the images
@@ -69,12 +68,13 @@ def scrape_images_for_class(class_string: str,
 
         # Find the search input element and enter the class string
         search_input = driver.find_element(By.NAME, "q")
-        search_input.send_keys(f'{class_string} military')
+        search_input.send_keys(f"{class_string} military"
+                               f"{'' if class_string != 'Tornado' else ' multiple rocket launchers'}")
         search_input.send_keys(Keys.RETURN)  # Simulate pressing Enter
 
         scroll_pause_time = 1  # Adjust as needed
 
-        print('Scrolling all the way down...')
+        # print('Scrolling all the way down...')
         last_height = driver.execute_script("return document.body.scrollHeight")
 
         while True:
@@ -126,10 +126,8 @@ def scrape_images_for_class(class_string: str,
                                     file.write(image_content)
                                 num_downloaded += 1
                                 pbar.update(1)
-                                # if num_downloaded == num_images_to_scrape:
-                                #     break
 
-        print(f'Downloaded {num_downloaded} images for {class_string}')
+        print(f'\nDownloaded {num_downloaded} images for {class_string}\n')
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")
@@ -231,7 +229,7 @@ if __name__ == "__main__":
     pool = mp.Pool(processes=mp.cpu_count())
     pool.starmap(scrape_images_for_class,
                  [(cls, os.path.join(train_images_path, cls), False)
-                  for cls in [classes_to_scrape_train[0]]])
+                  for cls in classes_to_scrape_train])
     pool.close()
     pool.join()
 
@@ -244,7 +242,7 @@ if __name__ == "__main__":
     # Scraping test images
     pool = mp.Pool(processes=mp.cpu_count())
     pool.starmap(scrape_images_for_class,
-                 [(cls, num_images_to_scrape_test, os.path.join(test_images_path, cls), True)
+                 [(cls, os.path.join(test_images_path, cls), True)
                   for cls in classes_to_scrape_test])
     pool.close()
     pool.join()
