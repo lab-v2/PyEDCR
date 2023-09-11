@@ -267,20 +267,18 @@ if __name__ == '__main__':
         fine_tuners = [eval(f"{'VIT' if model_name.__contains__('vit') else 'Inception'}"
                             f"ModelFineTuner(num_classes=n)") for model_name in model_names]
 
-        for fine_tuner in fine_tuners:
-            with ClearCache(device):
-                train_ground_truth, train_prediction, \
-                    test_ground_truth, test_prediction = fine_tune(fine_tuner,
-                                                                   lr,
-                                                                   scheduler_step_size,
-                                                                   num_epochs)
-                np.save(f"{fine_tuner}_pred.npy",
-                        test_prediction)
-                np.save(f"{fine_tuner}_true.npy",
-                        test_ground_truth)
-                print('#' * 100)
-
-        vit_true_labels = np.load(Path.joinpath(cwd, f"vit_{vit_model_name}_true.npy"))
+        # for fine_tuner in fine_tuners:
+        #     with ClearCache(device):
+        #         train_ground_truth, train_prediction, \
+        #             test_ground_truth, test_prediction = fine_tune(fine_tuner,
+        #                                                            lr,
+        #                                                            scheduler_step_size,
+        #                                                            num_epochs)
+        #         np.save(f"{fine_tuner}_pred.npy",
+        #                 test_prediction)
+        #         np.save(f"{fine_tuner}_true.npy",
+        #                 test_ground_truth)
+        #         print('#' * 100)
 
         for fine_tuner in fine_tuners:
             vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))

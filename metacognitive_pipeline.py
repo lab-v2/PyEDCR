@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
-from plotting import plot
 from vision_models import vit_model_name
+import matplotlib.pyplot as plt
 
 base_path0 = 'LRCN_F1_no_overlap_sequential/'
 results_file = base_path0 + "rule_for_NPcorrection.csv"
@@ -10,7 +10,6 @@ results_file = base_path0 + "rule_for_NPcorrection.csv"
 
 def load_data(bowen: bool = False):
     if bowen:
-
         base_path1 = 'no_overlap_sequential_10/'
         true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
         pred_data = np.load(base_path0 + "test_pred.npy", allow_pickle=True)
@@ -19,7 +18,6 @@ def load_data(bowen: bool = False):
         cla2_data = np.load(base_path1 + "test_out_cla2.npy", allow_pickle=True)
         cla1_data = np.load(base_path1 + "test_out_cla1.npy", allow_pickle=True)
         cla0_data = np.load(base_path1 + "test_out_cla0.npy", allow_pickle=True)
-
         cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
     else:
         true_data = np.load("inception_true.npy")
@@ -258,6 +256,29 @@ def ruleForNPCorrection(all_charts, epsilon):
     return results
 
 
+def plot(df: pd.DataFrame,
+         n_classes: int,
+         col_num: int,
+         x_values: list[float]):
+    for i in range(n_classes):
+        df_i = df.iloc[1:, 2 + i * col_num:2 + (i + 1) * col_num]
+
+        added_str = f'.{i}' if i else ''
+        pre_i = df_i[f'pre{added_str}']
+        rec_i = df_i[f'recall{added_str}']
+        f1_i = df_i[f'F1{added_str}']
+
+        plt.plot(x_values, pre_i, label='pre')
+        plt.plot(x_values, rec_i, label='rec')
+        plt.plot(x_values, f1_i, label='f1')
+
+        plt.title(f'class #{i}')
+        plt.legend()
+        plt.tight_layout()
+        plt.grid()
+        plt.show()
+
+
 if __name__ == '__main__':
     high_scores = [0.8]
     low_scores = [0.2]
@@ -286,4 +307,7 @@ if __name__ == '__main__':
     df.to_csv(results_file)
 
     df = pd.read_csv(results_file)
-    plot(df=df, n_classes=n_classes, col_num=len(col), x_valeus=df['epsilon'][1:])
+    plot(df=df,
+         n_classes=n_classes,
+         col_num=len(col),
+         x_values=df['epsilon'][1:])
