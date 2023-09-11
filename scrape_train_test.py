@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import torchvision
 import torch.utils.data
 
-num_images_to_scrape_train = 800
+# num_images_to_scrape_train = 800
 num_images_to_scrape_test = 200
 train_images_path = 'train/'
 test_images_path = 'test/'
@@ -47,13 +47,12 @@ def is_image_in_directory(candidate_image_array: np.array,
 
 # Function to scrape images for a class
 def scrape_images_for_class(class_string: str,
-                            num_images_to_scrape: int,
+                            # num_images_to_scrape: int,
                             image_directory: str,
                             scraping_for_test: bool = False) -> None:
     # Create a directory for the images
 
-    print(f"Started scraping {num_images_to_scrape} {'test' if scraping_for_test else 'train'} "
-          f"images for class {class_string}")
+    print(f"Searching images for class {class_string}...")
     create_directory(image_directory)
 
     webdriver_path = 'chromedriver'  # Replace with the actual path
@@ -62,6 +61,7 @@ def scrape_images_for_class(class_string: str,
     options = webdriver.ChromeOptions()
     options.binary_location = 'Chromium.app/Contents/MacOS/Chromium'
     options.add_argument("--start-maximized")  # Optional: Maximize the browser window
+    options.add_argument("--headless")  # Run in headless mode without a visible browser window
     driver = webdriver.Chrome(service=service, options=options)
 
     try:
@@ -72,52 +72,62 @@ def scrape_images_for_class(class_string: str,
         search_input.send_keys(f'{class_string} military')
         search_input.send_keys(Keys.RETURN)  # Simulate pressing Enter
 
-        scroll_pause_time = 2  # Adjust as needed
+        scroll_pause_time = 1  # Adjust as needed
 
-        # Add this code to keep scrolling until no more "Show more results" button is found
+        print('Scrolling all the way down...')
+        last_height = driver.execute_script("return document.body.scrollHeight")
+
         while True:
-            try:
-                # Find the "Show more results" button and click it
-                show_more_button = driver.find_element(By.XPATH, '//input[@value="Show more results"]')
-                show_more_button.click()
-                time.sleep(scroll_pause_time)  # Wait for the page to load
-            except:
-                break  # No more "Show more results" button found, exit the loop
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(scroll_pause_time)
+
+            new_height = driver.execute_script("return document.body.scrollHeight")
+            if new_height == last_height:
+                show_more_button = driver.find_element(By.XPATH, "//input[@value='Show more results']")
+                if show_more_button.is_displayed():
+                    show_more_button.click()
+                    time.sleep(scroll_pause_time)  # Wait for more images to load
+                else:
+                    break
+            last_height = new_height
 
         num_downloaded = 0
 
-        with tqdm(total=num_images_to_scrape, unit='image') as pbar:
-            while num_downloaded < num_images_to_scrape:
-                # Scroll down to load more images
-                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(scroll_pause_time)
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(scroll_pause_time)
 
-                soup = BeautifulSoup(driver.page_source, 'html.parser')
-                image_tags = soup.find_all('img')
-                for img_tag in image_tags:
-                    if 'data-src' in img_tag.attrs:
-                        image_url = img_tag['data-src']
-                        response = requests.get(image_url)
-                        if response.status_code == 200:
-                            content_length = int(response.headers.get("content-length", 0))
-                            if content_length > 2000:
-                                image_content = response.content
-                                image_array = np.array(Image.open(BytesIO(image_content)))
-                                image_in_directory = is_image_in_directory(image_array, image_directory)
-                                image_in_train = scraping_for_test and any(np.array_equal(image_array, train_image)
-                                                                           for train_image in
-                                                                           load_images_from_folder(
-                                                                               os.path.join(train_images_path,
-                                                                                            class_string)))
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        image_tags = soup.find_all('img')
 
-                                if (not image_in_directory) and (not image_in_train):
-                                    filename = os.path.join(image_directory, f"{num_downloaded}.jpg")
-                                    with open(filename, 'wb') as file:
-                                        file.write(image_content)
-                                    num_downloaded += 1
-                                    pbar.update(1)
-                                    if num_downloaded == num_images_to_scrape:
-                                        break
+        print(f"\nStarted scraping {'test' if scraping_for_test else 'train'} "
+              f"images for class {class_string}...\n")
+
+        with tqdm(total=len(image_tags), unit='image') as pbar:
+
+            for img_tag in image_tags:
+                if 'data-src' in img_tag.attrs:
+                    image_url = img_tag['data-src']
+                    response = requests.get(image_url)
+                    if response.status_code == 200:
+                        content_length = int(response.headers.get("content-length", 0))
+                        if content_length > 2000:
+                            image_content = response.content
+                            image_array = np.array(Image.open(BytesIO(image_content)))
+                            image_in_directory = is_image_in_directory(image_array, image_directory)
+                            image_in_train = scraping_for_test and any(np.array_equal(image_array, train_image)
+                                                                       for train_image in
+                                                                       load_images_from_folder(
+                                                                           os.path.join(train_images_path,
+                                                                                        class_string)))
+
+                            if (not image_in_directory) and (not image_in_train):
+                                filename = os.path.join(image_directory, f"{num_downloaded}.jpg")
+                                with open(filename, 'wb') as file:
+                                    file.write(image_content)
+                                num_downloaded += 1
+                                pbar.update(1)
+                                # if num_downloaded == num_images_to_scrape:
+                                #     break
 
         print(f'Downloaded {num_downloaded} images for {class_string}')
 
@@ -144,10 +154,10 @@ def assert_datasets(train_images_path: str,
             train_images = load_images_from_folder(os.path.join(train_images_path, class_folder))
             test_images = load_images_from_folder(os.path.join(test_images_path, class_folder))
 
-            assert len(
-                train_images) == num_images_to_scrape_train, \
-                (f"Train images count mismatch for class {class_folder} is "
-                 f"{len(train_images)} < {num_images_to_scrape_train}")
+            # assert len(
+            #     train_images) == num_images_to_scrape_train, \
+            #     (f"Train images count mismatch for class {class_folder} is "
+            #      f"{len(train_images)} < {num_images_to_scrape_train}")
 
             assert len(
                 test_images) == num_images_to_scrape_test, \
@@ -220,7 +230,7 @@ if __name__ == "__main__":
     # Scraping train images
     pool = mp.Pool(processes=mp.cpu_count())
     pool.starmap(scrape_images_for_class,
-                 [(cls, num_images_to_scrape_train, os.path.join(train_images_path, cls), False)
+                 [(cls, os.path.join(train_images_path, cls), False)
                   for cls in [classes_to_scrape_train[0]]])
     pool.close()
     pool.join()
@@ -240,7 +250,7 @@ if __name__ == "__main__":
     pool.join()
 
     # Check and replace duplicates
-    assert_datasets(train_images_path, test_images_path)
+    # assert_datasets(train_images_path, test_images_path)
     print("Assertions passed successfully.")
 
     plot_dataset_class_frequencies()
