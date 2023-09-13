@@ -152,11 +152,6 @@ def assert_datasets(train_images_path: str,
             train_images = load_images_from_folder(os.path.join(train_images_path, class_folder))
             test_images = load_images_from_folder(os.path.join(test_images_path, class_folder))
 
-            # assert len(
-            #     train_images) == num_images_to_scrape_train, \
-            #     (f"Train images count mismatch for class {class_folder} is "
-            #      f"{len(train_images)} < {num_images_to_scrape_train}")
-
             assert len(
                 test_images) == num_images_to_scrape_test, \
                 (f"Test images count mismatch for class {class_folder} is"

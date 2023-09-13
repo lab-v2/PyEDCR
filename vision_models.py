@@ -80,17 +80,14 @@ class ClearCache:
             self.device_backend.empty_cache()
 
 
-def is_running_in_colab():
+def is_running_in_colab() -> bool:
     """
     Check if the code is running in Google Colab.
     Returns:
         True if running in Google Colab, False otherwise.
     """
-    # Check if the 'google.colab' module is available
-    if 'google.colab' in sys.modules:
-        return True
-    else:
-        return False
+
+    return 'google.colab' in sys.modules
 
 
 class ClearSession:
@@ -264,8 +261,8 @@ def fine_tune(fine_tuner: ModelFineTuner,
     np.save(f"{colab_path}{fine_tuner}_train_acc.npy", train_accuracies)
     np.save(f"{colab_path}{fine_tuner}_train_loss.npy", train_losses)
 
-    test_accuracies_filename = Path(f"{fine_tuner}_test_acc.npy")
-    if (not Path.is_file(test_accuracies_filename)) or (test_accuracies[-1] > np.load(test_accuracies_filename)):
+    test_accuracies_filename = Path(f"{colab_path}{fine_tuner}_test_acc.npy")
+    if (not Path.is_file(test_accuracies_filename)) or (test_accuracies[-1] > np.load(test_accuracies_filename)[-1]):
         np.save(test_accuracies_filename, test_accuracies)
 
     return train_ground_truths, train_predictions, test_ground_truths, test_predictions
