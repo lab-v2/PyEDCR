@@ -12,20 +12,20 @@ import matplotlib.pyplot as plt
 from abc import ABC
 from pathlib import Path
 import sys
+import timm
 
 batch_size = 24
-lr = 0.00005
+lr = 0.0001
 scheduler_gamma = 0.1
-num_epochs = 4
+num_epochs = 10
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
-vit_model_names = ['b_16', 'b_32', 'l_16', 'l_32', 'h_14']
-vit_model_index = 2
-vit_model_name = vit_model_names[vit_model_index]
-vit_model = eval(f'torchvision.models.vit_{vit_model_name}')
-vit_weights = eval(f"torchvision.models.ViT_"
-                   f"{'_'.join([s.upper() for s in vit_model_name.split('_')])}_Weights.DEFAULT")
+vit_model_names = ['b_16',
+                   'b_32',
+                   'l_16',
+                   'l_32',
+                   'h_14']
 
 train_folder_name = 'train'
 test_folder_name = 'test'
@@ -38,7 +38,7 @@ def get_transforms(train_or_val: str,
         means = [0.485, 0.456, 0.406]
         stds = [0.229, 0.224, 0.225]
     else:
-        resize_num = 518 if vit_model == torchvision.models.vit_h_14 else 224
+        resize_num = 518 if model_name == 'h_14' else 224
         means = stds = [0.5] * 3
 
     return torchvision.transforms.Compose(
@@ -94,7 +94,6 @@ class ClearSession:
     def __init__(self):
         self.colab = False
         if is_running_in_colab():
-
             from google.colab import drive
 
             # Mount Google Drive
@@ -110,16 +109,15 @@ class ClearSession:
             self.drive.flush_and_unmount()
 
 
-
-class ModelFineTuner(torch.nn.Module, ABC):
+class FineTuner(torch.nn.Module, ABC):
     def __str__(self) -> str:
-        return self.__class__.__name__.split('Model')[0].lower()
+        return self.__class__.__name__.split('Fine')[0].lower()
 
     def __len__(self) -> int:
         return sum(p.numel() for p in self.parameters())
 
 
-class InceptionModelFineTuner(ModelFineTuner):
+class InceptionV3FineTuner(FineTuner):
     def __init__(self, num_classes: int):
         super().__init__()
         self.inception = torchvision.models.inception_v3(
@@ -132,21 +130,40 @@ class InceptionModelFineTuner(ModelFineTuner):
         return x
 
 
-class VITModelFineTuner(ModelFineTuner):
-    def __init__(self, num_classes: int):
+class VITFineTuner(FineTuner):
+    def __init__(self,
+                 vit_model_index: int,
+                 num_classes: int):
         super().__init__()
+        self.vit_model_name = vit_model_names[vit_model_index]
+        vit_model = eval(f'torchvision.models.vit_{self.vit_model_name}')
+        vit_weights = eval(f"torchvision.models.ViT_{'_'.join([s.upper() for s in self.vit_model_name.split('_')])}"
+                           f"_Weights.DEFAULT")
         self.vit = vit_model(weights=vit_weights)
-        self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim, out_features=num_classes)
+        self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
+                                             out_features=num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.vit(x)
         return x
 
     def __str__(self):
-        return f'{super().__str__()}_{vit_model_name}'
+        return f'{super().__str__()}_{self.vit_model_name}'
 
 
-def test(fine_tuner: ModelFineTuner) -> Tuple[list[int], list[int], float]:
+class InceptionResNetV2FineTuner(FineTuner):
+    def __init__(self, num_classes: int):
+        super().__init__()
+        self.inception = timm.create_model('inception_resnet_v2',
+                                           pretrained=True,
+                                           num_classes=num_classes)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.inception(x)
+        return x
+
+
+def test(fine_tuner: FineTuner) -> Tuple[list[int], list[int], float]:
     test_loader = loaders[f'{fine_tuner}_{test_folder_name}']
     fine_tuner.eval()
     correct = 0
@@ -180,10 +197,7 @@ def test(fine_tuner: ModelFineTuner) -> Tuple[list[int], list[int], float]:
     return test_ground_truth, test_prediction, test_accuracy
 
 
-
-
-
-def fine_tune(fine_tuner: ModelFineTuner,
+def fine_tune(fine_tuner: FineTuner,
               lr: float,
               scheduler_step_size: int,
               scheduler_gamma: float) -> Tuple[list[int], list[int], list[int], list[int]]:
@@ -212,6 +226,7 @@ def fine_tune(fine_tuner: ModelFineTuner,
     print(f'Started fine-tuning {fine_tuner} on {device}...')
 
     for epoch in range(num_epochs):
+        print(f'Started epoch {epoch + 1}/{num_epochs}')
         t1 = time()
         running_loss = 0.0
         train_predictions = []
@@ -269,88 +284,86 @@ def fine_tune(fine_tuner: ModelFineTuner,
 
 
 if __name__ == '__main__':
-    vit_acc_file_path = Path.joinpath(cwd, f'vit_{vit_model_name}_test_acc.npy')
+    vit_model_indices = [2, 3]
 
-    while (not Path.is_file(Path(vit_acc_file_path))) or (np.load(vit_acc_file_path)[-1] < 0.9):
+    model_names = [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices]
+    data_dir = Path.joinpath(cwd, '.')
+    datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
+                                                                    transform=get_transforms(
+                                                                        train_or_val=train_or_val,
+                                                                        model_name=model_name))
+                for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
 
-        model_names = [f'vit_{vit_model_name}',
-                       'inception'
-                       ]
-        data_dir = Path.joinpath(cwd, '.')
-        datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
-                                                                        transform=get_transforms(
-                                                                            train_or_val=train_or_val,
-                                                                            model_name=model_name))
-                    for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
+    assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
+               datasets[f'{model_name}_{test_folder_name}'].classes
+               for model_name in model_names)
 
-        assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
-                   datasets[f'{model_name}_{test_folder_name}'].classes
-                   for model_name in model_names)
+    loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
+        dataset=datasets[f'{model_name}_{train_or_val}'],
+        batch_size=batch_size,
+        shuffle=train_or_val == train_folder_name)
+        for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
 
-        loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
-            dataset=datasets[f'{model_name}_{train_or_val}'],
-            batch_size=batch_size,
-            shuffle=train_or_val == train_folder_name)
-            for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
+    classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
 
-        classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
+    n = len(classes)
 
-        n = len(classes)
+    device = torch.device('mps' if torch.backends.mps.is_available() else
+                          ("cuda" if torch.cuda.is_available() else 'cpu'))
 
-        device = torch.device('mps' if torch.backends.mps.is_available() else
-                              ("cuda" if torch.cuda.is_available() else 'cpu'))
+    fine_tuners = [eval(
+        f"{'VIT' if model_name.__contains__('vit') else 'Inception' if model_name == 'inception' else 'InceptionResNetV2'}"
+        f"FineTuner({'vit_model_index=model_index ,' if model_name.__contains__('vit') else ''}num_classes=n)")
+        for model_index, model_name in zip(vit_model_indices, model_names)]
 
-        fine_tuners = [eval(f"{'VIT' if model_name.__contains__('vit') else 'Inception'}"
-                            f"ModelFineTuner(num_classes=n)") for model_name in model_names]
+    for fine_tuner in fine_tuners:
+        with ClearCache(device):
+            colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
+            with ClearSession():
+                train_ground_truth, train_prediction, \
+                    test_ground_truth, test_prediction = fine_tune(fine_tuner,
+                                                                   lr,
+                                                                   scheduler_step_size,
+                                                                   num_epochs)
+                np.save(f"{colab_path}{fine_tuner}_pred.npy", test_prediction)
+                np.save(f"{colab_path}{fine_tuner}_true.npy", test_ground_truth)
+                print('#' * 100)
 
-        for fine_tuner in fine_tuners:
-            with ClearCache(device):
-                colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
-                with ClearSession():
-                    train_ground_truth, train_prediction, \
-                        test_ground_truth, test_prediction = fine_tune(fine_tuner,
-                                                                       lr,
-                                                                       scheduler_step_size,
-                                                                       num_epochs)
-                    np.save(f"{colab_path}{fine_tuner}_pred.npy", test_prediction)
-                    np.save(f"{colab_path}{fine_tuner}_true.npy", test_ground_truth)
-                    print('#' * 100)
+    for fine_tuner in fine_tuners:
+        vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
+        plt.plot(vit_train_loss, label=f'{fine_tuner} training Loss')
 
-        for fine_tuner in fine_tuners:
-            vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
-            plt.plot(vit_train_loss, label=f'{fine_tuner} training Loss')
+    plt.title('Training Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid()
+    plt.show()
 
-        plt.title('Training Loss')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.legend()
-        plt.grid()
-        plt.show()
+    plt.cla()
+    plt.clf()
 
-        plt.cla()
-        plt.clf()
+    for fine_tuner in fine_tuners:
+        vit_train_acc = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_acc.npy'))
+        plt.plot(vit_train_acc, label=f'{fine_tuner} training accuracy')
 
-        for fine_tuner in fine_tuners:
-            vit_train_acc = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_acc.npy'))
-            plt.plot(vit_train_acc, label=f'{fine_tuner} training accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Training Accuracy')
+    plt.legend()
+    plt.grid()
+    plt.show()
 
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
-        plt.title('Training Accuracy')
-        plt.legend()
-        plt.grid()
-        plt.show()
+    plt.cla()
+    plt.clf()
 
-        plt.cla()
-        plt.clf()
+    for fine_tuner in fine_tuners:
+        vit_test_acc = np.load(f'{fine_tuner}_test_acc.npy')
+        plt.plot(vit_test_acc, label=f'{fine_tuner} test accuracy')
 
-        for fine_tuner in fine_tuners:
-            vit_test_acc = np.load(f'{fine_tuner}_test_acc.npy')
-            plt.plot(vit_test_acc, label=f'{fine_tuner} test accuracy')
-
-        plt.xlabel('Epoch')
-        plt.ylabel('Test Accuracy')
-        plt.title('Test Accuracy')
-        plt.legend()
-        plt.grid()
-        plt.show()
+    plt.xlabel('Epoch')
+    plt.ylabel('Test Accuracy')
+    plt.title('Test Accuracy')
+    plt.legend()
+    plt.grid()
+    plt.show()

@@ -17,8 +17,6 @@ import matplotlib.pyplot as plt
 import torchvision
 import torch.utils.data
 
-# num_images_to_scrape_train = 800
-num_images_to_scrape_test = 200
 train_images_path = 'train/'
 test_images_path = 'test/'
 
@@ -145,27 +143,6 @@ def load_images_from_folder(folder_path: str) -> Sequence[np.array]:
     return images
 
 
-def assert_datasets(train_images_path: str,
-                    test_images_path: str) -> None:
-    for class_folder in sorted(list(os.listdir(test_images_path))):
-        if os.path.isdir(os.path.join(train_images_path, class_folder)):
-            train_images = load_images_from_folder(os.path.join(train_images_path, class_folder))
-            test_images = load_images_from_folder(os.path.join(test_images_path, class_folder))
-
-            assert len(
-                test_images) == num_images_to_scrape_test, \
-                (f"Test images count mismatch for class {class_folder} is"
-                 f" {len(test_images)} < {num_images_to_scrape_test}")
-
-            duplicates = []
-            for test_image in test_images:
-                for train_image in train_images:
-                    if np.array_equal(train_image, test_image):
-                        duplicates.append(test_image)
-
-            assert not len(duplicates), f'There are {len(duplicates)} duplicates for class {class_folder}'
-
-
 def plot_dataset_class_frequencies():
     # Define data transformations and loaders for train and test datasets
     transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
@@ -241,9 +218,5 @@ if __name__ == "__main__":
                   for cls in classes_to_scrape_test])
     pool.close()
     pool.join()
-
-    # Check and replace duplicates
-    # assert_datasets(train_images_path, test_images_path)
-    print("Assertions passed successfully.")
 
     plot_dataset_class_frequencies()

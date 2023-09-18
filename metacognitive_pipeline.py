@@ -4,11 +4,15 @@ from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_sc
 from vision_models import vit_model_name
 import matplotlib.pyplot as plt
 
+bowen = False
+main_model = 'vit'
+run_positives = True
+
 base_path0 = 'LRCN_F1_no_overlap_sequential/'
 results_file = base_path0 + "rule_for_NPcorrection.csv"
 
 
-def load_data(bowen: bool = False):
+def load_data(bowen: bool = False, main_model: str = 'inception'):
     if bowen:
         base_path1 = 'no_overlap_sequential_10/'
         true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
@@ -21,14 +25,20 @@ def load_data(bowen: bool = False):
         cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
     else:
         true_data = np.load("inception_true.npy")
-        pred_data = np.load("inception_pred.npy")
-        cla_datas = np.load(f'vit_{vit_model_name}_pred.npy')
-        cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
+
+        if main_model == 'inception':
+            pred_data = np.load("inception_pred.npy")
+            cla_datas = np.load(f'vit_{vit_model_name}_pred.npy')
+            cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
+        else:
+            cla_datas = np.load("inception_pred.npy")
+            pred_data = np.load(f'vit_{vit_model_name}_pred.npy')
+            cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
 
     return true_data, pred_data, cla_datas
 
 
-true_data, pred_data, cla_datas = load_data()
+true_data, pred_data, cla_datas = load_data(bowen=bowen, main_model=main_model)
 
 labels = set(true_data.flatten())
 len_labels = len(labels)
@@ -211,7 +221,7 @@ def GreedyNegRuleSelect(i, epsilon, all_charts):
     return NCi
 
 
-def ruleForNPCorrection(all_charts, epsilon):
+def ruleForNPCorrection(all_charts, epsilon, run_positives=run_positives):
     results = []
     total_results = np.copy(pred_data)
     for count, chart in enumerate(all_charts):
@@ -232,13 +242,14 @@ def ruleForNPCorrection(all_charts, epsilon):
                     neg_i_count += 1
                     predict_result[ct] = 0
 
-        CCi = DetUSMPosRuleSelect(count, all_charts)
+        CCi = DetUSMPosRuleSelect(count, all_charts) if run_positives else []
         tem_cond = np.zeros_like(chart[:, 0])
         rec_true = []
         rec_pred = []
 
         for cc in CCi:
             tem_cond |= chart[:, cc]
+
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct]:
@@ -251,8 +262,12 @@ def ruleForNPCorrection(all_charts, epsilon):
                     rec_pred.append(cv[0])
 
         scores_cor = get_scores(chart[:, 1], predict_result)
-        results.extend(scores_cor + [neg_i_count, pos_i_count, len(NCi), len(CCi)])
+        results.extend(scores_cor + [neg_i_count,
+                                     pos_i_count,
+                                     len(NCi),
+                                     len(CCi)])
     results.extend(get_scores(true_data, total_results))
+
     return results
 
 
@@ -298,7 +313,7 @@ if __name__ == '__main__':
     results.append(result0)
 
     for ep in epsilons:
-        result = ruleForNPCorrection(all_charts, ep)
+        result = ruleForNPCorrection(all_charts, ep, run_positives=True)
         results.append([ep] + result)
         print(f"ep:{ep}\n{result}")
     col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
