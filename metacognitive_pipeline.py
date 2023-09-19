@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
-from vision_models import vit_model_name
+from vision_models import vit_model_names, vit_model_indices
 import matplotlib.pyplot as plt
 
 bowen = False
@@ -9,10 +9,12 @@ main_model = 'vit'
 run_positives = True
 
 base_path0 = 'LRCN_F1_no_overlap_sequential/'
-results_file = base_path0 + "rule_for_NPcorrection.csv"
+results_folder = 'RESULTS/'
+results_file = results_folder + "rule_for_NPcorrection.csv"
 
 
-def load_data(bowen: bool = False, main_model: str = 'inception'):
+def load_data(bowen: bool = False,
+              main_model_index: int = 0):
     if bowen:
         base_path1 = 'no_overlap_sequential_10/'
         true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
@@ -24,21 +26,22 @@ def load_data(bowen: bool = False, main_model: str = 'inception'):
         cla0_data = np.load(base_path1 + "test_out_cla0.npy", allow_pickle=True)
         cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
     else:
-        true_data = np.load("inception_true.npy")
+        main_model_name = vit_model_names[main_model_index]
+        main_model_path = f"{results_folder}{'vit_' if 'vit' in main_model_name else ''}{main_model_name}"
+        true_data = np.load(f'{main_model_path}_true.npy')
+        pred_data = np.load(f'{main_model_path}_pred.npy')
 
-        if main_model == 'inception':
-            pred_data = np.load("inception_pred.npy")
-            cla_datas = np.load(f'vit_{vit_model_name}_pred.npy')
-            cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
-        else:
-            cla_datas = np.load("inception_pred.npy")
-            pred_data = np.load(f'vit_{vit_model_name}_pred.npy')
-            cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
+        secondary_model_name = vit_model_names[next(i for i in vit_model_indices if i != main_model_index)]
+        cla_datas = np.load(f"{results_folder}{'vit_' if 'vit' in secondary_model_name else ''}"
+                            f"{secondary_model_name}_pred.npy")
+        cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
 
     return true_data, pred_data, cla_datas
 
 
-true_data, pred_data, cla_datas = load_data(bowen=bowen, main_model=main_model)
+main_model_index = 2
+
+true_data, pred_data, cla_datas = load_data(bowen=bowen, main_model_index=main_model_index)
 
 labels = set(true_data.flatten())
 len_labels = len(labels)

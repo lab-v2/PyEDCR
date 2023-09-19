@@ -26,7 +26,7 @@ vit_model_names = ['b_16',
                    'l_16',
                    'l_32',
                    'h_14']
-
+vit_model_indices = [3]
 train_folder_name = 'train'
 test_folder_name = 'test'
 
@@ -284,8 +284,6 @@ def fine_tune(fine_tuner: FineTuner,
 
 
 if __name__ == '__main__':
-    vit_model_indices = [2, 3]
-
     model_names = [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices]
     data_dir = Path.joinpath(cwd, '.')
     datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
