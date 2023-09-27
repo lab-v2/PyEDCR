@@ -4,55 +4,25 @@ from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_sc
 from vision_models import vit_model_names, vit_model_indices
 import matplotlib.pyplot as plt
 
-bowen = False
-main_model = 'vit'
 run_positives = True
 
 base_path0 = 'LRCN_F1_no_overlap_sequential/'
 results_folder = 'RESULTS/'
 results_file = results_folder + "rule_for_NPcorrection.csv"
 
-
-def load_data(bowen: bool = False,
-              main_model_index: int = 0):
-    if bowen:
-        base_path1 = 'no_overlap_sequential_10/'
-        true_data = np.load(base_path0 + "test_true.npy", allow_pickle=True)
-        pred_data = np.load(base_path0 + "test_pred.npy", allow_pickle=True)
-        cla4_data = np.load(base_path1 + "test_out_cla4.npy", allow_pickle=True)
-        cla3_data = np.load(base_path1 + "test_out_cla3.npy", allow_pickle=True)
-        cla2_data = np.load(base_path1 + "test_out_cla2.npy", allow_pickle=True)
-        cla1_data = np.load(base_path1 + "test_out_cla1.npy", allow_pickle=True)
-        cla0_data = np.load(base_path1 + "test_out_cla0.npy", allow_pickle=True)
-        cla_datas = [cla0_data, cla1_data, cla2_data, cla3_data, cla4_data]  # neural network binary result
-    else:
-        main_model_name = vit_model_names[main_model_index]
-        main_model_path = f"{results_folder}{'vit_' if 'vit' in main_model_name else ''}{main_model_name}"
-        true_data = np.load(f'{main_model_path}_true.npy')
-        pred_data = np.load(f'{main_model_path}_pred.npy')
-
-        secondary_model_name = vit_model_names[next(i for i in vit_model_indices if i != main_model_index)]
-        cla_datas = np.load(f"{results_folder}{'vit_' if 'vit' in secondary_model_name else ''}"
-                            f"{secondary_model_name}_pred.npy")
-        cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
-
-    return true_data, pred_data, cla_datas
-
-
-main_model_index = 2
-
-true_data, pred_data, cla_datas = load_data(bowen=bowen, main_model_index=main_model_index)
-
-labels = set(true_data.flatten())
-len_labels = len(labels)
-n_classes = len_labels
+data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
+n_classes = len(fine_grain_classes)
 
 
 def rules1(i: int):
     rule_scores = []
 
     for cls in cla_datas:
-        rule_scores += [int(cls[i])]
+        cls_i = int(cls[i])
+        rule_scores += [cls_i, 1-cls_i]
 
     return rule_scores
 
@@ -279,6 +249,7 @@ def plot(df: pd.DataFrame,
          col_num: int,
          x_values: list[float]):
     for i in range(n_classes):
+
         df_i = df.iloc[1:, 2 + i * col_num:2 + (i + 1) * col_num]
 
         added_str = f'.{i}' if i else ''
@@ -286,46 +257,63 @@ def plot(df: pd.DataFrame,
         rec_i = df_i[f'recall{added_str}']
         f1_i = df_i[f'F1{added_str}']
 
-        plt.plot(x_values, pre_i, label='pre')
-        plt.plot(x_values, rec_i, label='rec')
-        plt.plot(x_values, f1_i, label='f1')
+        plt.plot(x_values,
+                 pre_i,
+                 label='pre')
+        plt.plot(x_values,
+                 rec_i,
+                 label='rec')
+        plt.plot(x_values,
+                 f1_i,
+                 label='f1')
 
-        plt.title(f'class #{i}')
+        plt.title(f'Class #{i}-{fine_grain_classes[i]}, Main: {main_model_name}, '
+                  f'Secondary: {secondary_model_name}')
         plt.legend()
         plt.tight_layout()
         plt.grid()
-        plt.show()
+        plt.savefig(f'figs/cls{i}_{main_model_name}->{secondary_model_name}.png')
+        plt.clf()
+        plt.cla()
 
 
 if __name__ == '__main__':
-    high_scores = [0.8]
-    low_scores = [0.2]
-    epsilons = [0.002 * i for i in range(1, 100, 1)]
+    for main_model_index in vit_model_indices:
+        main_model_name = vit_model_names[main_model_index]
+        main_model_path = f"{results_folder}vit_{main_model_name}"
+        true_data = np.load(f'{main_model_path}_true.npy')
+        pred_data = np.load(f'{main_model_path}_pred.npy')
 
-    m = true_data.shape[0]
-    charts = [[pred_data[i], true_data[i]] + rules1(i) for i in range(m)]
-    all_charts = generate_chart(charts)
+        secondary_model_name = vit_model_names[next(i for i in vit_model_indices if i != main_model_index)]
+        cla_datas = np.load(f"{results_folder}vit_{secondary_model_name}_pred.npy")
+        cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
 
-    results = []
-    result0 = [0]
-    for count, chart in enumerate(all_charts):
-        chart = np.array(chart)
-        result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-        result0.extend([0, 0, 0, 0])
-    result0.extend(get_scores(true_data, pred_data))
-    results.append(result0)
+        high_scores = [0.7, 0.8]
+        low_scores = [0.1, 0.2]
+        epsilons = [0.003 * i for i in range(1, 100, 1)]
 
-    for ep in epsilons:
-        result = ruleForNPCorrection(all_charts, ep, run_positives=True)
-        results.append([ep] + result)
-        print(f"ep:{ep}\n{result}")
-    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+        m = true_data.shape[0]
+        charts = [[pred_data[i], true_data[i]] + rules1(i) for i in range(m)]
+        all_charts = generate_chart(charts)
 
-    df.to_csv(results_file)
+        results = []
+        result0 = [0]
+        for count, chart in enumerate(all_charts):
+            chart = np.array(chart)
+            result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+            result0.extend([0, 0, 0, 0])
+        result0.extend(get_scores(true_data, pred_data))
+        results.append(result0)
 
-    df = pd.read_csv(results_file)
-    plot(df=df,
-         n_classes=n_classes,
-         col_num=len(col),
-         x_values=df['epsilon'][1:])
+        for ep in epsilons:
+            result = ruleForNPCorrection(all_charts, ep, run_positives=True)
+            results.append([ep] + result)
+            print(f"ep:{ep}\n{result}")
+        col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+        df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+        df.to_csv(results_file)
+        df = pd.read_csv(results_file)
+        plot(df=df,
+             n_classes=n_classes,
+             col_num=len(col),
+             x_values=df['epsilon'][1:])

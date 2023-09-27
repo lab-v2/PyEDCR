@@ -26,7 +26,8 @@ vit_model_names = ['b_16',
                    'l_16',
                    'l_32',
                    'h_14']
-vit_model_indices = [3]
+
+vit_model_indices = [2, 3]
 train_folder_name = 'train'
 test_folder_name = 'test'
 
@@ -197,10 +198,7 @@ def test(fine_tuner: FineTuner) -> Tuple[list[int], list[int], float]:
     return test_ground_truth, test_prediction, test_accuracy
 
 
-def fine_tune(fine_tuner: FineTuner,
-              lr: float,
-              scheduler_step_size: int,
-              scheduler_gamma: float) -> Tuple[list[int], list[int], list[int], list[int]]:
+def fine_tune(fine_tuner: FineTuner) -> Tuple[list[int], list[int], list[int], list[int]]:
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -319,10 +317,7 @@ if __name__ == '__main__':
             colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
             with ClearSession():
                 train_ground_truth, train_prediction, \
-                    test_ground_truth, test_prediction = fine_tune(fine_tuner,
-                                                                   lr,
-                                                                   scheduler_step_size,
-                                                                   num_epochs)
+                    test_ground_truth, test_prediction = fine_tune(fine_tuner)
                 np.save(f"{colab_path}{fine_tuner}_pred.npy", test_prediction)
                 np.save(f"{colab_path}{fine_tuner}_true.npy", test_ground_truth)
                 print('#' * 100)
