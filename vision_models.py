@@ -15,7 +15,7 @@ import sys
 import timm
 
 batch_size = 24
-lr = 2e-4
+lr = 1 * 10 ** (-4)
 scheduler_gamma = 0.1
 num_epochs = 2
 cwd = Path(__file__).parent.resolve()
@@ -256,9 +256,6 @@ def fine_tune(fine_tuner: FineTuner) -> Tuple[list[int], list[int], list[int], l
               f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
               f'\ntraining accuracy: {round(acc, 3)}\n')
 
-        # if len(train_accuracies) and acc < 0.5 * train_accuracies[-1]:
-        #     raise AssertionError('Training accuracy reduced by too much, stopped learning')
-
         train_accuracies += [acc]
         train_losses += [running_loss / len(train_loader)]
         scheduler.step()
@@ -266,17 +263,17 @@ def fine_tune(fine_tuner: FineTuner) -> Tuple[list[int], list[int], list[int], l
         test_accuracies += [test_accuracy]
         print('#' * 100)
 
-        # if str(fine_tuner).__contains__('vit') and test_accuracy > 0.8:
-        #     print('vit test accuracy better than the inception test accuracy. Early stopping')
-        #     break
-    colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
 
-    np.save(f"{colab_path}{fine_tuner}_train_acc.npy", train_accuracies)
-    np.save(f"{colab_path}{fine_tuner}_train_loss.npy", train_losses)
+        colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
 
-    test_accuracies_filename = Path(f"{colab_path}{fine_tuner}_test_acc.npy")
-    if (not Path.is_file(test_accuracies_filename)) or (test_accuracies[-1] > np.load(test_accuracies_filename)[-1]):
-        np.save(test_accuracies_filename, test_accuracies)
+        np.save(f"{colab_path}{fine_tuner}_train_acc.npy", train_accuracies)
+        np.save(f"{colab_path}{fine_tuner}_train_loss.npy", train_losses)
+
+        test_accuracies_filename = Path(f"{colab_path}{fine_tuner}_test_acc.npy")
+        if (not Path.is_file(test_accuracies_filename)) or (test_accuracies[-1] > np.load(test_accuracies_filename)[-1]):
+            np.save(test_accuracies_filename, test_accuracies)
+
+        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{str(lr).split('.')[1]}_e{epoch}.pth")
 
     return train_ground_truths, train_predictions, test_ground_truths, test_predictions
 
@@ -319,7 +316,7 @@ if __name__ == '__main__':
                     test_ground_truth, test_prediction = fine_tune(fine_tuner)
                 np.save(f"{colab_path}{fine_tuner}_pred.npy", test_prediction)
                 np.save(f"{colab_path}{fine_tuner}_true.npy", test_ground_truth)
-                torch.save(fine_tuner.state_dict(), f'{fine_tuner}.pth')
+
                 print('#' * 100)
 
     for fine_tuner in fine_tuners:
