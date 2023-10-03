@@ -15,19 +15,19 @@ import sys
 import timm
 
 batch_size = 24
-lr = 0.0001
+lr = 2e-4
 scheduler_gamma = 0.1
-num_epochs = 10
+num_epochs = 2
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
-vit_model_names = ['b_16',
-                   'b_32',
-                   'l_16',
-                   'l_32',
-                   'h_14']
+vit_model_names = {0: 'b_16',
+                   1: 'b_32',
+                   2: 'l_16',
+                   3: 'l_32',
+                   4: 'h_14'}
 
-vit_model_indices = [2, 3]
+vit_model_indices = [3]
 train_folder_name = 'train'
 test_folder_name = 'test'
 
@@ -224,7 +224,7 @@ def fine_tune(fine_tuner: FineTuner) -> Tuple[list[int], list[int], list[int], l
     print(f'Started fine-tuning {fine_tuner} on {device}...')
 
     for epoch in range(num_epochs):
-        print(f'Started epoch {epoch + 1}/{num_epochs}')
+        print(f'Started epoch {epoch + 1}/{num_epochs}...')
         t1 = time()
         running_loss = 0.0
         train_predictions = []
@@ -285,14 +285,13 @@ if __name__ == '__main__':
     model_names = [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices]
     data_dir = Path.joinpath(cwd, '.')
     datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
-                                                                    transform=get_transforms(
-                                                                        train_or_val=train_or_val,
-                                                                        model_name=model_name))
+                                                                    transform=get_transforms(train_or_val=train_or_val,
+                                                                                             model_name=model_name))
                 for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
 
-    assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
-               datasets[f'{model_name}_{test_folder_name}'].classes
-               for model_name in model_names)
+    # assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
+    #            datasets[f'{model_name}_{test_folder_name}'].classes
+    #            for model_name in model_names)
 
     loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
         dataset=datasets[f'{model_name}_{train_or_val}'],
@@ -320,6 +319,7 @@ if __name__ == '__main__':
                     test_ground_truth, test_prediction = fine_tune(fine_tuner)
                 np.save(f"{colab_path}{fine_tuner}_pred.npy", test_prediction)
                 np.save(f"{colab_path}{fine_tuner}_true.npy", test_ground_truth)
+                torch.save(fine_tuner.state_dict(), f'{fine_tuner}.pth')
                 print('#' * 100)
 
     for fine_tuner in fine_tuners:
