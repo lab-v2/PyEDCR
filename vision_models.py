@@ -14,11 +14,10 @@ from pathlib import Path
 import sys
 import timm
 
-batch_size = 16
-# lr = 1 * 10 ** (-3)
-lrs = [1 * 10 ** (-3), 1 * 10 ** (-4), 1 * 10 ** (-5), 1 * 10 ** (-6)]
+batch_size = 24
+lrs = [0.00005, 0.0005, 0.000005]
 scheduler_gamma = 0.1
-num_epochs = 2
+num_epochs = 5
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
@@ -223,8 +222,6 @@ def fine_tune(fine_tuner: FineTuner):
         train_predictions = []
 
         test_accuracies = []
-        test_ground_truths = []
-        test_predictions = []
 
         print(f'Started fine-tuning {fine_tuner} on {device}...')
 
@@ -268,19 +265,18 @@ def fine_tune(fine_tuner: FineTuner):
             test_accuracies += [test_accuracy]
             print('#' * 100)
 
-
-            np.save(f"{colab_path}{fine_tuner}_train_acc_lr{str(lr).split('.')[1]}_e{epoch}.npy", train_accuracies)
-            np.save(f"{colab_path}{fine_tuner}_train_loss_lr{str(lr).split('.')[1]}_e{epoch}.npy", train_losses)
+            np.save(f"{colab_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}.npy", train_accuracies)
+            np.save(f"{colab_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}.npy", train_losses)
 
             test_accuracies_filename = Path(f"{colab_path}{fine_tuner}_test_acc.npy")
             if (not Path.is_file(test_accuracies_filename)) or (
                     test_accuracies[-1] > np.load(test_accuracies_filename)[-1]):
                 np.save(test_accuracies_filename, test_accuracies)
 
-            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{str(lr).split('.')[1]}_e{epoch}.pth")
+            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_e{epoch}.pth")
 
-            np.save(f"{colab_path}{fine_tuner}_pred_lr{str(lr).split('.')[1]}_e{epoch}.npy", train_predictions)
-            np.save(f"{colab_path}{fine_tuner}_true_lr{str(lr).split('.')[1]}_e{epoch}.npy", test_ground_truths)
+            np.save(f"{colab_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
+            np.save(f"{colab_path}{fine_tuner}_test_true_lr{lr}_e{epoch}.npy", test_ground_truths)
 
 
 if __name__ == '__main__':
