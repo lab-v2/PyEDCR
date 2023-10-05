@@ -15,7 +15,7 @@ import sys
 import timm
 
 batch_size = 24
-lrs = [0.00005, 0.0005, 0.000005]
+lrs = [5e-5]
 scheduler_gamma = 0.1
 num_epochs = 5
 cwd = Path(__file__).parent.resolve()
@@ -27,7 +27,7 @@ vit_model_names = {0: 'b_16',
                    3: 'l_32',
                    4: 'h_14'}
 
-vit_model_indices = [2, 3]
+vit_model_indices = [2]
 train_folder_name = 'train'
 test_folder_name = 'test'
 
@@ -273,14 +273,14 @@ def fine_tune(fine_tuner: FineTuner):
                     test_accuracies[-1] > np.load(test_accuracies_filename)[-1]):
                 np.save(test_accuracies_filename, test_accuracies)
 
-            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_e{epoch}.pth")
-
             np.save(f"{colab_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
             np.save(f"{colab_path}{fine_tuner}_test_true_lr{lr}_e{epoch}.npy", test_ground_truths)
 
+        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
+
 
 if __name__ == '__main__':
-    model_names = ['inceptionv3'] + [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices]
+    model_names = [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices]
     data_dir = Path.joinpath(cwd, '.')
     datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                     transform=get_transforms(train_or_val=train_or_val,
