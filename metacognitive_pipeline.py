@@ -6,8 +6,7 @@ import matplotlib.pyplot as plt
 
 run_positives = True
 
-base_path0 = 'LRCN_F1_no_overlap_sequential/'
-results_folder = 'RESULTS/'
+results_folder = '.'
 results_file = results_folder + "rule_for_NPcorrection.csv"
 
 data_file_path = rf'data/WEO_Data_Sheet.xlsx'

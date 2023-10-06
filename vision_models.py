@@ -310,15 +310,15 @@ if __name__ == '__main__':
         for model_index, model_name in zip(vit_model_indices, model_names)]
 
     for fine_tuner in fine_tuners:
-        with ClearCache(device):
+        # with ClearCache(device):
             with ClearSession():
                 fine_tune(fine_tuner)
 
                 print('#' * 100)
 
-    # for fine_tuner in fine_tuners:
-    #     vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
-    #     plt.plot(vit_train_loss, label=f'{fine_tuner} training Loss')
+    for fine_tuner in fine_tuners:
+        vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
+        plt.plot(vit_train_loss, label=f'{fine_tuner} training Loss')
 
     plt.title('Training Loss')
     plt.xlabel('Epoch')
