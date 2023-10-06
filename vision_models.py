@@ -296,21 +296,21 @@ if __name__ == '__main__':
         batch_size=batch_size,
         shuffle=train_or_val == train_folder_name)
         for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-
+    print(f'Loaders: {loaders.keys()}')
     classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
-
+    print(f'Classes: {classes}')
     n = len(classes)
 
     device = torch.device('mps' if torch.backends.mps.is_available() else
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
-
+    print(f'Using {device}')
     fine_tuners = [eval(
         f"{'VIT' if model_name.__contains__('vit') else 'InceptionV3' if model_name == 'inceptionv3' else 'InceptionResNetV2'}"
         f"FineTuner({'vit_model_index=model_index ,' if model_name.__contains__('vit') else ''}num_classes=n)")
         for model_index, model_name in zip(vit_model_indices, model_names)]
 
     for fine_tuner in fine_tuners:
-
+        print(f'Initiating {fine_tuner}')
         # with ClearCache(device):
         with ClearSession():
             fine_tune(fine_tuner)
