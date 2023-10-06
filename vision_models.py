@@ -281,6 +281,7 @@ def fine_tune(fine_tuner: FineTuner):
 
 if __name__ == '__main__':
     model_names = [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices]
+    print(f'Models: {model_names}')
     data_dir = Path.joinpath(cwd, '.')
     datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                     transform=get_transforms(train_or_val=train_or_val,
