@@ -6,13 +6,31 @@ import torch.utils.data
 import numpy as np
 from sklearn.metrics import accuracy_score
 from time import time
-from tqdm import tqdm
+
 from typing import Tuple
 import matplotlib.pyplot as plt
 from abc import ABC
 from pathlib import Path
 import sys
 import timm
+
+def is_running_in_jupyter():
+    """
+    Check if the code is running in a Jupyter Notebook.
+    """
+    try:
+        get_ipython()
+        if 'IPKernelApp' in sys.modules:
+            return True
+        else:
+            return False
+    except NameError:
+        return False
+
+if is_running_in_jupyter():
+    from tqdm import tqdm
+else:
+    from tqdm.notebook import tqdm
 
 batch_size = 24
 lrs = [5e-5]
@@ -89,6 +107,9 @@ def is_running_in_colab() -> bool:
     """
 
     return 'google.colab' in sys.modules
+
+
+
 
 
 colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
