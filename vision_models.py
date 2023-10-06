@@ -286,7 +286,7 @@ if __name__ == '__main__':
                                                                     transform=get_transforms(train_or_val=train_or_val,
                                                                                              model_name=model_name))
                 for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-
+    print(f'Datasets: {datasets.keys()}')
     assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
                datasets[f'{model_name}_{test_folder_name}'].classes
                for model_name in model_names)
@@ -310,11 +310,12 @@ if __name__ == '__main__':
         for model_index, model_name in zip(vit_model_indices, model_names)]
 
     for fine_tuner in fine_tuners:
-        # with ClearCache(device):
-            with ClearSession():
-                fine_tune(fine_tuner)
 
-                print('#' * 100)
+        # with ClearCache(device):
+        with ClearSession():
+            fine_tune(fine_tuner)
+
+            print('#' * 100)
 
     for fine_tuner in fine_tuners:
         vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
