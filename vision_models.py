@@ -309,7 +309,7 @@ if __name__ == '__main__':
         f"{'VIT' if model_name.__contains__('vit') else 'InceptionV3' if model_name == 'inceptionv3' else 'InceptionResNetV2'}"
         f"FineTuner({'vit_model_index=model_index ,' if model_name.__contains__('vit') else ''}num_classes=n)")
         for model_index, model_name in zip(vit_model_indices, model_names)]
-
+    print(f'Fine tuners: {[str(ft) for ft in fine_tuners]}')
     for fine_tuner in fine_tuners:
         print(f'Initiating {fine_tuner}')
         # with ClearCache(device):
