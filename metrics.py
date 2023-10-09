@@ -36,18 +36,19 @@ for filename in os.listdir(data_dir):
 # Now, create plots for training accuracy vs. epoch for each model
 for model_name, model_metrics in model_data.items():
     for metric, lr_data in model_metrics.items():
-        if metric == 'acc':  # Only plot accuracy data
-            plt.figure(figsize=(10, 6))
-            plt.title(f'{model_name} - Training Accuracy vs. Epoch')
-            plt.xlabel('Epoch')
-            plt.ylabel('Accuracy')
 
-            for lr_value, epoch_data in lr_data.items():
-                # Sort the data based on the number of epochs
-                sorted_epoch_data = sorted(epoch_data.items())
-                epochs, accuracies = zip(*sorted_epoch_data)
-                plt.plot(epochs, accuracies, label=f'lr={lr_value}')
+        plt.figure(figsize=(10, 6))
+        metric = 'Accuracy' if metric == 'acc' else 'Loss'
+        plt.title(f"{model_name} - Training {metric} vs. Epoch")
+        plt.xlabel('Epoch')
+        plt.ylabel(metric)
 
-            plt.legend()
-            plt.grid()
-            plt.show()
+        for lr_value, epoch_data in lr_data.items():
+            # Sort the data based on the number of epochs
+            sorted_epoch_data = sorted(epoch_data.items())
+            epochs, accuracies = zip(*sorted_epoch_data)
+            plt.plot(epochs, accuracies, label=f'lr={lr_value}')
+
+        plt.legend()
+        plt.grid()
+        plt.show()

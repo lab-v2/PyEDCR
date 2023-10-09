@@ -30,9 +30,9 @@ def is_running_in_jupyter():
 
 
 if is_running_in_jupyter():
-    from tqdm import tqdm
-else:
     from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 batch_size = 24
 lrs = [5e-5]
@@ -47,7 +47,7 @@ vit_model_names = {0: 'b_16',
                    3: 'l_32',
                    4: 'h_14'}
 
-vit_model_indices = [2]
+vit_model_indices = [0, 1, 2, 3, 4]
 train_folder_name = 'train'
 test_folder_name = 'test'
 
@@ -140,8 +140,9 @@ class FineTuner(torch.nn.Module, ABC):
         self.num_classes = num_classes
 
     def __str__(self) -> str:
-        return re.sub(r'([a-z])([A-Z0-9])', r'\1_\2',
-                      self.__class__.__name__.split('Fine')[0]).lower()
+        return re.sub(pattern=r'([a-z])([A-Z0-9])',
+                      repl=r'\1_\2',
+                      string=self.__class__.__name__.split('Fine')[0]).lower()
 
     def __len__(self) -> int:
         return sum(p.numel() for p in self.parameters())
@@ -186,8 +187,8 @@ class VITFineTuner(FineTuner):
         x = self.vit(x)
         return x
 
-    # def __str__(self):
-    #     return f'{super().__str__()}_{self.vit_model_name}'
+    def __str__(self):
+        return self.vit_model_name
 
 
 class InceptionResNetV2FineTuner(FineTuner):
@@ -321,7 +322,8 @@ def fine_tune(fine_tuner: FineTuner):
 
 
 if __name__ == '__main__':
-    model_names = ([] +
+    model_names = (
+            # ['inception_v3', 'inception_resnet_v2'] +
                    [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices])
     print(f'Models: {model_names}')
     data_dir = Path.joinpath(cwd, '.')
@@ -354,14 +356,18 @@ if __name__ == '__main__':
         fine_tuner = fine_tuners_constructor(*tuple([model_name, n] if 'vit' in model_name else [n]))
         fine_tuners += [fine_tuner]
 
+
     print(f'Fine tuners: {[str(ft) for ft in fine_tuners]}')
     for fine_tuner in fine_tuners:
-        print(f'Initiating {fine_tuner}')
-        # with ClearCache(device):
-        with ClearSession():
-            fine_tune(fine_tuner)
+        # try:
+            print(f'Initiating {fine_tuner}')
+            # with ClearCache(device):
+            with ClearSession():
+                fine_tune(fine_tuner)
 
-            print('#' * 100)
+                print('#' * 100)
+        # except:
+        #     continue
 
     for fine_tuner in fine_tuners:
         vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
