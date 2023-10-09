@@ -6,13 +6,14 @@ import torch.utils.data
 import numpy as np
 from sklearn.metrics import accuracy_score
 from time import time
-
-from typing import Tuple
+from typing import Tuple, Union
 import matplotlib.pyplot as plt
 from abc import ABC
 from pathlib import Path
 import sys
 import timm
+import re
+
 
 def is_running_in_jupyter():
     """
@@ -27,6 +28,7 @@ def is_running_in_jupyter():
     except NameError:
         return False
 
+
 if is_running_in_jupyter():
     from tqdm import tqdm
 else:
@@ -35,7 +37,7 @@ else:
 batch_size = 24
 lrs = [5e-5]
 scheduler_gamma = 0.1
-num_epochs = 5
+num_epochs = 4
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
@@ -52,7 +54,7 @@ test_folder_name = 'test'
 
 def get_transforms(train_or_val: str,
                    model_name: str) -> torchvision.transforms.Compose:
-    if model_name == 'inceptionv3':
+    if model_name == 'inception_v3':
         resize_num = 299
         means = [0.485, 0.456, 0.406]
         stds = [0.229, 0.224, 0.225]
@@ -109,9 +111,6 @@ def is_running_in_colab() -> bool:
     return 'google.colab' in sys.modules
 
 
-
-
-
 colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
 
 
@@ -135,16 +134,23 @@ class ClearSession:
 
 
 class FineTuner(torch.nn.Module, ABC):
+    def __init__(self,
+                 num_classes: int):
+        super().__init__()
+        self.num_classes = num_classes
+
     def __str__(self) -> str:
-        return self.__class__.__name__.split('Fine')[0].lower()
+        return re.sub(r'([a-z])([A-Z0-9])', r'\1_\2',
+                      self.__class__.__name__.split('Fine')[0]).lower()
 
     def __len__(self) -> int:
         return sum(p.numel() for p in self.parameters())
 
 
 class InceptionV3FineTuner(FineTuner):
-    def __init__(self, num_classes: int):
-        super().__init__()
+    def __init__(self,
+                 num_classes: int):
+        super().__init__(num_classes=num_classes)
         self.inception = torchvision.models.inception_v3(
             weights=torchvision.models.Inception_V3_Weights.DEFAULT)
         num_features = self.inception.fc.in_features
@@ -157,13 +163,21 @@ class InceptionV3FineTuner(FineTuner):
 
 class VITFineTuner(FineTuner):
     def __init__(self,
-                 vit_model_index: int,
+                 vit_model: Union[int, str],
                  num_classes: int):
-        super().__init__()
-        self.vit_model_name = vit_model_names[vit_model_index]
-        vit_model = eval(f'torchvision.models.vit_{self.vit_model_name}')
-        vit_weights = eval(f"torchvision.models.ViT_{'_'.join([s.upper() for s in self.vit_model_name.split('_')])}"
-                           f"_Weights.DEFAULT")
+        super().__init__(num_classes=num_classes)
+        if type(vit_model) == int:
+            self.vit_model_index = vit_model
+            self.vit_model_name = vit_model_names[vit_model]
+        else:
+            self.vit_model_index = list(vit_model_names.keys())[
+                list(vit_model_names.values()).index(vit_model.split('vit_')[-1])]
+            self.vit_model_name = vit_model
+
+        vit_model = eval(f'torchvision.models.{self.vit_model_name}')
+        vit_weights = eval(
+            f"torchvision.models.ViT_{'_'.join([s.upper() for s in self.vit_model_name.split('vit_')[-1].split('_')])}"
+            f"_Weights.DEFAULT")
         self.vit = vit_model(weights=vit_weights)
         self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
                                              out_features=num_classes)
@@ -172,13 +186,13 @@ class VITFineTuner(FineTuner):
         x = self.vit(x)
         return x
 
-    def __str__(self):
-        return f'{super().__str__()}_{self.vit_model_name}'
+    # def __str__(self):
+    #     return f'{super().__str__()}_{self.vit_model_name}'
 
 
 class InceptionResNetV2FineTuner(FineTuner):
     def __init__(self, num_classes: int):
-        super().__init__()
+        super().__init__(num_classes=num_classes)
         self.inception = timm.create_model('inception_resnet_v2',
                                            pretrained=True,
                                            num_classes=num_classes)
@@ -186,6 +200,11 @@ class InceptionResNetV2FineTuner(FineTuner):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.inception(x)
         return x
+
+
+all_fine_tuners = ({'inception_v3': InceptionV3FineTuner,
+                    'inception_resnet_v2': InceptionResNetV2FineTuner} |
+                   {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in vit_model_names.values()})
 
 
 def test(fine_tuner: FineTuner) -> Tuple[list[int], list[int], float]:
@@ -239,8 +258,7 @@ def fine_tune(fine_tuner: FineTuner):
 
         train_losses = []
         train_accuracies = []
-        train_ground_truths = []
-        train_predictions = []
+        test_ground_truths = []
 
         test_accuracies = []
 
@@ -295,20 +313,23 @@ def fine_tune(fine_tuner: FineTuner):
                 np.save(test_accuracies_filename, test_accuracies)
 
             np.save(f"{colab_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
-            np.save(f"{colab_path}{fine_tuner}_test_true_lr{lr}_e{epoch}.npy", test_ground_truths)
 
         torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
+        if not os.path.exists(f"{colab_path}test_true.npy"):
+            np.save(f"{colab_path}test_true.npy", test_ground_truths)
+
 
 if __name__ == '__main__':
-    model_names = [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices]
+    model_names = ([] +
+                   [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices])
     print(f'Models: {model_names}')
     data_dir = Path.joinpath(cwd, '.')
     datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                     transform=get_transforms(train_or_val=train_or_val,
                                                                                              model_name=model_name))
                 for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-    print(f'Datasets: {datasets.keys()}')
+
     assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
                datasets[f'{model_name}_{test_folder_name}'].classes
                for model_name in model_names)
@@ -318,7 +339,7 @@ if __name__ == '__main__':
         batch_size=batch_size,
         shuffle=train_or_val == train_folder_name)
         for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-    print(f'Loaders: {loaders.keys()}')
+
     classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
     print(f'Classes: {classes}')
     n = len(classes)
@@ -326,10 +347,13 @@ if __name__ == '__main__':
     device = torch.device('mps' if torch.backends.mps.is_available() else
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
-    fine_tuners = [eval(
-        f"{'VIT' if model_name.__contains__('vit') else 'InceptionV3' if model_name == 'inceptionv3' else 'InceptionResNetV2'}"
-        f"FineTuner({'vit_model_index=model_index ,' if model_name.__contains__('vit') else ''}num_classes=n)")
-        for model_index, model_name in zip(vit_model_indices, model_names)]
+
+    fine_tuners = []
+    for model_name in model_names:
+        fine_tuners_constructor = all_fine_tuners[model_name]
+        fine_tuner = fine_tuners_constructor(*tuple([model_name, n] if 'vit' in model_name else [n]))
+        fine_tuners += [fine_tuner]
+
     print(f'Fine tuners: {[str(ft) for ft in fine_tuners]}')
     for fine_tuner in fine_tuners:
         print(f'Initiating {fine_tuner}')
