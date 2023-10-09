@@ -35,7 +35,7 @@ else:
     from tqdm import tqdm
 
 batch_size = 24
-lrs = [5e-5]
+lrs = [5e-6, 0.0005]
 scheduler_gamma = 0.1
 num_epochs = 4
 cwd = Path(__file__).parent.resolve()
@@ -47,7 +47,7 @@ vit_model_names = {0: 'b_16',
                    3: 'l_32',
                    4: 'h_14'}
 
-vit_model_indices = [0, 1, 2, 3, 4]
+vit_model_indices = list(range(4))
 train_folder_name = 'train'
 test_folder_name = 'test'
 
@@ -59,7 +59,7 @@ def get_transforms(train_or_val: str,
         means = [0.485, 0.456, 0.406]
         stds = [0.229, 0.224, 0.225]
     else:
-        resize_num = 518 if model_name == 'h_14' else 224
+        resize_num = 518 if 'h_14' in model_name else 224
         means = stds = [0.5] * 3
 
     return torchvision.transforms.Compose(
@@ -308,11 +308,7 @@ def fine_tune(fine_tuner: FineTuner):
             np.save(f"{colab_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}.npy", train_accuracies)
             np.save(f"{colab_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}.npy", train_losses)
 
-            test_accuracies_filename = Path(f"{colab_path}{fine_tuner}_test_acc.npy")
-            if (not Path.is_file(test_accuracies_filename)) or (
-                    test_accuracies[-1] > np.load(test_accuracies_filename)[-1]):
-                np.save(test_accuracies_filename, test_accuracies)
-
+            np.save(f"{colab_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}.npy", test_accuracies)
             np.save(f"{colab_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
 
         torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
@@ -361,9 +357,9 @@ if __name__ == '__main__':
     for fine_tuner in fine_tuners:
         # try:
             print(f'Initiating {fine_tuner}')
-            # with ClearCache(device):
-            with ClearSession():
-                fine_tune(fine_tuner)
+            with ClearCache(device):
+                with ClearSession():
+                    fine_tune(fine_tuner)
 
                 print('#' * 100)
         # except:
