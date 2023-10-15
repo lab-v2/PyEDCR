@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score
 from time import time
 from typing import Tuple, Union
 import matplotlib.pyplot as plt
-from abc import ABC
+import abc
 from tqdm import tqdm
 from pathlib import Path
 import sys
@@ -68,7 +68,17 @@ class ImageFolderWithName(torchvision.datasets.ImageFolder):
         return image, target, name
 
 
-class ClearCache:
+class Context(abc.ABC):
+    @abc.abstractmethod
+    def __enter__(self):
+        pass
+
+    @abc.abstractmethod
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
+class ClearCache(Context):
     def __init__(self,
                  device: torch.device):
         self.device_backend = {'cuda': torch.cuda,
@@ -97,7 +107,7 @@ def is_running_in_colab() -> bool:
 colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
 
 
-class ClearSession:
+class ClearSession(Context):
     def __init__(self):
         self.colab = False
         if is_running_in_colab():
@@ -116,7 +126,7 @@ class ClearSession:
             self.drive.flush_and_unmount()
 
 
-class FineTuner(torch.nn.Module, ABC):
+class FineTuner(torch.nn.Module, abc.ABC):
     def __init__(self,
                  num_classes: int):
         super().__init__()
@@ -300,7 +310,12 @@ def fine_tune(fine_tuner: FineTuner):
             np.save(f"{colab_path}test_true.npy", test_ground_truths)
 
 
-class Plot:
+class Plot(Context):
+    def __init__(self,
+                 fig_sizes: tuple = None):
+        if fig_sizes:
+            plt.figure(figsize=fig_sizes)
+
     def __enter__(self):
         plt.cla()
         plt.clf()
@@ -351,7 +366,7 @@ if __name__ == '__main__':
     for fine_tuner in fine_tuners:
         # try:
         print(f'Initiating {fine_tuner}')
-        with ClearCache(device):
+        with ClearCache(device=device):
             with ClearSession():
                 fine_tune(fine_tuner)
 
