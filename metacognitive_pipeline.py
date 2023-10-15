@@ -1,8 +1,13 @@
+import re
+import os
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
-from vision_models import vit_model_names, vit_model_indices
+from tqdm import tqdm
 import matplotlib.pyplot as plt
+from vision_models import vit_model_names, Plot
+from scrape_train_test import create_directory
+from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
+
 
 run_positives = True
 
@@ -14,6 +19,7 @@ dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
 fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
 n_classes = len(fine_grain_classes)
+figs_folder = 'figs/'
 
 
 def rules1(i: int):
@@ -44,7 +50,7 @@ def get_scores(y_true, y_pred):
                 TN += 1
             if y_hat[i] == 0 and y_actual[i] != y_hat[i]:
                 FN += 1
-        print(f"TP:{TP}, FP:{FP}, TN:{TN}, FN:{FN}")
+        # print(f"TP:{TP}, FP:{FP}, TN:{TN}, FN:{FN}")
 
         pre = precision_score(y_true, y_pred)
         rec = recall_score(y_true, y_pred)
@@ -54,6 +60,7 @@ def get_scores(y_true, y_pred):
         pre = accuracy_score(y_true, y_pred)
         f1 = f1_score(y_true, y_pred, average='macro')
         f1micro = f1_score(y_true, y_pred, average='micro')
+
         return [pre, f1, f1micro]
 
 
@@ -140,7 +147,7 @@ def DetUSMPosRuleSelect(i, all_charts):
     if new_pre < pi:
         cci = []
     cci = [c[1] for c in cci]
-    print(f"class{count}, cci:{cci}, new_pre:{new_pre}, pre:{pi}")
+    # print(f"class{count}, cci:{cci}, new_pre:{new_pre}, pre:{pi}")
     return cci
 
 
@@ -156,7 +163,7 @@ def GreedyNegRuleSelect(i, epsilon, all_charts):
     ri = tpi * 1.0 / each_sum[1]
     ni = each_sum[0]
     quantity = epsilon * ni * pi / ri
-    print(f"class{count}, quantity:{quantity}")
+    # print(f"class{count}, quantity:{quantity}")
 
     NCi = []
     NCn = []
@@ -189,13 +196,14 @@ def GreedyNegRuleSelect(i, epsilon, all_charts):
             if negi_score < quantity:
                 tmp_NCn.append(c)
         NCn = tmp_NCn
-    print(f"class:{count}, NCi:{NCi}")
+    # print(f"class:{count}, NCi:{NCi}")
     return NCi
 
 
-def ruleForNPCorrection(all_charts, epsilon, run_positives=run_positives):
+def ruleForNPCorrection(all_charts, epsilon, run_positives):
     results = []
     total_results = np.copy(pred_data)
+
     for count, chart in enumerate(all_charts):
         chart = np.array(chart)
         NCi = GreedyNegRuleSelect(count, epsilon, all_charts)
@@ -216,8 +224,6 @@ def ruleForNPCorrection(all_charts, epsilon, run_positives=run_positives):
 
         CCi = DetUSMPosRuleSelect(count, all_charts) if run_positives else []
         tem_cond = np.zeros_like(chart[:, 0])
-        rec_true = []
-        rec_pred = []
 
         for cc in CCi:
             tem_cond |= chart[:, cc]
@@ -229,9 +235,6 @@ def ruleForNPCorrection(all_charts, epsilon, run_positives=run_positives):
                         pos_i_count += 1
                         predict_result[ct] = 1
                         total_results[ct] = count
-                else:
-                    rec_true.append(cv[1])
-                    rec_pred.append(cv[0])
 
         scores_cor = get_scores(chart[:, 1], predict_result)
         results.extend(scores_cor + [neg_i_count,
@@ -240,13 +243,16 @@ def ruleForNPCorrection(all_charts, epsilon, run_positives=run_positives):
                                      len(CCi)])
     results.extend(get_scores(true_data, total_results))
 
-    return results
+    acc = accuracy_score(true_data, total_results)
+
+    return results, acc
 
 
 def plot(df: pd.DataFrame,
          n_classes: int,
          col_num: int,
-         x_values: list[float]):
+         x_values: list[float],
+         lr: float):
     for i in range(n_classes):
 
         df_i = df.iloc[1:, 2 + i * col_num:2 + (i + 1) * col_num]
@@ -267,52 +273,88 @@ def plot(df: pd.DataFrame,
                  label='f1')
 
         plt.title(f'Class #{i}-{fine_grain_classes[i]}, Main: {main_model_name}, '
-                  f'Secondary: {secondary_model_name}')
+                  f'Secondary: {secondary_model_name}, LR: {lr}')
         plt.legend()
         plt.tight_layout()
         plt.grid()
-        plt.savefig(f'figs/cls{i}_{main_model_name}->{secondary_model_name}.png')
+        plt.savefig(f'{figs_folder}/{main_model_name}->{secondary_model_name}_lr{lr}'
+                    f'/cls{i}_{main_model_name}_to_{secondary_model_name}_lr{lr}.png')
         plt.clf()
         plt.cla()
 
 
 if __name__ == '__main__':
-    for main_model_index in vit_model_indices:
-        main_model_name = vit_model_names[main_model_index]
-        main_model_path = f"{results_folder}vit_{main_model_name}"
-        true_data = np.load(f'{main_model_path}_true.npy')
-        pred_data = np.load(f'{main_model_path}_pred.npy')
+    data_dir = '.'
+    true_data = test_true = np.load('test_true.npy')
 
-        secondary_model_name = vit_model_names[next(i for i in vit_model_indices if i != main_model_index)]
-        cla_datas = np.load(f"{results_folder}vit_{secondary_model_name}_pred.npy")
-        cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
+    for filename in os.listdir(data_dir):
 
-        high_scores = [0.7, 0.8]
-        low_scores = [0.1, 0.2]
-        epsilons = [0.003 * i for i in range(1, 100, 1)]
+        match = re.match(pattern=r'(.+?)_test_pred_lr(.+?)_e(\d+?).npy',
+                         string=filename)
 
-        m = true_data.shape[0]
-        charts = [[pred_data[i], true_data[i]] + rules1(i) for i in range(m)]
-        all_charts = generate_chart(charts)
+        if match:
+            main_model_name = match.group(1)
+            pred_data = np.load(filename)
+            lr = match.group(2)
+            epoch = match.group(3)
 
-        results = []
-        result0 = [0]
-        for count, chart in enumerate(all_charts):
-            chart = np.array(chart)
-            result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-            result0.extend([0, 0, 0, 0])
-        result0.extend(get_scores(true_data, pred_data))
-        results.append(result0)
+            if epoch == '0' and lr == '5e-05':
 
-        for ep in epsilons:
-            result = ruleForNPCorrection(all_charts, ep, run_positives=True)
-            results.append([ep] + result)
-            print(f"ep:{ep}\n{result}")
-        col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-        df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
-        df.to_csv(results_file)
-        df = pd.read_csv(results_file)
-        plot(df=df,
-             n_classes=n_classes,
-             col_num=len(col),
-             x_values=df['epsilon'][1:])
+                for secondary_model_name in [name for name in vit_model_names.values() if f'vit_{name}' != main_model_name]:
+
+                    try:
+                        cla_datas = np.load(f"vit_{secondary_model_name}_test_pred_lr5e-05_e3.npy")
+                    except FileNotFoundError:
+                        continue
+
+                    cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
+
+                    high_scores = [0.7, 0.8]
+                    low_scores = [0.1, 0.2]
+                    epsilons = [0.003 * i for i in range(1, 100, 1)]
+
+                    m = true_data.shape[0]
+                    charts = [[pred_data[i], true_data[i]] + rules1(i) for i in range(m)]
+                    all_charts = generate_chart(charts)
+
+                    results = []
+                    result0 = [0]
+
+                    print(f'Started EDCR pipeline for {main_model_name}->{secondary_model_name}')
+                    for count, chart in enumerate(all_charts):
+                        chart = np.array(chart)
+                        result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+                        result0.extend([0, 0, 0, 0])
+                    result0.extend(get_scores(true_data, pred_data))
+                    results.append(result0)
+
+                    accuracies = []
+
+                    for ep in tqdm(epsilons, total=len(epsilons)):
+                        result, acc = ruleForNPCorrection(all_charts, ep, run_positives=run_positives)
+                        results.append([ep] + result)
+                        accuracies += [acc]
+
+                    with Plot():
+                        plt.plot(epsilons, accuracies)
+                        plt.title(f'Main: {main_model_name}, Secondary: {secondary_model_name}, '
+                                  f'LR: {lr}')
+                        plt.grid()
+                        plt.tight_layout()
+                        plt.ylabel('Accuracy')
+                        plt.ylabel('Epsilon')
+
+                    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+                    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+
+                    df.to_csv(results_file)
+                    df = pd.read_csv(results_file)
+                    create_directory(f'{figs_folder}/{main_model_name}->{secondary_model_name}_lr{lr}')
+
+                    plot(df=df,
+                         n_classes=n_classes,
+                         col_num=len(col),
+                         x_values=df['epsilon'][1:],
+                         lr=lr)
+
+                    print(f'Plotted {main_model_name}->{secondary_model_name}')

@@ -9,33 +9,15 @@ from time import time
 from typing import Tuple, Union
 import matplotlib.pyplot as plt
 from abc import ABC
+from tqdm import tqdm
 from pathlib import Path
 import sys
 import timm
 import re
 
-
-def is_running_in_jupyter():
-    """
-    Check if the code is running in a Jupyter Notebook.
-    """
-    try:
-        get_ipython()
-        if 'IPKernelApp' in sys.modules:
-            return True
-        else:
-            return False
-    except NameError:
-        return False
-
-
-if is_running_in_jupyter():
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
-
 batch_size = 24
 lrs = [5e-6, 0.0005]
+
 scheduler_gamma = 0.1
 num_epochs = 4
 cwd = Path(__file__).parent.resolve()
@@ -87,7 +69,8 @@ class ImageFolderWithName(torchvision.datasets.ImageFolder):
 
 
 class ClearCache:
-    def __init__(self, device: torch.device):
+    def __init__(self,
+                 device: torch.device):
         self.device_backend = {'cuda': torch.cuda,
                                'mps': mps,
                                'cpu': None}[device.type]
@@ -317,10 +300,22 @@ def fine_tune(fine_tuner: FineTuner):
             np.save(f"{colab_path}test_true.npy", test_ground_truths)
 
 
+class Plot:
+    def __enter__(self):
+        plt.cla()
+        plt.clf()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        plt.show()
+        plt.cla()
+        plt.clf()
+
+
 if __name__ == '__main__':
+    print(F'Learning rates: {lrs}')
     model_names = (
-            # ['inception_v3', 'inception_resnet_v2'] +
-                   [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices])
+        # ['inception_v3', 'inception_resnet_v2'] +
+        [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices])
     print(f'Models: {model_names}')
     data_dir = Path.joinpath(cwd, '.')
     datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
@@ -352,54 +347,46 @@ if __name__ == '__main__':
         fine_tuner = fine_tuners_constructor(*tuple([model_name, n] if 'vit' in model_name else [n]))
         fine_tuners += [fine_tuner]
 
-
     print(f'Fine tuners: {[str(ft) for ft in fine_tuners]}')
     for fine_tuner in fine_tuners:
         # try:
-            print(f'Initiating {fine_tuner}')
-            with ClearCache(device):
-                with ClearSession():
-                    fine_tune(fine_tuner)
+        print(f'Initiating {fine_tuner}')
+        with ClearCache(device):
+            with ClearSession():
+                fine_tune(fine_tuner)
 
-                print('#' * 100)
-        # except:
-        #     continue
+            print('#' * 100)
+    # except:
+    #     continue
+    with Plot():
+        for fine_tuner in fine_tuners:
+            vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
+            plt.plot(vit_train_loss, label=f'{fine_tuner} training Loss')
 
-    for fine_tuner in fine_tuners:
-        vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
-        plt.plot(vit_train_loss, label=f'{fine_tuner} training Loss')
+        plt.title('Training Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.grid()
 
-    plt.title('Training Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.grid()
-    plt.show()
+    with Plot():
+        for fine_tuner in fine_tuners:
+            vit_train_acc = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_acc.npy'))
+            plt.plot(vit_train_acc, label=f'{fine_tuner} training accuracy')
 
-    plt.cla()
-    plt.clf()
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy')
+        plt.title('Training Accuracy')
+        plt.legend()
+        plt.grid()
 
-    for fine_tuner in fine_tuners:
-        vit_train_acc = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_acc.npy'))
-        plt.plot(vit_train_acc, label=f'{fine_tuner} training accuracy')
+    with Plot():
+        for fine_tuner in fine_tuners:
+            vit_test_acc = np.load(f'{fine_tuner}_test_acc.npy')
+            plt.plot(vit_test_acc, label=f'{fine_tuner} test accuracy')
 
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.title('Training Accuracy')
-    plt.legend()
-    plt.grid()
-    plt.show()
-
-    plt.cla()
-    plt.clf()
-
-    for fine_tuner in fine_tuners:
-        vit_test_acc = np.load(f'{fine_tuner}_test_acc.npy')
-        plt.plot(vit_test_acc, label=f'{fine_tuner} test accuracy')
-
-    plt.xlabel('Epoch')
-    plt.ylabel('Test Accuracy')
-    plt.title('Test Accuracy')
-    plt.legend()
-    plt.grid()
-    plt.show()
+        plt.xlabel('Epoch')
+        plt.ylabel('Test Accuracy')
+        plt.title('Test Accuracy')
+        plt.legend()
+        plt.grid()
