@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from vision_models import vit_model_names, Plot
 from scrape_train_test import create_directory
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
+import warnings
+warnings.filterwarnings('ignore')  # "error", "ignore", "always", "default", "module" or "once"
 
 
 run_positives = True
@@ -285,7 +287,7 @@ def plot(df: pd.DataFrame,
 
 if __name__ == '__main__':
     data_dir = '.'
-    true_data = test_true = np.load('test_true.npy')
+    true_data = np.load('test_true.npy')
 
     for filename in os.listdir(data_dir):
 
