@@ -7,11 +7,10 @@ import matplotlib.pyplot as plt
 from vision_models import vit_model_names, Plot
 from scrape_train_test import create_directory
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
+from typing import Sequence
+
 import warnings
 warnings.filterwarnings('ignore')  # "error", "ignore", "always", "default", "module" or "once"
-
-
-run_positives = True
 
 results_folder = '.'
 results_file = results_folder + "rule_for_NPcorrection.csv"
@@ -34,7 +33,8 @@ def rules1(i: int):
     return rule_scores
 
 
-def get_scores(y_true, y_pred):
+def get_scores(y_true: np.array,
+               y_pred: np.array):
     try:
         y_actual = y_true
         y_hat = y_pred
@@ -66,7 +66,7 @@ def get_scores(y_true, y_pred):
         return [pre, f1, f1micro]
 
 
-def generate_chart(charts):
+def generate_chart(charts: Sequence):
     all_charts = [[] for _ in range(n_classes)]
     for data in charts:
         for count, jj in enumerate(all_charts):
@@ -91,7 +91,8 @@ def generate_chart(charts):
     return all_charts
 
 
-def DetUSMPosRuleSelect(i, all_charts):
+def DetUSMPosRuleSelect(i: int,
+                        all_charts: Sequence):
     count = i
     chart = all_charts[i]
     chart = np.array(chart)
@@ -153,7 +154,9 @@ def DetUSMPosRuleSelect(i, all_charts):
     return cci
 
 
-def GreedyNegRuleSelect(i, epsilon, all_charts):
+def GreedyNegRuleSelect(i: int,
+                        epsilon: float,
+                        all_charts: Sequence):
     count = i
     chart = all_charts[i]
     chart = np.array(chart)
@@ -202,7 +205,9 @@ def GreedyNegRuleSelect(i, epsilon, all_charts):
     return NCi
 
 
-def ruleForNPCorrection(all_charts, epsilon, run_positives):
+def ruleForNPCorrection(all_charts: Sequence,
+                        epsilon: float,
+                        run_positives: bool = True):
     results = []
     total_results = np.copy(pred_data)
 
@@ -253,7 +258,7 @@ def ruleForNPCorrection(all_charts, epsilon, run_positives):
 def plot(df: pd.DataFrame,
          n_classes: int,
          col_num: int,
-         x_values: list[float],
+         x_values: Sequence[float],
          lr: float):
     for i in range(n_classes):
 
@@ -287,76 +292,77 @@ def plot(df: pd.DataFrame,
 
 if __name__ == '__main__':
     data_dir = '.'
-    true_data = np.load('test_true.npy')
+    true_data = np.load(os.path.join(data_dir, 'test_true.npy'))
+    lr = 5e-5
+    main_epoch = 1
+    secondary_epoch = 4
 
     for filename in os.listdir(data_dir):
 
-        match = re.match(pattern=r'(.+?)_test_pred_lr(.+?)_e(\d+?).npy',
+        match = re.match(pattern=rf'(.+?)_test_pred_lr{lr}_e{main_epoch - 1}.npy',
                          string=filename)
 
         if match:
             main_model_name = match.group(1)
-            pred_data = np.load(filename)
-            lr = match.group(2)
-            epoch = match.group(3)
 
-            if epoch == '0' and lr == '5e-05':
+            pred_data = np.load(os.path.join(data_dir, filename))
 
-                for secondary_model_name in [name for name in vit_model_names.values() if f'vit_{name}' != main_model_name]:
+            for secondary_model_name in \
+                    [name for name in vit_model_names.values() if f'vit_{name}' != main_model_name]:
 
-                    try:
-                        cla_datas = np.load(f"vit_{secondary_model_name}_test_pred_lr5e-05_e3.npy")
-                    except FileNotFoundError:
-                        continue
+                try:
+                    cla_datas = np.load(f"vit_{secondary_model_name}_test_pred_lr{lr}_e{secondary_epoch - 1}.npy")
+                except FileNotFoundError:
+                    continue
 
-                    cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
+                cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
 
-                    high_scores = [0.7, 0.8]
-                    low_scores = [0.1, 0.2]
-                    epsilons = [0.003 * i for i in range(1, 100, 1)]
+                high_scores = [0.7, 0.8]
+                low_scores = [0.1, 0.2]
+                epsilons = [0.003 * i for i in range(1, 100, 1)]
 
-                    m = true_data.shape[0]
-                    charts = [[pred_data[i], true_data[i]] + rules1(i) for i in range(m)]
-                    all_charts = generate_chart(charts)
+                m = true_data.shape[0]
+                charts = [[pred_data[i], true_data[i]] + rules1(i) for i in range(m)]
+                all_charts = generate_chart(charts)
 
-                    results = []
-                    result0 = [0]
+                results = []
+                result0 = [0]
 
-                    print(f'Started EDCR pipeline for {main_model_name}->{secondary_model_name}')
-                    for count, chart in enumerate(all_charts):
-                        chart = np.array(chart)
-                        result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-                        result0.extend([0, 0, 0, 0])
-                    result0.extend(get_scores(true_data, pred_data))
-                    results.append(result0)
+                print(f'Started EDCR pipeline for {main_model_name}->{secondary_model_name}')
+                for count, chart in enumerate(all_charts):
+                    chart = np.array(chart)
+                    result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+                    result0.extend([0, 0, 0, 0])
+                result0.extend(get_scores(true_data, pred_data))
+                results.append(result0)
 
-                    accuracies = []
+                accuracies = []
 
-                    for ep in tqdm(epsilons, total=len(epsilons)):
-                        result, acc = ruleForNPCorrection(all_charts, ep, run_positives=run_positives)
-                        results.append([ep] + result)
-                        accuracies += [acc]
+                for ep in tqdm(epsilons, total=len(epsilons)):
+                    result, acc = ruleForNPCorrection(all_charts, ep)
+                    results.append([ep] + result)
+                    accuracies += [acc]
 
-                    with Plot():
-                        plt.plot(epsilons, accuracies)
-                        plt.title(f'Main: {main_model_name}, Secondary: {secondary_model_name}, '
-                                  f'LR: {lr}')
-                        plt.grid()
-                        plt.tight_layout()
-                        plt.ylabel('Accuracy')
-                        plt.ylabel('Epsilon')
+                with Plot():
+                    plt.plot(epsilons, accuracies)
+                    plt.title(f'Main: {main_model_name}, Secondary: {secondary_model_name}, '
+                              f'LR: {lr}')
+                    plt.grid()
+                    plt.tight_layout()
+                    plt.ylabel('Accuracy')
+                    plt.ylabel('Epsilon')
 
-                    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-                    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+                col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+                df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
 
-                    df.to_csv(results_file)
-                    df = pd.read_csv(results_file)
-                    create_directory(f'{figs_folder}/{main_model_name}->{secondary_model_name}_lr{lr}')
+                df.to_csv(results_file)
+                df = pd.read_csv(results_file)
+                create_directory(f'{figs_folder}/{main_model_name}->{secondary_model_name}_lr{lr}')
 
-                    plot(df=df,
-                         n_classes=n_classes,
-                         col_num=len(col),
-                         x_values=df['epsilon'][1:],
-                         lr=lr)
+                plot(df=df,
+                     n_classes=n_classes,
+                     col_num=len(col),
+                     x_values=df['epsilon'][1:],
+                     lr=lr)
 
-                    print(f'Plotted {main_model_name}->{secondary_model_name}')
+                print(f'Plotted {main_model_name}->{secondary_model_name}')
