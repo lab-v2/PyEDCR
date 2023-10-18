@@ -4,12 +4,13 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from vision_models import vit_model_names, Plot
+from vision_models import vit_model_names
 from scrape_train_test import create_directory
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 from typing import Sequence
-
+import multiprocessing as mp
 import warnings
+
 warnings.filterwarnings('ignore')  # "error", "ignore", "always", "default", "module" or "once"
 
 results_folder = '.'
@@ -23,12 +24,13 @@ n_classes = len(fine_grain_classes)
 figs_folder = 'figs/'
 
 
-def rules1(i: int):
+def rules1(i: int,
+           cla_datas):
     rule_scores = []
 
     for cls in cla_datas:
         cls_i = int(cls[i])
-        rule_scores += [cls_i, 1-cls_i]
+        rule_scores += [cls_i, 1 - cls_i]
 
     return rule_scores
 
@@ -206,8 +208,10 @@ def GreedyNegRuleSelect(i: int,
 
 
 def ruleForNPCorrection(all_charts: Sequence,
+                        true_data,
+                        pred_data,
                         epsilon: float,
-                        run_positives: bool = True):
+                        run_positives: bool = True, ):
     results = []
     total_results = np.copy(pred_data)
 
@@ -249,19 +253,21 @@ def ruleForNPCorrection(all_charts: Sequence,
                                      len(NCi),
                                      len(CCi)])
     results.extend(get_scores(true_data, total_results))
+    posterior_acc = accuracy_score(true_data, total_results)
 
-    acc = accuracy_score(true_data, total_results)
-
-    return results, acc
+    return results, posterior_acc, total_results
 
 
 def plot(df: pd.DataFrame,
          n_classes: int,
          col_num: int,
          x_values: Sequence[float],
-         lr: float):
+         main_model_name: str,
+         secondary_model_name: str,
+         main_lr: float,
+         secondary_lr: float,
+         folder: str):
     for i in range(n_classes):
-
         df_i = df.iloc[1:, 2 + i * col_num:2 + (i + 1) * col_num]
 
         added_str = f'.{i}' if i else ''
@@ -279,56 +285,50 @@ def plot(df: pd.DataFrame,
                  f1_i,
                  label='f1')
 
-        plt.title(f'Class #{i}-{fine_grain_classes[i]}, Main: {main_model_name}, '
-                  f'Secondary: {secondary_model_name}, LR: {lr}')
+        plt.title(f'Class #{i}-{fine_grain_classes[i]}, Main: {main_model_name}, lr: {main_lr}'
+                  f'Secondary: {secondary_model_name}, lr: {secondary_lr}')
         plt.legend()
         plt.tight_layout()
         plt.grid()
-        plt.savefig(f'{figs_folder}/{main_model_name}->{secondary_model_name}_lr{lr}'
-                    f'/cls{i}_{main_model_name}_to_{secondary_model_name}_lr{lr}.png')
+        plt.savefig(f'{folder}/cls{i}.png')
         plt.clf()
         plt.cla()
 
 
-if __name__ == '__main__':
-    data_dir = '.'
-    true_data = np.load(os.path.join(data_dir, 'test_true.npy'))
-    lr = 5e-5
-    main_epoch = 1
-    secondary_epoch = 4
+def handle_file(filename, data_dir, true_data, secondary_lr, main_epoch, secondary_epoch):
+    match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{main_epoch - 1}.npy',
+                     string=filename)
+    secondary_model_name = 'vit_l_16'
 
-    for filename in os.listdir(data_dir):
+    if match:
+        main_model_name = match.group(1)
+        main_lr = match.group(2)
 
-        match = re.match(pattern=rf'(.+?)_test_pred_lr{lr}_e{main_epoch - 1}.npy',
-                         string=filename)
-
-        if match:
-            main_model_name = match.group(1)
-
+        if main_model_name != secondary_model_name:
             pred_data = np.load(os.path.join(data_dir, filename))
+            prior_acc = accuracy_score(true_data, pred_data)
 
             for secondary_model_name in \
                     [name for name in vit_model_names.values() if f'vit_{name}' != main_model_name]:
 
                 try:
-                    cla_datas = np.load(f"vit_{secondary_model_name}_test_pred_lr{lr}_e{secondary_epoch - 1}.npy")
+                    cla_datas = np.load(
+                        f"vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{secondary_epoch - 1}.npy")
                 except FileNotFoundError:
                     continue
 
                 cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
-
-                high_scores = [0.7, 0.8]
-                low_scores = [0.1, 0.2]
                 epsilons = [0.003 * i for i in range(1, 100, 1)]
 
                 m = true_data.shape[0]
-                charts = [[pred_data[i], true_data[i]] + rules1(i) for i in range(m)]
+                charts = [[pred_data[i], true_data[i]] + rules1(i=i, cla_datas=cla_datas) for i in range(m)]
                 all_charts = generate_chart(charts)
 
                 results = []
                 result0 = [0]
 
-                print(f'Started EDCR pipeline for {main_model_name}->{secondary_model_name}')
+                print(f'Started EDCR pipeline for main" {main_model_name}, lr: {main_lr}, '
+                      f'secondary: {secondary_model_name}, lr: {secondary_lr}')
                 for count, chart in enumerate(all_charts):
                     chart = np.array(chart)
                     result0.extend(get_scores(chart[:, 1], chart[:, 0]))
@@ -336,33 +336,63 @@ if __name__ == '__main__':
                 result0.extend(get_scores(true_data, pred_data))
                 results.append(result0)
 
-                accuracies = []
+                posterior_acc = 0
+                total_results = np.zeros_like(pred_data)
 
-                for ep in tqdm(epsilons, total=len(epsilons)):
-                    result, acc = ruleForNPCorrection(all_charts, ep)
-                    results.append([ep] + result)
-                    accuracies += [acc]
+                for epsilon in tqdm(epsilons, total=len(epsilons)):
+                    result, posterior_acc, total_results = ruleForNPCorrection(all_charts=all_charts,
+                                                                               true_data=true_data,
+                                                                               pred_data=pred_data,
+                                                                               epsilon=epsilon)
+                    results.append([epsilon] + result)
 
-                with Plot():
-                    plt.plot(epsilons, accuracies)
-                    plt.title(f'Main: {main_model_name}, Secondary: {secondary_model_name}, '
-                              f'LR: {lr}')
-                    plt.grid()
-                    plt.tight_layout()
-                    plt.ylabel('Accuracy')
-                    plt.ylabel('Epsilon')
+                # if max(accuracies) > min(accuracies):
+                # with Plot():
+                #     plt.plot(epsilons, accuracies)
+                #     plt.title(f'Main: {main_model_name} e{main_epoch}, '
+                #               f'Secondary: {secondary_model_name} e{secondary_epoch} '
+                #               f'lr={lr}')
+                #     plt.grid()
+                #     plt.tight_layout()
+                #     plt.ylabel('Accuracy')
+                #     plt.ylabel('Epsilon')
 
                 col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
                 df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
 
                 df.to_csv(results_file)
                 df = pd.read_csv(results_file)
-                create_directory(f'{figs_folder}/{main_model_name}->{secondary_model_name}_lr{lr}')
+
+                folder = (f'{figs_folder}/main_{main_model_name}_lr{main_lr}'
+                          f'_secondary_{secondary_model_name}_lr{secondary_lr}')
+                create_directory(folder)
 
                 plot(df=df,
                      n_classes=n_classes,
                      col_num=len(col),
                      x_values=df['epsilon'][1:],
-                     lr=lr)
+                     main_model_name=main_model_name,
+                     secondary_model_name=secondary_model_name,
+                     main_lr=main_lr,
+                     secondary_lr=secondary_lr,
+                     folder=folder)
 
-                print(f'Plotted {main_model_name}->{secondary_model_name}')
+                np.save(f'{folder}/results.npy', total_results)
+                print(f'Saved plots for main: {main_model_name}, secondary: {secondary_model_name}\n'
+                      f'Prior acc:{prior_acc}, post acc: {posterior_acc}')
+
+
+if __name__ == '__main__':
+    data_dir = '.'
+    true_data = np.load(os.path.join(data_dir, 'test_true.npy'))
+    secondary_lr = 5e-5
+    # main_lr = 4
+
+    main_epoch = 4
+    secondary_epoch = 4
+
+
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        pool.starmap(handle_file,
+                     [(filename, data_dir, true_data, secondary_lr, main_epoch, secondary_epoch)
+                      for filename in os.listdir(data_dir)])
