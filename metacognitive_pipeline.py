@@ -10,10 +10,20 @@ import multiprocessing as mp
 import warnings
 warnings.filterwarnings('ignore')
 
-from vision_models import vit_model_names, num_epochs
+from vision_models import vit_model_names, num_epochs, lrs
 from scrape_train_test import create_directory
 
+data_dir = '.'
+true_data = np.load(os.path.join(data_dir, 'test_true.npy'))
+results_folder = '.'
+results_file = results_folder + "rule_for_NPcorrection.csv"
 
+data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
+n_classes = len(fine_grain_classes)
+figs_folder = 'figs/'
 
 
 
@@ -303,80 +313,68 @@ def handle_file(filename: str,
         for secondary_model_name in \
                 [name for name in vit_model_names.values() if f'vit_{name}' != main_model_name]:
 
-            try:
-                cla_datas = np.load(
-                    f"vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}.npy")
-            except FileNotFoundError:
-                continue
+            for secondary_lr in lrs:
+                try:
+                    cla_datas = np.load(
+                        f"vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}.npy")
+                except FileNotFoundError:
+                    continue
 
-            cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
-            epsilons = [0.003 * i for i in range(1, 100, 1)]
+                cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
+                epsilons = [0.003 * i for i in range(1, 100, 1)]
 
-            m = true_data.shape[0]
-            charts = [[pred_data[i], true_data[i]] + rules1(i=i, cla_datas=cla_datas) for i in range(m)]
-            all_charts = generate_chart(charts)
+                m = true_data.shape[0]
+                charts = [[pred_data[i], true_data[i]] + rules1(i=i, cla_datas=cla_datas) for i in range(m)]
+                all_charts = generate_chart(charts)
 
-            results = []
-            result0 = [0]
+                results = []
+                result0 = [0]
 
-            print(f'Started EDCR pipeline for main" {main_model_name}, lr: {main_lr}, '
-                  f'secondary: {secondary_model_name}, lr: {secondary_lr}')
-            for count, chart in enumerate(all_charts):
-                chart = np.array(chart)
-                result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-                result0.extend([0, 0, 0, 0])
-            result0.extend(get_scores(true_data, pred_data))
-            results.append(result0)
+                print(f'Started EDCR pipeline for main" {main_model_name}, lr: {main_lr}, '
+                      f'secondary: {secondary_model_name}, lr: {secondary_lr}')
+                for count, chart in enumerate(all_charts):
+                    chart = np.array(chart)
+                    result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+                    result0.extend([0, 0, 0, 0])
+                result0.extend(get_scores(true_data, pred_data))
+                results.append(result0)
 
-            posterior_acc = 0
-            total_results = np.zeros_like(pred_data)
+                posterior_acc = 0
+                total_results = np.zeros_like(pred_data)
 
-            for epsilon in tqdm(epsilons, total=len(epsilons)):
-                result, posterior_acc, total_results = ruleForNPCorrection(all_charts=all_charts,
-                                                                           true_data=true_data,
-                                                                           pred_data=pred_data,
-                                                                           epsilon=epsilon)
-                results.append([epsilon] + result)
+                for epsilon in tqdm(epsilons, total=len(epsilons)):
+                    result, posterior_acc, total_results = ruleForNPCorrection(all_charts=all_charts,
+                                                                               true_data=true_data,
+                                                                               pred_data=pred_data,
+                                                                               epsilon=epsilon)
+                    results.append([epsilon] + result)
 
-            col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-            df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+                col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+                df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
 
-            df.to_csv(results_file)
-            df = pd.read_csv(results_file)
+                df.to_csv(results_file)
+                df = pd.read_csv(results_file)
 
-            folder = (f'{figs_folder}/main_{main_model_name}_lr{main_lr}'
-                      f'_secondary_{secondary_model_name}_lr{secondary_lr}')
-            create_directory(folder)
+                folder = (f'{figs_folder}/main_{main_model_name}_lr{main_lr}'
+                          f'_secondary_{secondary_model_name}_lr{secondary_lr}')
+                create_directory(folder)
 
-            plot(df=df,
-                 n_classes=n_classes,
-                 col_num=len(col),
-                 x_values=df['epsilon'][1:],
-                 main_model_name=main_model_name,
-                 secondary_model_name=secondary_model_name,
-                 main_lr=main_lr,
-                 secondary_lr=secondary_lr,
-                 folder=folder)
+                plot(df=df,
+                     n_classes=n_classes,
+                     col_num=len(col),
+                     x_values=df['epsilon'][1:],
+                     main_model_name=main_model_name,
+                     secondary_model_name=secondary_model_name,
+                     main_lr=main_lr,
+                     secondary_lr=secondary_lr,
+                     folder=folder)
 
-            np.save(f'{folder}/results.npy', total_results)
-            print(f'Saved plots for main: {main_model_name}, secondary: {secondary_model_name}\n'
-                  f'Prior acc:{prior_acc}, post acc: {posterior_acc}')
+                np.save(f'{folder}/results.npy', total_results)
+                print(f'Saved plots for main: {main_model_name}, secondary: {secondary_model_name}\n'
+                      f'Prior acc:{prior_acc}, post acc: {posterior_acc}')
 
 
 if __name__ == '__main__':
-    data_dir = '.'
-    true_data = np.load(os.path.join(data_dir, 'test_true.npy'))
-    results_folder = '.'
-    results_file = results_folder + "rule_for_NPcorrection.csv"
-
-    data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-    dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
-    fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-    fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
-    n_classes = len(fine_grain_classes)
-    figs_folder = 'figs/'
-
-
     with mp.Pool(processes=mp.cpu_count()) as pool:
         pool.starmap(handle_file,
                      [(filename, data_dir, true_data)
