@@ -16,22 +16,14 @@ import timm
 import re
 
 batch_size = 24
-lrs = [5e-6, 0.0005]
-
+lrs = [0.0005, 5e-5, 5e-6]
 scheduler_gamma = 0.1
 num_epochs = 4
-cwd = Path(__file__).parent.resolve()
-scheduler_step_size = num_epochs
-
 vit_model_names = {0: 'b_16',
                    1: 'b_32',
                    2: 'l_16',
                    3: 'l_32',
                    4: 'h_14'}
-
-vit_model_indices = list(range(4))
-train_folder_name = 'train'
-test_folder_name = 'test'
 
 
 def get_transforms(train_or_val: str,
@@ -327,6 +319,13 @@ class Plot(Context):
 
 
 if __name__ == '__main__':
+    cwd = Path(__file__).parent.resolve()
+    scheduler_step_size = num_epochs
+
+    vit_model_indices = list(range(4))
+    train_folder_name = 'train'
+    test_folder_name = 'test'
+
     print(F'Learning rates: {lrs}')
     model_names = (
         # ['inception_v3', 'inception_resnet_v2'] +
