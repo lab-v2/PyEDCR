@@ -383,7 +383,7 @@ def handle_file(filename: str,
 
         with mp.Pool(processes=mp.cpu_count()) as pool:
             names_lrs = itertools.product([name for name in vit_model_names.values()
-                                          if f'vit_{name}' != main_model_name], lrs)
+                                          if f'vit_{name}' != main_model_name and name != 'h_14'], lrs)
             iterable = [(main_model_name, main_lr, secondary_model_name, secondary_lr,
                          true_data, pred_data, prior_acc) for secondary_model_name, secondary_lr in names_lrs]
             pool.starmap(func=run_EDCR,
