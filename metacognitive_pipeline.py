@@ -5,8 +5,9 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
-from typing import Sequence
 import multiprocessing as mp
+import itertools
+
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -26,9 +27,8 @@ n_classes = len(fine_grain_classes)
 figs_folder = 'figs/'
 
 
-
 def rules1(i: int,
-           cla_datas):
+           cla_datas: np.array):
     rule_scores = []
 
     for cls in cla_datas:
@@ -71,7 +71,7 @@ def get_scores(y_true: np.array,
         return [pre, f1, f1micro]
 
 
-def generate_chart(charts: Sequence):
+def generate_chart(charts: list) -> list:
     all_charts = [[] for _ in range(n_classes)]
     for data in charts:
         for count, jj in enumerate(all_charts):
@@ -97,7 +97,7 @@ def generate_chart(charts: Sequence):
 
 
 def DetUSMPosRuleSelect(i: int,
-                        all_charts: Sequence):
+                        all_charts: list):
     count = i
     chart = all_charts[i]
     chart = np.array(chart)
@@ -161,7 +161,7 @@ def DetUSMPosRuleSelect(i: int,
 
 def GreedyNegRuleSelect(i: int,
                         epsilon: float,
-                        all_charts: Sequence):
+                        all_charts: list):
     count = i
     chart = all_charts[i]
     chart = np.array(chart)
@@ -210,7 +210,7 @@ def GreedyNegRuleSelect(i: int,
     return NCi
 
 
-def ruleForNPCorrection(all_charts: Sequence,
+def ruleForNPCorrection(all_charts: list,
                         true_data,
                         pred_data,
                         epsilon: float,
@@ -220,7 +220,9 @@ def ruleForNPCorrection(all_charts: Sequence,
 
     for count, chart in enumerate(all_charts):
         chart = np.array(chart)
-        NCi = GreedyNegRuleSelect(count, epsilon, all_charts)
+        NCi = GreedyNegRuleSelect(i=count,
+                                  epsilon=epsilon,
+                                  all_charts=all_charts)
         neg_i_count = 0
         pos_i_count = 0
 
@@ -236,7 +238,8 @@ def ruleForNPCorrection(all_charts: Sequence,
                     neg_i_count += 1
                     predict_result[ct] = 0
 
-        CCi = DetUSMPosRuleSelect(count, all_charts) if run_positives else []
+        CCi = DetUSMPosRuleSelect(i=count,
+                                  all_charts=all_charts) if run_positives else []
         tem_cond = np.zeros_like(chart[:, 0])
 
         for cc in CCi:
@@ -264,7 +267,7 @@ def ruleForNPCorrection(all_charts: Sequence,
 def plot(df: pd.DataFrame,
          n_classes: int,
          col_num: int,
-         x_values: Sequence[float],
+         x_values: pd.Series,
          main_model_name: str,
          secondary_model_name: str,
          main_lr: float,
@@ -298,6 +301,74 @@ def plot(df: pd.DataFrame,
         plt.cla()
 
 
+def run_EDCR(main_model_name: str,
+             main_lr: float,
+             secondary_model_name: str,
+             secondary_lr: float,
+             true_data: np.array,
+             pred_data: np.array,
+             prior_acc: float):
+    try:
+        cla_datas = np.load(
+            f"vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}.npy")
+    except FileNotFoundError:
+        return
+
+    cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
+    epsilons = [0.003 * i for i in range(1, 100, 1)]
+
+    m = true_data.shape[0]
+    charts = [[pred_data[i], true_data[i]] + rules1(i=i, cla_datas=cla_datas) for i in range(m)]
+    all_charts = generate_chart(charts)
+
+    results = []
+    result0 = [0]
+
+    print(f'Started EDCR pipeline for main" {main_model_name}, lr: {main_lr}, '
+          f'secondary: {secondary_model_name}, lr: {secondary_lr}\n')
+    for count, chart in enumerate(all_charts):
+        chart = np.array(chart)
+        result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+        result0.extend([0, 0, 0, 0])
+    result0.extend(get_scores(true_data, pred_data))
+    results.append(result0)
+
+    posterior_acc = 0
+    total_results = np.zeros_like(pred_data)
+
+    for epsilon in tqdm(epsilons, total=len(epsilons)):
+        result, posterior_acc, total_results = ruleForNPCorrection(all_charts=all_charts,
+                                                                   true_data=true_data,
+                                                                   pred_data=pred_data,
+                                                                   epsilon=epsilon)
+        results.append([epsilon] + result)
+
+    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+
+    df.to_csv(results_file)
+    df = pd.read_csv(results_file)
+
+    folder = (f'{figs_folder}/main_{main_model_name}_lr{main_lr}'
+              f'_secondary_{secondary_model_name}_lr{secondary_lr}')
+    create_directory(folder)
+
+    plot(df=df,
+         n_classes=n_classes,
+         col_num=len(col),
+         x_values=df['epsilon'][1:],
+         main_model_name=main_model_name,
+         secondary_model_name=secondary_model_name,
+         main_lr=main_lr,
+         secondary_lr=secondary_lr,
+         folder=folder)
+    np.save(f'{folder}/results.npy', total_results)
+
+    print(f'Saved plots for main: {main_model_name}, secondary: {secondary_model_name}\n'
+          f'Prior acc:{prior_acc}, post acc: {posterior_acc}\n')
+
+
+
 def handle_file(filename: str,
                 data_dir: str,
                 true_data: np.array):
@@ -310,72 +381,20 @@ def handle_file(filename: str,
         pred_data = np.load(os.path.join(data_dir, filename))
         prior_acc = accuracy_score(true_data, pred_data)
 
-        for secondary_model_name in \
-                [name for name in vit_model_names.values() if f'vit_{name}' != main_model_name]:
-
-            for secondary_lr in lrs:
-                try:
-                    cla_datas = np.load(
-                        f"vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}.npy")
-                except FileNotFoundError:
-                    continue
-
-                cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
-                epsilons = [0.003 * i for i in range(1, 100, 1)]
-
-                m = true_data.shape[0]
-                charts = [[pred_data[i], true_data[i]] + rules1(i=i, cla_datas=cla_datas) for i in range(m)]
-                all_charts = generate_chart(charts)
-
-                results = []
-                result0 = [0]
-
-                print(f'Started EDCR pipeline for main" {main_model_name}, lr: {main_lr}, '
-                      f'secondary: {secondary_model_name}, lr: {secondary_lr}')
-                for count, chart in enumerate(all_charts):
-                    chart = np.array(chart)
-                    result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-                    result0.extend([0, 0, 0, 0])
-                result0.extend(get_scores(true_data, pred_data))
-                results.append(result0)
-
-                posterior_acc = 0
-                total_results = np.zeros_like(pred_data)
-
-                for epsilon in tqdm(epsilons, total=len(epsilons)):
-                    result, posterior_acc, total_results = ruleForNPCorrection(all_charts=all_charts,
-                                                                               true_data=true_data,
-                                                                               pred_data=pred_data,
-                                                                               epsilon=epsilon)
-                    results.append([epsilon] + result)
-
-                col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-                df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
-
-                df.to_csv(results_file)
-                df = pd.read_csv(results_file)
-
-                folder = (f'{figs_folder}/main_{main_model_name}_lr{main_lr}'
-                          f'_secondary_{secondary_model_name}_lr{secondary_lr}')
-                create_directory(folder)
-
-                plot(df=df,
-                     n_classes=n_classes,
-                     col_num=len(col),
-                     x_values=df['epsilon'][1:],
-                     main_model_name=main_model_name,
-                     secondary_model_name=secondary_model_name,
-                     main_lr=main_lr,
-                     secondary_lr=secondary_lr,
-                     folder=folder)
-
-                np.save(f'{folder}/results.npy', total_results)
-                print(f'Saved plots for main: {main_model_name}, secondary: {secondary_model_name}\n'
-                      f'Prior acc:{prior_acc}, post acc: {posterior_acc}')
+        with mp.Pool(processes=mp.cpu_count()) as pool:
+            names_lrs = itertools.product([name for name in vit_model_names.values()
+                                          if f'vit_{name}' != main_model_name], lrs)
+            iterable = [(main_model_name, main_lr, secondary_model_name, secondary_lr,
+                         true_data, pred_data, prior_acc) for secondary_model_name, secondary_lr in names_lrs]
+            pool.starmap(func=run_EDCR,
+                         iterable=iterable)
 
 
 if __name__ == '__main__':
-    with mp.Pool(processes=mp.cpu_count()) as pool:
-        pool.starmap(handle_file,
-                     [(filename, data_dir, true_data)
-                      for filename in os.listdir(data_dir)])
+    for filename in os.listdir(data_dir):
+        handle_file(filename=filename,
+                    data_dir=data_dir,
+                    true_data=true_data)
+    # with mp.Pool(processes=mp.cpu_count()) as pool:
+    #     iterable = [(filename, data_dir, true_data) for filename in os.listdir(data_dir)]
+    #     pool.starmap(func=handle_file, iterable=iterable)
