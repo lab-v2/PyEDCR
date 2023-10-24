@@ -10,12 +10,12 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from time import time
 from typing import Tuple, Union
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import abc
 from tqdm import tqdm
 from pathlib import Path
 import sys
-import timm
+# import timm
 import re
 
 batch_size = 24
@@ -185,16 +185,16 @@ class VITFineTuner(FineTuner):
         return self.vit_model_name
 
 
-class InceptionResNetV2FineTuner(FineTuner):
-    def __init__(self, num_classes: int):
-        super().__init__(num_classes=num_classes)
-        self.inception = timm.create_model('inception_resnet_v2',
-                                           pretrained=True,
-                                           num_classes=num_classes)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.inception(x)
-        return x
+# class InceptionResNetV2FineTuner(FineTuner):
+#     def __init__(self, num_classes: int):
+#         super().__init__(num_classes=num_classes)
+#         self.inception = timm.create_model('inception_resnet_v2',
+#                                            pretrained=True,
+#                                            num_classes=num_classes)
+#
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         x = self.inception(x)
+#         return x
 
 
 
@@ -314,20 +314,20 @@ def fine_tune(fine_tuner: FineTuner,
             np.save(f"{colab_path}test_true.npy", test_ground_truths)
 
 
-class Plot(Context):
-    def __init__(self,
-                 fig_sizes: tuple = None):
-        if fig_sizes:
-            plt.figure(figsize=fig_sizes)
-
-    def __enter__(self):
-        plt.cla()
-        plt.clf()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        plt.show()
-        plt.cla()
-        plt.clf()
+# class Plot(Context):
+#     def __init__(self,
+#                  fig_sizes: tuple = None):
+#         if fig_sizes:
+#             plt.figure(figsize=fig_sizes)
+#
+#     def __enter__(self):
+#         plt.cla()
+#         plt.clf()
+#
+#     def __exit__(self, exc_type, exc_val, exc_tb):
+#         plt.show()
+#         plt.cla()
+#         plt.clf()
 
 
 def main():
@@ -361,7 +361,8 @@ def main():
     print(f'Using {device}')
 
     all_fine_tuners = ({'inception_v3': InceptionV3FineTuner,
-                        'inception_resnet_v2': InceptionResNetV2FineTuner} |
+                        # 'inception_resnet_v2': InceptionResNetV2FineTuner
+                        } |
                        {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in vit_model_names.values()})
 
     fine_tuners = []
@@ -383,38 +384,38 @@ def main():
             print('#' * 100)
     # except:
     #     continue
-    with Plot():
-        for fine_tuner in fine_tuners:
-            vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
-            plt.plot(vit_train_loss, label=f'{fine_tuner} training Loss')
-
-        plt.title('Training Loss')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.legend()
-        plt.grid()
-
-    with Plot():
-        for fine_tuner in fine_tuners:
-            vit_train_acc = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_acc.npy'))
-            plt.plot(vit_train_acc, label=f'{fine_tuner} training accuracy')
-
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
-        plt.title('Training Accuracy')
-        plt.legend()
-        plt.grid()
-
-    with Plot():
-        for fine_tuner in fine_tuners:
-            vit_test_acc = np.load(f'{fine_tuner}_test_acc.npy')
-            plt.plot(vit_test_acc, label=f'{fine_tuner} test accuracy')
-
-        plt.xlabel('Epoch')
-        plt.ylabel('Test Accuracy')
-        plt.title('Test Accuracy')
-        plt.legend()
-        plt.grid()
+    # with Plot():
+    #     for fine_tuner in fine_tuners:
+    #         vit_train_loss = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_loss.npy'))
+    #         plt.plot(vit_train_loss, label=f'{fine_tuner} training Loss')
+    #
+    #     plt.title('Training Loss')
+    #     plt.xlabel('Epoch')
+    #     plt.ylabel('Loss')
+    #     plt.legend()
+    #     plt.grid()
+    #
+    # with Plot():
+    #     for fine_tuner in fine_tuners:
+    #         vit_train_acc = np.load(Path.joinpath(cwd, f'{fine_tuner}_train_acc.npy'))
+    #         plt.plot(vit_train_acc, label=f'{fine_tuner} training accuracy')
+    #
+    #     plt.xlabel('Epoch')
+    #     plt.ylabel('Accuracy')
+    #     plt.title('Training Accuracy')
+    #     plt.legend()
+    #     plt.grid()
+    #
+    # with Plot():
+    #     for fine_tuner in fine_tuners:
+    #         vit_test_acc = np.load(f'{fine_tuner}_test_acc.npy')
+    #         plt.plot(vit_test_acc, label=f'{fine_tuner} test accuracy')
+    #
+    #     plt.xlabel('Epoch')
+    #     plt.ylabel('Test Accuracy')
+    #     plt.title('Test Accuracy')
+    #     plt.legend()
+    #     plt.grid()
 
 
 if __name__ == '__main__':
