@@ -29,6 +29,8 @@ vit_model_names = {0: 'b_16',
                    4: 'h_14'}
 
 
+
+
 def get_transforms(train_or_val: str,
                    model_name: str) -> torchvision.transforms.Compose:
     if model_name == 'inception_v3':
@@ -195,6 +197,41 @@ all_fine_tuners = ({'inception_v3': InceptionV3FineTuner,
                     'inception_resnet_v2': InceptionResNetV2FineTuner} |
                    {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in vit_model_names.values()})
 
+cwd = Path(__file__).parent.resolve()
+scheduler_step_size = num_epochs
+
+vit_model_indices = list(range(4))
+train_folder_name = 'train'
+test_folder_name = 'test'
+
+print(F'Learning rates: {lrs}')
+model_names = (
+    # ['inception_v3', 'inception_resnet_v2'] +
+    [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices])
+print(f'Models: {model_names}')
+data_dir = Path.joinpath(cwd, '.')
+datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
+                                                                transform=get_transforms(train_or_val=train_or_val,
+                                                                                         model_name=model_name))
+            for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
+
+assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
+           datasets[f'{model_name}_{test_folder_name}'].classes
+           for model_name in model_names)
+
+loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
+    dataset=datasets[f'{model_name}_{train_or_val}'],
+    batch_size=batch_size,
+    shuffle=train_or_val == train_folder_name)
+    for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
+
+classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
+print(f'Classes: {classes}')
+n = len(classes)
+
+device = torch.device('mps' if torch.backends.mps.is_available() else
+                      ("cuda" if torch.cuda.is_available() else 'cpu'))
+print(f'Using {device}')
 
 def test(fine_tuner: FineTuner) -> Tuple[list[int], list[int], float]:
     test_loader = loaders[f'{fine_tuner}_{test_folder_name}']
@@ -376,39 +413,5 @@ def main():
 
 
 if __name__ == '__main__':
-    cwd = Path(__file__).parent.resolve()
-    scheduler_step_size = num_epochs
 
-    vit_model_indices = list(range(4))
-    train_folder_name = 'train'
-    test_folder_name = 'test'
-
-    print(F'Learning rates: {lrs}')
-    model_names = (
-        # ['inception_v3', 'inception_resnet_v2'] +
-        [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices])
-    print(f'Models: {model_names}')
-    data_dir = Path.joinpath(cwd, '.')
-    datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
-                                                                    transform=get_transforms(train_or_val=train_or_val,
-                                                                                             model_name=model_name))
-                for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-
-    assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
-               datasets[f'{model_name}_{test_folder_name}'].classes
-               for model_name in model_names)
-
-    loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
-        dataset=datasets[f'{model_name}_{train_or_val}'],
-        batch_size=batch_size,
-        shuffle=train_or_val == train_folder_name)
-        for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-
-    classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
-    print(f'Classes: {classes}')
-    n = len(classes)
-
-    device = torch.device('mps' if torch.backends.mps.is_available() else
-                          ("cuda" if torch.cuda.is_available() else 'cpu'))
-    print(f'Using {device}')
     main()
