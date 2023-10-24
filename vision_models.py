@@ -27,8 +27,12 @@ vit_model_names = {0: 'b_16',
                    2: 'l_16',
                    3: 'l_32',
                    4: 'h_14'}
+cwd = Path(__file__).parent.resolve()
+scheduler_step_size = num_epochs
 
-
+vit_model_indices = list(range(4))
+train_folder_name = 'train'
+test_folder_name = 'test'
 
 
 def get_transforms(train_or_val: str,
@@ -157,7 +161,7 @@ class VITFineTuner(FineTuner):
                  vit_model: Union[int, str],
                  num_classes: int):
         super().__init__(num_classes=num_classes)
-        if type(vit_model) == int:
+        if isinstance(vit_model, int):
             self.vit_model_index = vit_model
             self.vit_model_name = vit_model_names[vit_model]
         else:
@@ -193,47 +197,11 @@ class InceptionResNetV2FineTuner(FineTuner):
         return x
 
 
-all_fine_tuners = ({'inception_v3': InceptionV3FineTuner,
-                    'inception_resnet_v2': InceptionResNetV2FineTuner} |
-                   {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in vit_model_names.values()})
 
-cwd = Path(__file__).parent.resolve()
-scheduler_step_size = num_epochs
 
-vit_model_indices = list(range(4))
-train_folder_name = 'train'
-test_folder_name = 'test'
-
-print(F'Learning rates: {lrs}')
-model_names = (
-    # ['inception_v3', 'inception_resnet_v2'] +
-    [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices])
-print(f'Models: {model_names}')
-data_dir = Path.joinpath(cwd, '.')
-datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
-                                                                transform=get_transforms(train_or_val=train_or_val,
-                                                                                         model_name=model_name))
-            for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-
-assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
-           datasets[f'{model_name}_{test_folder_name}'].classes
-           for model_name in model_names)
-
-loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
-    dataset=datasets[f'{model_name}_{train_or_val}'],
-    batch_size=batch_size,
-    shuffle=train_or_val == train_folder_name)
-    for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-
-classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
-print(f'Classes: {classes}')
-n = len(classes)
-
-device = torch.device('mps' if torch.backends.mps.is_available() else
-                      ("cuda" if torch.cuda.is_available() else 'cpu'))
-print(f'Using {device}')
-
-def test(fine_tuner: FineTuner) -> Tuple[list[int], list[int], float]:
+def test(fine_tuner: FineTuner,
+         loaders,
+         device) -> Tuple[list[int], list[int], float]:
     test_loader = loaders[f'{fine_tuner}_{test_folder_name}']
     fine_tuner.eval()
     correct = 0
@@ -267,7 +235,9 @@ def test(fine_tuner: FineTuner) -> Tuple[list[int], list[int], float]:
     return test_ground_truth, test_prediction, test_accuracy
 
 
-def fine_tune(fine_tuner: FineTuner):
+def fine_tune(fine_tuner: FineTuner,
+              device,
+              loaders):
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -302,7 +272,7 @@ def fine_tune(fine_tuner: FineTuner):
                 optimizer.zero_grad()
                 Y_pred = fine_tuner(X)
 
-                if type(Y_pred) == torchvision.models.InceptionOutputs:
+                if isinstance(Y_pred, torchvision.models.InceptionOutputs):
                     Y_pred = Y_pred[0]
 
                 loss = criterion(Y_pred, Y)
@@ -326,7 +296,9 @@ def fine_tune(fine_tuner: FineTuner):
             train_accuracies += [acc]
             train_losses += [running_loss / len(train_loader)]
             scheduler.step()
-            test_ground_truths, test_predictions, test_accuracy = test(fine_tuner)
+            test_ground_truths, test_predictions, test_accuracy = test(fine_tuner=fine_tuner,
+                                                                       loaders=loaders,
+                                                                       device=device)
             test_accuracies += [test_accuracy]
             print('#' * 100)
 
@@ -359,7 +331,38 @@ class Plot(Context):
 
 
 def main():
+    print(F'Learning rates: {lrs}')
+    model_names = (
+        # ['inception_v3', 'inception_resnet_v2'] +
+        [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices])
+    print(f'Models: {model_names}')
+    data_dir = Path.joinpath(cwd, '.')
+    datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
+                                                                    transform=get_transforms(train_or_val=train_or_val,
+                                                                                             model_name=model_name))
+                for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
 
+    assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
+               datasets[f'{model_name}_{test_folder_name}'].classes
+               for model_name in model_names)
+
+    loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
+        dataset=datasets[f'{model_name}_{train_or_val}'],
+        batch_size=batch_size,
+        shuffle=train_or_val == train_folder_name)
+        for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
+
+    classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
+    print(f'Classes: {classes}')
+    n = len(classes)
+
+    device = torch.device('mps' if torch.backends.mps.is_available() else
+                          ("cuda" if torch.cuda.is_available() else 'cpu'))
+    print(f'Using {device}')
+
+    all_fine_tuners = ({'inception_v3': InceptionV3FineTuner,
+                        'inception_resnet_v2': InceptionResNetV2FineTuner} |
+                       {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in vit_model_names.values()})
 
     fine_tuners = []
     for model_name in model_names:
@@ -373,7 +376,9 @@ def main():
         print(f'Initiating {fine_tuner}')
         with ClearCache(device=device):
             with ClearSession():
-                fine_tune(fine_tuner)
+                fine_tune(fine_tuner=fine_tuner,
+                          device=device,
+                          loaders=loaders)
 
             print('#' * 100)
     # except:
@@ -413,5 +418,4 @@ def main():
 
 
 if __name__ == '__main__':
-
     main()
