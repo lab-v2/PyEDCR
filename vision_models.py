@@ -317,8 +317,7 @@ class Plot(Context):
         plt.cla()
         plt.clf()
 
-
-if __name__ == '__main__':
+def main():
     cwd = Path(__file__).parent.resolve()
     scheduler_step_size = num_epochs
 
@@ -404,3 +403,6 @@ if __name__ == '__main__':
         plt.title('Test Accuracy')
         plt.legend()
         plt.grid()
+
+if __name__ == '__main__':
+    main()
