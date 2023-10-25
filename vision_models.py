@@ -19,7 +19,7 @@ import sys
 import re
 
 batch_size = 24
-lrs = [0.0005, 5e-5, 5e-6]
+lrs = [1e-5, 5e-5, 1e-6]
 scheduler_gamma = 0.1
 num_epochs = 4
 vit_model_names = {0: 'b_16',
@@ -40,6 +40,7 @@ def create_directory(directory: str) -> None:
     if not os.path.exists(directory):
         os.makedirs(directory)
         print(f'Created {directory}')
+
 
 def get_transforms(train_or_val: str,
                    model_name: str) -> torchvision.transforms.Compose:
@@ -118,6 +119,7 @@ def is_local() -> bool:
 colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
 results_path = fr'{colab_path}results/'
 create_directory(results_path)
+
 
 class ClearSession(Context):
     def __init__(self):
@@ -273,7 +275,7 @@ def fine_tune(fine_tuner: FineTuner,
 
         test_accuracies = []
 
-        print(f'Started fine-tuning {fine_tuner} on {device}...')
+        print(f'Started fine-tuning {fine_tuner} with lr={lr} on {device}...')
 
         for epoch in range(num_epochs):
             print(f'Started epoch {epoch + 1}/{num_epochs}...')
