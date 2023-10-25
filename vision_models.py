@@ -318,7 +318,7 @@ def fine_tune(fine_tuner: FineTuner,
 
 
                 for batch_num, batch in batches:
-                    print(f'Started batch {batch_num}/{num_batches}')
+                    print(f'Started batch {batch_num + 1}/{num_batches}')
                     X, Y = batch[0].to(device), batch[1].to(device)
                     optimizer.zero_grad()
                     Y_pred = fine_tuner(X)
