@@ -19,16 +19,16 @@ import sys
 # import timm
 import re
 
-batch_size = 1
-lrs = [1e-5, 5e-5, 1e-6, 5e-6]
+batch_size = 24
+lrs = [1e-6, 1e-7, 1e-8]
 scheduler_gamma = 0.1
 num_epochs = 4
 vit_model_names = {
-    # 0: 'b_16',
-    #                1: 'b_32',
-    #                2: 'l_16',
-    #                3: 'l_32',
-                   4: 'h_14'
+    0: 'b_16',
+                   1: 'b_32',
+                   2: 'l_16',
+                   3: 'l_32',
+                   # 4: 'h_14'
 }
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
