@@ -328,8 +328,6 @@ def fine_tune(fine_tuner: FineTuner,
                         Y_pred = Y_pred[0]
 
                     loss = criterion(Y_pred, Y)
-                    del X
-                    del Y
                     loss.backward()
                     optimizer.step()
                     running_loss += loss.item()
@@ -337,6 +335,9 @@ def fine_tune(fine_tuner: FineTuner,
                     predicted = torch.max(Y_pred, 1)[1]
                     train_ground_truths += Y.tolist()
                     train_predictions += predicted.tolist()
+
+                    del X
+                    del Y
 
             true_labels = np.array(train_ground_truths)
             predicted_labels = np.array(train_predictions)
