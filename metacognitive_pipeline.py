@@ -22,8 +22,10 @@ results_file = results_folder + "rule_for_NPcorrection.csv"
 data_file_path = rf'data/WEO_Data_Sheet.xlsx'
 dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
-n_classes = len(fine_grain_classes)
+# fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
+coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
+coarse_grain_classes = coarse_grain_results_df['Class Name'].to_list()
+n_classes = len(coarse_grain_classes)
 figs_folder = 'figs/'
 
 
@@ -291,7 +293,7 @@ def plot(df: pd.DataFrame,
                  f1_i,
                  label='f1')
 
-        plt.title(f'Class #{i}-{fine_grain_classes[i]}, Main: {main_model_name}, lr: {main_lr}'
+        plt.title(f'Class #{i}-{coarse_grain_classes[i]}, Main: {main_model_name}, lr: {main_lr}'
                   f'Secondary: {secondary_model_name}, lr: {secondary_lr}')
         plt.legend()
         plt.tight_layout()
