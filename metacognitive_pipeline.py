@@ -308,11 +308,11 @@ def run_EDCR(main_model_name: str,
              true_data: np.array,
              pred_data: np.array,
              prior_acc: float):
+    filename = f"{data_dir}/vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}.npy"
     try:
-        cla_datas = np.load(
-            f"{data_dir}/vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}.npy")
+        cla_datas = np.load(filename)
     except FileNotFoundError:
-        print('wh')
+        print(f'{filename} not found')
         return
 
     cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
@@ -325,7 +325,7 @@ def run_EDCR(main_model_name: str,
     results = []
     result0 = [0]
 
-    print(f'Started EDCR pipeline for main" {main_model_name}, lr: {main_lr}, '
+    print(f'Started EDCR pipeline for main {main_model_name}, lr: {main_lr}, '
           f'secondary: {secondary_model_name}, lr: {secondary_lr}\n')
     for count, chart in enumerate(all_charts):
         chart = np.array(chart)
