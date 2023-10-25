@@ -302,7 +302,7 @@ def fine_tune(fine_tuner: FineTuner,
         print(f'Started fine-tuning {fine_tuner} with lr={lr} on {device}...')
 
         for epoch in range(num_epochs):
-            with ClearCache(device=device):
+
                 print(f'Started epoch {epoch + 1}/{num_epochs}...')
                 t1 = time()
                 running_loss = 0.0
@@ -318,22 +318,23 @@ def fine_tune(fine_tuner: FineTuner,
 
 
                 for batch_num, batch in batches:
-                    print(f'Started batch {batch_num + 1}/{num_batches}')
-                    X, Y = batch[0].to(device), batch[1].to(device)
-                    optimizer.zero_grad()
-                    Y_pred = fine_tuner(X)
+                    with ClearCache(device=device):
+                        print(f'Started batch {batch_num + 1}/{num_batches}')
+                        X, Y = batch[0].to(device), batch[1].to(device)
+                        optimizer.zero_grad()
+                        Y_pred = fine_tuner(X)
 
-                    if isinstance(Y_pred, torchvision.models.InceptionOutputs):
-                        Y_pred = Y_pred[0]
+                        if isinstance(Y_pred, torchvision.models.InceptionOutputs):
+                            Y_pred = Y_pred[0]
 
-                    loss = criterion(Y_pred, Y)
-                    loss.backward()
-                    optimizer.step()
-                    running_loss += loss.item()
+                        loss = criterion(Y_pred, Y)
+                        loss.backward()
+                        optimizer.step()
+                        running_loss += loss.item()
 
-                    predicted = torch.max(Y_pred, 1)[1]
-                    train_ground_truths += Y.tolist()
-                    train_predictions += predicted.tolist()
+                        predicted = torch.max(Y_pred, 1)[1]
+                        train_ground_truths += Y.tolist()
+                        train_predictions += predicted.tolist()
 
                 true_labels = np.array(train_ground_truths)
                 predicted_labels = np.array(train_predictions)
