@@ -12,12 +12,13 @@ from time import time
 from typing import Tuple, Union
 # import matplotlib.pyplot as plt
 import abc
-from datetime import timedelta
+
 # from tqdm import tqdm
 from pathlib import Path
-import sys
-# import timm
 import re
+
+from context import Context
+from utils import create_directory, format_seconds, is_running_in_colab
 
 batch_size = 32
 lrs = [1e-6, 1e-5, 5e-5]
@@ -25,46 +26,17 @@ scheduler_gamma = 0.1
 num_epochs = 4
 vit_model_names = {
     0: 'b_16',
-                   1: 'b_32',
-                   2: 'l_16',
-                   3: 'l_32',
-                   # 4: 'h_14'
-}
+    1: 'b_32',
+    2: 'l_16',
+    3: 'l_32',
+    # 4: 'h_14'
+    }
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
-
-# vit_model_indices = list(vit_model_names.keys())
 granularity = {0: 'coarse',
                1: 'fine'}[0]
 train_folder_name = f'train_{granularity}'
 test_folder_name = f'test_{granularity}'
-
-
-def format_seconds(seconds):
-    # Create a timedelta object with the given seconds
-    time_delta = timedelta(seconds=seconds)
-
-    # Use the total_seconds() method to get the total number of seconds
-    total_seconds = time_delta.total_seconds()
-
-    # Use divmod to get the hours and minutes
-    hours, remainder = divmod(total_seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    # Create the formatted string
-    if hours > 0:
-        return f"{int(hours)} hour{'s' if hours > 1 else ''}"
-    elif minutes > 0:
-        return f"{int(minutes)} minute{'s' if minutes > 1 else ''}"
-    else:
-        return f"{int(seconds)} second{'s' if seconds > 1 else ''}"
-
-
-# Function to create a directory if it doesn't exist
-def create_directory(directory: str) -> None:
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-        print(f'Created {directory}')
 
 
 def get_transforms(train_or_val: str,
@@ -101,69 +73,13 @@ class ImageFolderWithName(torchvision.datasets.ImageFolder):
         return image, target, name
 
 
-class Context(abc.ABC):
-    @abc.abstractmethod
-    def __enter__(self):
-        pass
 
-    @abc.abstractmethod
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-
-class ClearCache(Context):
-    def __init__(self,
-                 device: torch.device):
-        self.device_backend = {'cuda': torch.cuda,
-                               'mps': mps if torch.backends.mps.is_available() else None,
-                               'cpu': None}[device.type]
-
-
-    def __enter__(self):
-        if self.device_backend:
-            self.device_backend.empty_cache()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.device_backend:
-            self.device_backend.empty_cache()
-
-
-def is_running_in_colab() -> bool:
-    """
-    Check if the code is running in Google Colab.
-    Returns:
-        True if running in Google Colab, False otherwise.
-    """
-
-    return 'google.colab' in sys.modules
-
-
-def is_local() -> bool:
-    return Path(__file__).parent.parent.name == 'PycharmProjects'
 
 
 colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
 results_path = fr'{colab_path}results/'
 create_directory(results_path)
 
-
-class ClearSession(Context):
-    def __init__(self):
-        self.colab = False
-        if is_running_in_colab():
-            from google.colab import drive
-
-            # Mount Google Drive
-            self.drive = drive
-            self.drive.mount('/content/drive')
-            self.colab = True
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.colab:
-            self.drive.flush_and_unmount()
 
 
 class FineTuner(torch.nn.Module, abc.ABC):
@@ -222,18 +138,6 @@ class VITFineTuner(FineTuner):
 
     def __str__(self):
         return self.vit_model_name
-
-
-# class InceptionResNetV2FineTuner(FineTuner):
-#     def __init__(self, num_classes: int):
-#         super().__init__(num_classes=num_classes)
-#         self.inception = timm.create_model('inception_resnet_v2',
-#                                            pretrained=True,
-#                                            num_classes=num_classes)
-#
-#     def forward(self, x: torch.Tensor) -> torch.Tensor:
-#         x = self.inception(x)
-#         return x
 
 
 def test(fine_tuner: FineTuner,

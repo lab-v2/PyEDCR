@@ -11,7 +11,7 @@ import itertools
 import warnings
 warnings.filterwarnings('ignore')
 
-from vision_models import vit_model_names, num_epochs, lrs
+from vit_pipeline import vit_model_names, num_epochs, lrs
 from scrape_train_test import create_directory
 
 data_dir = 'results'
@@ -22,7 +22,7 @@ results_file = results_folder + "rule_for_NPcorrection.csv"
 data_file_path = rf'data/WEO_Data_Sheet.xlsx'
 dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-# fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
+fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
 coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes = coarse_grain_results_df['Class Name'].to_list()
 n_classes = len(coarse_grain_classes)
