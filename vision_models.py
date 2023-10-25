@@ -19,10 +19,10 @@ import sys
 # import timm
 import re
 
-batch_size = 32
-lrs = [5e-5, 1e-6, 1e-5]
+batch_size = 1
+lrs = [1e-6]
 scheduler_gamma = 0.1
-num_epochs = 4
+num_epochs = 1
 vit_model_names = {
     0: 'b_16',
                    1: 'b_32',
@@ -34,8 +34,8 @@ cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
 # vit_model_indices = list(vit_model_names.keys())
-train_folder_name = 'train'
-test_folder_name = 'test'
+train_folder_name = 'train_coarse'
+test_folder_name = 'test_coarse'
 
 
 def format_seconds(seconds):
