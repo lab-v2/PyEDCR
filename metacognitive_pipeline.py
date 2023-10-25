@@ -14,7 +14,7 @@ warnings.filterwarnings('ignore')
 from vision_models import vit_model_names, num_epochs, lrs
 from scrape_train_test import create_directory
 
-data_dir = '.'
+data_dir = 'results'
 true_data = np.load(os.path.join(data_dir, 'test_true.npy'))
 results_folder = '.'
 results_file = results_folder + "rule_for_NPcorrection.csv"
@@ -310,8 +310,9 @@ def run_EDCR(main_model_name: str,
              prior_acc: float):
     try:
         cla_datas = np.load(
-            f"vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}.npy")
+            f"{data_dir}/vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}.npy")
     except FileNotFoundError:
+        print('wh')
         return
 
     cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
@@ -391,6 +392,7 @@ def handle_file(filename: str,
 
 
 if __name__ == '__main__':
+    print(len(os.listdir(data_dir)))
     for filename in os.listdir(data_dir):
         handle_file(filename=filename,
                     data_dir=data_dir,

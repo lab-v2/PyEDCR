@@ -19,8 +19,8 @@ import sys
 # import timm
 import re
 
-batch_size = 24
-lrs = [1e-6, 1e-7, 1e-8]
+batch_size = 32
+lrs = [5e-5, 1e-6, 1e-5]
 scheduler_gamma = 0.1
 num_epochs = 4
 vit_model_names = {
@@ -115,7 +115,7 @@ class ClearCache(Context):
         self.device_backend = {'cuda': torch.cuda,
                                'mps': mps if torch.backends.mps.is_available() else None,
                                'cpu': None}[device.type]
-        print(self.device_backend)
+
 
     def __enter__(self):
         if self.device_backend:
@@ -304,7 +304,7 @@ def fine_tune(fine_tuner: FineTuner,
 
         for epoch in range(num_epochs):
 
-            print(f'Started epoch {epoch + 1}/{num_epochs}...')
+            # print(f'Started epoch {epoch + 1}/{num_epochs}...')
             t1 = time()
             running_loss = 0.0
             train_predictions = []
@@ -320,8 +320,8 @@ def fine_tune(fine_tuner: FineTuner,
 
             for batch_num, batch in batches:
                 with ClearCache(device=device):
-                    if batch_num % 10 == 0:
-                        print(f'Started batch {batch_num + 1}/{num_batches}')
+                    # if batch_num % 10 == 0:
+                    #     print(f'Started batch {batch_num + 1}/{num_batches}')
 
                     X, Y = batch[0].to(device), batch[1].to(device)
                     optimizer.zero_grad()
