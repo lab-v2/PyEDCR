@@ -12,6 +12,7 @@ from time import time
 from typing import Tuple, Union
 # import matplotlib.pyplot as plt
 import abc
+from datetime import timedelta
 # from tqdm import tqdm
 from pathlib import Path
 import sys
@@ -34,6 +35,25 @@ vit_model_indices = list(range(4))
 train_folder_name = 'train'
 test_folder_name = 'test'
 
+
+def format_seconds(seconds):
+    # Create a timedelta object with the given seconds
+    time_delta = timedelta(seconds=seconds)
+
+    # Use the total_seconds() method to get the total number of seconds
+    total_seconds = time_delta.total_seconds()
+
+    # Use divmod to get the hours and minutes
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    # Create the formatted string
+    if hours > 0:
+        return f"{int(hours)} hour{'s' if hours > 1 else ''}"
+    elif minutes > 0:
+        return f"{int(minutes)} minute{'s' if minutes > 1 else ''}"
+    else:
+        return f"{int(seconds)} second{'s' if seconds > 1 else ''}"
 
 # Function to create a directory if it doesn't exist
 def create_directory(directory: str) -> None:
@@ -312,7 +332,7 @@ def fine_tune(fine_tuner: FineTuner,
             acc = accuracy_score(true_labels, predicted_labels)
 
             print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
-                  f'epoch {epoch + 1}/{num_epochs} done in {int(time() - t1)} seconds, '
+                  f'epoch {epoch + 1}/{num_epochs} done in {format_seconds(int(time() - t1))}, '
                   f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
                   f'\ntraining accuracy: {round(acc, 3)}\n')
 
