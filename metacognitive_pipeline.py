@@ -15,7 +15,7 @@ from vision_models import vit_model_names, num_epochs, lrs
 from scrape_train_test import create_directory
 
 data_dir = 'results'
-true_data = np.load(os.path.join(data_dir, 'test_true.npy'))
+true_data = np.load(os.path.join(data_dir, 'test_true_coarse.npy'))
 results_folder = '.'
 results_file = results_folder + "rule_for_NPcorrection.csv"
 
@@ -308,7 +308,7 @@ def run_EDCR(main_model_name: str,
              true_data: np.array,
              pred_data: np.array,
              prior_acc: float):
-    filename = f"{data_dir}/vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}.npy"
+    filename = f"{data_dir}/vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}_coarse.npy"
     try:
         cla_datas = np.load(filename)
     except FileNotFoundError:
@@ -363,7 +363,7 @@ def run_EDCR(main_model_name: str,
          main_lr=main_lr,
          secondary_lr=secondary_lr,
          folder=folder)
-    np.save(f'{folder}/results.npy', total_results)
+    np.save(f'{folder}/results_coarse.npy', total_results)
 
     print(f'Saved plots for main: {main_model_name}, secondary: {secondary_model_name}\n'
           f'Prior acc:{prior_acc}, post acc: {posterior_acc}\n')
@@ -373,7 +373,7 @@ def run_EDCR(main_model_name: str,
 def handle_file(filename: str,
                 data_dir: str,
                 true_data: np.array):
-    match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{num_epochs - 1}.npy',
+    match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{num_epochs - 1}_coarse.npy',
                      string=filename)
 
     if match:
