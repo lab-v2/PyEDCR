@@ -19,7 +19,7 @@ import sys
 # import timm
 import re
 
-batch_size = 2
+batch_size = 1
 lrs = [1e-5, 5e-5, 1e-6, 5e-6]
 scheduler_gamma = 0.1
 num_epochs = 4
