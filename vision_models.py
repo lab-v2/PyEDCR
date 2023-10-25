@@ -19,10 +19,10 @@ import sys
 # import timm
 import re
 
-batch_size = 1
-lrs = [1e-6]
+batch_size = 32
+lrs = [1e-6, 1e-5, 5e-5]
 scheduler_gamma = 0.1
-num_epochs = 1
+num_epochs = 4
 vit_model_names = {
     0: 'b_16',
                    1: 'b_32',
@@ -34,8 +34,10 @@ cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
 # vit_model_indices = list(vit_model_names.keys())
-train_folder_name = 'train_coarse'
-test_folder_name = 'test_coarse'
+granularity = {0: 'coarse',
+               1: 'fine'}[0]
+train_folder_name = f'train_{granularity}'
+test_folder_name = f'test_{granularity}'
 
 
 def format_seconds(seconds):
@@ -360,16 +362,16 @@ def fine_tune(fine_tuner: FineTuner,
             test_accuracies += [test_accuracy]
             print('#' * 100)
 
-            np.save(f"{results_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}.npy", train_accuracies)
-            np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}.npy", train_losses)
+            np.save(f"{results_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}_{granularity}.npy", train_accuracies)
+            np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}_{granularity}.npy", train_losses)
 
-            np.save(f"{results_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}.npy", test_accuracies)
-            np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
+            np.save(f"{results_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}_{granularity}.npy", test_accuracies)
+            np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}_{granularity}.npy", test_predictions)
 
-        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
+        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{granularity}.pth")
 
-        if not os.path.exists(f"{results_path}test_true.npy"):
-            np.save(f"{results_path}test_true.npy", test_ground_truths)
+        if not os.path.exists(f"{results_path}test_true_{granularity}.npy"):
+            np.save(f"{results_path}test_true_{granularity}.npy", test_ground_truths)
 
 
 # class Plot(Context):
@@ -399,6 +401,7 @@ def main():
                                                                     transform=get_transforms(train_or_val=train_or_val,
                                                                                              model_name=model_name))
                 for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
+    print(f'Total num of examples: {len(list(datasets.values())[0])}')
 
     assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
                datasets[f'{model_name}_{test_folder_name}'].classes
