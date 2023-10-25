@@ -19,7 +19,7 @@ import sys
 # import timm
 import re
 
-batch_size = 12
+batch_size = 24
 lrs = [1e-5, 5e-5, 1e-6, 5e-6]
 scheduler_gamma = 0.1
 num_epochs = 4
@@ -301,58 +301,59 @@ def fine_tune(fine_tuner: FineTuner,
         print(f'Started fine-tuning {fine_tuner} with lr={lr} on {device}...')
 
         for epoch in range(num_epochs):
-            print(f'Started epoch {epoch + 1}/{num_epochs}...')
-            t1 = time()
-            running_loss = 0.0
-            train_predictions = []
-            train_ground_truths = []
+            with ClearCache(device=device):
+                print(f'Started epoch {epoch + 1}/{num_epochs}...')
+                t1 = time()
+                running_loss = 0.0
+                train_predictions = []
+                train_ground_truths = []
 
-            try:
-                from tqdm import tqdm
-                gen = tqdm(enumerate(train_loader, 0), total=len(train_loader))
-            except:
-                gen = enumerate(train_loader, 0)
+                try:
+                    from tqdm import tqdm
+                    gen = tqdm(enumerate(train_loader, 0), total=len(train_loader))
+                except:
+                    gen = enumerate(train_loader, 0)
 
-            for i, X_Y in gen:
-                X, Y = X_Y[0].to(device), X_Y[1].to(device)
-                optimizer.zero_grad()
-                Y_pred = fine_tuner(X)
+                for i, X_Y in gen:
+                    X, Y = X_Y[0].to(device), X_Y[1].to(device)
+                    optimizer.zero_grad()
+                    Y_pred = fine_tuner(X)
 
-                if isinstance(Y_pred, torchvision.models.InceptionOutputs):
-                    Y_pred = Y_pred[0]
+                    if isinstance(Y_pred, torchvision.models.InceptionOutputs):
+                        Y_pred = Y_pred[0]
 
-                loss = criterion(Y_pred, Y)
-                loss.backward()
-                optimizer.step()
-                running_loss += loss.item()
+                    loss = criterion(Y_pred, Y)
+                    loss.backward()
+                    optimizer.step()
+                    running_loss += loss.item()
 
-                predicted = torch.max(Y_pred, 1)[1]
-                train_ground_truths += Y.tolist()
-                train_predictions += predicted.tolist()
+                    predicted = torch.max(Y_pred, 1)[1]
+                    train_ground_truths += Y.tolist()
+                    train_predictions += predicted.tolist()
 
-            true_labels = np.array(train_ground_truths)
-            predicted_labels = np.array(train_predictions)
-            acc = accuracy_score(true_labels, predicted_labels)
+                true_labels = np.array(train_ground_truths)
+                predicted_labels = np.array(train_predictions)
+                acc = accuracy_score(true_labels, predicted_labels)
 
-            print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
-                  f'epoch {epoch + 1}/{num_epochs} done in {format_seconds(int(time() - t1))}, '
-                  f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
-                  f'\ntraining accuracy: {round(acc, 3)}\n')
+                print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
+                      f'epoch {epoch + 1}/{num_epochs} done in {format_seconds(int(time() - t1))}, '
+                      f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
+                      f'\ntraining accuracy: {round(acc, 3)}\n')
 
-            train_accuracies += [acc]
-            train_losses += [running_loss / len(train_loader)]
-            scheduler.step()
-            test_ground_truths, test_predictions, test_accuracy = test(fine_tuner=fine_tuner,
-                                                                       loaders=loaders,
-                                                                       device=device)
-            test_accuracies += [test_accuracy]
-            print('#' * 100)
+                train_accuracies += [acc]
+                train_losses += [running_loss / len(train_loader)]
+                scheduler.step()
+                test_ground_truths, test_predictions, test_accuracy = test(fine_tuner=fine_tuner,
+                                                                           loaders=loaders,
+                                                                           device=device)
+                test_accuracies += [test_accuracy]
+                print('#' * 100)
 
-            np.save(f"{results_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}.npy", train_accuracies)
-            np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}.npy", train_losses)
+                np.save(f"{results_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}.npy", train_accuracies)
+                np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}.npy", train_losses)
 
-            np.save(f"{results_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}.npy", test_accuracies)
-            np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
+                np.save(f"{results_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}.npy", test_accuracies)
+                np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
 
         torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
@@ -421,11 +422,11 @@ def main():
     for fine_tuner in fine_tuners:
         # try:
         print(f'Initiating {fine_tuner}')
-        with ClearCache(device=device):
-            with ClearSession():
-                fine_tune(fine_tuner=fine_tuner,
-                          device=device,
-                          loaders=loaders)
+
+        with ClearSession():
+            fine_tune(fine_tuner=fine_tuner,
+                      device=device,
+                      loaders=loaders)
 
             print('#' * 100)
     # except:
