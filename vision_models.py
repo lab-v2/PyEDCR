@@ -328,6 +328,8 @@ def fine_tune(fine_tuner: FineTuner,
                         Y_pred = Y_pred[0]
 
                     loss = criterion(Y_pred, Y)
+                    del X
+                    del Y
                     loss.backward()
                     optimizer.step()
                     running_loss += loss.item()
