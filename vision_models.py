@@ -282,6 +282,7 @@ def fine_tune(fine_tuner: FineTuner,
     fine_tuner.train()
 
     train_loader = loaders[f'{fine_tuner}_{train_folder_name}']
+    num_batches = len(train_loader)
     criterion = torch.nn.CrossEntropyLoss()
 
     for lr in lrs:
@@ -308,14 +309,17 @@ def fine_tune(fine_tuner: FineTuner,
                 train_predictions = []
                 train_ground_truths = []
 
+
                 try:
                     from tqdm import tqdm
-                    gen = tqdm(enumerate(train_loader, 0), total=len(train_loader))
+                    batches = tqdm(enumerate(train_loader, 0), total=num_batches)
                 except:
-                    gen = enumerate(train_loader, 0)
+                    batches = enumerate(train_loader, 0)
 
-                for i, X_Y in gen:
-                    X, Y = X_Y[0].to(device), X_Y[1].to(device)
+
+                for batch_num, batch in batches:
+                    print(f'Started batch {batch_num}/{num_batches}')
+                    X, Y = batch[0].to(device), batch[1].to(device)
                     optimizer.zero_grad()
                     Y_pred = fine_tuner(X)
 
@@ -337,11 +341,11 @@ def fine_tune(fine_tuner: FineTuner,
 
                 print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
                       f'epoch {epoch + 1}/{num_epochs} done in {format_seconds(int(time() - t1))}, '
-                      f'\nTraining loss: {round(running_loss / len(train_loader), 3)}'
+                      f'\nTraining loss: {round(running_loss / num_batches, 3)}'
                       f'\ntraining accuracy: {round(acc, 3)}\n')
 
                 train_accuracies += [acc]
-                train_losses += [running_loss / len(train_loader)]
+                train_losses += [running_loss / num_batches]
                 scheduler.step()
                 test_ground_truths, test_predictions, test_accuracy = test(fine_tuner=fine_tuner,
                                                                            loaders=loaders,
