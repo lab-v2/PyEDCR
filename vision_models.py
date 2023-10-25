@@ -115,6 +115,7 @@ class ClearCache(Context):
         self.device_backend = {'cuda': torch.cuda,
                                'mps': mps if torch.backends.mps.is_available() else None,
                                'cpu': None}[device.type]
+        print(self.device_backend)
 
     def __enter__(self):
         if self.device_backend:
