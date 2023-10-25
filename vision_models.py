@@ -20,7 +20,7 @@ import sys
 import re
 
 batch_size = 24
-lrs = [1e-5, 5e-5, 1e-6]
+lrs = [1e-5, 5e-5, 1e-6, 5e-6]
 scheduler_gamma = 0.1
 num_epochs = 4
 vit_model_names = {0: 'b_16',
@@ -31,7 +31,7 @@ vit_model_names = {0: 'b_16',
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
-vit_model_indices = list(range(4))
+# vit_model_indices = list(vit_model_names.keys())
 train_folder_name = 'train'
 test_folder_name = 'test'
 
@@ -54,6 +54,7 @@ def format_seconds(seconds):
         return f"{int(minutes)} minute{'s' if minutes > 1 else ''}"
     else:
         return f"{int(seconds)} second{'s' if seconds > 1 else ''}"
+
 
 # Function to create a directory if it doesn't exist
 def create_directory(directory: str) -> None:
@@ -377,7 +378,7 @@ def main():
     print(F'Learning rates: {lrs}')
     model_names = (
         # ['inception_v3', 'inception_resnet_v2'] +
-        [f'vit_{vit_model_names[vit_model_index]}' for vit_model_index in vit_model_indices])
+        [f'vit_{vit_model_name}' for vit_model_name in vit_model_names.values()])
     print(f'Models: {model_names}')
     data_dir = Path.joinpath(cwd, '.')
     datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
