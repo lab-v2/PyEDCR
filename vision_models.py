@@ -35,6 +35,12 @@ train_folder_name = 'train'
 test_folder_name = 'test'
 
 
+# Function to create a directory if it doesn't exist
+def create_directory(directory: str) -> None:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        print(f'Created {directory}')
+
 def get_transforms(train_or_val: str,
                    model_name: str) -> torchvision.transforms.Compose:
     if model_name == 'inception_v3':
@@ -105,8 +111,13 @@ def is_running_in_colab() -> bool:
     return 'google.colab' in sys.modules
 
 
-colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
+def is_local() -> bool:
+    return Path(__file__).parent.parent.name == 'PycharmProjects'
 
+
+colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
+results_path = fr'{colab_path}results/'
+create_directory(results_path)
 
 class ClearSession(Context):
     def __init__(self):
@@ -197,8 +208,6 @@ class VITFineTuner(FineTuner):
 #         return x
 
 
-
-
 def test(fine_tuner: FineTuner,
          loaders,
          device) -> Tuple[list[int], list[int], float]:
@@ -213,7 +222,13 @@ def test(fine_tuner: FineTuner,
     print(f'Started testing {fine_tuner} on {device}...')
 
     with torch.no_grad():
-        for i, data in enumerate(test_loader):
+        try:
+            from tqdm import tqdm
+            gen = tqdm(enumerate(test_loader), total=len(test_loader))
+        except:
+            gen = enumerate(test_loader)
+
+        for i, data in gen:
             pred_temp = []
             truth_temp = []
             name_temp = []
@@ -267,7 +282,13 @@ def fine_tune(fine_tuner: FineTuner,
             train_predictions = []
             train_ground_truths = []
 
-            for i, X_Y in enumerate(train_loader, 0):
+            try:
+                from tqdm import tqdm
+                gen = tqdm(enumerate(train_loader, 0), total=len(train_loader))
+            except:
+                gen = enumerate(train_loader, 0)
+
+            for i, X_Y in gen:
                 X, Y = X_Y[0].to(device), X_Y[1].to(device)
                 optimizer.zero_grad()
                 Y_pred = fine_tuner(X)
@@ -302,16 +323,16 @@ def fine_tune(fine_tuner: FineTuner,
             test_accuracies += [test_accuracy]
             print('#' * 100)
 
-            np.save(f"{colab_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}.npy", train_accuracies)
-            np.save(f"{colab_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}.npy", train_losses)
+            np.save(f"{results_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}.npy", train_accuracies)
+            np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}.npy", train_losses)
 
-            np.save(f"{colab_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}.npy", test_accuracies)
-            np.save(f"{colab_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
+            np.save(f"{results_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}.npy", test_accuracies)
+            np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
 
         torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
-        if not os.path.exists(f"{colab_path}test_true.npy"):
-            np.save(f"{colab_path}test_true.npy", test_ground_truths)
+        if not os.path.exists(f"{results_path}test_true.npy"):
+            np.save(f"{results_path}test_true.npy", test_ground_truths)
 
 
 # class Plot(Context):
