@@ -12,7 +12,7 @@ from time import time
 from typing import Tuple, Union
 # import matplotlib.pyplot as plt
 import abc
-from tqdm import tqdm
+# from tqdm import tqdm
 from pathlib import Path
 import sys
 # import timm
@@ -213,7 +213,7 @@ def test(fine_tuner: FineTuner,
     print(f'Started testing {fine_tuner} on {device}...')
 
     with torch.no_grad():
-        for i, data in tqdm(enumerate(test_loader), total=len(test_loader)):
+        for i, data in enumerate(test_loader):
             pred_temp = []
             truth_temp = []
             name_temp = []
@@ -267,7 +267,7 @@ def fine_tune(fine_tuner: FineTuner,
             train_predictions = []
             train_ground_truths = []
 
-            for i, X_Y in tqdm(enumerate(train_loader, 0), total=len(train_loader)):
+            for i, X_Y in enumerate(train_loader, 0):
                 X, Y = X_Y[0].to(device), X_Y[1].to(device)
                 optimizer.zero_grad()
                 Y_pred = fine_tuner(X)
