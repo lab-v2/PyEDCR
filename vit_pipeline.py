@@ -32,7 +32,8 @@ scheduler_step_size = num_epochs
 
 def test(fine_tuner: FineTuner,
          loaders: dict[str, torch.utils.data.DataLoader],
-         device: torch.device) -> Tuple[list[int], list[int], float]:
+         device: torch.device,
+         test_folder_name: str) -> Tuple[list[int], list[int], float]:
     test_loader = loaders[f'{fine_tuner}_{test_folder_name}']
     fine_tuner.eval()
     correct = 0
@@ -74,7 +75,11 @@ def test(fine_tuner: FineTuner,
 
 def fine_tune(fine_tuner: FineTuner,
               device: torch.device,
-              loaders: dict[str, torch.utils.data.DataLoader]):
+              loaders: dict[str, torch.utils.data.DataLoader],
+              granularity: str,
+              train_folder_name: str,
+              test_folder_name: str,
+              results_path: str):
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -151,7 +156,8 @@ def fine_tune(fine_tuner: FineTuner,
             scheduler.step()
             test_ground_truths, test_predictions, test_accuracy = test(fine_tuner=fine_tuner,
                                                                        loaders=loaders,
-                                                                       device=device)
+                                                                       device=device,
+                                                                       test_folder_name=test_folder_name)
             test_accuracies += [test_accuracy]
             print('#' * 100)
 
@@ -167,7 +173,15 @@ def fine_tune(fine_tuner: FineTuner,
             np.save(f"{results_path}test_true_{granularity}.npy", test_ground_truths)
 
 
-def run_pipeline(granularity: str):
+def run_pipeline(granularity_index: int):
+    granularity = granularities[granularity_index]
+
+    train_folder_name = f'train_{granularity}'
+    test_folder_name = f'test_{granularity}'
+    files_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
+    results_path = fr'{files_path}results/'
+    create_directory(results_path)
+
     print(f'Running {granularity}-grain pipeline...')
     print(F'Learning rates: {lrs}')
 
@@ -205,17 +219,11 @@ def run_pipeline(granularity: str):
         with ClearSession():
             fine_tune(fine_tuner=fine_tuner,
                       device=device,
-                      loaders=loaders)
+                      loaders=loaders,
+                      granularity=granularity)
             print('#' * 100)
 
 
 if __name__ == '__main__':
     granularity_index = 0
-    granularity = granularities[granularity_index]
-
-    train_folder_name = f'train_{granularity}'
-    test_folder_name = f'test_{granularity}'
-    files_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
-    results_path = fr'{files_path}results/'
-    create_directory(results_path)
-    run_pipeline(granularity=granularity)
+    run_pipeline(granularity_index=granularity_index)
