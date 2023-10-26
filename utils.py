@@ -43,3 +43,4 @@ def is_running_in_colab() -> bool:
 
 def is_local() -> bool:
     return Path(__file__).parent.parent.name == 'PycharmProjects'
+

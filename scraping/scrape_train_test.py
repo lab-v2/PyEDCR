@@ -17,15 +17,10 @@ import matplotlib.pyplot as plt
 import torchvision
 import torch.utils.data
 
+from utils import create_directory
+
 train_images_path = 'train/'
 test_images_path = 'test/'
-
-
-# Function to create a directory if it doesn't exist
-def create_directory(directory: str) -> None:
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
 
 create_directory(train_images_path)
 create_directory(test_images_path)
