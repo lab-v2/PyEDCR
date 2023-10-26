@@ -8,18 +8,16 @@ from time import time
 from typing import Tuple
 from pathlib import Path
 
-# from ray import train, tune
-# from ray.tune.schedulers import ASHAScheduler
-
 # import matplotlib.pyplot as plt
 # from tqdm import tqdm
 
 from context import ClearCache, ClearSession
 from models import FineTuner, VITFineTuner, ImageFolderWithName
-from utils import is_running_in_colab, create_directory, format_seconds
+from utils import is_running_in_colab, create_directory, format_seconds, is_local
 
 
 batch_size = 32
+
 lrs = [1e-6, 1e-5, 5e-5]
 scheduler_gamma = 0.1
 num_epochs = 4
@@ -32,13 +30,8 @@ vit_model_names = {
     }
 cwd = Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
-granularity = {0: 'coarse',
-               1: 'fine'}[0]
-train_folder_name = f'train_{granularity}'
-test_folder_name = f'test_{granularity}'
-files_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
-results_path = fr'{files_path}results/'
-create_directory(results_path)
+
+
 
 
 def get_transforms(train_or_val: str,
@@ -62,8 +55,8 @@ def get_transforms(train_or_val: str,
 
 
 def test(fine_tuner: FineTuner,
-         loaders,
-         device) -> Tuple[list[int], list[int], float]:
+         loaders: dict[str, torch.utils.data.DataLoader],
+         device: torch.device) -> Tuple[list[int], list[int], float]:
     test_loader = loaders[f'{fine_tuner}_{test_folder_name}']
     fine_tuner.eval()
     correct = 0
@@ -75,10 +68,10 @@ def test(fine_tuner: FineTuner,
     print(f'Started testing {fine_tuner} on {device}...')
 
     with torch.no_grad():
-        try:
+        if is_local():
             from tqdm import tqdm
             gen = tqdm(enumerate(test_loader), total=len(test_loader))
-        except:
+        else:
             gen = enumerate(test_loader)
 
         for i, data in gen:
@@ -104,8 +97,8 @@ def test(fine_tuner: FineTuner,
 
 
 def fine_tune(fine_tuner: FineTuner,
-              device,
-              loaders):
+              device: torch.device,
+              loaders: dict[str, torch.utils.data.DataLoader]):
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -138,10 +131,10 @@ def fine_tune(fine_tuner: FineTuner,
             train_ground_truths = []
 
 
-            try:
+            if is_local():
                 from tqdm import tqdm
                 batches = tqdm(enumerate(train_loader, 0), total=num_batches)
-            except:
+            else:
                 batches = enumerate(train_loader, 0)
 
 
@@ -200,7 +193,8 @@ def fine_tune(fine_tuner: FineTuner,
             np.save(f"{results_path}test_true_{granularity}.npy", test_ground_truths)
 
 
-def run_pipeline():
+def run_pipeline(granularity: str):
+    print(f'Running {granularity}-grain pipeline...')
     print(F'Learning rates: {lrs}')
 
     model_names = [f'vit_{vit_model_name}' for vit_model_name in vit_model_names.values()]
@@ -260,4 +254,14 @@ def run_pipeline():
 
 
 if __name__ == '__main__':
-    run_pipeline()
+    granularities = {0: 'coarse',
+                     1: 'fine'}
+    granularity_index = 0
+    granularity = granularities[granularity_index]
+
+    train_folder_name = f'train_{granularity}'
+    test_folder_name = f'test_{granularity}'
+    files_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
+    results_path = fr'{files_path}results/'
+    create_directory(results_path)
+    run_pipeline(granularity=granularity)
