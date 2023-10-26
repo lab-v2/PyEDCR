@@ -186,7 +186,7 @@ def plot_dataset_class_frequencies():
 
 
 if __name__ == "__main__":
-    data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+    data_file_path = rf'../data/WEO_Data_Sheet.xlsx'
     dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
     fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
     fine_grain_classes = set(fine_grain_results_df['Class Name'].values)

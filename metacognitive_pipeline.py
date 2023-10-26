@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from vit_pipeline import vit_model_names, num_epochs, lrs
-from scrape_train_test import create_directory
+from scraping.scrape_train_test import create_directory
 
 data_dir = 'results'
 true_data = np.load(os.path.join(data_dir, 'test_true_coarse.npy'))
