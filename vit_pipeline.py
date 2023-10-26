@@ -6,15 +6,12 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from time import time
 from typing import Tuple
-from pathlib import Path
-
-# import matplotlib.pyplot as plt
-# from tqdm import tqdm
+import pathlib
 
 from context import ClearCache, ClearSession
-from models import FineTuner, VITFineTuner, ImageFolderWithName
+from models import FineTuner, VITFineTuner
 from utils import is_running_in_colab, create_directory, format_seconds, is_local
-
+from data_preprocessing import load_data
 
 batch_size = 32
 
@@ -27,31 +24,10 @@ vit_model_names = {
     2: 'l_16',
     3: 'l_32',
     # 4: 'h_14'
-    }
-cwd = Path(__file__).parent.resolve()
+}
+cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
-
-
-
-def get_transforms(train_or_val: str,
-                   model_name: str) -> torchvision.transforms.Compose:
-    if model_name == 'inception_v3':
-        resize_num = 299
-        means = [0.485, 0.456, 0.406]
-        stds = [0.229, 0.224, 0.225]
-    else:
-        resize_num = 518 if 'h_14' in model_name else 224
-        means = stds = [0.5] * 3
-
-    return torchvision.transforms.Compose(
-        ([torchvision.transforms.RandomResizedCrop(resize_num),
-          torchvision.transforms.RandomHorizontalFlip()] if train_or_val == train_folder_name else
-         [torchvision.transforms.Resize(int(resize_num / 224 * 256)),
-          torchvision.transforms.CenterCrop(resize_num)]) +
-        [torchvision.transforms.ToTensor(),
-         torchvision.transforms.Normalize(means, stds)
-         ])
 
 
 def test(fine_tuner: FineTuner,
@@ -130,13 +106,11 @@ def fine_tune(fine_tuner: FineTuner,
             train_predictions = []
             train_ground_truths = []
 
-
             if is_local():
                 from tqdm import tqdm
                 batches = tqdm(enumerate(train_loader, 0), total=num_batches)
             else:
                 batches = enumerate(train_loader, 0)
-
 
             for batch_num, batch in batches:
                 with ClearCache(device=device):
@@ -194,39 +168,13 @@ def fine_tune(fine_tuner: FineTuner,
 
 
 def run_pipeline(granularity: str):
-    print(f'Running {granularity}-grain pipeline...')
-    print(F'Learning rates: {lrs}')
-
-    model_names = [f'vit_{vit_model_name}' for vit_model_name in vit_model_names.values()]
-    print(f'Models: {model_names}')
-
-    data_dir = Path.joinpath(cwd, '.')
-    datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
-                                                                    transform=get_transforms(train_or_val=train_or_val,
-                                                                                             model_name=model_name))
-                for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-    num_train_examples = len(datasets[f'{model_names[0]}_{train_folder_name}'])
-    num_test_examples = len(datasets[f'{model_names[0]}_{test_folder_name}'])
-    train_ratio = round(num_train_examples / (num_train_examples + num_test_examples) * 100, 2)
-    test_ratio = round(num_test_examples / (num_train_examples + num_test_examples) * 100, 2)
-
-    print(f"Total num of examples: train: {num_train_examples} ({train_ratio}%), "
-          f"test: {num_test_examples} ({test_ratio}%)")
-
-    assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
-               datasets[f'{model_name}_{test_folder_name}'].classes
-               for model_name in model_names)
-
-    loaders = {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
-        dataset=datasets[f'{model_name}_{train_or_val}'],
-        batch_size=batch_size,
-        shuffle=train_or_val == train_folder_name)
-        for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-
-    classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
-    print(f'Classes: {classes}')
-    n = len(classes)
-
+    model_names, loaders, n = load_data(granularity=granularity,
+                                        lrs=lrs,
+                                        vit_model_names=vit_model_names,
+                                        cwd=cwd,
+                                        train_folder_name=train_folder_name,
+                                        test_folder_name=test_folder_name,
+                                        batch_size=batch_size)
     device = torch.device('mps' if torch.backends.mps.is_available() else
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
@@ -245,11 +193,9 @@ def run_pipeline(granularity: str):
         print(f'Initiating {fine_tuner}')
 
         with ClearSession():
-
             fine_tune(fine_tuner=fine_tuner,
                       device=device,
                       loaders=loaders)
-
             print('#' * 100)
 
 
