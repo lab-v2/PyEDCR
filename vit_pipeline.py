@@ -17,13 +17,7 @@ batch_size = 32
 lrs = [1e-6, 1e-5, 5e-5]
 scheduler_gamma = 0.1
 num_epochs = 4
-vit_model_names = {
-    0: 'b_16',
-    1: 'b_32',
-    2: 'l_16',
-    3: 'l_32',
-    4: 'h_14'
-}
+vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16', 'b_32', 'l_16', 'l_32', 'h_14']]
 
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
@@ -185,10 +179,10 @@ def run_pipeline(granularity_index: int):
     print(f'Running {granularity}-grain pipeline...')
     print(F'Learning rates: {lrs}')
 
-    model_names = [f'vit_{vit_model_name}' for vit_model_name in vit_model_names.values()]
-    print(f'Models: {model_names}')
 
-    datasets, n = get_datasets(model_names=model_names,
+    print(f'Models: {vit_model_names}')
+
+    datasets, n = get_datasets(model_names=vit_model_names,
                                cwd=cwd,
                                train_folder_name=train_folder_name,
                                test_folder_name=test_folder_name)
@@ -197,10 +191,10 @@ def run_pipeline(granularity_index: int):
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
 
-    all_fine_tuners = {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in list(vit_model_names.values())}
+    all_fine_tuners = {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in vit_model_names}
 
     fine_tuners = []
-    for model_name in model_names:
+    for model_name in vit_model_names:
         fine_tuners_constructor = all_fine_tuners[model_name]
         fine_tuner = fine_tuners_constructor(*tuple([model_name, vit_model_names, n] if 'vit' in model_name else [n]))
         fine_tuners += [fine_tuner]
@@ -208,7 +202,7 @@ def run_pipeline(granularity_index: int):
 
     loaders = get_loaders(datasets=datasets,
                           batch_size=batch_size,
-                          model_names=model_names,
+                          model_names=vit_model_names,
                           train_folder_name=train_folder_name,
                           test_folder_name=test_folder_name)
 

@@ -57,7 +57,7 @@ def get_datasets(model_names: list[str],
           f"test: {num_test_examples} ({test_ratio}%)")
 
     classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
-    print(f'Classes: {classes}')
+    # print(f'Classes: {classes}')
     n = len(classes)
 
     return datasets, n
