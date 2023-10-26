@@ -201,7 +201,6 @@ def fine_tune(fine_tuner: FineTuner,
 
 
 def run_pipeline():
-
     print(F'Learning rates: {lrs}')
 
     model_names = [f'vit_{vit_model_name}' for vit_model_name in vit_model_names.values()]
@@ -212,8 +211,13 @@ def run_pipeline():
                                                                     transform=get_transforms(train_or_val=train_or_val,
                                                                                              model_name=model_name))
                 for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-    print(f"Total num of examples: train: {len(datasets[f'{model_names[0]}_{train_folder_name}'])}, "
-          f"test: {len(datasets[f'{model_names[0]}_{test_folder_name}'])}")
+    num_train_examples = len(datasets[f'{model_names[0]}_{train_folder_name}'])
+    num_test_examples = len(datasets[f'{model_names[0]}_{test_folder_name}'])
+    train_ratio = round(num_train_examples / (num_train_examples + num_test_examples) * 100, 2)
+    test_ratio = round(num_test_examples / (num_train_examples + num_test_examples) * 100, 2)
+
+    print(f"Total num of examples: train: {num_train_examples} ({train_ratio}%), "
+          f"test: {num_test_examples} ({test_ratio}%)")
 
     assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
                datasets[f'{model_name}_{test_folder_name}'].classes
