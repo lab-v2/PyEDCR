@@ -14,9 +14,10 @@ from pathlib import Path
 # import matplotlib.pyplot as plt
 # from tqdm import tqdm
 
-import context
-import models
-import utils
+from context import ClearCache, ClearSession
+from models import FineTuner, VITFineTuner, ImageFolderWithName
+from utils import is_running_in_colab, create_directory, format_seconds
+
 
 batch_size = 32
 lrs = [1e-6, 1e-5, 5e-5]
@@ -35,9 +36,9 @@ granularity = {0: 'coarse',
                1: 'fine'}[0]
 train_folder_name = f'train_{granularity}'
 test_folder_name = f'test_{granularity}'
-files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
+files_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
 results_path = fr'{files_path}results/'
-utils.create_directory(results_path)
+create_directory(results_path)
 
 
 def get_transforms(train_or_val: str,
@@ -60,7 +61,7 @@ def get_transforms(train_or_val: str,
          ])
 
 
-def test(fine_tuner: models.FineTuner,
+def test(fine_tuner: FineTuner,
          loaders,
          device) -> Tuple[list[int], list[int], float]:
     test_loader = loaders[f'{fine_tuner}_{test_folder_name}']
@@ -102,7 +103,7 @@ def test(fine_tuner: models.FineTuner,
     return test_ground_truth, test_prediction, test_accuracy
 
 
-def fine_tune(fine_tuner: models.FineTuner,
+def fine_tune(fine_tuner: FineTuner,
               device,
               loaders):
     fine_tuner.to(device)
@@ -145,7 +146,7 @@ def fine_tune(fine_tuner: models.FineTuner,
 
 
             for batch_num, batch in batches:
-                with context.ClearCache(device=device):
+                with ClearCache(device=device):
                     # if batch_num % 10 == 0:
                     #     print(f'Started batch {batch_num + 1}/{num_batches}')
 
@@ -174,7 +175,7 @@ def fine_tune(fine_tuner: models.FineTuner,
             # train.report({"mean_accuracy": acc})
 
             print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
-                  f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - t1))}, '
+                  f'epoch {epoch + 1}/{num_epochs} done in {format_seconds(int(time() - t1))}, '
                   f'\nTraining loss: {round(running_loss / num_batches, 3)}'
                   f'\ntraining accuracy: {round(acc, 3)}\n')
 
@@ -207,7 +208,7 @@ def run_pipeline():
     print(f'Models: {model_names}')
 
     data_dir = Path.joinpath(cwd, '.')
-    datasets = {f'{model_name}_{train_or_val}': models.ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
+    datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                     transform=get_transforms(train_or_val=train_or_val,
                                                                                              model_name=model_name))
                 for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
@@ -232,7 +233,7 @@ def run_pipeline():
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
 
-    all_fine_tuners = {f'vit_{vit_model_name}': models.VITFineTuner for vit_model_name in list(vit_model_names.values())}
+    all_fine_tuners = {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in list(vit_model_names.values())}
 
     fine_tuners = []
     for model_name in model_names:
@@ -245,7 +246,7 @@ def run_pipeline():
         # try:
         print(f'Initiating {fine_tuner}')
 
-        with context.ClearSession():
+        with ClearSession():
 
             fine_tune(fine_tuner=fine_tuner,
                       device=device,
