@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 from datetime import timedelta
 
 
@@ -39,6 +40,6 @@ def is_running_in_colab() -> bool:
 
     return 'google.colab' in sys.modules
 
+
 def is_local() -> bool:
     return Path(__file__).parent.parent.name == 'PycharmProjects'
-

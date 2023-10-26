@@ -1,24 +1,21 @@
 import os
 import torch
 
-if torch.backends.mps.is_available():
-    from torch import mps
-
 import torchvision
 import torch.utils.data
 import numpy as np
 from sklearn.metrics import accuracy_score
 from time import time
-from typing import Tuple, Union
+from typing import Tuple
 # import matplotlib.pyplot as plt
-import abc
 
 # from tqdm import tqdm
 from pathlib import Path
-import re
 
-from context import Context
+from context import ClearCache, ClearSession
+from models import FineTuner
 from utils import create_directory, format_seconds, is_running_in_colab
+from models import VITFineTuner, InceptionV3FineTuner, ImageFolderWithName
 
 batch_size = 32
 lrs = [1e-6, 1e-5, 5e-5]
@@ -37,6 +34,9 @@ granularity = {0: 'coarse',
                1: 'fine'}[0]
 train_folder_name = f'train_{granularity}'
 test_folder_name = f'test_{granularity}'
+files_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
+results_path = fr'{files_path}results/'
+create_directory(results_path)
 
 
 def get_transforms(train_or_val: str,
@@ -58,86 +58,6 @@ def get_transforms(train_or_val: str,
          torchvision.transforms.Normalize(means, stds)
          ])
 
-
-class ImageFolderWithName(torchvision.datasets.ImageFolder):
-    def __getitem__(self, index: int):
-        path, target = self.samples[index]
-        image = self.loader(path)
-
-        if self.transform is not None:
-            image = self.transform(image)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-        name = os.path.basename(path)
-
-        return image, target, name
-
-
-
-
-
-colab_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
-results_path = fr'{colab_path}results/'
-create_directory(results_path)
-
-
-
-class FineTuner(torch.nn.Module, abc.ABC):
-    def __init__(self,
-                 num_classes: int):
-        super().__init__()
-        self.num_classes = num_classes
-
-    def __str__(self) -> str:
-        return re.sub(pattern=r'([a-z])([A-Z0-9])',
-                      repl=r'\1_\2',
-                      string=self.__class__.__name__.split('Fine')[0]).lower()
-
-    def __len__(self) -> int:
-        return sum(p.numel() for p in self.parameters())
-
-
-class InceptionV3FineTuner(FineTuner):
-    def __init__(self,
-                 num_classes: int):
-        super().__init__(num_classes=num_classes)
-        self.inception = torchvision.models.inception_v3(
-            weights=torchvision.models.Inception_V3_Weights.DEFAULT)
-        num_features = self.inception.fc.in_features
-        self.inception.fc = torch.nn.Linear(in_features=num_features, out_features=num_classes)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.inception(x)
-        return x
-
-
-class VITFineTuner(FineTuner):
-    def __init__(self,
-                 vit_model: Union[int, str],
-                 num_classes: int):
-        super().__init__(num_classes=num_classes)
-        if isinstance(vit_model, int):
-            self.vit_model_index = vit_model
-            self.vit_model_name = vit_model_names[vit_model]
-        else:
-            self.vit_model_index = list(vit_model_names.keys())[
-                list(vit_model_names.values()).index(vit_model.split('vit_')[-1])]
-            self.vit_model_name = vit_model
-
-        vit_model = eval(f'torchvision.models.{self.vit_model_name}')
-        vit_weights = eval(
-            f"torchvision.models.ViT_{'_'.join([s.upper() for s in self.vit_model_name.split('vit_')[-1].split('_')])}"
-            f"_Weights.DEFAULT")
-        self.vit = vit_model(weights=vit_weights)
-        self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
-                                             out_features=num_classes)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.vit(x)
-        return x
-
-    def __str__(self):
-        return self.vit_model_name
 
 
 def test(fine_tuner: FineTuner,
@@ -294,18 +214,20 @@ def fine_tune(fine_tuner: FineTuner,
 #         plt.clf()
 
 
-def main():
+def run_pipeline():
+
     print(F'Learning rates: {lrs}')
-    model_names = (
-        # ['inception_v3', 'inception_resnet_v2'] +
-        [f'vit_{vit_model_name}' for vit_model_name in vit_model_names.values()])
+
+    model_names = [f'vit_{vit_model_name}' for vit_model_name in vit_model_names.values()]
     print(f'Models: {model_names}')
+
     data_dir = Path.joinpath(cwd, '.')
     datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                     transform=get_transforms(train_or_val=train_or_val,
                                                                                              model_name=model_name))
                 for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
-    print(f'Total num of examples: {len(list(datasets.values())[0])}')
+    print(f"Total num of examples: train: {len(datasets[f'{model_names[0]}_{train_folder_name}'])}, "
+          f"test: {len(datasets[f'{model_names[0]}_{test_folder_name}'])}")
 
     assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
                datasets[f'{model_name}_{test_folder_name}'].classes
@@ -325,18 +247,15 @@ def main():
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
 
-    all_fine_tuners = ({'inception_v3': InceptionV3FineTuner,
-                        # 'inception_resnet_v2': InceptionResNetV2FineTuner
-                        } |
-                       {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in list(vit_model_names.values())})
+    all_fine_tuners = {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in list(vit_model_names.values())}
 
     fine_tuners = []
     for model_name in model_names:
         fine_tuners_constructor = all_fine_tuners[model_name]
-        fine_tuner = fine_tuners_constructor(*tuple([model_name, n] if 'vit' in model_name else [n]))
+        fine_tuner = fine_tuners_constructor(*tuple([model_name, vit_model_names, n] if 'vit' in model_name else [n]))
         fine_tuners += [fine_tuner]
-
     print(f'Fine tuners: {[str(ft) for ft in fine_tuners]}')
+
     for fine_tuner in fine_tuners:
         # try:
         print(f'Initiating {fine_tuner}')
@@ -384,4 +303,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    run_pipeline()
