@@ -11,10 +11,9 @@ import pathlib
 from context import ClearCache, ClearSession
 from models import FineTuner, VITFineTuner
 from utils import is_running_in_colab, create_directory, format_seconds, is_local
-from data_preprocessing import load_data
+from data_preprocessing import granularities, get_datasets, get_loaders
 
 batch_size = 32
-
 lrs = [1e-6, 1e-5, 5e-5]
 scheduler_gamma = 0.1
 num_epochs = 4
@@ -23,8 +22,9 @@ vit_model_names = {
     1: 'b_32',
     2: 'l_16',
     3: 'l_32',
-    # 4: 'h_14'
+    4: 'h_14'
 }
+
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
@@ -168,13 +168,17 @@ def fine_tune(fine_tuner: FineTuner,
 
 
 def run_pipeline(granularity: str):
-    model_names, loaders, n = load_data(granularity=granularity,
-                                        lrs=lrs,
-                                        vit_model_names=vit_model_names,
-                                        cwd=cwd,
-                                        train_folder_name=train_folder_name,
-                                        test_folder_name=test_folder_name,
-                                        batch_size=batch_size)
+    print(f'Running {granularity}-grain pipeline...')
+    print(F'Learning rates: {lrs}')
+
+    model_names = [f'vit_{vit_model_name}' for vit_model_name in vit_model_names.values()]
+    print(f'Models: {model_names}')
+
+    datasets, n = get_datasets(model_names=model_names,
+                               cwd=cwd,
+                               train_folder_name=train_folder_name,
+                               test_folder_name=test_folder_name)
+
     device = torch.device('mps' if torch.backends.mps.is_available() else
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
@@ -188,6 +192,12 @@ def run_pipeline(granularity: str):
         fine_tuners += [fine_tuner]
     print(f'Fine tuners: {[str(ft) for ft in fine_tuners]}')
 
+    loaders = get_loaders(datasets=datasets,
+                          batch_size=batch_size,
+                          model_names=model_names,
+                          train_folder_name=train_folder_name,
+                          test_folder_name=test_folder_name)
+
     for fine_tuner in fine_tuners:
         # try:
         print(f'Initiating {fine_tuner}')
@@ -200,8 +210,6 @@ def run_pipeline(granularity: str):
 
 
 if __name__ == '__main__':
-    granularities = {0: 'coarse',
-                     1: 'fine'}
     granularity_index = 0
     granularity = granularities[granularity_index]
 
