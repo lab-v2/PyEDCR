@@ -220,7 +220,10 @@ def run_pipeline(granularity_index: int):
             fine_tune(fine_tuner=fine_tuner,
                       device=device,
                       loaders=loaders,
-                      granularity=granularity)
+                      granularity=granularity,
+                      train_folder_name=train_folder_name,
+                      test_folder_name=test_folder_name,
+                      results_path=results_path)
             print('#' * 100)
 
 
