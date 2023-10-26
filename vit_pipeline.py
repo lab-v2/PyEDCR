@@ -8,7 +8,7 @@ from time import time
 from typing import Tuple
 from pathlib import Path
 
-from ray import train, tune
+# from ray import train, tune
 from ray.tune.schedulers import ASHAScheduler
 
 # import matplotlib.pyplot as plt
@@ -171,7 +171,7 @@ def fine_tune(fine_tuner: models.FineTuner,
             true_labels = np.array(train_ground_truths)
             predicted_labels = np.array(train_predictions)
             acc = accuracy_score(true_labels, predicted_labels)
-            train.report({"mean_accuracy": acc})
+            # train.report({"mean_accuracy": acc})
 
             print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
                   f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - t1))}, '
