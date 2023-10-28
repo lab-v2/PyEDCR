@@ -39,15 +39,14 @@ class InceptionV3FineTuner(FineTuner):
 class VITFineTuner(FineTuner):
     def __init__(self,
                  vit_model: Union[int, str],
-                 vit_model_names,
+                 vit_model_names: list,
                  num_classes: int):
         super().__init__(num_classes=num_classes)
         if isinstance(vit_model, int):
             self.vit_model_index = vit_model
             self.vit_model_name = vit_model_names[vit_model]
         else:
-            self.vit_model_index = list(vit_model_names.keys())[
-                list(vit_model_names.values()).index(vit_model.split('vit_')[-1])]
+            self.vit_model_index = vit_model_names[vit_model_names.index(vit_model)]
             self.vit_model_name = vit_model
 
         vit_model = eval(f'torchvision.models.{self.vit_model_name}')
