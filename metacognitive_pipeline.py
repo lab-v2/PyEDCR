@@ -15,7 +15,7 @@ from vit_pipeline import vit_model_names, num_epochs, lrs
 from utils import create_directory
 
 data_dir = 'results'
-true_data = np.load(os.path.join(data_dir, 'test_true_coarse.npy'))
+
 results_folder = '.'
 results_file = results_folder + "rule_for_NPcorrection.csv"
 
@@ -382,7 +382,8 @@ def handle_file(granularity: str,
                 filename: str,
                 data_dir: str,
                 true_data: np.array):
-    match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{num_epochs - 1}_coarse.npy',
+    suffix = '_coarse' if granularity == 'coarse' else ''
+    match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{num_epochs - 1}{suffix}.npy',
                      string=filename)
 
     if match:
@@ -403,6 +404,8 @@ def handle_file(granularity: str,
 
 if __name__ == '__main__':
     granularity = 'fine'
+    suffix = '_coarse' if granularity == 'coarse' else ''
+    true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))
     for filename in os.listdir(data_dir):
         handle_file(granularity=granularity,
                     filename=filename,
