@@ -22,9 +22,6 @@ from utils import create_directory
 train_images_path = 'train/'
 test_images_path = 'test/'
 
-create_directory(train_images_path)
-create_directory(test_images_path)
-
 
 # Function to check if an image is already in a directory
 def is_image_in_directory(candidate_image_array: np.array,
@@ -181,6 +178,9 @@ def plot_dataset_class_frequencies():
 
 
 if __name__ == "__main__":
+    create_directory(train_images_path)
+    create_directory(test_images_path)
+
     data_file_path = rf'../data/WEO_Data_Sheet.xlsx'
     dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
     fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']

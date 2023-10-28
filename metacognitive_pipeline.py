@@ -310,7 +310,7 @@ def run_EDCR(main_model_name: str,
              true_data: np.array,
              pred_data: np.array,
              prior_acc: float):
-    filename = f"{data_dir}/vit_{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}_coarse.npy"
+    filename = f"{data_dir}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}_coarse.npy"
     try:
         cla_datas = np.load(filename)
     except FileNotFoundError:
@@ -384,8 +384,8 @@ def handle_file(filename: str,
         pred_data = np.load(os.path.join(data_dir, filename))
         prior_acc = accuracy_score(true_data, pred_data)
 
-        names_lrs = itertools.product([name for name in vit_model_names.values()
-                                       if f'vit_{name}' != main_model_name and name != 'h_14'], lrs)
+        names_lrs = itertools.product([name for name in vit_model_names
+                                       if name != main_model_name and name != 'vit_h_14'], lrs)
         iterable = [(main_model_name, main_lr, secondary_model_name, secondary_lr,
                      true_data, pred_data, prior_acc) for secondary_model_name, secondary_lr in names_lrs]
 
@@ -395,11 +395,7 @@ def handle_file(filename: str,
 
 
 if __name__ == '__main__':
-    print(len(os.listdir(data_dir)))
     for filename in os.listdir(data_dir):
         handle_file(filename=filename,
                     data_dir=data_dir,
                     true_data=true_data)
-    # with mp.Pool(processes=mp.cpu_count()) as pool:
-    #     iterable = [(filename, data_dir, true_data) for filename in os.listdir(data_dir)]
-    #     pool.starmap(func=handle_file, iterable=iterable)
