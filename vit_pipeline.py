@@ -191,14 +191,9 @@ def run_pipeline(granularity_index: int):
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
 
-    all_fine_tuners = {f'vit_{vit_model_name}': VITFineTuner for vit_model_name in vit_model_names}
+    fine_tuners = [VITFineTuner(model_name, vit_model_names, n) for model_name in vit_model_names]
 
-    fine_tuners = []
-    for model_name in vit_model_names:
-        fine_tuners_constructor = all_fine_tuners[model_name]
-        fine_tuner = fine_tuners_constructor(*tuple([model_name, vit_model_names, n] if 'vit' in model_name else [n]))
-        fine_tuners += [fine_tuner]
-    print(f'Fine tuners: {[str(ft) for ft in fine_tuners]}')
+    print(f'Fine tuners: {[str(fine_tuner) for fine_tuner in fine_tuners]}')
 
     loaders = get_loaders(datasets=datasets,
                           batch_size=batch_size,
