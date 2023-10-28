@@ -303,14 +303,17 @@ def plot(df: pd.DataFrame,
         plt.cla()
 
 
-def run_EDCR(main_model_name: str,
+def run_EDCR(granularity: str,
+             main_model_name: str,
              main_lr: float,
              secondary_model_name: str,
              secondary_lr: float,
              true_data: np.array,
              pred_data: np.array,
              prior_acc: float):
-    filename = f"{data_dir}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}_coarse.npy"
+    suffix = '_coarse' if granularity == 'coarse' else ''
+    filename = f"{data_dir}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}{suffix}.npy"
+
     try:
         cla_datas = np.load(filename)
     except FileNotFoundError:
@@ -327,12 +330,14 @@ def run_EDCR(main_model_name: str,
     results = []
     result0 = [0]
 
-    print(f'Started EDCR pipeline for main {main_model_name}, lr: {main_lr}, '
+    print(f'Started EDCR pipeline for {granularity}-grain with main {main_model_name}, lr: {main_lr}, '
           f'secondary: {secondary_model_name}, lr: {secondary_lr}\n')
+
     for count, chart in enumerate(all_charts):
         chart = np.array(chart)
         result0.extend(get_scores(chart[:, 1], chart[:, 0]))
         result0.extend([0, 0, 0, 0])
+
     result0.extend(get_scores(true_data, pred_data))
     results.append(result0)
 
@@ -353,7 +358,7 @@ def run_EDCR(main_model_name: str,
     df = pd.read_csv(results_file)
 
     folder = (f'{figs_folder}/main_{main_model_name}_lr{main_lr}'
-              f'_secondary_{secondary_model_name}_lr{secondary_lr}')
+              f'_secondary_{secondary_model_name}_lr{secondary_lr}_{granularity}')
     create_directory(folder)
 
     plot(df=df,
@@ -365,14 +370,16 @@ def run_EDCR(main_model_name: str,
          main_lr=main_lr,
          secondary_lr=secondary_lr,
          folder=folder)
-    np.save(f'{folder}/results_coarse.npy', total_results)
 
-    print(f'Saved plots for main: {main_model_name}, secondary: {secondary_model_name}\n'
+    np.save(f'{folder}/results{suffix}.npy', total_results)
+
+    print(f'Saved plots for {granularity}-grain with main: {main_model_name}, secondary: {secondary_model_name}\n'
           f'Prior acc:{prior_acc}, post acc: {posterior_acc}\n')
 
 
 
-def handle_file(filename: str,
+def handle_file(granularity: str,
+                filename: str,
                 data_dir: str,
                 true_data: np.array):
     match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{num_epochs - 1}_coarse.npy',
@@ -386,7 +393,7 @@ def handle_file(filename: str,
 
         names_lrs = itertools.product([name for name in vit_model_names
                                        if name != main_model_name and name != 'vit_h_14'], lrs)
-        iterable = [(main_model_name, main_lr, secondary_model_name, secondary_lr,
+        iterable = [(granularity, main_model_name, main_lr, secondary_model_name, secondary_lr,
                      true_data, pred_data, prior_acc) for secondary_model_name, secondary_lr in names_lrs]
 
         with mp.Pool(processes=mp.cpu_count()) as pool:
@@ -395,7 +402,9 @@ def handle_file(filename: str,
 
 
 if __name__ == '__main__':
+    granularity = 'fine'
     for filename in os.listdir(data_dir):
-        handle_file(filename=filename,
+        handle_file(granularity=granularity,
+                    filename=filename,
                     data_dir=data_dir,
                     true_data=true_data)
