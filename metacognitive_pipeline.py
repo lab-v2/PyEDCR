@@ -13,6 +13,7 @@ warnings.filterwarnings('ignore')
 
 from vit_pipeline import vit_model_names, num_epochs, lrs
 from utils import create_directory
+from data_preprocessing import granularities
 
 data_dir = 'results'
 
@@ -403,11 +404,11 @@ def handle_file(granularity: str,
 
 
 if __name__ == '__main__':
-    granularity = 'fine'
-    suffix = '_coarse' if granularity == 'coarse' else ''
-    true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))
-    for filename in os.listdir(data_dir):
-        handle_file(granularity=granularity,
-                    filename=filename,
-                    data_dir=data_dir,
-                    true_data=true_data)
+    for granularity in granularities.values():
+        suffix = '_coarse' if granularity == 'coarse' else ''
+        true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))
+        for filename in os.listdir(data_dir):
+            handle_file(granularity=granularity,
+                        filename=filename,
+                        data_dir=data_dir,
+                        true_data=true_data)
