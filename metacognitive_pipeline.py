@@ -304,15 +304,16 @@ def plot(df: pd.DataFrame,
         plt.cla()
 
 
-def run_EDCR(granularity: str,
+def run_EDCR(main_granularity: str,
              main_model_name: str,
              main_lr: float,
+             secondary_granularity: str,
              secondary_model_name: str,
              secondary_lr: float,
              true_data: np.array,
              pred_data: np.array,
              prior_acc: float):
-    suffix = '_coarse' if granularity == 'coarse' else ''
+    suffix = '_coarse' if secondary_granularity == 'coarse' else ''
     filename = f"{data_dir}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}{suffix}.npy"
 
     try:
@@ -331,8 +332,8 @@ def run_EDCR(granularity: str,
     results = []
     result0 = [0]
 
-    print(f'Started EDCR pipeline for {granularity}-grain with main {main_model_name}, lr: {main_lr}, '
-          f'secondary: {secondary_model_name}, lr: {secondary_lr}\n')
+    print(f'Started EDCR pipeline for {main_granularity}-grain main {main_model_name}, lr: {main_lr}, '
+          f'{secondary_granularity}-grain secondary: {secondary_model_name}, lr: {secondary_lr}\n')
 
     for count, chart in enumerate(all_charts):
         chart = np.array(chart)
@@ -358,8 +359,8 @@ def run_EDCR(granularity: str,
     df.to_csv(results_file)
     df = pd.read_csv(results_file)
 
-    folder = (f'{figs_folder}/main_{main_model_name}_lr{main_lr}'
-              f'_secondary_{secondary_model_name}_lr{secondary_lr}_{granularity}')
+    folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
+              f'_secondary_{secondary_granularity}_{secondary_model_name}_lr{secondary_lr}')
     create_directory(folder)
 
     plot(df=df,
@@ -374,16 +375,17 @@ def run_EDCR(granularity: str,
 
     np.save(f'{folder}/results{suffix}.npy', total_results)
 
-    print(f'Saved plots for {granularity}-grain with main: {main_model_name}, secondary: {secondary_model_name}\n'
-          f'Prior acc:{prior_acc}, post acc: {posterior_acc}\n')
+    print(f'Saved plots for main: {main_granularity}-grain {main_model_name}, secondary: {secondary_granularity}-grain '
+          f'{secondary_model_name}\nPrior acc:{prior_acc}, post acc: {posterior_acc}\n')
 
 
 
-def handle_file(granularity: str,
+def handle_file(main_granularity: str,
+                secondary_granularity: str,
                 filename: str,
                 data_dir: str,
                 true_data: np.array):
-    suffix = '_coarse' if granularity == 'coarse' else ''
+    suffix = '_coarse' if main_granularity == 'coarse' else ''
     match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{num_epochs - 1}{suffix}.npy',
                      string=filename)
 
@@ -395,8 +397,9 @@ def handle_file(granularity: str,
 
         names_lrs = itertools.product([name for name in vit_model_names
                                        if name != main_model_name and name != 'vit_h_14'], lrs)
-        iterable = [(granularity, main_model_name, main_lr, secondary_model_name, secondary_lr,
-                     true_data, pred_data, prior_acc) for secondary_model_name, secondary_lr in names_lrs]
+        iterable = [(main_granularity, main_model_name, main_lr, secondary_granularity, secondary_model_name,
+                     secondary_lr, true_data, pred_data, prior_acc)
+                    for secondary_model_name, secondary_lr in names_lrs]
 
         with mp.Pool(processes=mp.cpu_count()) as pool:
             pool.starmap(func=run_EDCR,
@@ -404,11 +407,17 @@ def handle_file(granularity: str,
 
 
 if __name__ == '__main__':
-    for granularity in granularities.values():
-        suffix = '_coarse' if granularity == 'coarse' else ''
-        true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))
-        for filename in os.listdir(data_dir):
-            handle_file(granularity=granularity,
-                        filename=filename,
-                        data_dir=data_dir,
-                        true_data=true_data)
+    # for main_granularity in granularities.values():
+    #     for secondary_granularity in granularities.values():
+    main_granularity =  'coarse'
+    secondary_granularity = 'fine'
+
+    suffix = '_coarse' if main_granularity == 'coarse' else ''
+    main_true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))
+
+    for filename in os.listdir(data_dir):
+        handle_file(main_granularity=main_granularity,
+                    secondary_granularity=secondary_granularity,
+                    filename=filename,
+                    data_dir=data_dir,
+                    true_data=main_true_data)
