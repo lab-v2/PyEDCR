@@ -13,7 +13,6 @@ warnings.filterwarnings('ignore')
 
 from vit_pipeline import vit_model_names, num_epochs, lrs
 from utils import create_directory
-from data_preprocessing import granularities
 
 data_dir = 'results'
 
@@ -159,6 +158,7 @@ def DetUSMPosRuleSelect(i: int,
         cci = []
     cci = [c[1] for c in cci]
     # print(f"class{count}, cci:{cci}, new_pre:{new_pre}, pre:{pi}")
+
     return cci
 
 
@@ -407,8 +407,6 @@ def handle_file(main_granularity: str,
 
 
 if __name__ == '__main__':
-    # for main_granularity in granularities.values():
-    #     for secondary_granularity in granularities.values():
     main_granularity = 'fine'
     secondary_granularity = 'coarse'
 
