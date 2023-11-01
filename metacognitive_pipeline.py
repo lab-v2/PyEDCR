@@ -409,8 +409,8 @@ def handle_file(main_granularity: str,
 if __name__ == '__main__':
     # for main_granularity in granularities.values():
     #     for secondary_granularity in granularities.values():
-    main_granularity =  'coarse'
-    secondary_granularity = 'fine'
+    main_granularity = 'fine'
+    secondary_granularity = 'coarse'
 
     suffix = '_coarse' if main_granularity == 'coarse' else ''
     main_true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))

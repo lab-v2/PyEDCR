@@ -82,6 +82,7 @@ def fine_tune(fine_tuner: FineTuner,
     criterion = torch.nn.CrossEntropyLoss()
 
     for lr in lrs:
+
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                      lr=lr)
 
