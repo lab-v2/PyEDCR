@@ -407,8 +407,8 @@ def handle_file(main_granularity: str,
 
 
 if __name__ == '__main__':
-    main_granularity = 'fine'
-    secondary_granularity = 'coarse'
+    main_granularity = 'coarse'
+    secondary_granularity = 'fine'
 
     suffix = '_coarse' if main_granularity == 'coarse' else ''
     main_true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))
