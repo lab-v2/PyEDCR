@@ -380,11 +380,11 @@ def run_EDCR(main_granularity: str,
 
 
 
-def handle_file(main_granularity: str,
-                secondary_granularity: str,
-                filename: str,
-                data_dir: str,
-                true_data: np.array):
+def handle_main_file(main_granularity: str,
+                     secondary_granularity: str,
+                     filename: str,
+                     data_dir: str,
+                     true_data: np.array):
     suffix = '_coarse' if main_granularity == 'coarse' else ''
     match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{num_epochs - 1}{suffix}.npy',
                      string=filename)
@@ -414,8 +414,8 @@ if __name__ == '__main__':
     main_true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))
 
     for filename in os.listdir(data_dir):
-        handle_file(main_granularity=main_granularity,
-                    secondary_granularity=secondary_granularity,
-                    filename=filename,
-                    data_dir=data_dir,
-                    true_data=main_true_data)
+        handle_main_file(main_granularity=main_granularity,
+                         secondary_granularity=secondary_granularity,
+                         filename=filename,
+                         data_dir=data_dir,
+                         true_data=main_true_data)
