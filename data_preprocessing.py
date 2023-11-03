@@ -35,7 +35,8 @@ def get_transforms(train_or_val: str,
 def get_datasets(model_names: list[str],
                  cwd: typing.Union[str, pathlib.Path],
                  train_folder_name: str,
-                 test_folder_name: str) -> (dict[str, ImageFolderWithName], int):
+                 test_folder_name: str
+                 ) -> (dict[str, ImageFolderWithName], int):
     data_dir = pathlib.Path.joinpath(cwd, '.')
     datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
                                                                     transform=get_transforms(
@@ -48,16 +49,7 @@ def get_datasets(model_names: list[str],
                datasets[f'{model_name}_{test_folder_name}'].classes
                for model_name in model_names)
 
-    num_train_examples = len(datasets[f'{model_names[0]}_{train_folder_name}'])
-    num_test_examples = len(datasets[f'{model_names[0]}_{test_folder_name}'])
-    train_ratio = round(num_train_examples / (num_train_examples + num_test_examples) * 100, 2)
-    test_ratio = round(num_test_examples / (num_train_examples + num_test_examples) * 100, 2)
-
-    print(f"Total num of examples: train: {num_train_examples} ({train_ratio}%), "
-          f"test: {num_test_examples} ({test_ratio}%)")
-
     classes = datasets[f'{model_names[0]}_{train_folder_name}'].classes
-    # print(f'Classes: {classes}')
     n = len(classes)
 
     return datasets, n
