@@ -25,6 +25,7 @@ fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
 fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
 coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes = coarse_grain_results_df['Class Name'].to_list()
+
 n_classes = len(coarse_grain_classes)
 figs_folder = 'figs/'
 
