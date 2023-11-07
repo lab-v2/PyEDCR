@@ -30,8 +30,8 @@ n_coarse_grain_classes = len(coarse_grain_classes)
 figs_folder = 'figs/'
 
 
-def rules1(i: int,
-           cla_datas: np.array):
+def get_condition_values(i: int,
+                         cla_datas: np.array):
     rule_scores = []
 
     for cls in cla_datas:
@@ -101,7 +101,6 @@ def generate_chart(charts: list) -> list:
 
 def DetUSMPosRuleSelect(i: int,
                         all_charts: list):
-    count = i
     chart = all_charts[i]
     chart = np.array(chart)
     rule_indexs = [i for i in range(4, len(chart[0]))]
@@ -166,7 +165,6 @@ def DetUSMPosRuleSelect(i: int,
 def GreedyNegRuleSelect(i: int,
                         epsilon: float,
                         all_charts: list):
-    count = i
     chart = all_charts[i]
     chart = np.array(chart)
     rule_indexs = [i for i in range(4, len(chart[0]))]
@@ -308,33 +306,34 @@ def plot(df: pd.DataFrame,
 def run_EDCR(main_granularity: str,
              main_model_name: str,
              main_lr: float,
-             secondary_granularity: str,
              secondary_model_name: str,
              secondary_lr: float,
              true_data: np.array,
              pred_data: np.array,
              prior_acc: float):
-    suffix = '_coarse' if secondary_granularity == 'coarse' else ''
-    filename = f"{data_dir}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}{suffix}.npy"
+    cla_datas = {}
 
-    try:
-        cla_datas = np.load(filename)
-    except FileNotFoundError:
-        print(f'{filename} not found')
-        return
+    for secondary_granularity in ['coarse', 'fine']:
+        suffix = '_coarse' if secondary_granularity == 'coarse' else ''
+        filename = f"{data_dir}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}{suffix}.npy"
 
-    cla_datas = np.eye(np.max(cla_datas) + 1)[cla_datas].T
-    epsilons = [0.003 * i for i in range(1, 100, 1)]
+        try:
+            cla_data = np.load(filename)
+            cla_datas[secondary_granularity] = np.eye(np.max(cla_data) + 1)[cla_data].T
+        except FileNotFoundError:
+            print(f'{filename} not found')
+            return
 
     m = true_data.shape[0]
-    charts = [[pred_data[i], true_data[i]] + rules1(i=i, cla_datas=cla_datas) for i in range(m)]
+    charts = [[pred_data[i], true_data[i]] + get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
+              get_condition_values(i=i, cla_datas=cla_datas['fine']) for i in range(m)]
     all_charts = generate_chart(charts)
 
     results = []
     result0 = [0]
 
-    print(f'Started EDCR pipeline for {main_granularity}-grain main {main_model_name}, lr: {main_lr}, '
-          f'{secondary_granularity}-grain secondary: {secondary_model_name}, lr: {secondary_lr}\n')
+    print(f'Started EDCR pipeline for main: {main_granularity}-grain  {main_model_name}, lr: {main_lr}, '
+          f'secondary: {secondary_model_name}, lr: {secondary_lr}\n')
 
     for count, chart in enumerate(all_charts):
         chart = np.array(chart)
@@ -346,6 +345,8 @@ def run_EDCR(main_granularity: str,
 
     posterior_acc = 0
     total_results = np.zeros_like(pred_data)
+
+    epsilons = [0.003 * i for i in range(1, 100, 1)]
 
     for epsilon in tqdm(epsilons, total=len(epsilons)):
         result, posterior_acc, total_results = ruleForNPCorrection(all_charts=all_charts,
@@ -361,7 +362,7 @@ def run_EDCR(main_granularity: str,
     df = pd.read_csv(results_file)
 
     folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
-              f'_secondary_{secondary_granularity}_{secondary_model_name}_lr{secondary_lr}')
+              f'_secondary_{secondary_model_name}_lr{secondary_lr}')
     create_directory(folder)
 
     plot(df=df,
@@ -376,13 +377,12 @@ def run_EDCR(main_granularity: str,
 
     np.save(f'{folder}/results{suffix}.npy', total_results)
 
-    print(f'Saved plots for main: {main_granularity}-grain {main_model_name}, secondary: {secondary_granularity}-grain '
+    print(f'Saved plots for main: {main_granularity}-grain {main_model_name}, secondary: '
           f'{secondary_model_name}\nPrior acc:{prior_acc}, post acc: {posterior_acc}\n')
 
 
 
 def handle_main_file(main_granularity: str,
-                     secondary_granularity: str,
                      filename: str,
                      data_dir: str,
                      true_data: np.array):
@@ -398,7 +398,7 @@ def handle_main_file(main_granularity: str,
 
         names_lrs = itertools.product([name for name in vit_model_names
                                        if name != main_model_name and name != 'vit_h_14'], lrs)
-        iterable = [(main_granularity, main_model_name, main_lr, secondary_granularity, secondary_model_name,
+        iterable = [(main_granularity, main_model_name, main_lr, secondary_model_name,
                      secondary_lr, true_data, pred_data, prior_acc)
                     for secondary_model_name, secondary_lr in names_lrs]
 
@@ -409,14 +409,12 @@ def handle_main_file(main_granularity: str,
 
 if __name__ == '__main__':
     main_granularity = 'coarse'
-    secondary_granularity = 'fine'
 
     suffix = '_coarse' if main_granularity == 'coarse' else ''
     main_true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))
 
     for filename in os.listdir(data_dir):
         handle_main_file(main_granularity=main_granularity,
-                         secondary_granularity=secondary_granularity,
                          filename=filename,
                          data_dir=data_dir,
                          true_data=main_true_data)
