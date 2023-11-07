@@ -26,7 +26,7 @@ fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
 coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes = coarse_grain_results_df['Class Name'].to_list()
 
-n_classes = len(coarse_grain_classes)
+n_coarse_grain_classes = len(coarse_grain_classes)
 figs_folder = 'figs/'
 
 
@@ -75,7 +75,7 @@ def get_scores(y_true: np.array,
 
 
 def generate_chart(charts: list) -> list:
-    all_charts = [[] for _ in range(n_classes)]
+    all_charts = [[] for _ in range(n_coarse_grain_classes)]
     for data in charts:
         for count, jj in enumerate(all_charts):
             # pred, corr, tp, fp, cond1, cond2 ... condn
@@ -355,7 +355,7 @@ def run_EDCR(main_granularity: str,
         results.append([epsilon] + result)
 
     col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+    df = pd.DataFrame(results, columns=['epsilon'] + col * n_coarse_grain_classes + ['acc', 'macro-F1', 'micro-F1'])
 
     df.to_csv(results_file)
     df = pd.read_csv(results_file)
@@ -365,7 +365,7 @@ def run_EDCR(main_granularity: str,
     create_directory(folder)
 
     plot(df=df,
-         n_classes=n_classes,
+         n_classes=n_coarse_grain_classes,
          col_num=len(col),
          x_values=df['epsilon'][1:],
          main_model_name=main_model_name,
