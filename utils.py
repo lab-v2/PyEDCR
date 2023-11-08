@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 from datetime import timedelta
+from typing import Union
 
 
 def format_seconds(seconds: int):
@@ -46,17 +47,20 @@ def is_local() -> bool:
 
 
 def colored_text(color: str):
-    index = {'red': 1, 'green': 2, 'blue': 4}[color]
+    index = {'red': 1,
+             'green': 2,
+             'blue': 4}[color]
+
     return lambda s: f"\033[9{index}m{s}\033[0m"
 
 
-def green_text(s: str) -> str:
+def green_text(s: Union[str, float]) -> str:
     return colored_text('green')(s)
 
 
-def red_text(s: str) -> str:
+def red_text(s: Union[str, float]) -> str:
     return colored_text('red')(s)
 
 
-def blue_text(s: str) -> str:
+def blue_text(s: Union[str, float]) -> str:
     return colored_text('blue')(s)
