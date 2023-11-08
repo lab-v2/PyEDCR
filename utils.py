@@ -44,3 +44,19 @@ def is_running_in_colab() -> bool:
 def is_local() -> bool:
     return Path(__file__).parent.parent.name == 'PycharmProjects'
 
+
+def colored_text(color: str):
+    index = {'red': 1, 'green': 2, 'blue': 4}[color]
+    return lambda s: f"\033[9{index}m{s}\033[0m"
+
+
+def green_text(s: str) -> str:
+    return colored_text('green')(s)
+
+
+def red_text(s: str) -> str:
+    return colored_text('red')(s)
+
+
+def blue_text(s: str) -> str:
+    return colored_text('blue')(s)
