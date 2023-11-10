@@ -278,7 +278,6 @@ def plot(df: pd.DataFrame,
          main_lr: float,
          secondary_lr: float,
          folder: str):
-
     average_precision = pd.Series(data=0,
                                   index=x_values.index)
     average_recall = pd.Series(data=0,
@@ -335,10 +334,6 @@ def plot(df: pd.DataFrame,
     plt.savefig(f'{folder}/average.png')
     plt.clf()
     plt.cla()
-
-
-
-
 
 
 def run_EDCR(main_granularity: str,
