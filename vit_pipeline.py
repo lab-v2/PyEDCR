@@ -8,7 +8,8 @@ from time import time
 from typing import Tuple
 import pathlib
 
-from context import ClearCache, ClearSession
+import context_handlers
+
 from models import FineTuner, VITFineTuner
 from utils import is_running_in_colab, create_directory, format_seconds, is_local
 from data_preprocessing import granularities, get_datasets, get_loaders
@@ -113,7 +114,7 @@ def fine_tune(fine_tuner: FineTuner,
                 batches = enumerate(train_loader, 0)
 
             for batch_num, batch in batches:
-                with ClearCache(device=device):
+                with context_handlers.ClearCache(device=device):
                     # if batch_num % 10 == 0:
                     #     print(f'Started batch {batch_num + 1}/{num_batches}')
 
@@ -206,7 +207,7 @@ def run_pipeline(granularity_index: int):
         # try:
         print(f'Initiating {fine_tuner}')
 
-        with ClearSession():
+        with context_handlers.ClearSession():
             fine_tune(fine_tuner=fine_tuner,
                       device=device,
                       loaders=loaders,

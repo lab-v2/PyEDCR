@@ -9,12 +9,13 @@ import multiprocessing as mp
 import itertools
 
 import warnings
+
 warnings.filterwarnings('ignore')
 
-from vit_pipeline import vit_model_names, num_epochs, lrs
-from utils import create_directory
+import vit_pipeline
+import utils
 
-data_dir = 'results'
+data_folder = 'results'
 
 results_folder = '.'
 results_file = results_folder + "rule_for_NPcorrection.csv"
@@ -26,7 +27,6 @@ fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
 coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes = coarse_grain_results_df['Class Name'].to_list()
 
-n_coarse_grain_classes = len(coarse_grain_classes)
 figs_folder = 'figs/'
 
 
@@ -74,8 +74,10 @@ def get_scores(y_true: np.array,
         return [pre, f1, f1micro]
 
 
-def generate_chart(charts: list) -> list:
-    all_charts = [[] for _ in range(n_coarse_grain_classes)]
+def generate_chart(n_classes: int,
+                   charts: list) -> list:
+    all_charts = [[] for _ in range(n_classes)]
+
     for data in charts:
         for count, jj in enumerate(all_charts):
             # pred, corr, tp, fp, cond1, cond2 ... condn
@@ -267,6 +269,7 @@ def ruleForNPCorrection(all_charts: list,
 
 
 def plot(df: pd.DataFrame,
+         classes: list,
          n_classes: int,
          col_num: int,
          x_values: pd.Series,
@@ -275,25 +278,37 @@ def plot(df: pd.DataFrame,
          main_lr: float,
          secondary_lr: float,
          folder: str):
+
+    average_precision = pd.Series(data=0,
+                                  index=x_values.index)
+    average_recall = pd.Series(data=0,
+                               index=x_values.index)
+    average_f1_score = pd.Series(data=0,
+                                 index=x_values.index)
+
     for i in range(n_classes):
         df_i = df.iloc[1:, 2 + i * col_num:2 + (i + 1) * col_num]
 
         added_str = f'.{i}' if i else ''
-        pre_i = df_i[f'pre{added_str}']
-        rec_i = df_i[f'recall{added_str}']
-        f1_i = df_i[f'F1{added_str}']
+        precision_i = df_i[f'pre{added_str}']
+        recall_i = df_i[f'recall{added_str}']
+        f1_score_i = df_i[f'F1{added_str}']
+
+        average_precision += precision_i
+        average_recall += recall_i
+        average_f1_score += f1_score_i
 
         plt.plot(x_values,
-                 pre_i,
-                 label='pre')
+                 precision_i,
+                 label='precision')
         plt.plot(x_values,
-                 rec_i,
-                 label='rec')
+                 recall_i,
+                 label='recall')
         plt.plot(x_values,
-                 f1_i,
+                 f1_score_i,
                  label='f1')
 
-        plt.title(f'Class #{i}-{coarse_grain_classes[i]}, Main: {main_model_name}, lr: {main_lr}'
+        plt.title(f'Class #{i}-{classes[i]}, Main: {main_model_name}, lr: {main_lr}'
                   f'Secondary: {secondary_model_name}, lr: {secondary_lr}')
         plt.legend()
         plt.tight_layout()
@@ -301,6 +316,29 @@ def plot(df: pd.DataFrame,
         plt.savefig(f'{folder}/cls{i}.png')
         plt.clf()
         plt.cla()
+
+    plt.plot(x_values,
+             average_precision,
+             label='average precision')
+    plt.plot(x_values,
+             average_recall,
+             label='average recall')
+    plt.plot(x_values,
+             average_f1_score,
+             label='average f1')
+
+    plt.title(f'Main: {main_model_name}, lr: {main_lr}'
+              f'Secondary: {secondary_model_name}, lr: {secondary_lr}')
+    plt.legend()
+    plt.tight_layout()
+    plt.grid()
+    plt.savefig(f'{folder}/average.png')
+    plt.clf()
+    plt.cla()
+
+
+
+
 
 
 def run_EDCR(main_granularity: str,
@@ -311,11 +349,14 @@ def run_EDCR(main_granularity: str,
              true_data: np.array,
              pred_data: np.array,
              prior_acc: float):
+    classes = fine_grain_classes if main_granularity == 'fine' else coarse_grain_classes
+    n_classes = len(classes)
     cla_datas = {}
 
     for secondary_granularity in ['coarse', 'fine']:
         suffix = '_coarse' if secondary_granularity == 'coarse' else ''
-        filename = f"{data_dir}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{num_epochs - 1}{suffix}.npy"
+        filename = (f"{data_folder}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{vit_pipeline.num_epochs - 1}"
+                    f"{suffix}.npy")
 
         try:
             cla_data = np.load(filename)
@@ -327,7 +368,8 @@ def run_EDCR(main_granularity: str,
     m = true_data.shape[0]
     charts = [[pred_data[i], true_data[i]] + get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
               get_condition_values(i=i, cla_datas=cla_datas['fine']) for i in range(m)]
-    all_charts = generate_chart(charts)
+    all_charts = generate_chart(n_classes=n_classes,
+                                charts=charts)
 
     results = []
     result0 = [0]
@@ -356,17 +398,18 @@ def run_EDCR(main_granularity: str,
         results.append([epsilon] + result)
 
     col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-    df = pd.DataFrame(results, columns=['epsilon'] + col * n_coarse_grain_classes + ['acc', 'macro-F1', 'micro-F1'])
+    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
 
     df.to_csv(results_file)
     df = pd.read_csv(results_file)
 
     folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
               f'_secondary_{secondary_model_name}_lr{secondary_lr}')
-    create_directory(folder)
+    utils.create_directory(folder)
 
     plot(df=df,
-         n_classes=n_coarse_grain_classes,
+         classes=classes,
+         n_classes=n_classes,
          col_num=len(col),
          x_values=df['epsilon'][1:],
          main_model_name=main_model_name,
@@ -381,13 +424,12 @@ def run_EDCR(main_granularity: str,
           f'{secondary_model_name}\nPrior acc:{prior_acc}, post acc: {posterior_acc}\n')
 
 
-
 def handle_main_file(main_granularity: str,
                      filename: str,
                      data_dir: str,
                      true_data: np.array):
     suffix = '_coarse' if main_granularity == 'coarse' else ''
-    match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{num_epochs - 1}{suffix}.npy',
+    match = re.match(pattern=rf'(.+?)_test_pred_lr(.+?)_e{vit_pipeline.num_epochs - 1}{suffix}.npy',
                      string=filename)
 
     if match:
@@ -396,8 +438,8 @@ def handle_main_file(main_granularity: str,
         pred_data = np.load(os.path.join(data_dir, filename))
         prior_acc = accuracy_score(true_data, pred_data)
 
-        names_lrs = itertools.product([name for name in vit_model_names
-                                       if name != main_model_name and name != 'vit_h_14'], lrs)
+        names_lrs = itertools.product([name for name in vit_pipeline.vit_model_names
+                                       if name != main_model_name and name != 'vit_h_14'], vit_pipeline.lrs)
         iterable = [(main_granularity, main_model_name, main_lr, secondary_model_name,
                      secondary_lr, true_data, pred_data, prior_acc)
                     for secondary_model_name, secondary_lr in names_lrs]
@@ -408,13 +450,12 @@ def handle_main_file(main_granularity: str,
 
 
 if __name__ == '__main__':
-    main_granularity = 'fine'
+    for main_granularity in vit_pipeline.granularities.values():
+        suffix = '_coarse' if main_granularity == 'coarse' else ''
+        main_true_data = np.load(os.path.join(data_folder, f'test_true{suffix}.npy'))
 
-    suffix = '_coarse' if main_granularity == 'coarse' else ''
-    main_true_data = np.load(os.path.join(data_dir, f'test_true{suffix}.npy'))
-
-    for filename in os.listdir(data_dir):
-        handle_main_file(main_granularity=main_granularity,
-                         filename=filename,
-                         data_dir=data_dir,
-                         true_data=main_true_data)
+        for filename in os.listdir(data_folder):
+            handle_main_file(main_granularity=main_granularity,
+                             filename=filename,
+                             data_dir=data_folder,
+                             true_data=main_true_data)

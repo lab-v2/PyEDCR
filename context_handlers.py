@@ -3,7 +3,8 @@ import torch
 import matplotlib.pyplot as plt
 if torch.backends.mps.is_available():
     from torch import mps
-from utils import is_running_in_colab
+
+import utils
 
 
 class Context(abc.ABC):
@@ -19,7 +20,7 @@ class Context(abc.ABC):
 class ClearSession(Context):
     def __init__(self):
         self.colab = False
-        if is_running_in_colab():
+        if utils.is_running_in_colab():
             from google.colab import drive
 
             # Mount Google Drive

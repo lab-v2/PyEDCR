@@ -1,13 +1,13 @@
 import os
 import sys
-from pathlib import Path
-from datetime import timedelta
+import pathlib
+import datetime
 from typing import Union
 
 
 def format_seconds(seconds: int):
     # Create a timedelta object with the given seconds
-    time_delta = timedelta(seconds=seconds)
+    time_delta = datetime.timedelta(seconds=seconds)
 
     # Use the total_seconds() method to get the total number of seconds
     total_seconds = time_delta.total_seconds()
@@ -43,7 +43,7 @@ def is_running_in_colab() -> bool:
 
 
 def is_local() -> bool:
-    return Path(__file__).parent.parent.name == 'PycharmProjects'
+    return pathlib.Path(__file__).parent.parent.name == 'PycharmProjects'
 
 
 def colored_text(color: str):
