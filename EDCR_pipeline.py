@@ -30,6 +30,10 @@ coarse_grain_classes = coarse_grain_results_df['Class Name'].to_list()
 figs_folder = 'figs/'
 
 
+def get_classes(granularity: str):
+    return fine_grain_classes if granularity == 'fine' else coarse_grain_classes
+
+
 def get_condition_values(i: int,
                          cla_datas: np.array):
     rule_scores = []
@@ -270,7 +274,6 @@ def ruleForNPCorrection(all_charts: list,
 
 def plot(df: pd.DataFrame,
          classes: list,
-         n_classes: int,
          col_num: int,
          x_values: pd.Series,
          main_model_name: str,
@@ -285,7 +288,7 @@ def plot(df: pd.DataFrame,
     average_f1_score = pd.Series(data=0,
                                  index=x_values.index)
 
-    for i in range(n_classes):
+    for i in range(len(classes)):
         df_i = df.iloc[1:, 2 + i * col_num:2 + (i + 1) * col_num]
 
         added_str = f'.{i}' if i else ''
@@ -344,8 +347,7 @@ def run_EDCR(main_granularity: str,
              true_data: np.array,
              pred_data: np.array,
              prior_acc: float):
-    classes = fine_grain_classes if main_granularity == 'fine' else coarse_grain_classes
-    n_classes = len(classes)
+    classes = get_classes(granularity=main_granularity)
     cla_datas = {}
 
     for secondary_granularity in ['coarse', 'fine']:
@@ -363,7 +365,7 @@ def run_EDCR(main_granularity: str,
     m = true_data.shape[0]
     charts = [[pred_data[i], true_data[i]] + get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
               get_condition_values(i=i, cla_datas=cla_datas['fine']) for i in range(m)]
-    all_charts = generate_chart(n_classes=n_classes,
+    all_charts = generate_chart(n_classes=len(classes),
                                 charts=charts)
 
     results = []
@@ -393,7 +395,7 @@ def run_EDCR(main_granularity: str,
         results.append([epsilon] + result)
 
     col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-    df = pd.DataFrame(results, columns=['epsilon'] + col * n_classes + ['acc', 'macro-F1', 'micro-F1'])
+    df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
 
     df.to_csv(results_file)
     df = pd.read_csv(results_file)
@@ -404,7 +406,6 @@ def run_EDCR(main_granularity: str,
 
     plot(df=df,
          classes=classes,
-         n_classes=n_classes,
          col_num=len(col),
          x_values=df['epsilon'][1:],
          main_model_name=main_model_name,
