@@ -394,8 +394,7 @@ def run_EDCR(main_granularity: str,
                                                                    epsilon=epsilon)
         results.append([epsilon] + result)
 
-    col = ['pre', 'recall', 'F1', 'negative_rules_fired', 'positive_rules_fired', 'total_negative_rules_num',
-           'total_positive_rules_num']
+    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
     df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
 
     df.to_csv(results_file)
