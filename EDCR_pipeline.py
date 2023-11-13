@@ -394,7 +394,8 @@ def run_EDCR(main_granularity: str,
                                                                    epsilon=epsilon)
         results.append([epsilon] + result)
 
-    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+    col = ['pre', 'recall', 'F1', 'negative_rules_fired', 'positive_rules_fired', 'total_negative_rules_num',
+           'total_positive_rules_num']
     df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
 
     df.to_csv(results_file)
@@ -415,6 +416,9 @@ def run_EDCR(main_granularity: str,
          folder=folder)
 
     np.save(f'{folder}/results{suffix}.npy', total_results)
+
+    # Save the DataFrame to an Excel file
+    df.to_excel(f'{folder}/results.xlsx')
 
     print(f'Saved plots for main: {main_granularity}-grain {main_model_name}, secondary: '
           f'{secondary_model_name}\nPrior acc:{prior_acc}, post acc: {posterior_acc}\n')

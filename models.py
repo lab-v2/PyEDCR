@@ -76,5 +76,6 @@ class ImageFolderWithName(torchvision.datasets.ImageFolder):
         if self.target_transform is not None:
             target = self.target_transform(target)
         name = os.path.basename(path)
+        folder_path = os.path.basename(os.path.dirname(path))
 
-        return image, target, name
+        return image, target, f'{folder_path}/{name}'
