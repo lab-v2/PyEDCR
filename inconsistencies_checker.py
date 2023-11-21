@@ -1,8 +1,11 @@
-import numpy as np
-import EDCR_pipeline
 import os
 import torch
+import json
+import tqdm
+import numpy as np
+import multiprocessing as mp
 
+import EDCR_pipeline
 from models import VITFineTuner
 from data_preprocessing import get_datasets, get_loaders, granularities
 from vit_pipeline import cwd, batch_size
@@ -32,7 +35,8 @@ def m(fine_batch_num: int,
     fines_to_coarses = {}
     fine_images, fine_labels, fine_names = fine_data[0], fine_data[1], fine_data[2]
 
-    for curr_fine_image_num, (fine_image, fine_name) in enumerate(zip(fine_images, fine_names)):
+    for curr_fine_image_num, (fine_image, fine_name) in tqdm.tqdm(enumerate(zip(fine_images, fine_names)),
+                                                                  total=len(fine_images)):
         for coarse_batch_num, coarse_data in enumerate(coarse_test_loader):
             coarse_images, coarse_labels, coarse_names = coarse_data[0], coarse_data[1], coarse_data[2]
             for curr_coarse_image_num, (coarse_image, coarse_name) in enumerate(zip(coarse_images, coarse_names)):
@@ -40,7 +44,7 @@ def m(fine_batch_num: int,
                     fine_index = fine_batch_num * batch_size + curr_fine_image_num
                     coarse_index = coarse_batch_num * batch_size + curr_coarse_image_num
                     fines_to_coarses[fine_index] = coarse_index
-                    print(f'{fine_index}: {coarse_index}')
+                    # print(f'{fine_index}: {coarse_index}')
                     break
             if fine_name in fines_to_coarses:
                 break
@@ -49,9 +53,9 @@ def m(fine_batch_num: int,
     return fines_to_coarses
 
 
-def worker_init(args_tuple):
-    fines_to_coarses = m(*args_tuple)
-    return fines_to_coarses
+# def worker_init(args_tuple):
+#     fines_to_coarses = m(*args_tuple)
+#     return fines_to_coarses
 
 
 if __name__ == "__main__":
@@ -85,12 +89,14 @@ if __name__ == "__main__":
     args_list = [(fine_batch_num, fine_data, coarse_test_loader)
                  for fine_batch_num, fine_data in enumerate(fine_test_loader)]
 
-    for fine_batch_num, fine_data in enumerate(fine_test_loader):
-        worker_init((fine_batch_num, fine_data, coarse_test_loader))
 
-    # with mp.Pool() as pool:
-    #     res = pool.map(worker_init, args_list)
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        fines_to_coarses = pool.starmap(func=m,
+                                        iterable=args_list)
 
-    # with open('res.json', 'w') as json_file:
-    #     json.dump(res, json_file)
+    # for fine_batch_num, fine_data in tqdm.tqdm(enumerate(fine_test_loader), total=len(fine_test_loader)):
+    #      worker_init((fine_batch_num, fine_data, coarse_test_loader))
+
+    with open('res.json', 'w') as json_file:
+        json.dump(fines_to_coarses, json_file)
 
