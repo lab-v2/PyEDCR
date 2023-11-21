@@ -16,7 +16,7 @@ import vit_pipeline
 import utils
 
 data_folder = 'results'
-
+figs_folder = 'figs/'
 results_folder = '.'
 results_file = results_folder + "rule_for_NPcorrection.csv"
 
@@ -26,8 +26,6 @@ fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
 fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
 coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes = coarse_grain_results_df['Class Name'].to_list()
-
-figs_folder = 'figs/'
 
 
 def get_fine_to_coarse():
@@ -471,13 +469,15 @@ def run_EDCR(main_granularity: str,
           f', secondary: {secondary_model_name}, lr={secondary_lr}'
           f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}'
           )
-    #
-    # if best_coarse_main_model == main_model_name and main_lr == best_coarse_main_lr and secondary_model_name == best_coarse_secondary_model and secondary_lr == best_coarse_secondary_lr:
-    for coarse_grain_label, coarse_grain_label_data in corrections.items():
-        for fine_grain_label in coarse_grain_label_data.keys():
-            print('Corrections:'
-                  f'error <- predicted_coarse_grain={coarse_grain_label} '
-                  f'and predicted_fine_grain={fine_grain_label}')
+
+    if (best_coarse_main_model == main_model_name and main_lr == best_coarse_main_lr
+            and secondary_model_name == best_coarse_secondary_model and secondary_lr == best_coarse_secondary_lr):
+
+        for coarse_grain_label, coarse_grain_label_data in corrections.items():
+            for fine_grain_label in coarse_grain_label_data.keys():
+                print('Corrections:'
+                      f'error <- predicted_coarse_grain={coarse_grain_label} '
+                      f'and predicted_fine_grain={fine_grain_label}')
 
 
 def handle_main_file(main_granularity: str,
@@ -506,6 +506,8 @@ def handle_main_file(main_granularity: str,
 
 
 if __name__ == '__main__':
+
+
     for main_granularity in vit_pipeline.granularities.values():
         suffix = '_coarse' if main_granularity == 'coarse' else ''
         main_true_data = np.load(os.path.join(data_folder, f'test_true{suffix}.npy'))
