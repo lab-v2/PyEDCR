@@ -30,6 +30,24 @@ coarse_grain_classes = coarse_grain_results_df['Class Name'].to_list()
 figs_folder = 'figs/'
 
 
+def get_fine_to_coarse():
+    fine_to_coarse = {}
+    training_df = dataframes_by_sheet['Training']
+
+    assert set(training_df['Fine-Grain Ground Truth'].unique().tolist()).intersection(fine_grain_classes) == set(
+        fine_grain_classes)
+
+    for fine_grain_class in fine_grain_classes:
+        curr_fine_grain_training_data = training_df[training_df['Fine-Grain Ground Truth'] == fine_grain_class]
+        assert curr_fine_grain_training_data['Course-Grain Ground Truth'].nunique() == 1
+        fine_to_coarse[fine_grain_class] = curr_fine_grain_training_data['Course-Grain Ground Truth'].iloc[0]
+
+    return fine_to_coarse
+
+
+fine_to_coarse = get_fine_to_coarse()
+
+
 def get_classes(granularity: str):
     return fine_grain_classes if granularity == 'fine' else coarse_grain_classes
 
@@ -40,7 +58,7 @@ def get_condition_values(i: int,
 
     for cls in cla_datas:
         cls_i = int(cls[i])
-        rule_scores += [cls_i, 1 - cls_i]
+        rule_scores += [cls_i]
 
     return rule_scores
 
@@ -214,7 +232,8 @@ def GreedyNegRuleSelect(i: int,
             if negi_score < quantity:
                 tmp_NCn.append(c)
         NCn = tmp_NCn
-    # print(f"class:{count}, NCi:{NCi}")
+    # print(f"class:{i}, NCi:{NCi}")
+
     return NCi
 
 
@@ -222,13 +241,16 @@ def ruleForNPCorrection(all_charts: list,
                         true_data,
                         pred_data,
                         epsilon: float,
-                        run_positives: bool = True, ):
+                        main_granularity,
+                        classes,
+                        corrections,
+                        run_positives: bool = True):
     results = []
     total_results = np.copy(pred_data)
 
-    for count, chart in enumerate(all_charts):
+    for i, chart in enumerate(all_charts):
         chart = np.array(chart)
-        NCi = GreedyNegRuleSelect(i=count,
+        NCi = GreedyNegRuleSelect(i=i,
                                   epsilon=epsilon,
                                   all_charts=all_charts)
         neg_i_count = 0
@@ -243,10 +265,24 @@ def ruleForNPCorrection(all_charts: list,
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct] and predict_result[ct]:
+
+                    curr_class = classes[i]
+                    sec_class = get_classes(granularity='fine')[np.argmax(cv[4:])]
+
+                    if fine_to_coarse[sec_class] != curr_class:
+                        if curr_class not in corrections:
+                            corrections[curr_class] = {sec_class: 1}
+                        elif sec_class not in corrections[curr_class]:
+                            corrections[curr_class][sec_class] = 1
+                        else:
+                            corrections[curr_class][sec_class] += 1
+
+                        print(f"{main_granularity}-grain class: {curr_class}, "
+                              f"secondary class: {sec_class}, should have been {fine_to_coarse[sec_class]}")
                     neg_i_count += 1
                     predict_result[ct] = 0
 
-        CCi = DetUSMPosRuleSelect(i=count,
+        CCi = DetUSMPosRuleSelect(i=i,
                                   all_charts=all_charts) if run_positives else []
         tem_cond = np.zeros_like(chart[:, 0])
 
@@ -259,7 +295,7 @@ def ruleForNPCorrection(all_charts: list,
                     if not predict_result[ct]:
                         pos_i_count += 1
                         predict_result[ct] = 1
-                        total_results[ct] = count
+                        total_results[ct] = i
 
         scores_cor = get_scores(chart[:, 1], predict_result)
         results.extend(scores_cor + [neg_i_count,
@@ -269,7 +305,7 @@ def ruleForNPCorrection(all_charts: list,
     results.extend(get_scores(true_data, total_results))
     posterior_acc = accuracy_score(true_data, total_results)
 
-    return results, posterior_acc, total_results
+    return results, posterior_acc, total_results, corrections
 
 
 def plot(df: pd.DataFrame,
@@ -350,7 +386,8 @@ def run_EDCR(main_granularity: str,
     classes = get_classes(granularity=main_granularity)
     cla_datas = {}
 
-    for secondary_granularity in ['coarse', 'fine']:
+    relevant_granularities = ['fine']
+    for secondary_granularity in relevant_granularities:
         suffix = '_coarse' if secondary_granularity == 'coarse' else ''
         filename = (f"{data_folder}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{vit_pipeline.num_epochs - 1}"
                     f"{suffix}.npy")
@@ -363,8 +400,10 @@ def run_EDCR(main_granularity: str,
             return
 
     m = true_data.shape[0]
-    charts = [[pred_data[i], true_data[i]] + get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
-              get_condition_values(i=i, cla_datas=cla_datas['fine']) for i in range(m)]
+    charts = [[pred_data[i], true_data[i]] +
+              (get_condition_values(i=i, cla_datas=cla_datas['coarse']) if 'coarse' in relevant_granularities else [])
+              + (get_condition_values(i=i, cla_datas=cla_datas['fine']) if 'fine' in relevant_granularities else [])
+              for i in range(m)]
     all_charts = generate_chart(n_classes=len(classes),
                                 charts=charts)
 
@@ -387,11 +426,15 @@ def run_EDCR(main_granularity: str,
 
     epsilons = [0.003 * i for i in range(1, 100, 1)]
 
-    for epsilon in tqdm(epsilons, total=len(epsilons)):
-        result, posterior_acc, total_results = ruleForNPCorrection(all_charts=all_charts,
-                                                                   true_data=true_data,
-                                                                   pred_data=pred_data,
-                                                                   epsilon=epsilon)
+    corrections = {}
+    for e_num, epsilon in tqdm(enumerate(epsilons), total=len(epsilons)):
+        result, posterior_acc, total_results, corrections = ruleForNPCorrection(all_charts=all_charts,
+                                                                                true_data=true_data,
+                                                                                pred_data=pred_data,
+                                                                                main_granularity=main_granularity,
+                                                                                classes=classes,
+                                                                                corrections=corrections,
+                                                                                epsilon=epsilon)
         results.append([epsilon] + result)
 
     col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
@@ -419,8 +462,22 @@ def run_EDCR(main_granularity: str,
     # Save the DataFrame to an Excel file
     df.to_excel(f'{folder}/results.xlsx')
 
-    print(f'Saved plots for main: {main_granularity}-grain {main_model_name}, secondary: '
-          f'{secondary_model_name}\nPrior acc:{prior_acc}, post acc: {posterior_acc}\n')
+    best_coarse_main_model = 'vit_b_16'
+    best_coarse_main_lr = 5e-05
+    best_coarse_secondary_model = 'vit_l_16'
+    best_coarse_secondary_lr = 1e-05
+
+    print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
+          f', secondary: {secondary_model_name}, lr={secondary_lr}'
+          f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}'
+          )
+    #
+    # if best_coarse_main_model == main_model_name and main_lr == best_coarse_main_lr and secondary_model_name == best_coarse_secondary_model and secondary_lr == best_coarse_secondary_lr:
+    for coarse_grain_label, coarse_grain_label_data in corrections.items():
+        for fine_grain_label in coarse_grain_label_data.keys():
+            print('Corrections:'
+                  f'error <- predicted_coarse_grain={coarse_grain_label} '
+                  f'and predicted_fine_grain={fine_grain_label}')
 
 
 def handle_main_file(main_granularity: str,
