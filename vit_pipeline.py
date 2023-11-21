@@ -9,10 +9,10 @@ from typing import Tuple
 import pathlib
 
 import context_handlers
+import models
+import utils
+import data_preprocessing
 
-from models import FineTuner, VITFineTuner
-from utils import is_running_in_colab, create_directory, format_seconds, is_local
-from data_preprocessing import granularities, get_datasets, get_loaders
 
 batch_size = 32
 lrs = [1e-6, 1e-5, 5e-5]
@@ -24,8 +24,7 @@ cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
 
-
-def test(fine_tuner: FineTuner,
+def test(fine_tuner: models.FineTuner,
          loaders: dict[str, torch.utils.data.DataLoader],
          device: torch.device,
          test_folder_name: str) -> Tuple[list[int], list[int], float]:
@@ -40,7 +39,7 @@ def test(fine_tuner: FineTuner,
     print(f'Started testing {fine_tuner} on {device}...')
 
     with torch.no_grad():
-        if is_local():
+        if utils.is_local():
             from tqdm import tqdm
             gen = tqdm(enumerate(test_loader), total=len(test_loader))
         else:
@@ -68,7 +67,7 @@ def test(fine_tuner: FineTuner,
     return test_ground_truth, test_prediction, test_accuracy
 
 
-def fine_tune(fine_tuner: FineTuner,
+def fine_tune(fine_tuner: models.FineTuner,
               device: torch.device,
               loaders: dict[str, torch.utils.data.DataLoader],
               granularity: str,
@@ -106,7 +105,7 @@ def fine_tune(fine_tuner: FineTuner,
             train_predictions = []
             train_ground_truths = []
 
-            if is_local():
+            if utils.is_local():
                 from tqdm import tqdm
                 batches = tqdm(enumerate(train_loader, 0), total=num_batches)
             else:
@@ -142,7 +141,7 @@ def fine_tune(fine_tuner: FineTuner,
             # train.report({"mean_accuracy": acc})
 
             print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
-                  f'epoch {epoch + 1}/{num_epochs} done in {format_seconds(int(time() - t1))}, '
+                  f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - t1))}, '
                   f'\nTraining loss: {round(running_loss / num_batches, 3)}'
                   f'\ntraining accuracy: {round(acc, 3)}\n')
 
@@ -169,38 +168,37 @@ def fine_tune(fine_tuner: FineTuner,
 
 
 def run_pipeline(granularity_index: int):
-    granularity = granularities[granularity_index]
+    granularity = data_preprocessing.granularities[granularity_index]
 
     train_folder_name = f'train_{granularity}'
     test_folder_name = f'test_{granularity}'
-    files_path = '/content/drive/My Drive/' if is_running_in_colab() else ''
+    files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
     results_path = fr'{files_path}results/'
-    create_directory(results_path)
+    utils.create_directory(results_path)
 
     print(f'Running {granularity}-grain pipeline...')
     print(F'Learning rates: {lrs}')
 
-
     print(f'Models: {vit_model_names}')
 
-    datasets, n = get_datasets(model_names=vit_model_names,
-                               cwd=cwd,
-                               train_folder_name=train_folder_name,
-                               test_folder_name=test_folder_name)
+    datasets, n = data_preprocessing.get_datasets(model_names=vit_model_names,
+                                                  cwd=cwd,
+                                                  train_folder_name=train_folder_name,
+                                                  test_folder_name=test_folder_name)
 
     device = torch.device('mps' if torch.backends.mps.is_available() else
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
 
-    fine_tuners = [VITFineTuner(model_name, vit_model_names, n) for model_name in vit_model_names]
+    fine_tuners = [models.VITFineTuner(model_name, vit_model_names, n) for model_name in vit_model_names]
 
     print(f'Fine tuners: {[str(fine_tuner) for fine_tuner in fine_tuners]}')
 
-    loaders = get_loaders(datasets=datasets,
-                          batch_size=batch_size,
-                          model_names=vit_model_names,
-                          train_folder_name=train_folder_name,
-                          test_folder_name=test_folder_name)
+    loaders = data_preprocessing.get_loaders(datasets=datasets,
+                                             batch_size=batch_size,
+                                             model_names=vit_model_names,
+                                             train_folder_name=train_folder_name,
+                                             test_folder_name=test_folder_name)
 
     for fine_tuner in fine_tuners:
         # try:

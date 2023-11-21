@@ -5,7 +5,7 @@ import torch.utils.data
 import pathlib
 import typing
 
-from models import ImageFolderWithName
+import models
 
 granularities = {0: 'coarse',
                  1: 'fine'}
@@ -36,13 +36,13 @@ def get_datasets(model_names: list[str],
                  cwd: typing.Union[str, pathlib.Path],
                  train_folder_name: str,
                  test_folder_name: str
-                 ) -> (dict[str, ImageFolderWithName], int):
+                 ) -> (dict[str, models.ImageFolderWithName], int):
     data_dir = pathlib.Path.joinpath(cwd, '.')
-    datasets = {f'{model_name}_{train_or_val}': ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
-                                                                    transform=get_transforms(
-                                                                        train_or_val=train_or_val,
-                                                                        model_name=model_name,
-                                                                        train_folder_name=train_folder_name))
+    datasets = {f'{model_name}_{train_or_val}': models.ImageFolderWithName(root=os.path.join(data_dir, train_or_val),
+                                                                           transform=get_transforms(
+                                                                               train_or_val=train_or_val,
+                                                                               model_name=model_name,
+                                                                               train_folder_name=train_folder_name))
                 for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
 
     assert all(datasets[f'{model_name}_{train_folder_name}'].classes ==
@@ -55,7 +55,7 @@ def get_datasets(model_names: list[str],
     return datasets, n
 
 
-def get_loaders(datasets: dict[str, ImageFolderWithName],
+def get_loaders(datasets: dict[str, models.ImageFolderWithName],
                 batch_size: int,
                 model_names: list[str],
                 train_folder_name: str,

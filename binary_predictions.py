@@ -4,8 +4,9 @@ from torch.utils import data
 import numpy as np
 import torchvision
 from sklearn.metrics import accuracy_score
+
 from tqdm import tqdm
-from typing import Dict, Optional
+import typing
 from PIL import Image
 import multiprocessing
 import json
@@ -17,7 +18,7 @@ import timm
 class NamedImageFolder(torchvision.datasets.folder.ImageFolder):
     def __init__(self,
                  root: str,
-                 transform: Optional[torchvision.transforms.Compose] = None):
+                 transform: typing.Optional[torchvision.transforms.Compose] = None):
         super().__init__(root=root,
                          transform=transform)
         self.imgs = []
@@ -108,7 +109,7 @@ def compute_means_stds(image_folder):
 
 def create_data_loaders(data_dir: str,
                         batch_size: int,
-                        named_dataset: bool = False) -> Dict[str, torch.utils.data.DataLoader]:
+                        named_dataset: bool = False) -> typing.Dict[str, torch.utils.data.DataLoader]:
     means, stds = compute_means_stds(data_dir)
     transform = {
         'train': torchvision.transforms.Compose([
@@ -169,8 +170,8 @@ def train_ViT(train_loader: torch.utils.data.DataLoader,
               model_save_path: str,
               model: torch.nn.Module,
               device: torch.device,
-              num_epochs: Optional[int] = 25,
-              learning_rate: Optional[float] = 0.00001):
+              num_epochs: typing.Optional[int] = 25,
+              learning_rate: typing.Optional[float] = 0.00001):
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(params=model.parameters(),
                                  lr=learning_rate)
@@ -294,9 +295,9 @@ def test_ViT_without_accuracy(test_loader: torch.utils.data.DataLoader,
 
 def load_or_train_ViT(data_dir: str,
                       model_save_path: str,
-                      num_epochs: Optional[int] = 25,
-                      learning_rate: Optional[float] = 0.00001,
-                      batch_size: Optional[int] = 32,
+                      num_epochs: typing.Optional[int] = 25,
+                      learning_rate: typing.Optional[float] = 0.00001,
+                      batch_size: typing.Optional[int] = 32,
                       class_name: str = None):
     device = torch.device("mps" if torch.backends.mps.is_available()
                           else "cuda" if torch.cuda.is_available() else "cpu")

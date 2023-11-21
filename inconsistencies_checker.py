@@ -2,7 +2,6 @@ import numpy as np
 import EDCR_pipeline
 import os
 import torch
-import json
 
 from models import VITFineTuner
 from data_preprocessing import get_datasets, get_loaders, granularities
@@ -88,6 +87,7 @@ if __name__ == "__main__":
 
     for fine_batch_num, fine_data in enumerate(fine_test_loader):
         worker_init((fine_batch_num, fine_data, coarse_test_loader))
+
     # with mp.Pool() as pool:
     #     res = pool.map(worker_init, args_list)
 

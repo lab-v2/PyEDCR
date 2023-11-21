@@ -2,8 +2,8 @@ import re
 import os
 import abc
 import torch
+import typing
 import torchvision
-from typing import Union
 
 
 class FineTuner(torch.nn.Module, abc.ABC):
@@ -38,7 +38,7 @@ class InceptionV3FineTuner(FineTuner):
 
 class VITFineTuner(FineTuner):
     def __init__(self,
-                 vit_model: Union[int, str],
+                 vit_model: typing.Union[int, str],
                  vit_model_names: list,
                  num_classes: int):
         super().__init__(num_classes=num_classes)

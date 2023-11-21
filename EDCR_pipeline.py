@@ -242,7 +242,7 @@ def ruleForNPCorrection(all_charts: list,
                         main_granularity,
                         classes,
                         corrections,
-                        run_positives: bool = True):
+                        run_positive_rules: bool = True):
     results = []
     total_results = np.copy(pred_data)
 
@@ -281,7 +281,7 @@ def ruleForNPCorrection(all_charts: list,
                     predict_result[ct] = 0
 
         CCi = DetUSMPosRuleSelect(i=i,
-                                  all_charts=all_charts) if run_positives else []
+                                  all_charts=all_charts) if run_positive_rules else []
         tem_cond = np.zeros_like(chart[:, 0])
 
         for cc in CCi:
