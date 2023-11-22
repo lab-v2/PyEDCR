@@ -276,8 +276,8 @@ def ruleForNPCorrection(all_charts: list,
                         else:
                             corrections[curr_class][sec_class] += 1
 
-                        print(f"{main_granularity}-grain class: {curr_class}, "
-                              f"secondary class: {sec_class}, should have been {fine_to_coarse[sec_class]}")
+                        # print(f"{main_granularity}-grain class: {curr_class}, "
+                        #       f"secondary class: {sec_class}, should have been {fine_to_coarse[sec_class]}")
                     neg_i_count += 1
                     predict_result[ct] = 0
 
@@ -374,6 +374,25 @@ def plot(df: pd.DataFrame,
     plt.cla()
 
 
+def retrieve_error_detection_rule(best_coarse_main_model,
+                                  main_model_name,
+                                  main_lr,
+                                  best_coarse_main_lr,
+                                  secondary_model_name,
+                                  best_coarse_secondary_model,
+                                  secondary_lr,
+                                  best_coarse_secondary_lr,
+                                  corrections):
+    if (best_coarse_main_model == main_model_name and main_lr == best_coarse_main_lr
+            and secondary_model_name == best_coarse_secondary_model and secondary_lr == best_coarse_secondary_lr):
+
+        for coarse_grain_label, coarse_grain_label_data in corrections.items():
+            for fine_grain_label in coarse_grain_label_data.keys():
+                print('Corrections:'
+                      f'error <- predicted_coarse_grain={coarse_grain_label} '
+                      f'and predicted_fine_grain={fine_grain_label}')
+
+
 def run_EDCR(main_granularity: str,
              main_model_name: str,
              main_lr: float,
@@ -462,23 +481,23 @@ def run_EDCR(main_granularity: str,
     df.to_excel(f'{folder}/results.xlsx')
 
     best_coarse_main_model = 'vit_b_16'
-    best_coarse_main_lr = 5e-05
+    best_coarse_main_lr = '5e-05'
     best_coarse_secondary_model = 'vit_l_16'
-    best_coarse_secondary_lr = 1e-05
+    best_coarse_secondary_lr = '1e-05'
 
     print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
           f', secondary: {secondary_model_name}, lr={secondary_lr}'
-          f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}'
-          )
+          f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
 
-    if (best_coarse_main_model == main_model_name and main_lr == best_coarse_main_lr
-            and secondary_model_name == best_coarse_secondary_model and secondary_lr == best_coarse_secondary_lr):
-
-        for coarse_grain_label, coarse_grain_label_data in corrections.items():
-            for fine_grain_label in coarse_grain_label_data.keys():
-                print('Corrections:'
-                      f'error <- predicted_coarse_grain={coarse_grain_label} '
-                      f'and predicted_fine_grain={fine_grain_label}')
+    retrieve_error_detection_rule(best_coarse_main_model=best_coarse_main_model,
+                                  main_model_name=main_model_name,
+                                  main_lr=main_lr,
+                                  best_coarse_main_lr=best_coarse_main_lr,
+                                  secondary_model_name=secondary_model_name,
+                                  best_coarse_secondary_model=best_coarse_secondary_model,
+                                  secondary_lr=secondary_lr,
+                                  best_coarse_secondary_lr=best_coarse_secondary_lr,
+                                  corrections=corrections)
 
 
 def handle_main_file(main_granularity: str,
@@ -496,7 +515,8 @@ def handle_main_file(main_granularity: str,
         prior_acc = accuracy_score(true_data, pred_data)
 
         names_lrs = itertools.product([name for name in vit_pipeline.vit_model_names
-                                       if name != main_model_name and name != 'vit_h_14'], vit_pipeline.lrs)
+                                       if name != main_model_name and name != 'vit_h_14'],
+                                      [str(lr) for lr in vit_pipeline.lrs])
         iterable = [(main_granularity, main_model_name, main_lr, secondary_model_name,
                      secondary_lr, true_data, pred_data, prior_acc)
                     for secondary_model_name, secondary_lr in names_lrs]
@@ -507,8 +527,6 @@ def handle_main_file(main_granularity: str,
 
 
 if __name__ == '__main__':
-
-
     for main_granularity in data_preprocessing.granularities.values():
         suffix = '_coarse' if main_granularity == 'coarse' else ''
         main_true_data = np.load(os.path.join(data_folder, f'test_true{suffix}.npy'))
