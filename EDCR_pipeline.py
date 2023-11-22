@@ -14,6 +14,7 @@ warnings.filterwarnings('ignore')
 
 import vit_pipeline
 import utils
+import data_preprocessing
 
 data_folder = 'results'
 figs_folder = 'figs/'
@@ -508,7 +509,7 @@ def handle_main_file(main_granularity: str,
 if __name__ == '__main__':
 
 
-    for main_granularity in vit_pipeline.granularities.values():
+    for main_granularity in data_preprocessing.granularities.values():
         suffix = '_coarse' if main_granularity == 'coarse' else ''
         main_true_data = np.load(os.path.join(data_folder, f'test_true{suffix}.npy'))
 
