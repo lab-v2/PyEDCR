@@ -242,7 +242,8 @@ def ruleForNPCorrection(all_charts: list,
                         pred_data,
                         epsilon: float,
                         classes,
-                        corrections,
+                        error_detections: dict,
+                        corrections: dict,
                         run_positive_rules: bool = True):
     results = []
     total_results = np.copy(pred_data)
@@ -261,25 +262,26 @@ def ruleForNPCorrection(all_charts: list,
         for cc in NCi:
             tem_cond |= chart[:, cc]
 
+        curr_class = classes[i]
+
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct] and predict_result[ct]:
+                    neg_i_count += 1
+                    predict_result[ct] = 0
 
-                    curr_class = classes[i]
                     sec_class = get_classes(granularity='fine')[np.argmax(cv[4:])]
 
                     if fine_to_coarse[sec_class] != curr_class:
-                        if curr_class not in corrections:
-                            corrections[curr_class] = {sec_class: 1}
-                        elif sec_class not in corrections[curr_class]:
-                            corrections[curr_class][sec_class] = 1
+                        if curr_class not in error_detections:
+                            error_detections[curr_class] = {sec_class: 1}
+                        elif sec_class not in error_detections[curr_class]:
+                            error_detections[curr_class][sec_class] = 1
                         else:
-                            corrections[curr_class][sec_class] += 1
+                            error_detections[curr_class][sec_class] += 1
 
                         # print(f"{main_granularity}-grain class: {curr_class}, "
                         #       f"secondary class: {sec_class}, should have been {fine_to_coarse[sec_class]}")
-                    neg_i_count += 1
-                    predict_result[ct] = 0
 
         CCi = DetUSMPosRuleSelect(i=i,
                                   all_charts=all_charts) if run_positive_rules else []
@@ -290,11 +292,20 @@ def ruleForNPCorrection(all_charts: list,
 
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
-                if tem_cond[ct]:
-                    if not predict_result[ct]:
-                        pos_i_count += 1
-                        predict_result[ct] = 1
-                        total_results[ct] = i
+                if tem_cond[ct] and not predict_result[ct]:
+
+                    pos_i_count += 1
+                    predict_result[ct] = 1
+                    total_results[ct] = i
+
+                    sec_class = get_classes(granularity='fine')[np.argmax(cv[4:])]
+
+                    if curr_class not in corrections:
+                        corrections[curr_class] = {sec_class: 1}
+                    elif sec_class not in corrections[curr_class]:
+                        corrections[curr_class][sec_class] = 1
+                    else:
+                        corrections[curr_class][sec_class] += 1
 
         scores_cor = get_scores(chart[:, 1], predict_result)
         results.extend(scores_cor + [neg_i_count,
@@ -304,7 +315,7 @@ def ruleForNPCorrection(all_charts: list,
     results.extend(get_scores(true_data, total_results))
     posterior_acc = accuracy_score(true_data, total_results)
 
-    return results, posterior_acc, total_results, corrections
+    return results, posterior_acc, total_results, error_detections, corrections
 
 
 def plot(df: pd.DataFrame,
@@ -382,15 +393,15 @@ def retrieve_error_detection_rule(best_coarse_main_model,
                                   best_coarse_secondary_model,
                                   secondary_lr,
                                   best_coarse_secondary_lr,
-                                  corrections):
+                                  error_detections):
     if (best_coarse_main_model == main_model_name and main_lr == best_coarse_main_lr
             and secondary_model_name == best_coarse_secondary_model and secondary_lr == best_coarse_secondary_lr):
 
-        for coarse_grain_label, coarse_grain_label_data in corrections.items():
+        for coarse_grain_label, coarse_grain_label_data in error_detections.items():
             for fine_grain_label in coarse_grain_label_data.keys():
                 print('Corrections: '
-                      f'error <- predicted_coarse_grain={coarse_grain_label} '
-                      f'and predicted_fine_grain={fine_grain_label}')
+                      f'error <- predicted_coarse_grain = {coarse_grain_label} '
+                      f'and predicted_fine_grain = {fine_grain_label}')
 
 
 def run_EDCR(main_granularity: str,
@@ -455,18 +466,19 @@ def run_EDCR(main_granularity: str,
 
         epsilons = [0.003 * i for i in range(1, 100, 1)]
 
+        error_detections = {}
         corrections = {}
         for e_num, epsilon in tqdm(enumerate(epsilons), total=len(epsilons)):
-            result, posterior_acc, total_results, corrections = ruleForNPCorrection(all_charts=all_charts,
-                                                                                    true_data=true_data,
-                                                                                    pred_data=pred_data,
-                                                                                    classes=classes,
-                                                                                    corrections=corrections,
-                                                                                    epsilon=epsilon)
+            (result, posterior_acc, total_results,
+             error_detections, corrections) = ruleForNPCorrection(all_charts=all_charts,
+                                                                  true_data=true_data,
+                                                                  pred_data=pred_data,
+                                                                  classes=classes,
+                                                                  error_detections=
+                                                                  error_detections,
+                                                                  corrections=corrections,
+                                                                  epsilon=epsilon)
             results.append([epsilon] + result)
-
-
-
 
         col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
         df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
@@ -505,12 +517,15 @@ def run_EDCR(main_granularity: str,
                                       best_coarse_secondary_model=best_coarse_secondary_model,
                                       secondary_lr=secondary_lr,
                                       best_coarse_secondary_lr=best_coarse_secondary_lr,
-                                      corrections=corrections)
+                                      error_detections=error_detections)
+
+        with open(f'{folder}/error_detections.json', 'w') as json_file:
+            json.dump(error_detections, json_file)
 
         with open(f'{folder}/corrections.json', 'w') as json_file:
             json.dump(corrections, json_file)
 
-        print(f'saved corrections to {folder}')
+        print(f'\nsaved error detections and corrections to {folder}\n')
 
 
 def handle_main_file(main_granularity: str,
