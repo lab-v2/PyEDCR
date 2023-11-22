@@ -1,7 +1,8 @@
 import os
-import torch
 import json
 import tqdm
+import torch
+import torch.utils.data
 import numpy as np
 import multiprocessing as mp
 
@@ -29,9 +30,9 @@ best_fine_results = np.load(rf'{EDCR_pipeline.figs_folder}{best_fine_folder}/res
 fine_test_true = np.load(os.path.join(EDCR_pipeline.data_folder, f'test_true.npy'))
 
 
-def m(fine_batch_num: int,
-      fine_data,
-      coarse_test_loader):
+def handle_batch(fine_batch_num: int,
+                 fine_data,
+                 coarse_test_loader: torch.utils.data.DataLoader):
     fines_to_coarses = {}
     fine_images, fine_labels, fine_names = fine_data[0], fine_data[1], fine_data[2]
 
@@ -53,9 +54,18 @@ def m(fine_batch_num: int,
     return fines_to_coarses
 
 
-# def worker_init(args_tuple):
-#     fines_to_coarses = m(*args_tuple)
-#     return fines_to_coarses
+def get_fine_to_coarse():
+    args_list = [(fine_batch_num, fine_data, coarse_test_loader)
+                 for fine_batch_num, fine_data in enumerate(fine_test_loader)]
+
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        fines_to_coarses = pool.starmap(func=handle_batch,
+                                        iterable=args_list)
+
+    with open('fine_to_coarse.json', 'w') as json_file:
+        json.dump(fines_to_coarses, json_file)
+
+
 
 
 if __name__ == "__main__":
@@ -86,17 +96,5 @@ if __name__ == "__main__":
     fine_test_loader = loaders['fine'][f'{fine_fine_tuner}_test_fine']
     coarse_test_loader = loaders['coarse'][f'{coarse_fine_tuner}_test_coarse']
 
-    args_list = [(fine_batch_num, fine_data, coarse_test_loader)
-                 for fine_batch_num, fine_data in enumerate(fine_test_loader)]
-
-
-    with mp.Pool(processes=mp.cpu_count()) as pool:
-        fines_to_coarses = pool.starmap(func=m,
-                                        iterable=args_list)
-
-    # for fine_batch_num, fine_data in tqdm.tqdm(enumerate(fine_test_loader), total=len(fine_test_loader)):
-    #      worker_init((fine_batch_num, fine_data, coarse_test_loader))
-
-    with open('res.json', 'w') as json_file:
-        json.dump(fines_to_coarses, json_file)
+    get_fine_to_coarse()
 
