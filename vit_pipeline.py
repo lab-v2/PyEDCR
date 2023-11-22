@@ -201,7 +201,6 @@ def run_pipeline(granularity_index: int):
                                              test_folder_name=test_folder_name)
 
     for fine_tuner in fine_tuners:
-        # try:
         print(f'Initiating {fine_tuner}')
 
         with context_handlers.ClearSession():

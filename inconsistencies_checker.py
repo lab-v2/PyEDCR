@@ -54,7 +54,8 @@ def handle_batch(fine_batch_num: int,
     return fines_to_coarses
 
 
-def get_fine_to_coarse():
+def get_fine_to_coarse(coarse_test_loader,
+                       fine_test_loader):
     args_list = [(fine_batch_num, fine_data, coarse_test_loader)
                  for fine_batch_num, fine_data in enumerate(fine_test_loader)]
 
@@ -64,8 +65,6 @@ def get_fine_to_coarse():
 
     with open('fine_to_coarse.json', 'w') as json_file:
         json.dump(fines_to_coarses, json_file)
-
-
 
 
 if __name__ == "__main__":
@@ -96,5 +95,6 @@ if __name__ == "__main__":
     fine_test_loader = loaders['fine'][f'{fine_fine_tuner}_test_fine']
     coarse_test_loader = loaders['coarse'][f'{coarse_fine_tuner}_test_coarse']
 
-    get_fine_to_coarse()
+    get_fine_to_coarse(coarse_test_loader=coarse_test_loader,
+                       fine_test_loader=fine_test_loader)
 

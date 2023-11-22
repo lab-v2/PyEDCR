@@ -47,7 +47,7 @@ fine_to_coarse = get_fine_to_coarse()
 
 
 def get_classes(granularity: str):
-    return fine_grain_classes if granularity == 'fine' else coarse_grain_classes
+    return sorted(fine_grain_classes if granularity == 'fine' else coarse_grain_classes)
 
 
 def get_condition_values(i: int,
