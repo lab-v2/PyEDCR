@@ -388,7 +388,7 @@ def retrieve_error_detection_rule(best_coarse_main_model,
 
         for coarse_grain_label, coarse_grain_label_data in corrections.items():
             for fine_grain_label in coarse_grain_label_data.keys():
-                print('Corrections:'
+                print('Corrections: '
                       f'error <- predicted_coarse_grain={coarse_grain_label} '
                       f'and predicted_fine_grain={fine_grain_label}')
 
@@ -466,6 +466,9 @@ def run_EDCR(main_granularity: str,
                                                                                     epsilon=epsilon)
             results.append([epsilon] + result)
 
+
+
+
         col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
         df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
 
@@ -504,6 +507,8 @@ def run_EDCR(main_granularity: str,
                                       secondary_lr=secondary_lr,
                                       best_coarse_secondary_lr=best_coarse_secondary_lr,
                                       corrections=corrections)
+
+        np.save(f'{folder}/corrections.npy', corrections)
 
 
 def handle_main_file(main_granularity: str,
