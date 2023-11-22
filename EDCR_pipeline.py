@@ -1,5 +1,6 @@
 import re
 import os
+import json
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -506,7 +507,10 @@ def run_EDCR(main_granularity: str,
                                       best_coarse_secondary_lr=best_coarse_secondary_lr,
                                       corrections=corrections)
 
-        np.save(f'{folder}/corrections.npy', corrections)
+        with open(f'{folder}/corrections.json', 'w') as json_file:
+            json.dump(corrections, json_file)
+
+        print(f'saved corrections to {folder}')
 
 
 def handle_main_file(main_granularity: str,
