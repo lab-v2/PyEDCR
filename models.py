@@ -2,7 +2,6 @@ import re
 import os
 import abc
 import torch
-import typing
 import torchvision
 
 
@@ -38,16 +37,10 @@ class InceptionV3FineTuner(FineTuner):
 
 class VITFineTuner(FineTuner):
     def __init__(self,
-                 vit_model: typing.Union[int, str],
-                 vit_model_names: list,
+                 vit_model_name: str,
                  num_classes: int):
         super().__init__(num_classes=num_classes)
-        if isinstance(vit_model, int):
-            self.vit_model_index = vit_model
-            self.vit_model_name = vit_model_names[vit_model]
-        else:
-            self.vit_model_index = vit_model_names[vit_model_names.index(vit_model)]
-            self.vit_model_name = vit_model
+        self.vit_model_name = vit_model_name
 
         vit_model = eval(f'torchvision.models.{self.vit_model_name}')
         vit_weights = eval(
@@ -67,7 +60,8 @@ class VITFineTuner(FineTuner):
 
 
 class ImageFolderWithName(torchvision.datasets.ImageFolder):
-    def __getitem__(self, index: int):
+    def __getitem__(self,
+                    index: int):
         path, target = self.samples[index]
         image = self.loader(path)
 

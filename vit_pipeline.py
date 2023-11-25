@@ -7,18 +7,18 @@ from sklearn.metrics import accuracy_score
 from time import time
 from typing import Tuple
 import pathlib
+import multiprocessing as mp
 
 import context_handlers
 import models
 import utils
 import data_preprocessing
 
-
 batch_size = 32
-lrs = [1e-6, 1e-5, 5e-5]
+lrs = [1e-6]
 scheduler_gamma = 0.1
 num_epochs = 4
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16', 'b_32', 'l_16', 'l_32', 'h_14']]
+vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
 
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
@@ -167,30 +167,24 @@ def fine_tune(fine_tuner: models.FineTuner,
             np.save(f"{results_path}test_true_{granularity}.npy", test_ground_truths)
 
 
-def run_pipeline(granularity_index: int):
-    granularity = data_preprocessing.granularities[granularity_index]
-
+def run_pipeline(granularity: str):
     train_folder_name = f'train_{granularity}'
     test_folder_name = f'test_{granularity}'
     files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
     results_path = fr'{files_path}results/'
     utils.create_directory(results_path)
 
-    print(f'Running {granularity}-grain pipeline...')
-    print(F'Learning rates: {lrs}')
+    print(f'Running {granularity}-grain pipeline...\n')
 
-    print(f'Models: {vit_model_names}')
-
-    datasets, n = data_preprocessing.get_datasets(model_names=vit_model_names,
-                                                  cwd=cwd,
-                                                  train_folder_name=train_folder_name,
-                                                  test_folder_name=test_folder_name)
+    datasets, num_classes = data_preprocessing.get_datasets(cwd=cwd,
+                                                            granularity=granularity)
 
     device = torch.device('mps' if torch.backends.mps.is_available() else
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
 
-    fine_tuners = [models.VITFineTuner(model_name, vit_model_names, n) for model_name in vit_model_names]
+    fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+                                       num_classes=num_classes) for vit_model_name in vit_model_names]
 
     print(f'Fine tuners: {[str(fine_tuner) for fine_tuner in fine_tuners]}')
 
@@ -215,5 +209,8 @@ def run_pipeline(granularity_index: int):
 
 
 if __name__ == '__main__':
-    granularity_index = 0
-    run_pipeline(granularity_index=granularity_index)
+    print(f'Models: {vit_model_names}\nLearning rates: {lrs}')
+
+    with mp.Pool(processes=len(data_preprocessing.granularities)) as pool:
+        pool.starmap(func=run_pipeline,
+                     iterable=[[k] for k in data_preprocessing.granularities.values()])
