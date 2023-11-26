@@ -208,9 +208,13 @@ def run_pipeline(granularity: str):
             print('#' * 100)
 
 
-if __name__ == '__main__':
+def main():
     print(f'Models: {vit_model_names}\nLearning rates: {lrs}')
 
     with mp.Pool(processes=len(data_preprocessing.granularities)) as pool:
         pool.starmap(func=run_pipeline,
                      iterable=[[k] for k in data_preprocessing.granularities.values()])
+
+
+if __name__ == '__main__':
+    main()
