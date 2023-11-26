@@ -71,13 +71,12 @@ def fine_tune(fine_tuner: models.FineTuner,
               device: torch.device,
               loaders: dict[str, torch.utils.data.DataLoader],
               granularity: str,
-              train_folder_name: str,
               test_folder_name: str,
               results_path: str):
     fine_tuner.to(device)
     fine_tuner.train()
 
-    train_loader = loaders[f'{fine_tuner}_{train_folder_name}']
+    train_loader = loaders['train']
     num_batches = len(train_loader)
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -189,10 +188,7 @@ def run_pipeline(granularity: str):
     print(f'Fine tuners: {[str(fine_tuner) for fine_tuner in fine_tuners]}')
 
     loaders = data_preprocessing.get_loaders(datasets=datasets,
-                                             batch_size=batch_size,
-                                             model_names=vit_model_names,
-                                             train_folder_name=train_folder_name,
-                                             test_folder_name=test_folder_name)
+                                             batch_size=batch_size)
 
     for fine_tuner in fine_tuners:
         print(f'Initiating {fine_tuner}')
@@ -202,18 +198,18 @@ def run_pipeline(granularity: str):
                       device=device,
                       loaders=loaders,
                       granularity=granularity,
-                      train_folder_name=train_folder_name,
                       test_folder_name=test_folder_name,
                       results_path=results_path)
             print('#' * 100)
 
 
 def main():
-    print(f'Models: {vit_model_names}\nLearning rates: {lrs}')
 
-    with mp.Pool(processes=len(data_preprocessing.granularities)) as pool:
-        pool.starmap(func=run_pipeline,
-                     iterable=[[k] for k in data_preprocessing.granularities.values()])
+    print(f'Models: {vit_model_names}\nLearning rates: {lrs}')
+    run_pipeline(list(data_preprocessing.granularities.values())[0])
+    # with mp.Pool(processes=len(data_preprocessing.granularities)) as pool:
+    #     pool.starmap(func=run_pipeline,
+    #                  iterable=[[k] for k in data_preprocessing.granularities.values()])
 
 
 if __name__ == '__main__':
