@@ -17,7 +17,7 @@ import data_preprocessing
 batch_size = 32
 lrs = [1e-6]
 scheduler_gamma = 0.1
-num_epochs = 4
+num_epochs = 10
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
 
 cwd = pathlib.Path(__file__).parent.resolve()
@@ -35,7 +35,7 @@ def test(fine_tuner: models.FineTuner,
     test_ground_truth = []
     name_list = []
 
-    print(f'Started testing {fine_tuner} on {device}...')
+    print(f'Testing {fine_tuner} on {device}...')
 
     with torch.no_grad():
         if utils.is_local():
@@ -92,11 +92,11 @@ def fine_tune(fine_tuner: models.FineTuner,
 
         test_accuracies = []
 
-        print(f'Started fine-tuning {fine_tuner} with lr={lr} on {device}...')
+        print(f'Fine-tuning {granularity}-grain {fine_tuner} with {len(fine_tuner)} parameters '
+              f'using lr={lr} on {device}...')
 
         for epoch in range(num_epochs):
 
-            # print(f'Started epoch {epoch + 1}/{num_epochs}...')
             epoch_start_time = time()
             running_loss = 0.0
             train_predictions = []
@@ -111,8 +111,6 @@ def fine_tune(fine_tuner: models.FineTuner,
             for batch_num, batch in batches:
                 with context_handlers.ClearCache(device=device):
                     batch_start_time = time()
-                    # if batch_num % 10 == 0:
-                    #     print(f'Started batch {batch_num + 1}/{num_batches}')
 
                     X, Y = batch[0].to(device), batch[1].to(device)
                     optimizer.zero_grad()
@@ -133,18 +131,17 @@ def fine_tune(fine_tuner: models.FineTuner,
                     del X
                     del Y
 
-                    if not utils.is_local():
-                        print(f'Completed batch {batch_num}/{len(batch)} in {time() - batch_start_time} seconds')
+                    if not utils.is_local() and batch_num % 10 == 0:
+                        print(f'Completed batch {batch_num}/{num_batches} in {time() - batch_start_time} seconds')
 
             true_labels = np.array(train_ground_truths)
             predicted_labels = np.array(train_predictions)
             acc = accuracy_score(true_labels, predicted_labels)
-            # train.report({"mean_accuracy": acc})
 
-            print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
+            print(f'\nModel: {granularity}-grain {fine_tuner}\n'
                   f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}, '
                   f'\nTraining loss: {round(running_loss / num_batches, 3)}'
-                  f'\ntraining accuracy: {round(acc, 3)}\n')
+                  f'\nTraining accuracy: {round(acc, 3)}\n')
 
             train_accuracies += [acc]
             train_losses += [running_loss / num_batches]
@@ -188,8 +185,6 @@ def run_pipeline(granularity: str):
                                              batch_size=batch_size)
 
     for fine_tuner in fine_tuners:
-        print(f'Initiating {fine_tuner}')
-
         with context_handlers.ClearSession():
             fine_tune(fine_tuner=fine_tuner,
                       device=device,
