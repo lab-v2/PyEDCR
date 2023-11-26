@@ -26,9 +26,8 @@ scheduler_step_size = num_epochs
 
 def test(fine_tuner: models.FineTuner,
          loaders: dict[str, torch.utils.data.DataLoader],
-         device: torch.device,
-         test_folder_name: str) -> Tuple[list[int], list[int], float]:
-    test_loader = loaders[f'{fine_tuner}_{test_folder_name}']
+         device: torch.device) -> Tuple[list[int], list[int], float]:
+    test_loader = loaders['test']
     fine_tuner.eval()
     correct = 0
     total = 0
@@ -71,7 +70,6 @@ def fine_tune(fine_tuner: models.FineTuner,
               device: torch.device,
               loaders: dict[str, torch.utils.data.DataLoader],
               granularity: str,
-              test_folder_name: str,
               results_path: str):
     fine_tuner.to(device)
     fine_tuner.train()
@@ -99,7 +97,7 @@ def fine_tune(fine_tuner: models.FineTuner,
         for epoch in range(num_epochs):
 
             # print(f'Started epoch {epoch + 1}/{num_epochs}...')
-            t1 = time()
+            epoch_start_time = time()
             running_loss = 0.0
             train_predictions = []
             train_ground_truths = []
@@ -112,6 +110,7 @@ def fine_tune(fine_tuner: models.FineTuner,
 
             for batch_num, batch in batches:
                 with context_handlers.ClearCache(device=device):
+                    batch_start_time = time()
                     # if batch_num % 10 == 0:
                     #     print(f'Started batch {batch_num + 1}/{num_batches}')
 
@@ -134,13 +133,16 @@ def fine_tune(fine_tuner: models.FineTuner,
                     del X
                     del Y
 
+                    if not utils.is_local():
+                        print(f'Completed batch {batch_num}/{len(batch)} in {time() - batch_start_time} seconds')
+
             true_labels = np.array(train_ground_truths)
             predicted_labels = np.array(train_predictions)
             acc = accuracy_score(true_labels, predicted_labels)
             # train.report({"mean_accuracy": acc})
 
             print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
-                  f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - t1))}, '
+                  f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}, '
                   f'\nTraining loss: {round(running_loss / num_batches, 3)}'
                   f'\ntraining accuracy: {round(acc, 3)}\n')
 
@@ -149,8 +151,7 @@ def fine_tune(fine_tuner: models.FineTuner,
             scheduler.step()
             test_ground_truths, test_predictions, test_accuracy = test(fine_tuner=fine_tuner,
                                                                        loaders=loaders,
-                                                                       device=device,
-                                                                       test_folder_name=test_folder_name)
+                                                                       device=device)
             test_accuracies += [test_accuracy]
             print('#' * 100)
 
@@ -167,13 +168,11 @@ def fine_tune(fine_tuner: models.FineTuner,
 
 
 def run_pipeline(granularity: str):
-    train_folder_name = f'train_{granularity}'
-    test_folder_name = f'test_{granularity}'
     files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
     results_path = fr'{files_path}results/'
     utils.create_directory(results_path)
 
-    print(f'Running {granularity}-grain pipeline...\n')
+    print(f'\nRunning {granularity}-grain pipeline...')
 
     datasets, num_classes = data_preprocessing.get_datasets(cwd=cwd,
                                                             granularity=granularity)
@@ -184,8 +183,6 @@ def run_pipeline(granularity: str):
 
     fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
                                        num_classes=num_classes) for vit_model_name in vit_model_names]
-
-    print(f'Fine tuners: {[str(fine_tuner) for fine_tuner in fine_tuners]}')
 
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size)
@@ -198,13 +195,11 @@ def run_pipeline(granularity: str):
                       device=device,
                       loaders=loaders,
                       granularity=granularity,
-                      test_folder_name=test_folder_name,
                       results_path=results_path)
             print('#' * 100)
 
 
 def main():
-
     print(f'Models: {vit_model_names}\nLearning rates: {lrs}')
     run_pipeline(list(data_preprocessing.granularities.values())[0])
     # with mp.Pool(processes=len(data_preprocessing.granularities)) as pool:
