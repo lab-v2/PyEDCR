@@ -242,9 +242,9 @@ def ruleForNPCorrection(all_charts: list,
                     neg_i_count += 1
                     predict_result[ct] = 0
 
-                    sec_class = get_classes(granularity='fine')[np.argmax(cv[4:])]
+                    sec_class = data_preprocessing.get_classes(granularity='fine')[np.argmax(cv[4:])]
 
-                    if fine_to_coarse[sec_class] != curr_class:
+                    if data_preprocessing.fine_to_coarse[sec_class] != curr_class:
                         if curr_class not in error_detections:
                             error_detections[curr_class] = {sec_class: 1}
                         elif sec_class not in error_detections[curr_class]:
@@ -270,7 +270,7 @@ def ruleForNPCorrection(all_charts: list,
                     predict_result[ct] = 1
                     total_results[ct] = i
 
-                    sec_class = get_classes(granularity='fine')[np.argmax(cv[4:])]
+                    sec_class = data_preprocessing.get_classes(granularity='fine')[np.argmax(cv[4:])]
 
                     if curr_class not in corrections:
                         corrections[curr_class] = {sec_class: 1}
@@ -393,7 +393,7 @@ def run_EDCR(main_granularity: str,
             best_coarse_main_lr == main_lr and secondary_model_name == best_coarse_secondary_model and \
             secondary_lr == best_coarse_secondary_lr:
 
-        classes = get_classes(granularity=main_granularity)
+        classes = data_preprocessing.get_classes(granularity=main_granularity)
         cla_datas = {}
 
         relevant_granularities = ['fine']

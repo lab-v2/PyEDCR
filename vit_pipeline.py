@@ -281,8 +281,6 @@ def run_testing_pipeline(testing_model_name: str,
         np.save(f"{results_path}{fine_tuner}_test_fine_pred_lr{testing_lr}.npy", test_fine_prediction)
         np.save(f"{results_path}{fine_tuner}_test_coarse_pred_lr{testing_lr}.npy", test_coarse_prediction)
 
-        print(f'Fine accuracy: {test_fine_accuracy}\nCoarse accuracy: {test_coarse_accuracy}')
-
         np.save(f"{results_path}test_fine_true.npy", test_fine_ground_truth)
         np.save(f"{results_path}test_coarse_true.npy", test_coarse_ground_truth)
 
