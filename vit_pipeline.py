@@ -15,7 +15,7 @@ batch_size = 32
 lrs = [1e-6]
 scheduler_gamma = 0.1
 num_epochs = 10
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
+vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_32']]
 
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
@@ -108,6 +108,7 @@ def fine_tune(fine_tuner: models.FineTuner,
         test_coarse_accuracies = []
 
         print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters using lr={lr} on {device}...')
+        print('#' * 100)
 
         for epoch in range(num_epochs):
 
@@ -243,10 +244,6 @@ def run_pipeline(debug: bool = False):
 def main():
     print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
     run_pipeline(debug=False)
-
-    # with mp.Pool(processes=len(data_preprocessing.granularities)) as pool:
-    #     pool.starmap(func=run_pipeline,
-    #                  iterable=[[granularity] for granularity in data_preprocessing.granularities.values()])
 
 
 if __name__ == '__main__':
