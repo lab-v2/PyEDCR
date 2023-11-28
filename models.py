@@ -1,5 +1,4 @@
 import re
-import os
 import abc
 import torch
 import torchvision
@@ -57,19 +56,3 @@ class VITFineTuner(FineTuner):
     def __str__(self):
         return self.vit_model_name
 
-
-
-class ImageFolderWithName(torchvision.datasets.ImageFolder):
-    def __getitem__(self,
-                    index: int):
-        path, target = self.samples[index]
-        image = self.loader(path)
-
-        if self.transform is not None:
-            image = self.transform(image)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-        name = os.path.basename(path)
-        folder_path = os.path.basename(os.path.dirname(path))
-
-        return image, target, f'{folder_path}/{name}'

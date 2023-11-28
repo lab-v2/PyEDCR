@@ -1,13 +1,11 @@
 import os
 import torch
-import torchvision
 import torch.utils.data
 import numpy as np
 from sklearn.metrics import accuracy_score
 from time import time
 from typing import Tuple
 import pathlib
-import multiprocessing as mp
 
 import context_handlers
 import models
@@ -69,8 +67,9 @@ def test(fine_tuner: models.FineTuner,
 def fine_tune(fine_tuner: models.FineTuner,
               device: torch.device,
               loaders: dict[str, torch.utils.data.DataLoader],
-              granularity: str,
-              results_path: str):
+              results_path: str,
+              num_fine_grain_classes: int,
+              ):
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -92,8 +91,7 @@ def fine_tune(fine_tuner: models.FineTuner,
 
         test_accuracies = []
 
-        print(f'Fine-tuning {granularity}-grain {fine_tuner} with {len(fine_tuner)} parameters '
-              f'using lr={lr} on {device}...')
+        print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters using lr={lr} on {device}...')
 
         for epoch in range(num_epochs):
 
@@ -112,24 +110,25 @@ def fine_tune(fine_tuner: models.FineTuner,
                 with context_handlers.ClearCache(device=device):
                     batch_start_time = time()
 
-                    X, Y = batch[0].to(device), batch[1].to(device)
+                    X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
                     optimizer.zero_grad()
                     Y_pred = fine_tuner(X)
+                    Y_pred_fine_grain = Y_pred[:, num_fine_grain_classes]
+                    Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
 
-                    if isinstance(Y_pred, torchvision.models.InceptionOutputs):
-                        Y_pred = Y_pred[0]
-
-                    loss = criterion(Y_pred, Y)
+                    fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
+                    coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
+                    loss = fine_grain_loss + coarse_grain_loss
                     loss.backward()
                     optimizer.step()
                     running_loss += loss.item()
 
-                    predicted = torch.max(Y_pred, 1)[1]
-                    train_ground_truths += Y.tolist()
-                    train_predictions += predicted.tolist()
+                    predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
+                    predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
+                    train_ground_truths += Y_fine_grain.tolist() + Y_coarse_grain.tolist()
+                    train_predictions += predicted_fine.tolist() + predicted_coarse.tolist()
 
-                    del X
-                    del Y
+                    del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
 
                     if not utils.is_local() and batch_num % 10 == 0:
                         print(f'Completed batch {batch_num}/{num_batches} in {time() - batch_start_time} seconds')
@@ -138,7 +137,7 @@ def fine_tune(fine_tuner: models.FineTuner,
             predicted_labels = np.array(train_predictions)
             acc = accuracy_score(true_labels, predicted_labels)
 
-            print(f'\nModel: {granularity}-grain {fine_tuner}\n'
+            print(f'\nModel: {fine_tuner}\n'
                   f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}, '
                   f'\nTraining loss: {round(running_loss / num_batches, 3)}'
                   f'\nTraining accuracy: {round(acc, 3)}\n')
@@ -152,34 +151,32 @@ def fine_tune(fine_tuner: models.FineTuner,
             test_accuracies += [test_accuracy]
             print('#' * 100)
 
-            np.save(f"{results_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}_{granularity}.npy", train_accuracies)
-            np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}_{granularity}.npy", train_losses)
+            np.save(f"{results_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}.npy", train_accuracies)
+            np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}.npy", train_losses)
 
-            np.save(f"{results_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}_{granularity}.npy", test_accuracies)
-            np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}_{granularity}.npy", test_predictions)
+            np.save(f"{results_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}.npy", test_accuracies)
+            np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
 
-        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{granularity}.pth")
+        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
-        if not os.path.exists(f"{results_path}test_true_{granularity}.npy"):
-            np.save(f"{results_path}test_true_{granularity}.npy", test_ground_truths)
+        if not os.path.exists(f"{results_path}test_true.npy"):
+            np.save(f"{results_path}test_true.npy", test_ground_truths)
 
 
-def run_pipeline(granularity: str):
+def run_pipeline():
     files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
     results_path = fr'{files_path}results/'
     utils.create_directory(results_path)
 
-    print(f'\nRunning {granularity}-grain pipeline...')
-
-    datasets, num_classes = data_preprocessing.get_datasets(cwd=cwd,
-                                                            granularity=granularity)
+    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
     device = torch.device('mps' if torch.backends.mps.is_available() else
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
 
     fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
-                                       num_classes=num_classes) for vit_model_name in vit_model_names]
+                                       num_classes=num_fine_grain_classes + num_coarse_grain_classes)
+                   for vit_model_name in vit_model_names]
 
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size)
@@ -189,15 +186,14 @@ def run_pipeline(granularity: str):
             fine_tune(fine_tuner=fine_tuner,
                       device=device,
                       loaders=loaders,
-                      granularity=granularity,
-                      results_path=results_path)
+                      results_path=results_path,
+                      num_fine_grain_classes=num_fine_grain_classes)
             print('#' * 100)
 
 
 def main():
-    for granularity in data_preprocessing.granularities.values():
-        print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
-        run_pipeline(granularity)
+    print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
+    run_pipeline()
 
     # with mp.Pool(processes=len(data_preprocessing.granularities)) as pool:
     #     pool.starmap(func=run_pipeline,

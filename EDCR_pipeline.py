@@ -22,34 +22,6 @@ figs_folder = 'figs/'
 results_folder = '.'
 results_file = results_folder + "rule_for_NPcorrection.csv"
 
-data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
-fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-fine_grain_classes = fine_grain_results_df['Class Name'].to_list()
-coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-coarse_grain_classes = coarse_grain_results_df['Class Name'].to_list()
-
-
-def get_fine_to_coarse():
-    fine_to_coarse = {}
-    training_df = dataframes_by_sheet['Training']
-
-    assert set(training_df['Fine-Grain Ground Truth'].unique().tolist()).intersection(fine_grain_classes) == set(
-        fine_grain_classes)
-
-    for fine_grain_class in fine_grain_classes:
-        curr_fine_grain_training_data = training_df[training_df['Fine-Grain Ground Truth'] == fine_grain_class]
-        assert curr_fine_grain_training_data['Course-Grain Ground Truth'].nunique() == 1
-        fine_to_coarse[fine_grain_class] = curr_fine_grain_training_data['Course-Grain Ground Truth'].iloc[0]
-
-    return fine_to_coarse
-
-
-fine_to_coarse = get_fine_to_coarse()
-
-
-def get_classes(granularity: str):
-    return sorted(fine_grain_classes if granularity == 'fine' else coarse_grain_classes)
 
 
 def get_condition_values(i: int,
