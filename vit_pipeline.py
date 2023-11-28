@@ -166,10 +166,10 @@ def fine_tune(fine_tuner: models.FineTuner,
 
                     del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
 
-                    if not utils.is_local() and batch_num % 10 == 0:
-                        print(f'Completed batch {batch_num}/{num_batches} in {round(time() - batch_start_time, 1)} '
-                              f'seconds. Fine loss: {round(batch_fine_grain_loss.item(), 3)}, '
-                              f'coarse loss: {round(batch_coarse_grain_loss.item(), 3)}')
+                    if not utils.is_local() and batch_num > 0 and batch_num % 10 == 0:
+                        print(f'Completed batch num {batch_num}/{num_batches} in {round(time() - batch_start_time, 1)} '
+                              f'seconds. Batch fine-grain loss: {round(batch_fine_grain_loss.item(), 3)}, '
+                              f'batch coarse-grain loss: {round(batch_coarse_grain_loss.item(), 3)}')
 
             training_fine_accuracy = accuracy_score(y_true=np.array(train_fine_ground_truths),
                                                     y_pred=np.array(train_fine_predictions))
