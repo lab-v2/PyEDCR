@@ -201,18 +201,21 @@ def fine_tune(fine_tuner: models.FineTuner,
             test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
 
-            np.save(f"{results_path}{fine_tuner}_test_fine_acc_lr{lr}_e{epoch}.npy", test_fine_accuracies)
-            np.save(f"{results_path}{fine_tuner}_test_coarse_acc_lr{lr}_e{epoch}.npy", test_coarse_accuracies)
+
 
             np.save(f"{results_path}{fine_tuner}_test_fine_pred_lr{lr}_e{epoch}.npy", test_fine_prediction)
             np.save(f"{results_path}{fine_tuner}_test_coarse_pred_lr{lr}_e{epoch}.npy", test_coarse_prediction)
 
-        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
+
+        np.save(f"{results_path}{fine_tuner}_test_fine_acc_lr{lr}.npy", test_fine_accuracies)
+        np.save(f"{results_path}{fine_tuner}_test_coarse_acc_lr{lr}.npy", test_coarse_accuracies)
 
         if not os.path.exists(f"{results_path}test_fine_true.npy"):
-            np.save(f"{results_path}test_true.npy", test_fine_ground_truths)
+            np.save(f"{results_path}test_fine_true.npy", test_fine_ground_truths)
         if not os.path.exists(f"{results_path}test_coarse_true.npy"):
-            np.save(f"{results_path}test_true.npy", test_coarse_ground_truths)
+            np.save(f"{results_path}test_coarse_true.npy", test_coarse_ground_truths)
+
+        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
 
 def run_pipeline(debug: bool = False):
