@@ -140,16 +140,16 @@ def fine_tune(fine_tuner: models.FineTuner,
                     Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
                     Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
 
-                    fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
-                    coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
+                    batch_fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
+                    batch_coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
 
-                    total_loss = fine_grain_loss + coarse_grain_loss
-                    total_loss.backward()
+                    batch_total_loss = batch_fine_grain_loss + batch_coarse_grain_loss
+                    batch_total_loss.backward()
                     optimizer.step()
 
-                    total_running_loss += total_loss.item()
-                    fine_running_loss += fine_grain_loss.item()
-                    coarse_running_loss += coarse_grain_loss.item()
+                    total_running_loss += batch_total_loss.item()
+                    fine_running_loss += batch_fine_grain_loss.item()
+                    coarse_running_loss += batch_coarse_grain_loss.item()
 
                     predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
                     predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
@@ -164,7 +164,8 @@ def fine_tune(fine_tuner: models.FineTuner,
 
                     if not utils.is_local() and batch_num % 10 == 0:
                         print(f'Completed batch {batch_num}/{num_batches} in {round(time() - batch_start_time, 1)} '
-                              f'seconds. Current total loss: {round(total_loss.item(), 3)}')
+                              f'seconds. Fine loss: {round(batch_fine_grain_loss.item(), 3)}, '
+                              f'coarse loss: {round(batch_coarse_grain_loss.item(), 3)}')
 
             training_fine_accuracy = accuracy_score(y_true=np.array(train_fine_ground_truths),
                                                     y_pred=np.array(train_fine_predictions))
