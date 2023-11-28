@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from time import time
 import pathlib
+import typing
 
 import context_handlers
 import models
@@ -19,6 +20,9 @@ vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
 
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
+
+files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
+results_path = fr'{files_path}results/'
 
 
 def test(fine_tuner: models.FineTuner,
@@ -80,7 +84,6 @@ def fine_tune(fine_tuner: models.FineTuner,
               num_fine_grain_classes: int,
               num_coarse_grain_classes: int
               ):
-    fine_tuner.to(device)
     fine_tuner.train()
 
     train_loader = loaders['train']
@@ -201,11 +204,8 @@ def fine_tune(fine_tuner: models.FineTuner,
             test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
 
-
-
             np.save(f"{results_path}{fine_tuner}_test_fine_pred_lr{lr}_e{epoch}.npy", test_fine_prediction)
             np.save(f"{results_path}{fine_tuner}_test_coarse_pred_lr{lr}_e{epoch}.npy", test_coarse_prediction)
-
 
         np.save(f"{results_path}{fine_tuner}_test_fine_acc_lr{lr}.npy", test_fine_accuracies)
         np.save(f"{results_path}{fine_tuner}_test_coarse_acc_lr{lr}.npy", test_coarse_accuracies)
@@ -218,9 +218,9 @@ def fine_tune(fine_tuner: models.FineTuner,
         torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
 
-def run_pipeline(debug: bool = False):
-    files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
-    results_path = fr'{files_path}results/'
+def initialize(debug: bool = False,
+               predefined_weights_path: str = None):
+
     utils.create_directory(results_path)
 
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
@@ -229,13 +229,30 @@ def run_pipeline(debug: bool = False):
         torch.device('mps' if torch.backends.mps.is_available() else
                      ("cuda" if torch.cuda.is_available() else 'cpu')))
     print(f'Using {device}')
+    n_classes = num_fine_grain_classes + num_coarse_grain_classes
 
-    fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
-                                       num_classes=num_fine_grain_classes + num_coarse_grain_classes)
+    fine_tuners = [models.VITFineTuner.with_predefined_weights(vit_model_name=vit_model_name,
+                                                               num_classes=n_classes,
+                                                               predefined_weights_path=predefined_weights_path,
+                                                               device=device)
+                   if predefined_weights_path is not None else
+                   models.VITFineTuner(vit_model_name=vit_model_name,
+                                       num_classes=n_classes)
                    for vit_model_name in vit_model_names]
+
+    for fine_tuner in fine_tuners:
+        fine_tuner.to(device)
 
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size)
+
+    return fine_tuners, device, loaders, num_fine_grain_classes, num_coarse_grain_classes
+
+
+def run_fine_tuning_pipeline(debug: bool = False):
+    print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
+
+    fine_tuners, device, loaders, num_fine_grain_classes, num_coarse_grain_classes = initialize(debug)
 
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
@@ -248,10 +265,33 @@ def run_pipeline(debug: bool = False):
             print('#' * 100)
 
 
-def main():
-    print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
-    run_pipeline(debug=False)
+def run_testing_pipeline(testing_model_name: str,
+                         testing_lr: typing.Union[str, float]):
+    predefined_weights_path = f'{results_path}{testing_model_name}_lr{testing_lr}.pth'
+    fine_tuners, device, loaders, num_fine_grain_classes, num_coarse_grain_classes = (
+        initialize(predefined_weights_path=predefined_weights_path))
+
+    for fine_tuner in fine_tuners:
+        (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
+         test_fine_accuracy, test_coarse_accuracy) = test(fine_tuner=fine_tuner,
+                                                          loaders=loaders,
+                                                          device=device,
+                                                          num_fine_grain_classes=num_fine_grain_classes)
+
+        np.save(f"{results_path}{fine_tuner}_test_fine_pred_lr{testing_lr}.npy", test_fine_prediction)
+        np.save(f"{results_path}{fine_tuner}_test_coarse_pred_lr{testing_lr}.npy", test_coarse_prediction)
+
+        print(f'Fine accuracy: {test_fine_accuracy}\nCoarse accuracy: {test_coarse_accuracy}')
+
+        np.save(f"{results_path}test_fine_true.npy", test_fine_ground_truth)
+        np.save(f"{results_path}test_coarse_true.npy", test_coarse_ground_truth)
+
+
 
 
 if __name__ == '__main__':
-    main()
+    run_testing_pipeline(testing_model_name='vit_l_16',
+                         testing_lr='0.0001')
+
+    # run_fine_tuning_pipeline(debug=False)
+

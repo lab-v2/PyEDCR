@@ -14,6 +14,10 @@ coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes = sorted(coarse_grain_results_df['Class Name'].to_list())
 
 
+def get_classes(granularity: str):
+    return fine_grain_classes if granularity == 'fine' else coarse_grain_classes
+
+
 def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
     fine_to_coarse = {}
     fine_to_course_idx = {}
