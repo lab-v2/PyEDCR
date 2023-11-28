@@ -113,7 +113,7 @@ def fine_tune(fine_tuner: models.FineTuner,
                     X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
                     optimizer.zero_grad()
                     Y_pred = fine_tuner(X)
-                    Y_pred_fine_grain = Y_pred[:, num_fine_grain_classes]
+                    Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
                     Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
 
                     fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
@@ -163,15 +163,16 @@ def fine_tune(fine_tuner: models.FineTuner,
             np.save(f"{results_path}test_true.npy", test_ground_truths)
 
 
-def run_pipeline():
+def run_pipeline(debug: bool = False):
     files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
     results_path = fr'{files_path}results/'
     utils.create_directory(results_path)
 
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
-    device = torch.device('mps' if torch.backends.mps.is_available() else
-                          ("cuda" if torch.cuda.is_available() else 'cpu'))
+
+    device = torch.device('cpu') if debug else torch.device('mps' if torch.backends.mps.is_available() else
+                                                            ("cuda" if torch.cuda.is_available() else 'cpu'))
     print(f'Using {device}')
 
     fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
@@ -193,7 +194,7 @@ def run_pipeline():
 
 def main():
     print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
-    run_pipeline()
+    run_pipeline(debug=True)
 
     # with mp.Pool(processes=len(data_preprocessing.granularities)) as pool:
     #     pool.starmap(func=run_pipeline,
