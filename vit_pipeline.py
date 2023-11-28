@@ -16,7 +16,7 @@ batch_size = 32
 lrs = [1e-4]
 scheduler_gamma = 0.1
 num_epochs = 10
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
+vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
@@ -207,9 +207,6 @@ def fine_tune(fine_tuner: models.FineTuner,
             np.save(f"{results_path}{fine_tuner}_test_fine_pred_lr{lr}_e{epoch}.npy", test_fine_prediction)
             np.save(f"{results_path}{fine_tuner}_test_coarse_pred_lr{lr}_e{epoch}.npy", test_coarse_prediction)
 
-        np.save(f"{results_path}{fine_tuner}_test_fine_acc_lr{lr}.npy", test_fine_accuracies)
-        np.save(f"{results_path}{fine_tuner}_test_coarse_acc_lr{lr}.npy", test_coarse_accuracies)
-
         if not os.path.exists(f"{results_path}test_fine_true.npy"):
             np.save(f"{results_path}test_fine_true.npy", test_fine_ground_truths)
         if not os.path.exists(f"{results_path}test_coarse_true.npy"):
@@ -283,7 +280,6 @@ def run_testing_pipeline(testing_model_name: str,
 
         np.save(f"{results_path}test_fine_true.npy", test_fine_ground_truth)
         np.save(f"{results_path}test_coarse_true.npy", test_coarse_ground_truth)
-
 
 
 
