@@ -15,7 +15,7 @@ batch_size = 32
 lrs = [1e-6]
 scheduler_gamma = 0.1
 num_epochs = 10
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
+vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
 
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
