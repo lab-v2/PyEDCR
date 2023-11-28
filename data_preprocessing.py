@@ -80,8 +80,7 @@ class ImageFolderWithName(torchvision.datasets.ImageFolder):
 def get_datasets(cwd: typing.Union[str, pathlib.Path],
                  ) -> (dict[str, ImageFolderWithName], int):
     data_dir = pathlib.Path.joinpath(cwd, '.')
-    datasets = {f'{train_or_test}': ImageFolderWithName(root=os.path.join(data_dir,
-                                                                          f'{train_or_test}_fine'),
+    datasets = {f'{train_or_test}': ImageFolderWithName(root=os.path.join(data_dir, train_or_test),
                                                         transform=get_transforms(train_or_test=train_or_test))
                 for train_or_test in ['train', 'test']}
 
