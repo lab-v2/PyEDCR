@@ -4,7 +4,6 @@ import torch.utils.data
 import numpy as np
 from sklearn.metrics import accuracy_score
 from time import time
-from typing import Tuple
 import pathlib
 
 import context_handlers
@@ -25,11 +24,16 @@ scheduler_step_size = num_epochs
 def test(fine_tuner: models.FineTuner,
          loaders: dict[str, torch.utils.data.DataLoader],
          device: torch.device,
-         num_fine_grain_classes: int) -> Tuple[list[int], list[int], float]:
+         num_fine_grain_classes: int) -> (list[int], list[int], list[int], list[int], float, float):
     test_loader = loaders['test']
     fine_tuner.eval()
-    test_prediction = []
-    test_ground_truth = []
+
+    test_fine_prediction = []
+    test_coarse_prediction = []
+
+    test_fine_ground_truth = []
+    test_coarse_ground_truth = []
+
     name_list = []
 
     print(f'Testing {fine_tuner} on {device}...')
@@ -49,15 +53,24 @@ def test(fine_tuner: models.FineTuner,
 
             predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
             predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
-            test_ground_truth += Y_fine_grain.tolist() + Y_coarse_grain.tolist()
-            test_prediction += predicted_fine.tolist() + predicted_coarse.tolist()
 
-            name_list += names  # Collect the name values
+            test_fine_ground_truth += Y_fine_grain.tolist()
+            test_coarse_ground_truth += Y_coarse_grain.tolist()
 
-    test_accuracy = round(accuracy_score(y_true=test_ground_truth, y_pred=test_prediction), 3)
-    print(f'\nTest accuracy: {test_accuracy}')
+            test_fine_prediction += predicted_fine.tolist()
+            test_coarse_prediction += predicted_coarse.tolist()
 
-    return test_ground_truth, test_prediction, test_accuracy
+            name_list += names
+
+    test_fine_accuracy = round(accuracy_score(y_true=test_fine_ground_truth,
+                                              y_pred=test_fine_prediction), 3)
+    test_coarse_accuracy = round(accuracy_score(y_true=test_coarse_ground_truth,
+                                                y_pred=test_coarse_prediction), 3)
+    print(f'\nTest fine accuracy: {test_fine_accuracy}'
+          f'\nTest coarse accuracy: {test_coarse_accuracy}')
+
+    return (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
+            test_fine_accuracy, test_coarse_accuracy)
 
 
 def fine_tune(fine_tuner: models.FineTuner,
@@ -81,20 +94,34 @@ def fine_tune(fine_tuner: models.FineTuner,
                                                     step_size=scheduler_step_size,
                                                     gamma=scheduler_gamma)
 
-        train_losses = []
-        train_accuracies = []
-        test_ground_truths = []
+        train_total_losses = []
+        train_fine_losses = []
+        train_coarse_losses = []
 
-        test_accuracies = []
+        train_fine_accuracies = []
+        train_coarse_accuracies = []
+
+        test_fine_ground_truths = []
+        test_coarse_ground_truths = []
+
+        test_fine_accuracies = []
+        test_coarse_accuracies = []
 
         print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters using lr={lr} on {device}...')
 
         for epoch in range(num_epochs):
 
             epoch_start_time = time()
-            running_loss = 0.0
-            train_predictions = []
-            train_ground_truths = []
+
+            total_running_loss = 0.0
+            fine_running_loss = 0.0
+            coarse_running_loss = 0.0
+
+            train_fine_predictions = []
+            train_coarse_predictions = []
+
+            train_fine_ground_truths = []
+            train_coarse_ground_truths = []
 
             if utils.is_local():
                 from tqdm import tqdm
@@ -108,56 +135,79 @@ def fine_tune(fine_tuner: models.FineTuner,
 
                     X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
                     optimizer.zero_grad()
+
                     Y_pred = fine_tuner(X)
                     Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
                     Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
 
                     fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
                     coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
-                    loss = fine_grain_loss + coarse_grain_loss
-                    loss.backward()
+
+                    total_loss = fine_grain_loss + coarse_grain_loss
+                    total_loss.backward()
                     optimizer.step()
-                    running_loss += loss.item()
+
+                    total_running_loss += total_loss.item()
+                    fine_running_loss += fine_grain_loss.item()
+                    coarse_running_loss += coarse_grain_loss.item()
 
                     predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
                     predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
-                    train_ground_truths += Y_fine_grain.tolist() + Y_coarse_grain.tolist()
-                    train_predictions += predicted_fine.tolist() + predicted_coarse.tolist()
+
+                    train_fine_predictions += predicted_fine.tolist()
+                    train_coarse_predictions += predicted_coarse.tolist()
+
+                    train_fine_ground_truths += Y_fine_grain.tolist()
+                    train_coarse_ground_truths += Y_coarse_grain.tolist()
 
                     del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
 
                     if not utils.is_local() and batch_num % 10 == 0:
-                        print(f'Completed batch {batch_num}/{num_batches} in {time() - batch_start_time} seconds')
+                        print(f'Completed batch {batch_num}/{num_batches} in {round(time() - batch_start_time, 1)} '
+                              f'seconds. Current total loss: {round(total_loss.item(), 3)}')
 
-            true_labels = np.array(train_ground_truths)
-            predicted_labels = np.array(train_predictions)
-            acc = accuracy_score(true_labels, predicted_labels)
+            training_fine_accuracy = accuracy_score(y_true=np.array(train_fine_ground_truths),
+                                                    y_pred=np.array(train_fine_predictions))
+            training_coarse_accuracy = accuracy_score(y_true=np.array(train_coarse_ground_truths),
+                                                      y_pred=np.array(train_coarse_predictions))
 
             print(f'\nModel: {fine_tuner}\n'
-                  f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}, '
-                  f'\nTraining loss: {round(running_loss / num_batches, 3)}'
-                  f'\nTraining accuracy: {round(acc, 3)}\n')
+                  f'Epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}\n'
+                  f'Training total loss: {round(total_running_loss / num_batches, 3)}\n'
+                  f'Training fine loss: {round(fine_running_loss / num_batches, 3)}\n'
+                  f'Training coarse loss: {round(coarse_running_loss / num_batches, 3)}\n'
+                  f'Training fine accuracy: {round(training_fine_accuracy, 3)}\n'
+                  f'Training coarse accuracy: {round(training_coarse_accuracy, 3)}\n')
 
-            train_accuracies += [acc]
-            train_losses += [running_loss / num_batches]
+            train_fine_accuracies += [training_fine_accuracy]
+            train_coarse_accuracies += [training_coarse_accuracy]
+
+            train_total_losses += [total_running_loss / num_batches]
+            train_fine_losses += [fine_running_loss / num_batches]
+            train_coarse_losses += [coarse_running_loss / num_batches]
+
             scheduler.step()
-            test_ground_truths, test_predictions, test_accuracy = test(fine_tuner=fine_tuner,
-                                                                       loaders=loaders,
-                                                                       device=device,
-                                                                       num_fine_grain_classes=num_fine_grain_classes)
-            test_accuracies += [test_accuracy]
+            (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
+             test_fine_accuracy, test_coarse_accuracy) = test(fine_tuner=fine_tuner,
+                                                              loaders=loaders,
+                                                              device=device,
+                                                              num_fine_grain_classes=num_fine_grain_classes)
+            test_fine_accuracies += [test_fine_accuracy]
+            test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
 
-            np.save(f"{results_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}.npy", train_accuracies)
-            np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}.npy", train_losses)
+            np.save(f"{results_path}{fine_tuner}_test_fine_acc_lr{lr}_e{epoch}.npy", test_fine_accuracies)
+            np.save(f"{results_path}{fine_tuner}_test_coarse_acc_lr{lr}_e{epoch}.npy", test_coarse_accuracies)
 
-            np.save(f"{results_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}.npy", test_accuracies)
-            np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}.npy", test_predictions)
+            np.save(f"{results_path}{fine_tuner}_test_fine_pred_lr{lr}_e{epoch}.npy", test_fine_prediction)
+            np.save(f"{results_path}{fine_tuner}_test_coarse_pred_lr{lr}_e{epoch}.npy", test_coarse_prediction)
 
         torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
-        if not os.path.exists(f"{results_path}test_true.npy"):
-            np.save(f"{results_path}test_true.npy", test_ground_truths)
+        if not os.path.exists(f"{results_path}test_fine_true.npy"):
+            np.save(f"{results_path}test_true.npy", test_fine_ground_truths)
+        if not os.path.exists(f"{results_path}test_coarse_true.npy"):
+            np.save(f"{results_path}test_true.npy", test_coarse_ground_truths)
 
 
 def run_pipeline(debug: bool = False):
@@ -166,7 +216,6 @@ def run_pipeline(debug: bool = False):
     utils.create_directory(results_path)
 
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
-
 
     device = torch.device('cpu') if debug and utils.is_local() else (
         torch.device('mps' if torch.backends.mps.is_available() else
@@ -192,7 +241,7 @@ def run_pipeline(debug: bool = False):
 
 def main():
     print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
-    run_pipeline(debug=True)
+    run_pipeline(debug=False)
 
     # with mp.Pool(processes=len(data_preprocessing.granularities)) as pool:
     #     pool.starmap(func=run_pipeline,
