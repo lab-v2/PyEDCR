@@ -12,7 +12,7 @@ import utils
 import data_preprocessing
 
 batch_size = 32
-lrs = [1e-6]
+lrs = [1e-4]
 scheduler_gamma = 0.1
 num_epochs = 10
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
