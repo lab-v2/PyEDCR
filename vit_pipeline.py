@@ -78,6 +78,7 @@ def fine_tune(fine_tuner: models.FineTuner,
               loaders: dict[str, torch.utils.data.DataLoader],
               results_path: str,
               num_fine_grain_classes: int,
+              num_coarse_grain_classes: int
               ):
     fine_tuner.to(device)
     fine_tuner.train()
@@ -85,6 +86,8 @@ def fine_tune(fine_tuner: models.FineTuner,
     train_loader = loaders['train']
     num_batches = len(train_loader)
     criterion = torch.nn.CrossEntropyLoss()
+
+    alpha = num_fine_grain_classes / (num_fine_grain_classes + num_coarse_grain_classes)
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -108,7 +111,7 @@ def fine_tune(fine_tuner: models.FineTuner,
         test_coarse_accuracies = []
 
         print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters using lr={lr} on {device}...')
-        print('#' * 100)
+        print('#' * 100 + '\n')
 
         for epoch in range(num_epochs):
 
@@ -144,7 +147,7 @@ def fine_tune(fine_tuner: models.FineTuner,
                     batch_fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
                     batch_coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
 
-                    batch_total_loss = batch_fine_grain_loss + batch_coarse_grain_loss
+                    batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
                     batch_total_loss.backward()
                     optimizer.step()
 
@@ -237,7 +240,8 @@ def run_pipeline(debug: bool = False):
                       device=device,
                       loaders=loaders,
                       results_path=results_path,
-                      num_fine_grain_classes=num_fine_grain_classes)
+                      num_fine_grain_classes=num_fine_grain_classes,
+                      num_coarse_grain_classes=num_coarse_grain_classes)
             print('#' * 100)
 
 
