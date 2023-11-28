@@ -171,8 +171,9 @@ def run_pipeline(debug: bool = False):
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
 
-    device = torch.device('cpu') if debug else torch.device('mps' if torch.backends.mps.is_available() else
-                                                            ("cuda" if torch.cuda.is_available() else 'cpu'))
+    device = torch.device('cpu') if debug and utils.is_local() else (
+        torch.device('mps' if torch.backends.mps.is_available() else
+                     ("cuda" if torch.cuda.is_available() else 'cpu')))
     print(f'Using {device}')
 
     fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
