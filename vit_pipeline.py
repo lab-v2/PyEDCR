@@ -24,11 +24,10 @@ scheduler_step_size = num_epochs
 
 def test(fine_tuner: models.FineTuner,
          loaders: dict[str, torch.utils.data.DataLoader],
-         device: torch.device) -> Tuple[list[int], list[int], float]:
+         device: torch.device,
+         num_fine_grain_classes: int) -> Tuple[list[int], list[int], float]:
     test_loader = loaders['test']
     fine_tuner.eval()
-    correct = 0
-    total = 0
     test_prediction = []
     test_ground_truth = []
     name_list = []
@@ -43,20 +42,17 @@ def test(fine_tuner: models.FineTuner,
             gen = enumerate(test_loader)
 
         for i, data in gen:
-            pred_temp = []
-            truth_temp = []
-            name_temp = []
-            images, labels, names = data[0].to(device), data[1].to(device), data[2]
-            outputs = fine_tuner(images)
-            predicted = torch.max(outputs.data, 1)[1]
-            test_ground_truth += labels.tolist()
-            test_prediction += predicted.tolist()
+            X, Y_fine_grain, names, Y_coarse_grain = data[0].to(device), data[1].to(device), data[2], data[3].to(device)
+            Y_pred = fine_tuner(X)
+            Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
+            Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
+
+            predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
+            predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
+            test_ground_truth += Y_fine_grain.tolist() + Y_coarse_grain.tolist()
+            test_prediction += predicted_fine.tolist() + predicted_coarse.tolist()
+
             name_list += names  # Collect the name values
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-            pred_temp += predicted.tolist()
-            truth_temp += labels.tolist()
-            name_temp += names
 
     test_accuracy = round(accuracy_score(y_true=test_ground_truth, y_pred=test_prediction), 3)
     print(f'\nTest accuracy: {test_accuracy}')
@@ -147,7 +143,8 @@ def fine_tune(fine_tuner: models.FineTuner,
             scheduler.step()
             test_ground_truths, test_predictions, test_accuracy = test(fine_tuner=fine_tuner,
                                                                        loaders=loaders,
-                                                                       device=device)
+                                                                       device=device,
+                                                                       num_fine_grain_classes=num_fine_grain_classes)
             test_accuracies += [test_accuracy]
             print('#' * 100)
 
