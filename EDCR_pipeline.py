@@ -412,7 +412,6 @@ def run_EDCR(main_model_name: str,
         cla_data = eval(f'secondary_{secondary_granularity}_data')
         cla_datas[secondary_granularity] = np.eye(np.max(cla_data) + 1)[cla_data].T
 
-
     for main_granularity in data_preprocessing.granularities:
         classes = eval(f'data_preprocessing.{main_granularity}_grain_classes')
 
@@ -473,6 +472,7 @@ def run_EDCR(main_model_name: str,
              classes=classes,
              col_num=len(col),
              x_values=df['epsilon'][1:],
+             main_granularity=main_granularity,
              main_model_name=main_model_name,
              main_lr=main_lr,
              secondary_model_name=secondary_model_name,
