@@ -436,8 +436,7 @@ def run_EDCR(main_granularity: str,
                                                               true_data=true_data,
                                                               pred_data=pred_data,
                                                               classes=classes,
-                                                              error_detections=
-                                                              error_detections,
+                                                              error_detections=error_detections,
                                                               corrections=corrections,
                                                               epsilon=epsilon)
         results.append([epsilon] + result)
