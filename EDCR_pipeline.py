@@ -28,8 +28,7 @@ results_file = "rule_for_NPcorrection.csv"
 #         for coarse_cls_index, coarse_cls in enumerate(coarse_cla_datas):
 #             res = 0
 #             if fine_cls[i] and coarse_cls[i]:
-#                 if data_preprocessing.fine_to_course_idx[fine_cls_index] == coarse_cls_index:
-#                     res = 1
+#                 res = 1
 #             rule_scores += [res]
 #
 #     return rule_scores
@@ -37,29 +36,22 @@ results_file = "rule_for_NPcorrection.csv"
 def get_binary_condition_values(i: int,
                                 fine_cla_datas: np.array,
                                 coarse_cla_datas: np.array):
-    fine_to_course_idx = data_preprocessing.fine_to_course_idx  # Assuming data_preprocessing is defined elsewhere
+    fine_condition = fine_cla_datas[:, i].astype(int)  # Convert to integers
 
-    fine_data_bool = fine_cla_datas.astype(bool)
-    coarse_data_bool = coarse_cla_datas.astype(bool)
+    # Resize or pad coarse_cla_datas to match fine_cla_datas shape
+    coarse_condition = np.zeros(fine_cla_datas.shape[0], dtype=int)
+    if coarse_cla_datas.shape[0] <= fine_cla_datas.shape[0]:
+        coarse_condition[:coarse_cla_datas.shape[0]] = coarse_cla_datas[:, i].astype(int)
+    else:
+        coarse_condition = coarse_cla_datas[:fine_cla_datas.shape[0], i].astype(int)
 
-    min_length = min(len(fine_data_bool), len(coarse_data_bool))
-    fine_data_bool = fine_data_bool[:min_length]
-    coarse_data_bool = coarse_data_bool[:min_length]
+    # Perform element-wise AND operation to check conditions
+    rule_scores = ((fine_condition != 0) & (coarse_condition != 0)).astype(int)
 
-    condition_result = fine_data_bool[:, i] & coarse_data_bool[:, i]
-
-    indices = np.where(condition_result)[0]
-    fine_indices = indices // min_length
-    coarse_indices = indices % min_length
-
-    matches = []
-    for f_idx, c_idx in zip(fine_indices, coarse_indices):
-        matches.append(fine_to_course_idx[f_idx] == c_idx)
-
-    rule_scores = np.zeros(min_length * min_length, dtype=int)
-    rule_scores[fine_indices * min_length + coarse_indices] = matches
-
+    # Flatten the resulting array to get the final list
     return rule_scores.tolist()
+
+
 
 
 def get_condition_values(i: int,
@@ -447,10 +439,12 @@ def run_EDCR(main_model_name: str,
 
         if main_granularity == 'fine':
             charts = [[pred_data[i], true_data[i]] +
-                      (get_condition_values(i=i, cla_datas=cla_datas['fine']) +
+                      (get_condition_values(i=i, cla_datas=cla_datas['fine'])
+                       +
                       get_binary_condition_values(i=i,
                                                   fine_cla_datas=cla_datas['fine'],
-                                                  coarse_cla_datas=cla_datas['coarse']))
+                                                  coarse_cla_datas=cla_datas['coarse'])
+                       )
                       for i in range(m)]
         else:
             charts = [[pred_data[i], true_data[i]] +
