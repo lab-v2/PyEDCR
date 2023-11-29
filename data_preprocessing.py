@@ -12,6 +12,7 @@ fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
 fine_grain_classes = sorted(fine_grain_results_df['Class Name'].to_list())
 coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes = sorted(coarse_grain_results_df['Class Name'].to_list())
+granularities = ['fine', 'coarse']
 
 
 def get_classes(granularity: str):

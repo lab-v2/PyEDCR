@@ -1,4 +1,3 @@
-import re
 import os
 import json
 import numpy as np
@@ -6,8 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
-import multiprocessing as mp
-import itertools
+import typing
 
 import warnings
 
@@ -19,7 +17,6 @@ import data_preprocessing
 
 figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
-
 
 
 def get_condition_values(i: int,
@@ -374,147 +371,150 @@ def retrieve_error_detection_rule(best_coarse_main_model,
                       f'and predicted_fine_grain = {fine_grain_label}')
 
 
-def run_EDCR(main_granularity: str,
-             main_model_name: str,
-             main_lr: float,
-             secondary_model_name: str,
-             secondary_lr: float,
-             true_data: np.array,
-             pred_data: np.array,
-             prior_acc: float):
 
-    classes = data_preprocessing.get_classes(granularity=main_granularity)
+def run_EDCR(main_model_name: str,
+             main_lr: typing.Union[str, float],
+             secondary_model_name: str,
+             secondary_lr: typing.Union[str, float]):
+
+
+    main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
+    main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
+
+    secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
+                                 f'_e{vit_pipeline.num_epochs - 1}_2.npy')
+    secondary_model_coarse_path = (f'{secondary_model_name}_test_coarse_pred_lr{secondary_lr}'
+                                   f'_e{vit_pipeline.num_epochs - 1}_2.npy')
+
+    main_fine_data = np.load(os.path.join(vit_pipeline.results_path, main_model_fine_path))
+    main_coarse_data = np.load(os.path.join(vit_pipeline.results_path, main_model_coarse_path))
+
+    secondary_fine_data = np.load(os.path.join(vit_pipeline.results_path, secondary_model_fine_path))
+    secondary_coarse_data = np.load(os.path.join(vit_pipeline.results_path, secondary_model_coarse_path))
+
+    true_fine_data = np.load(os.path.join(vit_pipeline.results_path, 'test_fine_true.npy'))
+    true_coarse_data = np.load(os.path.join(vit_pipeline.results_path, 'test_coarse_true.npy'))
+
+    main_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=main_fine_data)
+    main_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=main_coarse_data)
+
+    secondary_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=secondary_fine_data)
+    secondary_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=secondary_coarse_data)
+
+    print(f'Main prior fine accuracy: {round(main_prior_fine_acc * 100, 2)}%, '
+          f'main prior coarse accuracy: {round(main_prior_coarse_acc * 100, 2)}%\n'
+          f'Secondary prior fine accuracy: {round(secondary_prior_fine_acc * 100, 2)}%, '
+          f'secondary prior coarse accuracy: {round(secondary_prior_coarse_acc * 100, 2)}%\n')
+
     cla_datas = {}
 
-    relevant_granularities = ['fine']
-    for secondary_granularity in relevant_granularities:
-        suffix = '_coarse' if secondary_granularity == 'coarse' else ''
-        filename = (
-            f"{vit_pipeline.results_path}/{secondary_model_name}_test_pred_lr{secondary_lr}_e{vit_pipeline.num_epochs - 1}"
-            f"{suffix}.npy")
-
-        try:
-            cla_data = np.load(filename)
-            cla_datas[secondary_granularity] = np.eye(np.max(cla_data) + 1)[cla_data].T
-        except FileNotFoundError:
-            print(f'{filename} not found')
-            return
-
-    m = true_data.shape[0]
-    charts = [[pred_data[i], true_data[i]] +
-              (get_condition_values(i=i,
-                                    cla_datas=cla_datas['coarse']) if 'coarse' in relevant_granularities else [])
-              + (get_condition_values(i=i, cla_datas=cla_datas['fine']) if 'fine' in relevant_granularities else [])
-              for i in range(m)]
-    all_charts = generate_chart(n_classes=len(classes),
-                                charts=charts)
-
-    results = []
-    result0 = [0]
-
-    print(f'Started EDCR pipeline for main: {main_granularity}-grain  {main_model_name}, lr: {main_lr}, '
-          f'secondary: {secondary_model_name}, lr: {secondary_lr}\n')
-
-    for count, chart in enumerate(all_charts):
-        chart = np.array(chart)
-        result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-        result0.extend([0, 0, 0, 0])
-
-    result0.extend(get_scores(true_data, pred_data))
-    results.append(result0)
-
-    posterior_acc = 0
-    total_results = np.zeros_like(pred_data)
-
-    epsilons = [0.003 * i for i in range(1, 100, 1)]
-
-    error_detections = {}
-    corrections = {}
-    for e_num, epsilon in tqdm(enumerate(epsilons), total=len(epsilons)):
-        (result, posterior_acc, total_results,
-         error_detections, corrections) = ruleForNPCorrection(all_charts=all_charts,
-                                                              true_data=true_data,
-                                                              pred_data=pred_data,
-                                                              classes=classes,
-                                                              error_detections=error_detections,
-                                                              corrections=corrections,
-                                                              epsilon=epsilon)
-        results.append([epsilon] + result)
-
-    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-    df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
-
-    df.to_csv(results_file)
-    df = pd.read_csv(results_file)
-
-    folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
-              f'_secondary_{secondary_model_name}_lr{secondary_lr}')
-    utils.create_directory(folder)
-
-    plot(df=df,
-         classes=classes,
-         col_num=len(col),
-         x_values=df['epsilon'][1:],
-         main_model_name=main_model_name,
-         secondary_model_name=secondary_model_name,
-         main_lr=main_lr,
-         secondary_lr=secondary_lr,
-         folder=folder)
-
-    np.save(f'{folder}/results{suffix}.npy', total_results)
-
-    # Save the DataFrame to an Excel file
-    df.to_excel(f'{folder}/results.xlsx')
-
-    print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
-          f', secondary: {secondary_model_name}, lr={secondary_lr}'
-          f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
-
-    retrieve_error_detection_rule(best_coarse_main_model=best_coarse_main_model,
-                                  main_model_name=main_model_name,
-                                  main_lr=main_lr,
-                                  best_coarse_main_lr=best_coarse_main_lr,
-                                  secondary_model_name=secondary_model_name,
-                                  best_coarse_secondary_model=best_coarse_secondary_model,
-                                  secondary_lr=secondary_lr,
-                                  best_coarse_secondary_lr=best_coarse_secondary_lr,
-                                  error_detections=error_detections)
-
-    with open(f'{folder}/error_detections.json', 'w') as json_file:
-        json.dump(error_detections, json_file)
-
-    with open(f'{folder}/corrections.json', 'w') as json_file:
-        json.dump(corrections, json_file)
-
-    print(f'\nsaved error detections and corrections to {folder}\n')
+    for secondary_granularity in data_preprocessing.granularities:
+        cla_data = eval(f'secondary_{secondary_granularity}_data')
+        cla_datas[secondary_granularity] = np.eye(np.max(cla_data) + 1)[cla_data].T
 
 
-def handle_main_file(filename: str):
-    match = re.match(pattern=f'(.+?)_test_(.+?)_pred_lr(.+?)_e{vit_pipeline.num_epochs - 1}.npy',
-                     string=filename)
+    for main_granularity in data_preprocessing.granularities:
+        classes = eval(f'data_preprocessing.{main_granularity}_grain_classes')
 
-    if match:
-        main_model_name = match.group(1)
-        main_granularity = match.group(2)
-        main_lr = match.group(3)
+        true_data = eval(f'true_{main_granularity}_data')
+        pred_data = eval(f'main_{main_granularity}_data')
 
-        main_true_data = np.load(os.path.join(vit_pipeline.results_path, f'test_{main_granularity}_true.npy'))
-        pred_data = np.load(os.path.join(vit_pipeline.results_path, filename))
+        m = true_data.shape[0]
+        charts = [[pred_data[i], true_data[i]] +
+                  (get_condition_values(i=i, cla_datas=cla_datas['coarse']))
+                  + (get_condition_values(i=i, cla_datas=cla_datas['fine']))
+                  for i in range(m)]
+        all_charts = generate_chart(n_classes=len(classes),
+                                    charts=charts)
 
-        prior_acc = accuracy_score(main_true_data, pred_data)
+        results = []
+        result0 = [0]
 
-        names_lrs = itertools.product([name for name in vit_pipeline.vit_model_names
-                                       if name != main_model_name and name != 'vit_h_14'],
-                                      [str(lr) for lr in vit_pipeline.lrs])
-        iterable = [(main_granularity, main_model_name, main_lr, secondary_model_name,
-                     secondary_lr, main_true_data, pred_data, prior_acc)
-                    for secondary_model_name, secondary_lr in names_lrs]
+        print(f'Started EDCR pipeline for main: {main_granularity}-grain  {main_model_name}, lr: {main_lr}, '
+              f'secondary: {secondary_model_name}, lr: {secondary_lr}\n')
 
-        with mp.Pool(processes=mp.cpu_count()) as pool:
-            pool.starmap(func=run_EDCR,
-                         iterable=iterable)
+        for count, chart in enumerate(all_charts):
+            chart = np.array(chart)
+            result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+            result0.extend([0, 0, 0, 0])
+
+        result0.extend(get_scores(true_data, pred_data))
+        results.append(result0)
+
+        posterior_acc = 0
+        total_results = np.zeros_like(pred_data)
+
+        epsilons = [0.003 * i for i in range(1, 100, 1)]
+
+        error_detections = {}
+        corrections = {}
+        for e_num, epsilon in tqdm(enumerate(epsilons), total=len(epsilons)):
+            (result, posterior_acc, total_results,
+             error_detections, corrections) = ruleForNPCorrection(all_charts=all_charts,
+                                                                  true_data=true_data,
+                                                                  pred_data=pred_data,
+                                                                  classes=classes,
+                                                                  error_detections=error_detections,
+                                                                  corrections=corrections,
+                                                                  epsilon=epsilon)
+            results.append([epsilon] + result)
+
+        col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+        df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
+
+        df.to_csv(results_file)
+        df = pd.read_csv(results_file)
+
+        folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
+                  f'_secondary_{secondary_model_name}_lr{secondary_lr}')
+        utils.create_directory(folder)
+
+        plot(df=df,
+             classes=classes,
+             col_num=len(col),
+             x_values=df['epsilon'][1:],
+             main_model_name=main_model_name,
+             secondary_model_name=secondary_model_name,
+             main_lr=main_lr,
+             secondary_lr=secondary_lr,
+             folder=folder)
+
+        np.save(f'{folder}/results_{main_granularity}.npy', total_results)
+
+        # Save the DataFrame to an Excel file
+        df.to_excel(f'{folder}/results.xlsx')
+
+        prior_acc = eval(f'main_prior_{main_granularity}_acc')
+        print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
+              f', secondary: {secondary_model_name}, lr={secondary_lr}'
+              f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
+
+        # retrieve_error_detection_rule(best_coarse_main_model=best_coarse_main_model,
+        #                               main_model_name=main_model_name,
+        #                               main_lr=main_lr,
+        #                               best_coarse_main_lr=best_coarse_main_lr,
+        #                               secondary_model_name=secondary_model_name,
+        #                               best_coarse_secondary_model=best_coarse_secondary_model,
+        #                               secondary_lr=secondary_lr,
+        #                               best_coarse_secondary_lr=best_coarse_secondary_lr,
+        #                               error_detections=error_detections)
+
+        with open(f'{folder}/error_detections.json', 'w') as json_file:
+            json.dump(error_detections, json_file)
+
+        with open(f'{folder}/corrections.json', 'w') as json_file:
+            json.dump(corrections, json_file)
+
+        print(f'\nsaved error detections and corrections to {folder}\n')
 
 
 if __name__ == '__main__':
-    for filename in os.listdir(vit_pipeline.results_path):
-        handle_main_file(filename=filename)
+    main_model_name = 'vit_l_16'
+    main_lr = 0.0001
+    secondary_model_name = 'vit_l_16'
+    secondary_lr = 0.0001
+
+    run_EDCR(main_model_name=main_model_name,
+             main_lr=main_lr,
+             secondary_model_name=secondary_model_name,
+             secondary_lr=secondary_lr)
