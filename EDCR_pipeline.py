@@ -19,6 +19,19 @@ figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
 
+def get_binary_condition_values(i: int,
+                                fine_cla_datas: np.array,
+                                coarse_cla_datas: np.array):
+    rule_scores = []
+    n_fine_grain = len(fine_cla_datas)
+
+    for fine_cla, coarse_cla in zip(fine_cla_datas, coarse_cla_datas):
+        cls_i = int(fine_cla[i]) * (n_fine_grain + 1) + int(coarse_cla[i])
+        rule_scores += [cls_i]
+
+    return rule_scores
+
+
 def get_condition_values(i: int,
                          cla_datas: np.array):
     rule_scores = []
@@ -237,15 +250,15 @@ def ruleForNPCorrection(all_charts: list,
                     neg_i_count += 1
                     predict_result[ct] = 0
 
-                    sec_class = data_preprocessing.get_classes(granularity='fine')[np.argmax(cv[4:])]
-
-                    if data_preprocessing.fine_to_coarse[sec_class] != curr_class:
-                        if curr_class not in error_detections:
-                            error_detections[curr_class] = {sec_class: 1}
-                        elif sec_class not in error_detections[curr_class]:
-                            error_detections[curr_class][sec_class] = 1
-                        else:
-                            error_detections[curr_class][sec_class] += 1
+                    # sec_class = data_preprocessing.get_classes(granularity='fine')[np.argmax(cv[4:])]
+                    #
+                    # if data_preprocessing.fine_to_coarse[sec_class] != curr_class:
+                    #     if curr_class not in error_detections:
+                    #         error_detections[curr_class] = {sec_class: 1}
+                    #     elif sec_class not in error_detections[curr_class]:
+                    #         error_detections[curr_class][sec_class] = 1
+                    #     else:
+                    #         error_detections[curr_class][sec_class] += 1
 
                         # print(f"{main_granularity}-grain class: {curr_class}, "
                         #       f"secondary class: {sec_class}, should have been {fine_to_coarse[sec_class]}")
@@ -265,14 +278,14 @@ def ruleForNPCorrection(all_charts: list,
                     predict_result[ct] = 1
                     total_results[ct] = i
 
-                    sec_class = data_preprocessing.get_classes(granularity='fine')[np.argmax(cv[4:])]
-
-                    if curr_class not in corrections:
-                        corrections[curr_class] = {sec_class: 1}
-                    elif sec_class not in corrections[curr_class]:
-                        corrections[curr_class][sec_class] = 1
-                    else:
-                        corrections[curr_class][sec_class] += 1
+                    # sec_class = data_preprocessing.get_classes(granularity='fine')[np.argmax(cv[4:])]
+                    #
+                    # if curr_class not in corrections:
+                    #     corrections[curr_class] = {sec_class: 1}
+                    # elif sec_class not in corrections[curr_class]:
+                    #     corrections[curr_class][sec_class] = 1
+                    # else:
+                    #     corrections[curr_class][sec_class] += 1
 
         scores_cor = get_scores(chart[:, 1], predict_result)
         results.extend(scores_cor + [neg_i_count,
@@ -382,9 +395,9 @@ def run_EDCR(main_model_name: str,
     main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
 
     secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
-                                 f'_e{vit_pipeline.num_epochs - 1}_2.npy')
+                                 f'_e{vit_pipeline.num_epochs - 1}.npy')
     secondary_model_coarse_path = (f'{secondary_model_name}_test_coarse_pred_lr{secondary_lr}'
-                                   f'_e{vit_pipeline.num_epochs - 1}_2.npy')
+                                   f'_e{vit_pipeline.num_epochs - 1}.npy')
 
     main_fine_data = np.load(os.path.join(vit_pipeline.results_path, main_model_fine_path))
     main_coarse_data = np.load(os.path.join(vit_pipeline.results_path, main_model_coarse_path))
@@ -427,7 +440,7 @@ def run_EDCR(main_model_name: str,
         charts = [[pred_data[i], true_data[i]] +
                   (get_condition_values(i=i, cla_datas=cla_datas['fine']) +
                    get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
-                   get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse']))
+                   get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse']) )
                   for i in range(m)]
         all_charts = generate_chart(n_classes=len(classes),
                                     charts=charts)
@@ -517,7 +530,7 @@ def run_EDCR(main_model_name: str,
 if __name__ == '__main__':
     main_model_name = 'vit_l_16'
     main_lr = 0.0001
-    secondary_model_name = 'vit_l_16'
+    secondary_model_name = 'vit_b_16'
     secondary_lr = 0.0001
 
     run_EDCR(main_model_name=main_model_name,
