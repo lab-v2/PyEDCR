@@ -13,7 +13,7 @@ import utils
 import data_preprocessing
 
 batch_size = 32
-lrs = [1e-4]
+lrs = [1e-6]
 scheduler_gamma = 0.1
 num_epochs = 10
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
@@ -184,7 +184,7 @@ def fine_tune(fine_tuner: models.FineTuner,
                   f'Training total loss: {round(total_running_loss / num_batches, 3)}\n'
                   f'Training fine loss: {round(fine_running_loss / num_batches, 3)}\n'
                   f'Training coarse loss: {round(coarse_running_loss / num_batches, 3)}\n'
-                  f'Training fine accuracy: {round(training_fine_accuracy, 3)}\n'
+                  f'\nTraining fine accuracy: {round(training_fine_accuracy, 3)}\n'
                   f'Training coarse accuracy: {round(training_coarse_accuracy, 3)}\n')
 
             train_fine_accuracies += [training_fine_accuracy]
