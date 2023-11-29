@@ -284,8 +284,8 @@ def run_testing_pipeline(testing_model_name: str,
 
 
 if __name__ == '__main__':
-    run_testing_pipeline(testing_model_name='vit_l_16',
-                         testing_lr='0.0001')
+    # run_testing_pipeline(testing_model_name='vit_l_16',
+    #                      testing_lr='0.0001')
 
-    # run_fine_tuning_pipeline(debug=False)
+    run_fine_tuning_pipeline(debug=False)
 
