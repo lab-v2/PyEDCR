@@ -19,17 +19,47 @@ figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
 
+# def get_binary_condition_values(i: int,
+#                                 fine_cla_datas: np.array,
+#                                 coarse_cla_datas: np.array):
+#     rule_scores = []
+#
+#     for fine_cls_index, fine_cls in enumerate(fine_cla_datas):
+#         for coarse_cls_index, coarse_cls in enumerate(coarse_cla_datas):
+#             res = 0
+#             if fine_cls[i] and coarse_cls[i]:
+#                 if data_preprocessing.fine_to_course_idx[fine_cls_index] == coarse_cls_index:
+#                     res = 1
+#             rule_scores += [res]
+#
+#     return rule_scores
+
 def get_binary_condition_values(i: int,
                                 fine_cla_datas: np.array,
                                 coarse_cla_datas: np.array):
-    rule_scores = []
-    n_fine_grain = len(fine_cla_datas)
+    fine_to_course_idx = data_preprocessing.fine_to_course_idx  # Assuming data_preprocessing is defined elsewhere
 
-    for fine_cla, coarse_cla in zip(fine_cla_datas, coarse_cla_datas):
-        cls_i = int(fine_cla[i]) * (n_fine_grain + 1) + int(coarse_cla[i])
-        rule_scores += [cls_i]
+    fine_data_bool = fine_cla_datas.astype(bool)
+    coarse_data_bool = coarse_cla_datas.astype(bool)
 
-    return rule_scores
+    min_length = min(len(fine_data_bool), len(coarse_data_bool))
+    fine_data_bool = fine_data_bool[:min_length]
+    coarse_data_bool = coarse_data_bool[:min_length]
+
+    condition_result = fine_data_bool[:, i] & coarse_data_bool[:, i]
+
+    indices = np.where(condition_result)[0]
+    fine_indices = indices // min_length
+    coarse_indices = indices % min_length
+
+    matches = []
+    for f_idx, c_idx in zip(fine_indices, coarse_indices):
+        matches.append(fine_to_course_idx[f_idx] == c_idx)
+
+    rule_scores = np.zeros(min_length * min_length, dtype=int)
+    rule_scores[fine_indices * min_length + coarse_indices] = matches
+
+    return rule_scores.tolist()
 
 
 def get_condition_values(i: int,
@@ -221,7 +251,6 @@ def ruleForNPCorrection(all_charts: list,
                         true_data,
                         pred_data,
                         epsilon: float,
-                        classes,
                         error_detections: dict,
                         corrections: dict,
                         run_positive_rules: bool = True):
@@ -242,26 +271,12 @@ def ruleForNPCorrection(all_charts: list,
         for cc in NCi:
             tem_cond |= chart[:, cc]
 
-        curr_class = classes[i]
-
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct] and predict_result[ct]:
                     neg_i_count += 1
                     predict_result[ct] = 0
 
-                    # sec_class = data_preprocessing.get_classes(granularity='fine')[np.argmax(cv[4:])]
-                    #
-                    # if data_preprocessing.fine_to_coarse[sec_class] != curr_class:
-                    #     if curr_class not in error_detections:
-                    #         error_detections[curr_class] = {sec_class: 1}
-                    #     elif sec_class not in error_detections[curr_class]:
-                    #         error_detections[curr_class][sec_class] = 1
-                    #     else:
-                    #         error_detections[curr_class][sec_class] += 1
-
-                        # print(f"{main_granularity}-grain class: {curr_class}, "
-                        #       f"secondary class: {sec_class}, should have been {fine_to_coarse[sec_class]}")
 
         CCi = DetUSMPosRuleSelect(i=i,
                                   all_charts=all_charts) if run_positive_rules else []
@@ -278,14 +293,6 @@ def ruleForNPCorrection(all_charts: list,
                     predict_result[ct] = 1
                     total_results[ct] = i
 
-                    # sec_class = data_preprocessing.get_classes(granularity='fine')[np.argmax(cv[4:])]
-                    #
-                    # if curr_class not in corrections:
-                    #     corrections[curr_class] = {sec_class: 1}
-                    # elif sec_class not in corrections[curr_class]:
-                    #     corrections[curr_class][sec_class] = 1
-                    # else:
-                    #     corrections[curr_class][sec_class] += 1
 
         scores_cor = get_scores(chart[:, 1], predict_result)
         results.extend(scores_cor + [neg_i_count,
@@ -437,11 +444,20 @@ def run_EDCR(main_model_name: str,
         pred_data = eval(f'main_{main_granularity}_data')
 
         m = true_data.shape[0]
-        charts = [[pred_data[i], true_data[i]] +
-                  (get_condition_values(i=i, cla_datas=cla_datas['fine']) +
-                   get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
-                   get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse']) )
-                  for i in range(m)]
+
+        if main_granularity == 'fine':
+            charts = [[pred_data[i], true_data[i]] +
+                      (get_condition_values(i=i, cla_datas=cla_datas['fine']) +
+                      get_binary_condition_values(i=i,
+                                                  fine_cla_datas=cla_datas['fine'],
+                                                  coarse_cla_datas=cla_datas['coarse']))
+                      for i in range(m)]
+        else:
+            charts = [[pred_data[i], true_data[i]] +
+                      (get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
+                       get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse']))
+                      for i in range(m)]
+
         all_charts = generate_chart(n_classes=len(classes),
                                     charts=charts)
 
@@ -471,7 +487,6 @@ def run_EDCR(main_model_name: str,
              error_detections, corrections) = ruleForNPCorrection(all_charts=all_charts,
                                                                   true_data=true_data,
                                                                   pred_data=pred_data,
-                                                                  classes=classes,
                                                                   error_detections=error_detections,
                                                                   corrections=corrections,
                                                                   epsilon=epsilon)
@@ -508,16 +523,6 @@ def run_EDCR(main_model_name: str,
               f', secondary: {secondary_model_name}, lr={secondary_lr}'
               f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
 
-        # retrieve_error_detection_rule(best_coarse_main_model=best_coarse_main_model,
-        #                               main_model_name=main_model_name,
-        #                               main_lr=main_lr,
-        #                               best_coarse_main_lr=best_coarse_main_lr,
-        #                               secondary_model_name=secondary_model_name,
-        #                               best_coarse_secondary_model=best_coarse_secondary_model,
-        #                               secondary_lr=secondary_lr,
-        #                               best_coarse_secondary_lr=best_coarse_secondary_lr,
-        #                               error_detections=error_detections)
-
         with open(f'{folder}/error_detections.json', 'w') as json_file:
             json.dump(error_detections, json_file)
 
@@ -528,9 +533,10 @@ def run_EDCR(main_model_name: str,
 
 
 if __name__ == '__main__':
-    main_model_name = 'vit_l_16'
+    main_model_name = 'vit_b_16'
     main_lr = 0.0001
-    secondary_model_name = 'vit_b_16'
+
+    secondary_model_name = 'vit_l_16'
     secondary_lr = 0.0001
 
     run_EDCR(main_model_name=main_model_name,
