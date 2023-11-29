@@ -289,9 +289,10 @@ def plot(df: pd.DataFrame,
          classes: list,
          col_num: int,
          x_values: pd.Series,
+         main_granularity: str,
          main_model_name: str,
-         secondary_model_name: str,
          main_lr: float,
+         secondary_model_name: str,
          secondary_lr: float,
          folder: str):
     average_precision = pd.Series(data=0,
@@ -323,8 +324,8 @@ def plot(df: pd.DataFrame,
                  f1_score_i,
                  label='f1')
 
-        plt.title(f'Class #{i}-{classes[i]}, Main: {main_model_name}, lr: {main_lr}'
-                  f'Secondary: {secondary_model_name}, lr: {secondary_lr}')
+        plt.title(f'{main_granularity.capitalize()}-grain class #{i}-{classes[i]}, Main: {main_model_name}, lr: {main_lr}'
+                  f' secondary: {secondary_model_name}, lr: {secondary_lr}')
         plt.legend()
         plt.tight_layout()
         plt.grid()
@@ -333,17 +334,17 @@ def plot(df: pd.DataFrame,
         plt.cla()
 
     plt.plot(x_values,
-             average_precision,
+             average_precision / len(classes),
              label='average precision')
     plt.plot(x_values,
-             average_recall,
+             average_recall / len(classes),
              label='average recall')
     plt.plot(x_values,
-             average_f1_score,
+             average_f1_score / len(classes),
              label='average f1')
 
-    plt.title(f'Main: {main_model_name}, lr: {main_lr}'
-              f'Secondary: {secondary_model_name}, lr: {secondary_lr}')
+    plt.title(f'{main_granularity.capitalize()}-grain main: {main_model_name}, lr: {main_lr}, '
+              f'sSecondary: {secondary_model_name}, lr: {secondary_lr}')
     plt.legend()
     plt.tight_layout()
     plt.grid()
@@ -376,7 +377,6 @@ def run_EDCR(main_model_name: str,
              main_lr: typing.Union[str, float],
              secondary_model_name: str,
              secondary_lr: typing.Union[str, float]):
-
 
     main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
     main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
@@ -474,12 +474,12 @@ def run_EDCR(main_model_name: str,
              col_num=len(col),
              x_values=df['epsilon'][1:],
              main_model_name=main_model_name,
-             secondary_model_name=secondary_model_name,
              main_lr=main_lr,
+             secondary_model_name=secondary_model_name,
              secondary_lr=secondary_lr,
              folder=folder)
 
-        np.save(f'{folder}/results_{main_granularity}.npy', total_results)
+        np.save(f'{folder}/results.npy', total_results)
 
         # Save the DataFrame to an Excel file
         df.to_excel(f'{folder}/results.xlsx')
