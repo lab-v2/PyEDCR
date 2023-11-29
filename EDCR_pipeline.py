@@ -5,7 +5,6 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
-import typing
 
 import warnings
 
@@ -18,51 +17,24 @@ import data_preprocessing
 figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
+main_model_name = 'vit_l_32'
+main_lr = 0.0001
 
-# def get_binary_condition_values(i: int,
-#                                 fine_cla_datas: np.array,
-#                                 coarse_cla_datas: np.array):
-#     rule_scores = []
-#
-#     for fine_cls_index, fine_cls in enumerate(fine_cla_datas):
-#         for coarse_cls_index, coarse_cls in enumerate(coarse_cla_datas):
-#             res = 0
-#             if fine_cls[i] and coarse_cls[i]:
-#                 res = 1
-#             rule_scores += [res]
-#
-#     return rule_scores
+secondary_model_name = 'vit_l_16'
+secondary_lr = 0.0001
+
 
 def get_binary_condition_values(i: int,
                                 fine_cla_datas: np.array,
                                 coarse_cla_datas: np.array):
-    fine_condition = fine_cla_datas[:, i].astype(int)  # Convert to integers
-
-    # Resize or pad coarse_cla_datas to match fine_cla_datas shape
-    coarse_condition = np.zeros(fine_cla_datas.shape[0], dtype=int)
-    if coarse_cla_datas.shape[0] <= fine_cla_datas.shape[0]:
-        coarse_condition[:coarse_cla_datas.shape[0]] = coarse_cla_datas[:, i].astype(int)
-    else:
-        coarse_condition = coarse_cla_datas[:fine_cla_datas.shape[0], i].astype(int)
-
-    # Perform element-wise AND operation to check conditions
-    rule_scores = ((fine_condition != 0) & (coarse_condition != 0)).astype(int)
-
-    # Flatten the resulting array to get the final list
-    return rule_scores.tolist()
-
+    return [int(fine_cls and coarse_cls)
+            for fine_cls in fine_cla_datas[:, i] for coarse_cls in coarse_cla_datas[:, i]]
 
 
 
 def get_condition_values(i: int,
                          cla_datas: np.array):
-    rule_scores = []
-
-    for cls in cla_datas:
-        cls_i = int(cls[i])
-        rule_scores += [cls_i]
-
-    return rule_scores
+    return [int(cls[i]) for cls in cla_datas]
 
 
 def get_scores(y_true: np.array,
@@ -385,10 +357,7 @@ def retrieve_error_detection_rule(best_coarse_main_model,
 
 
 
-def run_EDCR(main_model_name: str,
-             main_lr: typing.Union[str, float],
-             secondary_model_name: str,
-             secondary_lr: typing.Union[str, float]):
+def run_EDCR():
 
     main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
     main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
@@ -449,7 +418,12 @@ def run_EDCR(main_model_name: str,
         else:
             charts = [[pred_data[i], true_data[i]] +
                       (get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
-                       get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse']))
+                       get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse'])
+                       +
+                       get_binary_condition_values(i=i,
+                                                   fine_cla_datas=cla_datas['fine'],
+                                                   coarse_cla_datas=cla_datas['coarse'])
+                       )
                       for i in range(m)]
 
         all_charts = generate_chart(n_classes=len(classes),
@@ -526,14 +500,7 @@ def run_EDCR(main_model_name: str,
         print(f'\nsaved error detections and corrections to {folder}\n')
 
 
+
+
 if __name__ == '__main__':
-    main_model_name = 'vit_b_16'
-    main_lr = 0.0001
-
-    secondary_model_name = 'vit_l_16'
-    secondary_lr = 0.0001
-
-    run_EDCR(main_model_name=main_model_name,
-             main_lr=main_lr,
-             secondary_model_name=secondary_model_name,
-             secondary_lr=secondary_lr)
+    run_EDCR()
