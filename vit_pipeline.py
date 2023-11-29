@@ -17,6 +17,8 @@ scheduler_gamma = 0.1
 num_epochs = 10
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
 
+files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
+results_path = fr'{files_path}results/'
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
@@ -219,8 +221,7 @@ def fine_tune(fine_tuner: models.FineTuner,
 
 
 def run_pipeline(debug: bool = False):
-    files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
-    results_path = fr'{files_path}results/'
+
     utils.create_directory(results_path)
 
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
