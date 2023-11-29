@@ -324,8 +324,8 @@ def plot(df: pd.DataFrame,
                  f1_score_i,
                  label='f1')
 
-        plt.title(f'{main_granularity.capitalize()}-grain class #{i}-{classes[i]}, Main: {main_model_name}, lr: {main_lr}'
-                  f' secondary: {secondary_model_name}, lr: {secondary_lr}')
+        plt.title(f'{main_granularity.capitalize()}-grain class #{i}-{classes[i]}, '
+                  f'Main: {main_model_name}, lr: {main_lr}, secondary: {secondary_model_name}, lr: {secondary_lr}')
         plt.legend()
         plt.tight_layout()
         plt.grid()
@@ -403,14 +403,19 @@ def run_EDCR(main_model_name: str,
 
     print(f'Main prior fine accuracy: {round(main_prior_fine_acc * 100, 2)}%, '
           f'main prior coarse accuracy: {round(main_prior_coarse_acc * 100, 2)}%\n'
-          f'Secondary prior fine accuracy: {round(secondary_prior_fine_acc * 100, 2)}%, '
-          f'secondary prior coarse accuracy: {round(secondary_prior_coarse_acc * 100, 2)}%\n')
+          f'Secondary fine accuracy: {round(secondary_prior_fine_acc * 100, 2)}%, '
+          f'secondary coarse accuracy: {round(secondary_prior_coarse_acc * 100, 2)}%\n')
+
+    secondary_derived_coarse = [data_preprocessing.fine_to_course_idx[fine_grain_prediction]
+                                for fine_grain_prediction in secondary_fine_data]
 
     cla_datas = {}
 
     for secondary_granularity in data_preprocessing.granularities:
         cla_data = eval(f'secondary_{secondary_granularity}_data')
         cla_datas[secondary_granularity] = np.eye(np.max(cla_data) + 1)[cla_data].T
+
+    cla_datas['fine_to_coarse'] = np.eye(np.max(secondary_derived_coarse) + 1)[secondary_derived_coarse].T
 
     for main_granularity in data_preprocessing.granularities:
         classes = eval(f'data_preprocessing.{main_granularity}_grain_classes')
@@ -420,8 +425,9 @@ def run_EDCR(main_model_name: str,
 
         m = true_data.shape[0]
         charts = [[pred_data[i], true_data[i]] +
-                  (get_condition_values(i=i, cla_datas=cla_datas['coarse']))
-                  + (get_condition_values(i=i, cla_datas=cla_datas['fine']))
+                  (get_condition_values(i=i, cla_datas=cla_datas['fine']) +
+                   get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
+                   get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse']))
                   for i in range(m)]
         all_charts = generate_chart(n_classes=len(classes),
                                     charts=charts)
@@ -443,7 +449,7 @@ def run_EDCR(main_model_name: str,
         posterior_acc = 0
         total_results = np.zeros_like(pred_data)
 
-        epsilons = [0.003 * i for i in range(1, 100, 1)]
+        epsilons = [0.002 * i for i in range(1, 100, 1)]
 
         error_detections = {}
         corrections = {}
