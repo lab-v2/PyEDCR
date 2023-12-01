@@ -17,7 +17,7 @@ import data_preprocessing
 figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
-main_model_name = 'vit_l_32'
+main_model_name = 'vit_b_32'
 main_lr = 0.0001
 
 secondary_model_name = 'vit_l_16'
@@ -27,9 +27,14 @@ secondary_lr = 0.0001
 def get_binary_condition_values(i: int,
                                 fine_cla_datas: np.array,
                                 coarse_cla_datas: np.array):
-    return [int(fine_cls and coarse_cls)
-            for fine_cls in fine_cla_datas[:, i] for coarse_cls in coarse_cla_datas[:, i]]
+    res = []
+    for fine_i, fine_cls in enumerate(fine_cla_datas[:, i].astype(int)):
+        for coarse_i, coarse_cls in enumerate(coarse_cla_datas[:, i].astype(int)):
+            pred = int(fine_cls & coarse_cls)
+            consistent = int(pred & (data_preprocessing.fine_to_course_idx[fine_i] == coarse_i))
+            res += [pred, consistent]
 
+    return res
 
 
 def get_condition_values(i: int,
@@ -241,7 +246,6 @@ def ruleForNPCorrection(all_charts: list,
                     neg_i_count += 1
                     predict_result[ct] = 0
 
-
         CCi = DetUSMPosRuleSelect(i=i,
                                   all_charts=all_charts) if run_positive_rules else []
         tem_cond = np.zeros_like(chart[:, 0])
@@ -252,11 +256,9 @@ def ruleForNPCorrection(all_charts: list,
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct] and not predict_result[ct]:
-
                     pos_i_count += 1
                     predict_result[ct] = 1
                     total_results[ct] = i
-
 
         scores_cor = get_scores(chart[:, 1], predict_result)
         results.extend(scores_cor + [neg_i_count,
@@ -356,9 +358,7 @@ def retrieve_error_detection_rule(best_coarse_main_model,
                       f'and predicted_fine_grain = {fine_grain_label}')
 
 
-
 def run_EDCR():
-
     main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
     main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
 
@@ -406,25 +406,16 @@ def run_EDCR():
 
         m = true_data.shape[0]
 
-        if main_granularity == 'fine':
-            charts = [[pred_data[i], true_data[i]] +
-                      (get_condition_values(i=i, cla_datas=cla_datas['fine'])
-                       +
-                      get_binary_condition_values(i=i,
-                                                  fine_cla_datas=cla_datas['fine'],
-                                                  coarse_cla_datas=cla_datas['coarse'])
-                       )
-                      for i in range(m)]
-        else:
-            charts = [[pred_data[i], true_data[i]] +
-                      (get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
-                       get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse'])
-                       +
-                       get_binary_condition_values(i=i,
-                                                   fine_cla_datas=cla_datas['fine'],
-                                                   coarse_cla_datas=cla_datas['coarse'])
-                       )
-                      for i in range(m)]
+        charts = [[pred_data[i], true_data[i]] +
+                  get_binary_condition_values(i=i,
+                                              fine_cla_datas=cla_datas['fine'],
+                                              coarse_cla_datas=cla_datas['coarse']) +
+                  (get_condition_values(i=i, cla_datas=cla_datas['fine']) if main_granularity == 'fine'
+                   else (get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
+                         get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse'])
+                         )
+                   )
+                  for i in range(m)]
 
         all_charts = generate_chart(n_classes=len(classes),
                                     charts=charts)
@@ -446,7 +437,7 @@ def run_EDCR():
         posterior_acc = 0
         total_results = np.zeros_like(pred_data)
 
-        epsilons = [0.002 * i for i in range(1, 100, 1)]
+        epsilons = [0.002 * i for i in range(1, 2, 1)]
 
         error_detections = {}
         corrections = {}
@@ -498,8 +489,6 @@ def run_EDCR():
             json.dump(corrections, json_file)
 
         print(f'\nsaved error detections and corrections to {folder}\n')
-
-
 
 
 if __name__ == '__main__':
