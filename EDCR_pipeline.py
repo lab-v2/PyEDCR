@@ -413,20 +413,19 @@ def run_EDCR():
         pred_data = eval(f'main_{main_granularity}_data')
 
         m = true_data.shape[0]
-        charts = []
 
-        for i in range(m):
-            charts += [[pred_data[i], true_data[i]] +
-                       get_binary_condition_values(i=i,
-                                                   fine_cla_datas=condition_datas[main_or_secondary]['fine'],
-                                                   coarse_cla_datas=condition_datas[main_or_secondary]['coarse']) +
-                       get_unary_condition_values(i=i,
-                                                  cla_datas=condition_datas[main_or_secondary]['fine']) +
-                       get_unary_condition_values(i=i,
-                                                  cla_datas=condition_datas[main_or_secondary]['coarse']) +
-                       get_unary_condition_values(i=i,
-                                                  cla_datas=condition_datas[main_or_secondary]['fine_to_coarse'])
-                       for main_or_secondary in ['main', 'secondary']]
+        charts = [[pred_data[i], true_data[i]] +
+                  (get_binary_condition_values(i=i,
+                                               fine_cla_datas=condition_datas[main_or_secondary]['fine'],
+                                               coarse_cla_datas=condition_datas[main_or_secondary]['coarse']) +
+                   get_unary_condition_values(i=i,
+                                              cla_datas=condition_datas[main_or_secondary]['fine']) +
+                   get_unary_condition_values(i=i,
+                                              cla_datas=condition_datas[main_or_secondary]['coarse']) +
+                   get_unary_condition_values(i=i,
+                                              cla_datas=condition_datas[main_or_secondary]['fine_to_coarse']))
+                  for main_or_secondary in ['secondary']
+                  for i in range(m)]
 
         all_charts = generate_chart(n_classes=len(classes),
                                     charts=charts)
