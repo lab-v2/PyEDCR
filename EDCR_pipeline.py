@@ -37,8 +37,8 @@ def get_binary_condition_values(i: int,
     return res
 
 
-def get_condition_values(i: int,
-                         cla_datas: np.array):
+def get_unary_condition_values(i: int,
+                               cla_datas: np.array):
     return [int(cls[i]) for cls in cla_datas]
 
 
@@ -358,6 +358,10 @@ def retrieve_error_detection_rule(best_coarse_main_model,
                       f'and predicted_fine_grain = {fine_grain_label}')
 
 
+def rearrange_for_condition_values(arr: np.array) -> np.array:
+    return np.eye(np.max(arr) + 1)[arr].T
+
+
 def run_EDCR():
     main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
     main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
@@ -387,35 +391,42 @@ def run_EDCR():
           f'Secondary fine accuracy: {round(secondary_prior_fine_acc * 100, 2)}%, '
           f'secondary coarse accuracy: {round(secondary_prior_coarse_acc * 100, 2)}%\n')
 
-    secondary_derived_coarse = [data_preprocessing.fine_to_course_idx[fine_grain_prediction]
-                                for fine_grain_prediction in secondary_fine_data]
+    condition_datas = {}
 
-    cla_datas = {}
+    for main_or_secondary in ['main', 'secondary']:
+        for granularity in data_preprocessing.granularities:
+            if main_or_secondary not in condition_datas:
+                condition_datas[main_or_secondary] = {}
 
-    for secondary_granularity in data_preprocessing.granularities:
-        cla_data = eval(f'secondary_{secondary_granularity}_data')
-        cla_datas[secondary_granularity] = np.eye(np.max(cla_data) + 1)[cla_data].T
+            cla_data = eval(f'{main_or_secondary}_{granularity}_data')
+            condition_datas[main_or_secondary][granularity] = rearrange_for_condition_values(cla_data)
 
-    cla_datas['fine_to_coarse'] = np.eye(np.max(secondary_derived_coarse) + 1)[secondary_derived_coarse].T
+        derived_coarse = np.array([data_preprocessing.fine_to_course_idx[fine_grain_prediction]
+                                   for fine_grain_prediction in eval(f'{main_or_secondary}_fine_data')])
+
+        condition_datas[main_or_secondary]['fine_to_coarse'] = rearrange_for_condition_values(derived_coarse)
 
     for main_granularity in data_preprocessing.granularities:
-        classes = eval(f'data_preprocessing.{main_granularity}_grain_classes')
+        classes = data_preprocessing.get_classes(main_granularity)
 
         true_data = eval(f'true_{main_granularity}_data')
         pred_data = eval(f'main_{main_granularity}_data')
 
         m = true_data.shape[0]
+        charts = []
 
-        charts = [[pred_data[i], true_data[i]] +
-                  get_binary_condition_values(i=i,
-                                              fine_cla_datas=cla_datas['fine'],
-                                              coarse_cla_datas=cla_datas['coarse']) +
-                  (get_condition_values(i=i, cla_datas=cla_datas['fine']) if main_granularity == 'fine'
-                   else (get_condition_values(i=i, cla_datas=cla_datas['coarse']) +
-                         get_condition_values(i=i, cla_datas=cla_datas['fine_to_coarse'])
-                         )
-                   )
-                  for i in range(m)]
+        for i in range(m):
+            charts += [[pred_data[i], true_data[i]] +
+                       get_binary_condition_values(i=i,
+                                                   fine_cla_datas=condition_datas[main_or_secondary]['fine'],
+                                                   coarse_cla_datas=condition_datas[main_or_secondary]['coarse']) +
+                       get_unary_condition_values(i=i,
+                                                  cla_datas=condition_datas[main_or_secondary]['fine']) +
+                       get_unary_condition_values(i=i,
+                                                  cla_datas=condition_datas[main_or_secondary]['coarse']) +
+                       get_unary_condition_values(i=i,
+                                                  cla_datas=condition_datas[main_or_secondary]['fine_to_coarse'])
+                       for main_or_secondary in ['main', 'secondary']]
 
         all_charts = generate_chart(n_classes=len(classes),
                                     charts=charts)
