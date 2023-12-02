@@ -424,7 +424,7 @@ def run_EDCR():
                                               cla_datas=condition_datas[main_or_secondary]['coarse']) +
                    get_unary_condition_values(i=i,
                                               cla_datas=condition_datas[main_or_secondary]['fine_to_coarse']))
-                  for main_or_secondary in ['secondary']
+                  for main_or_secondary in ['main']
                   for i in range(m)]
 
         all_charts = generate_chart(n_classes=len(classes),

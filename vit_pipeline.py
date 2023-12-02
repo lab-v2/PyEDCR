@@ -28,6 +28,7 @@ def test(fine_tuner: models.FineTuner,
          device: torch.device,
          num_fine_grain_classes: int) -> (list[int], list[int], list[int], list[int], float, float):
     test_loader = loaders['test']
+    fine_tuner.to(device)
     fine_tuner.eval()
 
     test_fine_prediction = []
@@ -49,6 +50,8 @@ def test(fine_tuner: models.FineTuner,
 
         for i, data in gen:
             X, Y_fine_grain, names, Y_coarse_grain = data[0].to(device), data[1].to(device), data[2], data[3].to(device)
+            assert all(data_preprocessing.fine_to_course_idx[y_fine_grain.item()] == y_coarse_grain.item()
+                       for y_fine_grain, y_coarse_grain in zip(Y_fine_grain, Y_coarse_grain))
             Y_pred = fine_tuner(X)
             Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
             Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
@@ -202,11 +205,8 @@ def fine_tune(fine_tuner: models.FineTuner,
             test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
 
-
-
             np.save(f"{results_path}{fine_tuner}_test_fine_pred_lr{lr}_e{epoch}.npy", test_fine_prediction)
             np.save(f"{results_path}{fine_tuner}_test_coarse_pred_lr{lr}_e{epoch}.npy", test_coarse_prediction)
-
 
         np.save(f"{results_path}{fine_tuner}_test_fine_acc_lr{lr}.npy", test_fine_accuracies)
         np.save(f"{results_path}{fine_tuner}_test_coarse_acc_lr{lr}.npy", test_coarse_accuracies)
@@ -220,7 +220,6 @@ def fine_tune(fine_tuner: models.FineTuner,
 
 
 def run_pipeline(debug: bool = False):
-
     utils.create_directory(results_path)
 
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
@@ -254,4 +253,22 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+
+    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
+
+    fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+                                       num_classes=num_fine_grain_classes + num_coarse_grain_classes)
+                   for vit_model_name in vit_model_names]
+
+    device = torch.device('mps' if torch.backends.mps.is_available() else
+                          ("cuda" if torch.cuda.is_available() else 'cpu'))
+
+    loaders = data_preprocessing.get_loaders(datasets=datasets,
+                                             batch_size=batch_size)
+
+    print(f'Using {device}')
+    test(fine_tuner=fine_tuners[0],
+         loaders=loaders,
+         device=device,
+         num_fine_grain_classes=num_fine_grain_classes)

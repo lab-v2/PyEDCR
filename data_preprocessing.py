@@ -60,22 +60,22 @@ def get_transforms(train_or_test: str) -> torchvision.transforms.Compose:
 class ImageFolderWithName(torchvision.datasets.ImageFolder):
     def __getitem__(self,
                     index: int) -> (torch.tensor, int, str):
-        path, y = self.samples[index]
+        path, y_fine_grain = self.samples[index]
 
-        y_coarse_grain = fine_to_course_idx[y]
+        y_coarse_grain = fine_to_course_idx[y_fine_grain]
 
         x = self.loader(path)
 
         if self.transform is not None:
             x = self.transform(x)
         if self.target_transform is not None:
-            y = self.target_transform(y)
+            y_fine_grain = self.target_transform(y_fine_grain)
         name = os.path.basename(path)
         folder_path = os.path.basename(os.path.dirname(path))
 
         x_identifier = f'{folder_path}/{name}'
 
-        return x, y, x_identifier, y_coarse_grain
+        return x, y_fine_grain, x_identifier, y_coarse_grain
 
 
 def get_datasets(cwd: typing.Union[str, pathlib.Path],
