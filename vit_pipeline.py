@@ -253,22 +253,22 @@ def main():
 
 
 if __name__ == '__main__':
-    # main()
-
-    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
-
-    fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
-                                       num_classes=num_fine_grain_classes + num_coarse_grain_classes)
-                   for vit_model_name in vit_model_names]
-
-    device = torch.device('mps' if torch.backends.mps.is_available() else
-                          ("cuda" if torch.cuda.is_available() else 'cpu'))
-
-    loaders = data_preprocessing.get_loaders(datasets=datasets,
-                                             batch_size=batch_size)
-
-    print(f'Using {device}')
-    test(fine_tuner=fine_tuners[0],
-         loaders=loaders,
-         device=device,
-         num_fine_grain_classes=num_fine_grain_classes)
+    main()
+    #
+    # datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
+    #
+    # fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+    #                                    num_classes=num_fine_grain_classes + num_coarse_grain_classes)
+    #                for vit_model_name in vit_model_names]
+    #
+    # device = torch.device('mps' if torch.backends.mps.is_available() else
+    #                       ("cuda" if torch.cuda.is_available() else 'cpu'))
+    #
+    # loaders = data_preprocessing.get_loaders(datasets=datasets,
+    #                                          batch_size=batch_size)
+    #
+    # print(f'Using {device}')
+    # test(fine_tuner=fine_tuners[0],
+    #      loaders=loaders,
+    #      device=device,
+    #      num_fine_grain_classes=num_fine_grain_classes)
