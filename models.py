@@ -1,7 +1,6 @@
 import re
 import abc
 import torch
-import torchvision
 
 
 class FineTuner(torch.nn.Module, abc.ABC):
@@ -17,21 +16,6 @@ class FineTuner(torch.nn.Module, abc.ABC):
 
     def __len__(self) -> int:
         return sum(p.numel() for p in self.parameters())
-
-
-class InceptionV3FineTuner(FineTuner):
-    def __init__(self,
-                 num_classes: int):
-        super().__init__(num_classes=num_classes)
-        self.inception = torchvision.models.inception_v3(
-            weights=torchvision.models.Inception_V3_Weights.DEFAULT)
-        num_features = self.inception.fc.in_features
-        self.inception.fc = torch.nn.Linear(in_features=num_features,
-                                            out_features=num_classes)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.inception(x)
-        return x
 
 
 class VITFineTuner(FineTuner):

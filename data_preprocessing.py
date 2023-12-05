@@ -78,6 +78,22 @@ class ImageFolderWithName(torchvision.datasets.ImageFolder):
         return x, y_fine_grain, x_identifier, y_coarse_grain
 
 
+class ImageFolderWithNameIndividual(torchvision.datasets.ImageFolder):
+    def __getitem__(self,
+                    index: int):
+        path, target = self.samples[index]
+        image = self.loader(path)
+
+        if self.transform is not None:
+            image = self.transform(image)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        name = os.path.basename(path)
+        folder_path = os.path.basename(os.path.dirname(path))
+
+        return image, target, f'{folder_path}/{name}'
+
+
 def get_datasets(cwd: typing.Union[str, pathlib.Path],
                  ) -> (dict[str, ImageFolderWithName], int):
     data_dir = pathlib.Path.joinpath(cwd, '.')
@@ -103,3 +119,34 @@ def get_loaders(datasets: dict[str, ImageFolderWithName],
         dataset=datasets[train_or_test],
         batch_size=batch_size,
         shuffle=train_or_test == 'train') for train_or_test in ['train', 'test']}
+
+
+def get_datasets_individual(cwd: typing.Union[str, pathlib.Path],
+                            granularity: str
+                            ) -> (dict[str, ImageFolderWithNameIndividual], int):
+    data_dir = pathlib.Path.joinpath(cwd, '.')
+    datasets = {f'{train_or_test}': ImageFolderWithNameIndividual(root=os.path.join(data_dir,
+                                                                                    f'{train_or_test}_{granularity}'),
+                                                                  transform=get_transforms(train_or_test=train_or_test))
+                for train_or_test in ['train', 'test']}
+
+    num_train = len(datasets['train'])
+    num_test = len(datasets['test'])
+    print(f'Total number of train images: {num_train}\nTotal number of test images: {num_test}')
+
+    classes = datasets['train'].classes
+    num_classes = len(classes)
+
+    return datasets, num_classes
+
+
+def get_loaders_individual(datasets: dict[str, ImageFolderWithNameIndividual],
+                           batch_size: int,
+                           model_names: list[str],
+                           train_folder_name: str,
+                           test_folder_name: str) -> dict[str, torch.utils.data.DataLoader]:
+    return {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
+        dataset=datasets[f'{model_name}_{train_or_val}'],
+        batch_size=batch_size,
+        shuffle=train_or_val == train_folder_name)
+        for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
