@@ -1,6 +1,7 @@
 import re
 import abc
 import torch
+import torchvision
 
 
 class FineTuner(torch.nn.Module, abc.ABC):

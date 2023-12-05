@@ -141,12 +141,9 @@ def get_datasets_individual(cwd: typing.Union[str, pathlib.Path],
 
 
 def get_loaders_individual(datasets: dict[str, ImageFolderWithNameIndividual],
-                           batch_size: int,
-                           model_names: list[str],
-                           train_folder_name: str,
-                           test_folder_name: str) -> dict[str, torch.utils.data.DataLoader]:
-    return {f"{model_name}_{train_or_val}": torch.utils.data.DataLoader(
-        dataset=datasets[f'{model_name}_{train_or_val}'],
+                           batch_size: int) -> dict[str, torch.utils.data.DataLoader]:
+    return {train_or_test: torch.utils.data.DataLoader(
+        dataset=datasets[train_or_test],
         batch_size=batch_size,
-        shuffle=train_or_val == train_folder_name)
-        for model_name in model_names for train_or_val in [train_folder_name, test_folder_name]}
+        shuffle=train_or_test == 'train')
+        for train_or_test in ['train', 'test']}

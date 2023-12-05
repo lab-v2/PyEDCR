@@ -23,10 +23,10 @@ cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
 
-def test_individual(fine_tuner: models.FineTuner,
-                    loaders: dict[str, torch.utils.data.DataLoader],
-                    device: torch.device,
-                    test_folder_name: str) -> (list[int], list[int], float):
+def test_individual_model(fine_tuner: models.FineTuner,
+                          loaders: dict[str, torch.utils.data.DataLoader],
+                          device: torch.device,
+                          test_folder_name: str) -> (list[int], list[int], float):
     test_loader = loaders[f'{fine_tuner}_{test_folder_name}']
     fine_tuner.eval()
     correct = 0
@@ -66,108 +66,10 @@ def test_individual(fine_tuner: models.FineTuner,
     return test_ground_truth, test_prediction, test_accuracy
 
 
-def fine_tune_individual(fine_tuner: models.FineTuner,
-                         device: torch.device,
-                         loaders: dict[str, torch.utils.data.DataLoader],
-                         granularity: str,
-                         train_folder_name: str,
-                         test_folder_name: str,
-                         results_path: str):
-    fine_tuner.to(device)
-    fine_tuner.train()
-
-    train_loader = loaders[f'{fine_tuner}_{train_folder_name}']
-    num_batches = len(train_loader)
-    criterion = torch.nn.CrossEntropyLoss()
-
-    for lr in lrs:
-        optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
-                                     lr=lr)
-
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
-                                                    step_size=scheduler_step_size,
-                                                    gamma=scheduler_gamma)
-
-        train_losses = []
-        train_accuracies = []
-        test_ground_truths = []
-
-        test_accuracies = []
-
-        print(f'Started fine-tuning {fine_tuner} with lr={lr} on {device}...')
-
-        for epoch in range(num_epochs):
-
-            # print(f'Started epoch {epoch + 1}/{num_epochs}...')
-            t1 = time()
-            running_loss = 0.0
-            train_predictions = []
-            train_ground_truths = []
-
-            if utils.is_local():
-                from tqdm import tqdm
-                batches = tqdm(enumerate(train_loader, 0), total=num_batches)
-            else:
-                batches = enumerate(train_loader, 0)
-
-            for batch_num, batch in batches:
-                with context_handlers.ClearCache(device=device):
-                    X, Y = batch[0].to(device), batch[1].to(device)
-                    optimizer.zero_grad()
-                    Y_pred = fine_tuner(X)
-
-                    loss = criterion(Y_pred, Y)
-                    loss.backward()
-                    optimizer.step()
-                    running_loss += loss.item()
-
-                    predicted = torch.max(Y_pred, 1)[1]
-                    train_ground_truths += Y.tolist()
-                    train_predictions += predicted.tolist()
-
-                    del X
-                    del Y
-
-            true_labels = np.array(train_ground_truths)
-            predicted_labels = np.array(train_predictions)
-            acc = accuracy_score(true_labels, predicted_labels)
-            # train.report({"mean_accuracy": acc})
-
-            print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
-                  f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - t1))}, '
-                  f'\nTraining loss: {round(running_loss / num_batches, 3)}'
-                  f'\ntraining accuracy: {round(acc, 3)}\n')
-
-            train_accuracies += [acc]
-            train_losses += [running_loss / num_batches]
-            scheduler.step()
-            test_ground_truths, test_predictions, test_accuracy = test_individual(fine_tuner=fine_tuner,
-                                                                                  loaders=loaders,
-                                                                                  device=device,
-                                                                                  test_folder_name=test_folder_name)
-            test_accuracies += [test_accuracy]
-            print('#' * 100)
-
-            np.save(f"{results_path}{fine_tuner}_train_acc_lr{lr}_e{epoch}_{granularity}_individual.npy",
-                    train_accuracies)
-            np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}_{granularity}_individual.npy",
-                    train_losses)
-
-            np.save(f"{results_path}{fine_tuner}_test_acc_lr{lr}_e{epoch}_{granularity}_individual.npy",
-                    test_accuracies)
-            np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}_{granularity}_individual.npy",
-                    test_predictions)
-
-        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{granularity}_individual.pth")
-
-        if not os.path.exists(f"{results_path}test_true_{granularity}_individual.npy"):
-            np.save(f"{results_path}test_true_{granularity}_individual.npy", test_ground_truths)
-
-
-def test(fine_tuner: models.FineTuner,
-         loaders: dict[str, torch.utils.data.DataLoader],
-         device: torch.device,
-         num_fine_grain_classes: int) -> (list[int], list[int], list[int], list[int], float, float):
+def test_combined_model(fine_tuner: models.FineTuner,
+                        loaders: dict[str, torch.utils.data.DataLoader],
+                        device: torch.device,
+                        num_fine_grain_classes: int) -> (list[int], list[int], list[int], list[int], float, float):
     test_loader = loaders['test']
     fine_tuner.to(device)
     fine_tuner.eval()
@@ -219,12 +121,104 @@ def test(fine_tuner: models.FineTuner,
             test_fine_accuracy, test_coarse_accuracy)
 
 
-def fine_tune(fine_tuner: models.FineTuner,
-              device: torch.device,
-              loaders: dict[str, torch.utils.data.DataLoader],
-              results_path: str,
-              num_fine_grain_classes: int,
-              num_coarse_grain_classes: int):
+def fine_tune_individual_model(fine_tuner: models.FineTuner,
+                               device: torch.device,
+                               loaders: dict[str, torch.utils.data.DataLoader],
+                               granularity: str,
+                               test_folder_name: str,
+                               results_path: str):
+    fine_tuner.to(device)
+    fine_tuner.train()
+
+    train_loader = loaders['train']
+    num_batches = len(train_loader)
+    criterion = torch.nn.CrossEntropyLoss()
+
+    for lr in lrs:
+        optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
+                                     lr=lr)
+
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
+                                                    step_size=scheduler_step_size,
+                                                    gamma=scheduler_gamma)
+
+        train_losses = []
+        train_accuracies = []
+        test_ground_truths = []
+
+        test_accuracies = []
+
+        print(f'Started fine-tuning {fine_tuner} with lr={lr} on {device}...')
+
+        for epoch in range(num_epochs):
+
+            # print(f'Started epoch {epoch + 1}/{num_epochs}...')
+            t1 = time()
+            running_loss = 0.0
+            train_predictions = []
+            train_ground_truths = []
+
+            if utils.is_local():
+                from tqdm import tqdm
+                batches = tqdm(enumerate(train_loader, 0), total=num_batches)
+            else:
+                batches = enumerate(train_loader, 0)
+
+            for batch_num, batch in batches:
+                with context_handlers.ClearCache(device=device):
+                    X, Y = batch[0].to(device), batch[1].to(device)
+                    optimizer.zero_grad()
+                    Y_pred = fine_tuner(X)
+
+                    loss = criterion(Y_pred, Y)
+                    loss.backward()
+                    optimizer.step()
+                    running_loss += loss.item()
+
+                    predicted = torch.max(Y_pred, 1)[1]
+                    train_ground_truths += Y.tolist()
+                    train_predictions += predicted.tolist()
+
+                    del X, Y
+
+            true_labels = np.array(train_ground_truths)
+            predicted_labels = np.array(train_predictions)
+            acc = accuracy_score(true_labels, predicted_labels)
+
+            print(f'\nModel: {fine_tuner} with {len(fine_tuner)} parameters\n'
+                  f'epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - t1))}, '
+                  f'\nTraining loss: {round(running_loss / num_batches, 3)}'
+                  f'\ntraining accuracy: {round(acc, 3)}\n')
+
+            train_accuracies += [acc]
+            train_losses += [running_loss / num_batches]
+            scheduler.step()
+            test_ground_truths, test_predictions, test_accuracy = test_individual_model(fine_tuner=fine_tuner,
+                                                                                        loaders=loaders,
+                                                                                        device=device,
+                                                                                        test_folder_name=test_folder_name)
+            test_accuracies += [test_accuracy]
+            print('#' * 100)
+
+            np.save(f"{results_path}{fine_tuner}_train_loss_lr{lr}_e{epoch}_{granularity}_individual.npy",
+                    train_losses)
+
+            np.save(f"{results_path}{fine_tuner}_test_pred_lr{lr}_e{epoch}_{granularity}_individual.npy",
+                    test_predictions)
+
+        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{granularity}_individual.pth")
+
+        if not os.path.exists(f"{results_path}test_true_{granularity}_individual.npy"):
+            np.save(f"{results_path}test_true_{granularity}_individual.npy", test_ground_truths)
+
+
+
+def fine_tune_combined_model(fine_tuner: models.FineTuner,
+                             device: torch.device,
+                             loaders: dict[str, torch.utils.data.DataLoader],
+                             results_path: str,
+                             num_fine_grain_classes: int,
+                             num_coarse_grain_classes: int):
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -338,10 +332,10 @@ def fine_tune(fine_tuner: models.FineTuner,
 
             scheduler.step()
             (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
-             test_fine_accuracy, test_coarse_accuracy) = test(fine_tuner=fine_tuner,
-                                                              loaders=loaders,
-                                                              device=device,
-                                                              num_fine_grain_classes=num_fine_grain_classes)
+             test_fine_accuracy, test_coarse_accuracy) = test_combined_model(fine_tuner=fine_tuner,
+                                                                             loaders=loaders,
+                                                                             device=device,
+                                                                             num_fine_grain_classes=num_fine_grain_classes)
             test_fine_accuracies += [test_fine_accuracy]
             test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
@@ -379,7 +373,7 @@ def initiate(train: bool,
     return fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes
 
 
-def run_fine_tuning_pipeline(debug: bool = False):
+def run_combined_fine_tuning_pipeline(debug: bool = False):
     print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
     utils.create_directory(results_path)
 
@@ -388,27 +382,26 @@ def run_fine_tuning_pipeline(debug: bool = False):
 
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
-            fine_tune(fine_tuner=fine_tuner,
-                      device=device,
-                      loaders=loaders,
-                      results_path=results_path,
-                      num_fine_grain_classes=num_fine_grain_classes,
-                      num_coarse_grain_classes=num_coarse_grain_classes)
+            fine_tune_combined_model(fine_tuner=fine_tuner,
+                                     device=device,
+                                     loaders=loaders,
+                                     results_path=results_path,
+                                     num_fine_grain_classes=num_fine_grain_classes,
+                                     num_coarse_grain_classes=num_coarse_grain_classes)
             print('#' * 100)
 
 
-def run_testing_pipeline():
+def run_combined_testing_pipeline():
     fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes = initiate(train=False)
 
     print(f'Using {device}')
-    test(fine_tuner=fine_tuners[0],
-         loaders=loaders,
-         device=device,
-         num_fine_grain_classes=num_fine_grain_classes)
+    test_combined_model(fine_tuner=fine_tuners[0],
+                        loaders=loaders,
+                        device=device,
+                        num_fine_grain_classes=num_fine_grain_classes)
 
 
-def run_pipeline(granularity: str):
-    train_folder_name = f'train_{granularity}'
+def run_individual_fine_tuning_pipeline(granularity: str):
     test_folder_name = f'test_{granularity}'
     files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
     results_path = fr'{files_path}results/'
@@ -430,24 +423,20 @@ def run_pipeline(granularity: str):
     print(f'Fine tuners: {[str(fine_tuner) for fine_tuner in fine_tuners]}')
 
     loaders = data_preprocessing.get_loaders_individual(datasets=datasets,
-                                                        batch_size=batch_size,
-                                                        model_names=vit_model_names,
-                                                        train_folder_name=train_folder_name,
-                                                        test_folder_name=test_folder_name)
+                                                        batch_size=batch_size)
 
     for fine_tuner in fine_tuners:
         print(f'Initiating {fine_tuner}')
 
         with context_handlers.ClearSession():
-            fine_tune_individual(fine_tuner=fine_tuner,
-                                 device=device,
-                                 loaders=loaders,
-                                 granularity=granularity,
-                                 train_folder_name=train_folder_name,
-                                 test_folder_name=test_folder_name,
-                                 results_path=results_path)
+            fine_tune_individual_model(fine_tuner=fine_tuner,
+                                       device=device,
+                                       loaders=loaders,
+                                       granularity=granularity,
+                                       test_folder_name=test_folder_name,
+                                       results_path=results_path)
             print('#' * 100)
 
 
 if __name__ == '__main__':
-    run_fine_tuning_pipeline()
+    run_individual_fine_tuning_pipeline(granularity='fine')
