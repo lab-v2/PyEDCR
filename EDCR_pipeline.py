@@ -5,6 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
+import multiprocessing as mp
 
 import warnings
 
@@ -17,10 +18,10 @@ import data_preprocessing
 figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
-main_model_name = 'vit_b_16'
+main_model_name = 'vit_l_16'
 main_lr = 0.0001
 
-secondary_model_name = 'vit_l_16'
+secondary_model_name = 'vit_b_16'
 secondary_lr = 0.0001
 
 
@@ -226,6 +227,7 @@ def ruleForNPCorrection(all_charts: list,
     results = []
     total_results = np.copy(pred_data)
 
+
     for i, chart in enumerate(all_charts):
         chart = np.array(chart)
         NCi = GreedyNegRuleSelect(i=i,
@@ -265,6 +267,7 @@ def ruleForNPCorrection(all_charts: list,
                                      pos_i_count,
                                      len(NCi),
                                      len(CCi)])
+
     results.extend(get_scores(true_data, total_results))
     posterior_acc = accuracy_score(true_data, total_results)
 
