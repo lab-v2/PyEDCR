@@ -219,7 +219,8 @@ def fine_tune(fine_tuner: models.FineTuner,
         torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
 
-def run_pipeline(debug: bool = False):
+def run_fine_tuning_pipeline(debug: bool = False):
+    print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
     utils.create_directory(results_path)
 
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
@@ -247,28 +248,25 @@ def run_pipeline(debug: bool = False):
             print('#' * 100)
 
 
-def main():
-    print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
-    run_pipeline(debug=False)
+def run_testing_pipeline():
+    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
+
+    fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+                                       num_classes=num_fine_grain_classes + num_coarse_grain_classes)
+                   for vit_model_name in vit_model_names]
+
+    device = torch.device('mps' if torch.backends.mps.is_available() else
+                          ("cuda" if torch.cuda.is_available() else 'cpu'))
+
+    loaders = data_preprocessing.get_loaders(datasets=datasets,
+                                             batch_size=batch_size)
+
+    print(f'Using {device}')
+    test(fine_tuner=fine_tuners[0],
+         loaders=loaders,
+         device=device,
+         num_fine_grain_classes=num_fine_grain_classes)
 
 
 if __name__ == '__main__':
-    main()
-    #
-    # datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
-    #
-    # fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
-    #                                    num_classes=num_fine_grain_classes + num_coarse_grain_classes)
-    #                for vit_model_name in vit_model_names]
-    #
-    # device = torch.device('mps' if torch.backends.mps.is_available() else
-    #                       ("cuda" if torch.cuda.is_available() else 'cpu'))
-    #
-    # loaders = data_preprocessing.get_loaders(datasets=datasets,
-    #                                          batch_size=batch_size)
-    #
-    # print(f'Using {device}')
-    # test(fine_tuner=fine_tuners[0],
-    #      loaders=loaders,
-    #      device=device,
-    #      num_fine_grain_classes=num_fine_grain_classes)
+    run_testing_pipeline()
