@@ -18,7 +18,7 @@ num_epochs = 10
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_32']]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
-results_path = fr'{files_path}results/'
+results_path = fr'{files_path}combined_results/'
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
@@ -219,13 +219,11 @@ def fine_tune(fine_tuner: models.FineTuner,
         torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
 
-def run_fine_tuning_pipeline(debug: bool = False):
-    print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
-    utils.create_directory(results_path)
-
+def initiate(train: bool,
+             debug: bool = False):
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
-    device = torch.device('cpu') if debug and utils.is_local() else (
+    device = torch.device('cpu') if debug and utils.is_local() and not train else (
         torch.device('mps' if torch.backends.mps.is_available() else
                      ("cuda" if torch.cuda.is_available() else 'cpu')))
     print(f'Using {device}')
@@ -236,6 +234,17 @@ def run_fine_tuning_pipeline(debug: bool = False):
 
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size)
+
+
+    return fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes
+
+
+def run_fine_tuning_pipeline(debug: bool = False):
+    print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
+    utils.create_directory(results_path)
+
+    fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes = initiate(train=True,
+                                                                                              debug=debug)
 
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
@@ -249,17 +258,7 @@ def run_fine_tuning_pipeline(debug: bool = False):
 
 
 def run_testing_pipeline():
-    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
-
-    fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
-                                       num_classes=num_fine_grain_classes + num_coarse_grain_classes)
-                   for vit_model_name in vit_model_names]
-
-    device = torch.device('mps' if torch.backends.mps.is_available() else
-                          ("cuda" if torch.cuda.is_available() else 'cpu'))
-
-    loaders = data_preprocessing.get_loaders(datasets=datasets,
-                                             batch_size=batch_size)
+    fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes = initiate(train=False)
 
     print(f'Using {device}')
     test(fine_tuner=fine_tuners[0],
