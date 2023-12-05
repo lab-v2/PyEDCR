@@ -18,7 +18,8 @@ num_epochs = 10
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_32']]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
-results_path = fr'{files_path}combined_results/'
+combined_results_path = fr'{files_path}combined_results/'
+individual_results_path = fr'{files_path}individual_results/'
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
@@ -375,7 +376,7 @@ def initiate(train: bool,
 
 def run_combined_fine_tuning_pipeline(debug: bool = False):
     print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
-    utils.create_directory(results_path)
+    utils.create_directory(combined_results_path)
 
     fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes = initiate(train=True,
                                                                                               debug=debug)
@@ -385,7 +386,7 @@ def run_combined_fine_tuning_pipeline(debug: bool = False):
             fine_tune_combined_model(fine_tuner=fine_tuner,
                                      device=device,
                                      loaders=loaders,
-                                     results_path=results_path,
+                                     results_path=combined_results_path,
                                      num_fine_grain_classes=num_fine_grain_classes,
                                      num_coarse_grain_classes=num_coarse_grain_classes)
             print('#' * 100)

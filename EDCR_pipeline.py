@@ -5,7 +5,6 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
-import multiprocessing as mp
 
 import warnings
 
