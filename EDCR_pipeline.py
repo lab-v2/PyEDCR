@@ -270,11 +270,6 @@ def ruleForNPCorrection_worker(i: int,
                          len(CCi)]
 
 
-def process_data(args):
-    i, chart, epsilon, all_charts, run_positive_rules, shared_results = args
-    return ruleForNPCorrection_worker(i, chart, epsilon, all_charts, run_positive_rules, shared_results)
-
-
 def ruleForNPCorrection(all_charts: list[list],
                         true_data: np.array,
                         pred_data: np.array,
@@ -287,12 +282,12 @@ def ruleForNPCorrection(all_charts: list[list],
     shared_results = manager.list(pred_data)
 
     # Create argument tuples for each process
-    args_list = [(i, chart, epsilon, all_charts, run_positive_rules, shared_results) for i, chart in
-                 enumerate(all_charts)]
+    args_list = [(i, chart, epsilon, all_charts, run_positive_rules, shared_results)
+                 for i, chart in enumerate(all_charts)]
 
     # Create a pool of processes and map the function with arguments
     with mp.Pool(mp.cpu_count()) as pool:
-        total_results = pool.map(process_data, args_list)
+        total_results = pool.starmap(ruleForNPCorrection_worker, args_list)
 
     results.extend(get_scores(true_data, total_results))
     posterior_acc = accuracy_score(true_data, total_results)
