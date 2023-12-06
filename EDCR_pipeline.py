@@ -19,11 +19,11 @@ import data_preprocessing
 figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
-main_model_name = 'vit_l_16'
+main_model_name = 'vit_b_16'
 main_lr = 0.0001
 
-secondary_model_name = 'vit_b_16'
-secondary_lr = 0.0001
+# secondary_model_name = 'vit_l_16'
+# secondary_lr = 0.0001
 
 
 def get_binary_condition_values(i: int,
@@ -365,8 +365,8 @@ def plot(df: pd.DataFrame,
          main_granularity: str,
          main_model_name: str,
          main_lr: float,
-         secondary_model_name: str,
-         secondary_lr: float,
+         # secondary_model_name: str,
+         # secondary_lr: float,
          folder: str):
     average_precision = pd.Series(data=0,
                                   index=x_values.index)
@@ -398,7 +398,9 @@ def plot(df: pd.DataFrame,
                  label='f1')
 
         plt.title(f'{main_granularity.capitalize()}-grain class #{i}-{classes[i]}, '
-                  f'Main: {main_model_name}, lr: {main_lr}, secondary: {secondary_model_name}, lr: {secondary_lr}')
+                  f'Main: {main_model_name}, lr: {main_lr}'
+                  # f', secondary: {secondary_model_name}, lr: {secondary_lr}'
+                  )
         plt.legend()
         plt.tight_layout()
         plt.grid()
@@ -417,7 +419,8 @@ def plot(df: pd.DataFrame,
              label='average f1')
 
     plt.title(f'{main_granularity.capitalize()}-grain main: {main_model_name}, lr: {main_lr}, '
-              f'sSecondary: {secondary_model_name}, lr: {secondary_lr}')
+              # f'Secondary: {secondary_model_name}, lr: {secondary_lr}'
+              )
     plt.legend()
     plt.tight_layout()
     plt.grid()
@@ -453,34 +456,37 @@ def run_EDCR():
     main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
     main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
 
-    secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
-                                 f'_e{vit_pipeline.num_epochs - 1}.npy')
-    secondary_model_coarse_path = (f'{secondary_model_name}_test_coarse_pred_lr{secondary_lr}'
-                                   f'_e{vit_pipeline.num_epochs - 1}.npy')
+    # secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
+    #                              f'_e{vit_pipeline.num_epochs - 1}.npy')
+    # secondary_model_coarse_path = (f'{secondary_model_name}_test_coarse_pred_lr{secondary_lr}'
+    #                                f'_e{vit_pipeline.num_epochs - 1}.npy')
 
     main_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, main_model_fine_path))
     main_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, main_model_coarse_path))
 
-    secondary_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_fine_path))
-    secondary_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_coarse_path))
+    # secondary_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_fine_path))
+    # secondary_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_coarse_path))
 
     true_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, 'test_fine_true.npy'))
     true_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, 'test_coarse_true.npy'))
 
     main_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=main_fine_data)
     main_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=main_coarse_data)
-
-    secondary_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=secondary_fine_data)
-    secondary_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=secondary_coarse_data)
+    #
+    # secondary_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=secondary_fine_data)
+    # secondary_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=secondary_coarse_data)
 
     print(f'Main prior fine accuracy: {round(main_prior_fine_acc * 100, 2)}%, '
           f'main prior coarse accuracy: {round(main_prior_coarse_acc * 100, 2)}%\n'
-          f'Secondary fine accuracy: {round(secondary_prior_fine_acc * 100, 2)}%, '
-          f'secondary coarse accuracy: {round(secondary_prior_coarse_acc * 100, 2)}%\n')
+          # f'Secondary fine accuracy: {round(secondary_prior_fine_acc * 100, 2)}%, '
+          # f'secondary coarse accuracy: {round(secondary_prior_coarse_acc * 100, 2)}%\n'
+          )
 
     condition_datas = {}
 
-    for main_or_secondary in ['main', 'secondary']:
+    for main_or_secondary in ['main',
+                              # 'secondary'
+                              ]:
         for granularity in data_preprocessing.granularities:
             if main_or_secondary not in condition_datas:
                 condition_datas[main_or_secondary] = {}
@@ -506,15 +512,15 @@ def run_EDCR():
                       get_binary_condition_values(i=i,
                                                   fine_cla_datas=condition_datas['main']['fine'],
                                                   coarse_cla_datas=condition_datas['main']['coarse'])
-                      # +
-                      # get_unary_condition_values(i=i,
-                      #                            cla_datas=condition_datas['main']['fine'])
-                      # +
-                      # get_unary_condition_values(i=i,
-                      #                            cla_datas=condition_datas['main']['coarse'])
-                      # +
-                      # get_unary_condition_values(i=i,
-                      #                            cla_datas=condition_datas['main']['fine_to_coarse'])
+                      +
+                      get_unary_condition_values(i=i,
+                                                 cla_datas=condition_datas['main']['fine'])
+                      +
+                      get_unary_condition_values(i=i,
+                                                 cla_datas=condition_datas['main']['coarse'])
+                      +
+                      get_unary_condition_values(i=i,
+                                                 cla_datas=condition_datas['main']['fine_to_coarse'])
                   )
                   # + (get_binary_condition_values(i=i,
                   #                              fine_cla_datas=condition_datas['secondary']['fine'],
@@ -534,7 +540,8 @@ def run_EDCR():
         result0 = [0]
 
         print(f'Started EDCR pipeline for main: {main_granularity}-grain  {main_model_name}, lr: {main_lr}, '
-              f'secondary: {secondary_model_name}, lr: {secondary_lr}\n')
+              # f'secondary: {secondary_model_name}, lr: {secondary_lr}\n'
+              )
 
         for count, chart in enumerate(all_charts):
             chart = np.array(chart)
@@ -563,7 +570,7 @@ def run_EDCR():
 
         prior_acc = eval(f'main_prior_{main_granularity}_acc')
         print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
-              f', secondary: {secondary_model_name}, lr={secondary_lr}'
+              # f', secondary: {secondary_model_name}, lr={secondary_lr}'
               f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
 
         col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
@@ -573,7 +580,8 @@ def run_EDCR():
         df = pd.read_csv(results_file)
 
         folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
-                  f'_secondary_{secondary_model_name}_lr{secondary_lr}')
+                  # f'_secondary_{secondary_model_name}_lr{secondary_lr}'
+                  )
         utils.create_directory(folder)
 
         plot(df=df,
@@ -583,8 +591,8 @@ def run_EDCR():
              main_granularity=main_granularity,
              main_model_name=main_model_name,
              main_lr=main_lr,
-             secondary_model_name=secondary_model_name,
-             secondary_lr=secondary_lr,
+             # secondary_model_name=secondary_model_name,
+             # secondary_lr=secondary_lr,
              folder=folder)
 
         np.save(f'{folder}/results.npy', total_results)
