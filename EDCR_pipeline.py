@@ -1,8 +1,9 @@
 import os
-import json
+# import json
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+import time
+import tqdm
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 
@@ -187,31 +188,36 @@ def GreedyNegRuleSelect(i: int,
         if negi_score < quantity:
             NCn.append(rule)
 
-    while NCn:
-        best_score = -1
-        best_index = -1
-        for c in NCn:
+    with tqdm.tqdm(total=len(NCn)) as progress_bar:
+        while NCn:
+            best_score = -1
+            best_index = -1
+            for c in NCn:
+                tem_cond = 0
+                for cc in NCi:
+                    tem_cond |= chart[:, cc]
+                tem_cond |= chart[:, c]
+                posi_score = np.sum(chart[:, 3] * tem_cond)
+                if best_score < posi_score:
+                    best_score = posi_score
+                    best_index = c
+            NCi.append(best_index)
+            NCn.remove(best_index)
             tem_cond = 0
             for cc in NCi:
                 tem_cond |= chart[:, cc]
-            tem_cond |= chart[:, c]
-            posi_score = np.sum(chart[:, 3] * tem_cond)
-            if best_score < posi_score:
-                best_score = posi_score
-                best_index = c
-        NCi.append(best_index)
-        NCn.remove(best_index)
-        tem_cond = 0
-        for cc in NCi:
-            tem_cond |= chart[:, cc]
-        tmp_NCn = []
-        for c in NCn:
-            tem = tem_cond | chart[:, c]
-            negi_score = np.sum(chart[:, 2] * tem)
-            if negi_score < quantity:
-                tmp_NCn.append(c)
-        NCn = tmp_NCn
-    # print(f"class:{i}, NCi:{NCi}")
+            tmp_NCn = []
+            for c in NCn:
+                tem = tem_cond | chart[:, c]
+                negi_score = np.sum(chart[:, 2] * tem)
+                if negi_score < quantity:
+                    tmp_NCn.append(c)
+            NCn = tmp_NCn
+
+            time.sleep(0.1)
+            progress_bar.update(1)
+
+        # print(f"class:{i}, NCi:{NCi}")
 
     return NCi
 
@@ -225,7 +231,6 @@ def ruleForNPCorrection(all_charts: list,
                         run_positive_rules: bool = True):
     results = []
     total_results = np.copy(pred_data)
-
 
     for i, chart in enumerate(all_charts):
         chart = np.array(chart)
@@ -461,14 +466,14 @@ def run_EDCR():
 
         error_detections = {}
         corrections = {}
-        for e_num, epsilon in tqdm(enumerate(epsilons), total=len(epsilons)):
-            (result, posterior_acc, total_results,
-             error_detections, corrections) = ruleForNPCorrection(all_charts=all_charts,
-                                                                  true_data=true_data,
-                                                                  pred_data=pred_data,
-                                                                  error_detections=error_detections,
-                                                                  corrections=corrections,
-                                                                  epsilon=epsilon)
+        for e_num, epsilon in enumerate(epsilons):
+            result, posterior_acc, total_results, error_detections, corrections = ruleForNPCorrection(
+                all_charts=all_charts,
+                true_data=true_data,
+                pred_data=pred_data,
+                error_detections=error_detections,
+                corrections=corrections,
+                epsilon=epsilon)
             results.append([epsilon] + result)
 
         col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
@@ -502,11 +507,11 @@ def run_EDCR():
               f', secondary: {secondary_model_name}, lr={secondary_lr}'
               f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
 
-        with open(f'{folder}/error_detections.json', 'w') as json_file:
-            json.dump(error_detections, json_file)
-
-        with open(f'{folder}/corrections.json', 'w') as json_file:
-            json.dump(corrections, json_file)
+        # with open(f'{folder}/error_detections.json', 'w') as json_file:
+        #     json.dump(error_detections, json_file)
+        #
+        # with open(f'{folder}/corrections.json', 'w') as json_file:
+        #     json.dump(corrections, json_file)
 
         print(f'\nsaved error detections and corrections to {folder}\n')
 
