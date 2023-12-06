@@ -373,14 +373,14 @@ def run_EDCR():
     secondary_model_coarse_path = (f'{secondary_model_name}_test_coarse_pred_lr{secondary_lr}'
                                    f'_e{vit_pipeline.num_epochs - 1}.npy')
 
-    main_fine_data = np.load(os.path.join(vit_pipeline.results_path, main_model_fine_path))
-    main_coarse_data = np.load(os.path.join(vit_pipeline.results_path, main_model_coarse_path))
+    main_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, main_model_fine_path))
+    main_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, main_model_coarse_path))
 
-    secondary_fine_data = np.load(os.path.join(vit_pipeline.results_path, secondary_model_fine_path))
-    secondary_coarse_data = np.load(os.path.join(vit_pipeline.results_path, secondary_model_coarse_path))
+    secondary_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_fine_path))
+    secondary_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_coarse_path))
 
-    true_fine_data = np.load(os.path.join(vit_pipeline.results_path, 'test_fine_true.npy'))
-    true_coarse_data = np.load(os.path.join(vit_pipeline.results_path, 'test_coarse_true.npy'))
+    true_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, 'test_fine_true.npy'))
+    true_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, 'test_coarse_true.npy'))
 
     main_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=main_fine_data)
     main_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=main_coarse_data)

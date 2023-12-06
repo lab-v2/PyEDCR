@@ -15,7 +15,7 @@ batch_size = 32
 lrs = [1e-4]
 scheduler_gamma = 0.1
 num_epochs = 10
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_32']]
+vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
 combined_results_path = fr'{files_path}combined_results/'
@@ -440,4 +440,4 @@ def run_individual_fine_tuning_pipeline(granularity: str):
 
 
 if __name__ == '__main__':
-    run_individual_fine_tuning_pipeline(granularity='fine')
+    run_combined_fine_tuning_pipeline()
