@@ -270,14 +270,13 @@ def ruleForNPCorrection_worker(i: int,
                          len(CCi)]
 
 
-def ruleForNPCorrection(all_charts: list[list],
-                        true_data: np.array,
-                        pred_data: np.array,
-                        epsilon: float,
-                        error_detections: dict,
-                        corrections: dict,
-                        run_positive_rules: bool = True):
-    results = []
+def ruleForNPCorrectionMP(all_charts: list[list],
+                          true_data: np.array,
+                          pred_data: np.array,
+                          epsilon: float,
+                          error_detections: dict,
+                          corrections: dict,
+                          run_positive_rules: bool = True):
     manager = mp.Manager()
     shared_results = manager.list(pred_data)
 
@@ -287,7 +286,71 @@ def ruleForNPCorrection(all_charts: list[list],
 
     # Create a pool of processes and map the function with arguments
     with mp.Pool(mp.cpu_count()) as pool:
-        total_results = pool.starmap(ruleForNPCorrection_worker, args_list)
+        results = pool.starmap(ruleForNPCorrection_worker, args_list)
+
+    # Assuming shared_results is a ListProxy object obtained from multiprocessing manager
+    shared_results = np.array(list(shared_results))  # Convert ListProxy to a regular list
+
+    results = [item for sublist in results for item in sublist]
+
+    results.extend(get_scores(y_true=true_data,
+                              y_pred=shared_results))
+    posterior_acc = accuracy_score(y_true=true_data,
+                                   y_pred=shared_results)
+
+    return results, posterior_acc, shared_results, error_detections, corrections
+
+
+def ruleForNPCorrection(all_charts: list,
+                        true_data,
+                        pred_data,
+                        epsilon: float,
+                        error_detections: dict,
+                        corrections: dict,
+                        run_positive_rules: bool = True):
+    results = []
+    total_results = np.copy(pred_data)
+    print(len(all_charts))
+
+    for i, chart in enumerate(all_charts):
+        chart = np.array(chart)
+        NCi = GreedyNegRuleSelect(i=i,
+                                  epsilon=epsilon,
+                                  all_charts=all_charts)
+        neg_i_count = 0
+        pos_i_count = 0
+
+        predict_result = np.copy(chart[:, 0])
+        tem_cond = np.zeros_like(chart[:, 0])
+
+        for cc in NCi:
+            tem_cond |= chart[:, cc]
+
+        if np.sum(tem_cond) > 0:
+            for ct, cv in enumerate(chart):
+                if tem_cond[ct] and predict_result[ct]:
+                    neg_i_count += 1
+                    predict_result[ct] = 0
+
+        CCi = DetUSMPosRuleSelect(i=i,
+                                  all_charts=all_charts) if run_positive_rules else []
+        tem_cond = np.zeros_like(chart[:, 0])
+
+        for cc in CCi:
+            tem_cond |= chart[:, cc]
+
+        if np.sum(tem_cond) > 0:
+            for ct, cv in enumerate(chart):
+                if tem_cond[ct] and not predict_result[ct]:
+                    pos_i_count += 1
+                    predict_result[ct] = 1
+                    total_results[ct] = i
+
+        scores_cor = get_scores(chart[:, 1], predict_result)
+        results.extend(scores_cor + [neg_i_count,
+                                     pos_i_count,
+                                     len(NCi),
+                                     len(CCi)])
 
     results.extend(get_scores(true_data, total_results))
     posterior_acc = accuracy_score(true_data, total_results)
@@ -320,9 +383,9 @@ def plot(df: pd.DataFrame,
         recall_i = df_i[f'recall{added_str}']
         f1_score_i = df_i[f'F1{added_str}']
 
-        average_precision += precision_i
-        average_recall += recall_i
-        average_f1_score += f1_score_i
+        average_precision += float(precision_i)
+        average_recall += float(recall_i)
+        average_f1_score += float(f1_score_i)
 
         plt.plot(x_values,
                  precision_i,
@@ -439,19 +502,20 @@ def run_EDCR():
         m = true_data.shape[0]
 
         charts = [[pred_data[i], true_data[i]] +
-                  (get_binary_condition_values(i=i,
-                                               fine_cla_datas=condition_datas['main']['fine'],
-                                               coarse_cla_datas=condition_datas['main']['coarse'])
-                   # +
-                   # get_unary_condition_values(i=i,
-                   #                            cla_datas=condition_datas['main']['fine'])
-                   # +
-                   # get_unary_condition_values(i=i,
-                   #                            cla_datas=condition_datas['main']['coarse'])
-                   # +
-                   # get_unary_condition_values(i=i,
-                   #                            cla_datas=condition_datas['main']['fine_to_coarse'])
-                   )
+                  (
+                      # get_binary_condition_values(i=i,
+                      #                          fine_cla_datas=condition_datas['main']['fine'],
+                      #                          coarse_cla_datas=condition_datas['main']['coarse'])
+                      # +
+                      get_unary_condition_values(i=i,
+                                                 cla_datas=condition_datas['main']['fine'])
+                      # +
+                      # get_unary_condition_values(i=i,
+                      #                            cla_datas=condition_datas['main']['coarse'])
+                      # +
+                      # get_unary_condition_values(i=i,
+                      #                            cla_datas=condition_datas['main']['fine_to_coarse'])
+                  )
                   # + (get_binary_condition_values(i=i,
                   #                              fine_cla_datas=condition_datas['secondary']['fine'],
                   #                              coarse_cla_datas=condition_datas['secondary']['coarse']) +
@@ -488,7 +552,7 @@ def run_EDCR():
         error_detections = {}
         corrections = {}
         for e_num, epsilon in enumerate(epsilons):
-            result, posterior_acc, total_results, error_detections, corrections = ruleForNPCorrection(
+            result, posterior_acc, total_results, error_detections, corrections = ruleForNPCorrectionMP(
                 all_charts=all_charts,
                 true_data=true_data,
                 pred_data=pred_data,
@@ -496,6 +560,11 @@ def run_EDCR():
                 corrections=corrections,
                 epsilon=epsilon)
             results.append([epsilon] + result)
+
+        prior_acc = eval(f'main_prior_{main_granularity}_acc')
+        print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
+              f', secondary: {secondary_model_name}, lr={secondary_lr}'
+              f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
 
         col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
         df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
@@ -522,11 +591,6 @@ def run_EDCR():
 
         # Save the DataFrame to an Excel file
         df.to_excel(f'{folder}/results.xlsx')
-
-        prior_acc = eval(f'main_prior_{main_granularity}_acc')
-        print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
-              f', secondary: {secondary_model_name}, lr={secondary_lr}'
-              f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
 
         # with open(f'{folder}/error_detections.json', 'w') as json_file:
         #     json.dump(error_detections, json_file)
