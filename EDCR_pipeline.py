@@ -6,6 +6,7 @@ import time
 import tqdm
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
+import multiprocessing as mp
 
 import warnings
 
@@ -231,6 +232,7 @@ def ruleForNPCorrection(all_charts: list,
                         run_positive_rules: bool = True):
     results = []
     total_results = np.copy(pred_data)
+    print(len(all_charts))
 
     for i, chart in enumerate(all_charts):
         chart = np.array(chart)
@@ -424,22 +426,26 @@ def run_EDCR():
         charts = [[pred_data[i], true_data[i]] +
                   (get_binary_condition_values(i=i,
                                                fine_cla_datas=condition_datas['main']['fine'],
-                                               coarse_cla_datas=condition_datas['main']['coarse']) +
-                   get_unary_condition_values(i=i,
-                                              cla_datas=condition_datas['main']['fine']) +
-                   get_unary_condition_values(i=i,
-                                              cla_datas=condition_datas['main']['coarse']) +
-                   get_unary_condition_values(i=i,
-                                              cla_datas=condition_datas['main']['fine_to_coarse'])) +
-                  (get_binary_condition_values(i=i,
-                                               fine_cla_datas=condition_datas['secondary']['fine'],
-                                               coarse_cla_datas=condition_datas['secondary']['coarse']) +
-                   get_unary_condition_values(i=i,
-                                              cla_datas=condition_datas['secondary']['fine']) +
-                   get_unary_condition_values(i=i,
-                                              cla_datas=condition_datas['secondary']['coarse']) +
-                   get_unary_condition_values(i=i,
-                                              cla_datas=condition_datas['secondary']['fine_to_coarse']))
+                                               coarse_cla_datas=condition_datas['main']['coarse'])
+                   # +
+                   # get_unary_condition_values(i=i,
+                   #                            cla_datas=condition_datas['main']['fine'])
+                   # +
+                   # get_unary_condition_values(i=i,
+                   #                            cla_datas=condition_datas['main']['coarse'])
+                   # +
+                   # get_unary_condition_values(i=i,
+                   #                            cla_datas=condition_datas['main']['fine_to_coarse'])
+                   )
+                  # + (get_binary_condition_values(i=i,
+                  #                              fine_cla_datas=condition_datas['secondary']['fine'],
+                  #                              coarse_cla_datas=condition_datas['secondary']['coarse']) +
+                  #  get_unary_condition_values(i=i,
+                  #                             cla_datas=condition_datas['secondary']['fine']) +
+                  #  get_unary_condition_values(i=i,
+                  #                             cla_datas=condition_datas['secondary']['coarse']) +
+                  #  get_unary_condition_values(i=i,
+                  #                             cla_datas=condition_datas['secondary']['fine_to_coarse']))
                   for i in range(m)]
 
         all_charts = generate_chart(n_classes=len(classes),
