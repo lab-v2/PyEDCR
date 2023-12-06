@@ -223,7 +223,54 @@ def GreedyNegRuleSelect(i: int,
     return NCi
 
 
-def ruleForNPCorrection(all_charts: list,
+def ruleForNPCorrection_worker(i: int,
+                               chart: list,
+                               epsilon: float,
+                               all_charts: list[list],
+                               run_positive_rules: bool,
+                               total_results: np.array):
+    chart = np.array(chart)
+    NCi = GreedyNegRuleSelect(i=i,
+                              epsilon=epsilon,
+                              all_charts=all_charts)
+    neg_i_count = 0
+    pos_i_count = 0
+
+    predict_result = np.copy(chart[:, 0])
+    tem_cond = np.zeros_like(chart[:, 0])
+
+    for cc in NCi:
+        tem_cond |= chart[:, cc]
+
+    if np.sum(tem_cond) > 0:
+        for ct, cv in enumerate(chart):
+            if tem_cond[ct] and predict_result[ct]:
+                neg_i_count += 1
+                predict_result[ct] = 0
+
+    CCi = DetUSMPosRuleSelect(i=i,
+                              all_charts=all_charts) if run_positive_rules else []
+    tem_cond = np.zeros_like(chart[:, 0])
+
+    for cc in CCi:
+        tem_cond |= chart[:, cc]
+
+    if np.sum(tem_cond) > 0:
+        for ct, cv in enumerate(chart):
+            if tem_cond[ct] and not predict_result[ct]:
+                pos_i_count += 1
+                predict_result[ct] = 1
+                total_results[ct] = i
+
+    scores_cor = get_scores(chart[:, 1], predict_result)
+
+    return scores_cor + [neg_i_count,
+                         pos_i_count,
+                         len(NCi),
+                         len(CCi)]
+
+
+def ruleForNPCorrection(all_charts: list[list],
                         true_data,
                         pred_data,
                         epsilon: float,
@@ -232,47 +279,14 @@ def ruleForNPCorrection(all_charts: list,
                         run_positive_rules: bool = True):
     results = []
     total_results = np.copy(pred_data)
-    print(len(all_charts))
 
     for i, chart in enumerate(all_charts):
-        chart = np.array(chart)
-        NCi = GreedyNegRuleSelect(i=i,
-                                  epsilon=epsilon,
-                                  all_charts=all_charts)
-        neg_i_count = 0
-        pos_i_count = 0
-
-        predict_result = np.copy(chart[:, 0])
-        tem_cond = np.zeros_like(chart[:, 0])
-
-        for cc in NCi:
-            tem_cond |= chart[:, cc]
-
-        if np.sum(tem_cond) > 0:
-            for ct, cv in enumerate(chart):
-                if tem_cond[ct] and predict_result[ct]:
-                    neg_i_count += 1
-                    predict_result[ct] = 0
-
-        CCi = DetUSMPosRuleSelect(i=i,
-                                  all_charts=all_charts) if run_positive_rules else []
-        tem_cond = np.zeros_like(chart[:, 0])
-
-        for cc in CCi:
-            tem_cond |= chart[:, cc]
-
-        if np.sum(tem_cond) > 0:
-            for ct, cv in enumerate(chart):
-                if tem_cond[ct] and not predict_result[ct]:
-                    pos_i_count += 1
-                    predict_result[ct] = 1
-                    total_results[ct] = i
-
-        scores_cor = get_scores(chart[:, 1], predict_result)
-        results.extend(scores_cor + [neg_i_count,
-                                     pos_i_count,
-                                     len(NCi),
-                                     len(CCi)])
+        results.append(ruleForNPCorrection_worker(i,
+                                                  chart,
+                                                  epsilon,
+                                                  all_charts,
+                                                  run_positive_rules,
+                                                  total_results))
 
     results.extend(get_scores(true_data, total_results))
     posterior_acc = accuracy_score(true_data, total_results)
