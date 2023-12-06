@@ -503,12 +503,12 @@ def run_EDCR():
 
         charts = [[pred_data[i], true_data[i]] +
                   (
-                      # get_binary_condition_values(i=i,
-                      #                          fine_cla_datas=condition_datas['main']['fine'],
-                      #                          coarse_cla_datas=condition_datas['main']['coarse'])
+                      get_binary_condition_values(i=i,
+                                                  fine_cla_datas=condition_datas['main']['fine'],
+                                                  coarse_cla_datas=condition_datas['main']['coarse'])
                       # +
-                      get_unary_condition_values(i=i,
-                                                 cla_datas=condition_datas['main']['fine'])
+                      # get_unary_condition_values(i=i,
+                      #                            cla_datas=condition_datas['main']['fine'])
                       # +
                       # get_unary_condition_values(i=i,
                       #                            cla_datas=condition_datas['main']['coarse'])
