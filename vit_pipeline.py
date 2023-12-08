@@ -26,12 +26,13 @@ scheduler_step_size = num_epochs
 
 def test_individual_models(fine_tuners: list[models.FineTuner],
                            loaders: dict[str, torch.utils.data.DataLoader],
-                           device: torch.device) -> (list[int], list[int], float):
+                           devices: list[torch.device]) -> (list[int], list[int], float):
     test_loader = loaders[f'test']
     fine_fine_tuner, coarse_fine_tuner = fine_tuners
 
-    fine_fine_tuner.to(device)
-    coarse_fine_tuner.to(device)
+    device_1, device_2 = devices
+    fine_fine_tuner.to(device_1)
+    coarse_fine_tuner.to(device_2)
 
     fine_fine_tuner.eval()
     coarse_fine_tuner.eval()
@@ -54,10 +55,10 @@ def test_individual_models(fine_tuners: list[models.FineTuner],
             gen = enumerate(test_loader)
 
         for i, data in gen:
-            X, Y_fine_grain, names, Y_coarse_grain = data[0].to(device), data[1].to(device), data[2], data[3].to(device)
+            X, Y_fine_grain, names, Y_coarse_grain = data[0], data[1].to(device_1), data[2], data[3].to(device_2)
 
-            Y_pred_fine_grain = fine_fine_tuner(X)
-            Y_pred_coarse_grain = coarse_fine_tuner(X)
+            Y_pred_fine_grain = fine_fine_tuner(X.to(device_1))
+            Y_pred_coarse_grain = coarse_fine_tuner(X.to(device_2))
 
             predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
             predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
@@ -134,14 +135,14 @@ def test_combined_model(fine_tuner: models.FineTuner,
 
 
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
-                                device: torch.device,
+                                devices: list[torch.device],
                                 loaders: dict[str, torch.utils.data.DataLoader]):
     fine_fine_tuner, coarse_fine_tuner = fine_tuners
-
-    fine_fine_tuner.to(device)
+    device_1, device_2 = devices
+    fine_fine_tuner.to(device_1)
     fine_fine_tuner.train()
 
-    coarse_fine_tuner.to(device)
+    coarse_fine_tuner.to(device_2)
     coarse_fine_tuner.train()
 
     train_loader = loaders['train']
@@ -173,7 +174,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
         test_coarse_ground_truths = []
         test_coarse_accuracies = []
 
-        print(f'Started fine-tuning individual models with lr={lr} on {device}...')
+        print(f'Started fine-tuning individual models with lr={lr} on {device_1} and {device_2}...')
 
         for epoch in range(num_epochs):
             t1 = time()
@@ -193,41 +194,42 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                 batches = enumerate(train_loader, 0)
 
             for batch_num, batch in batches:
-                with context_handlers.ClearCache(device=device):
-                    X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
+                with context_handlers.ClearCache(device=device_1):
+                    with context_handlers.ClearCache(device=device_2):
+                        X, Y_fine_grain, Y_coarse_grain = batch[0], batch[1].to(device_1), batch[3].to(device_2)
 
-                    fine_optimizer.zero_grad()
-                    coarse_optimizer.zero_grad()
+                        fine_optimizer.zero_grad()
+                        coarse_optimizer.zero_grad()
 
-                    Y_pred_fine = fine_fine_tuner(X)
-                    Y_pred_coarse = coarse_fine_tuner(X)
+                        Y_pred_fine = fine_fine_tuner(X.to(device_1))
+                        Y_pred_coarse = coarse_fine_tuner(X.to(device_2))
 
-                    fine_loss = criterion(Y_pred_fine, Y_fine_grain)
-                    coarse_loss = criterion(Y_pred_coarse, Y_coarse_grain)
+                        fine_loss = criterion(Y_pred_fine, Y_fine_grain)
+                        coarse_loss = criterion(Y_pred_coarse, Y_coarse_grain)
 
-                    fine_loss.backward()
-                    coarse_loss.backward()
+                        fine_loss.backward()
+                        coarse_loss.backward()
 
-                    fine_optimizer.step()
-                    coarse_optimizer.step()
+                        fine_optimizer.step()
+                        coarse_optimizer.step()
 
-                    running_fine_loss += fine_loss.item()
-                    running_coarse_loss += coarse_loss.item()
+                        running_fine_loss += fine_loss.item()
+                        running_coarse_loss += coarse_loss.item()
 
-                    predicted_fine = torch.max(Y_pred_fine, 1)[1]
-                    predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
+                        predicted_fine = torch.max(Y_pred_fine, 1)[1]
+                        predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
 
-                    train_fine_ground_truths += Y_fine_grain.tolist()
-                    train_coarse_ground_truths += Y_coarse_grain.tolist()
+                        train_fine_ground_truths += Y_fine_grain.tolist()
+                        train_coarse_ground_truths += Y_coarse_grain.tolist()
 
-                    train_fine_predictions += predicted_fine.tolist()
-                    train_coarse_predictions += predicted_coarse.tolist()
+                        train_fine_predictions += predicted_fine.tolist()
+                        train_coarse_predictions += predicted_coarse.tolist()
 
-                    del X, Y_fine_grain, Y_coarse_grain
+                        del X, Y_fine_grain, Y_coarse_grain
 
-                    print(f'\nCompleted batch num {batch_num}/{num_batches}. '
-                          f'Batch fine-grain loss: {round(fine_loss.item(), 3)}, '
-                          f' coarse-grain loss: {round(coarse_loss.item(), 3)}')
+                        print(f'\nCompleted batch num {batch_num}/{num_batches}. '
+                              f'Batch fine-grain loss: {round(fine_loss.item(), 3)}, '
+                              f' coarse-grain loss: {round(coarse_loss.item(), 3)}')
 
             true_fine_labels = np.array(train_fine_ground_truths)
             true_coarse_labels = np.array(train_coarse_ground_truths)
@@ -256,7 +258,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
              test_fine_accuracy, test_coarse_accuracy) = test_individual_models(fine_tuners=fine_tuners,
                                                                                 loaders=loaders,
-                                                                                device=device)
+                                                                                devices=devices)
             test_fine_accuracies += [test_fine_accuracy]
             test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
@@ -426,10 +428,23 @@ def initiate(combined: bool,
     print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
-    device = torch.device('cpu') if debug and utils.is_local() and not train else (
-        torch.device('mps' if torch.backends.mps.is_available() else
-                     ("cuda" if torch.cuda.is_available() else 'cpu')))
-    print(f'Using {device}')
+    if combined:
+        device = torch.device('cpu') if debug and utils.is_local() and not train else (
+            torch.device('mps' if torch.backends.mps.is_available() else
+                         ("cuda" if torch.cuda.is_available() else 'cpu')))
+        devices = [device]
+        print(f'Using {device}')
+    else:
+        # Check the number of available GPUs
+        num_gpus = torch.cuda.device_count()
+
+        if num_gpus < 2:
+            raise ValueError("This setup requires at least 2 GPUs.")
+
+        # Assign models to different GPUs
+        device_1 = torch.device("cuda:0")  # Choose GPU 0
+        device_2 = torch.device("cuda:1")  # Choose GPU 1
+        devices = [device_1, device_2]
 
     if combined:
         fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
@@ -449,17 +464,17 @@ def initiate(combined: bool,
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size)
 
-    return fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes
+    return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
 
 
 def run_combined_fine_tuning_pipeline(debug: bool = False):
-    fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
-                                                                                              train=True,
-                                                                                              debug=debug)
+    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
+                                                                                               train=True,
+                                                                                               debug=debug)
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
             fine_tune_combined_model(fine_tuner=fine_tuner,
-                                     device=device,
+                                     device=devices[0],
                                      loaders=loaders,
                                      num_fine_grain_classes=num_fine_grain_classes,
                                      num_coarse_grain_classes=num_coarse_grain_classes)
@@ -467,26 +482,26 @@ def run_combined_fine_tuning_pipeline(debug: bool = False):
 
 
 def run_combined_testing_pipeline():
-    fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
-                                                                                              train=False)
+    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
+                                                                                               train=False)
 
     test_combined_model(fine_tuner=fine_tuners[0],
                         loaders=loaders,
-                        device=device,
+                        device=devices[0],
                         num_fine_grain_classes=num_fine_grain_classes)
 
 
 def run_individual_fine_tuning_pipeline(debug: bool = False):
-    fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=False,
-                                                                                              train=True,
-                                                                                              debug=debug)
+    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=False,
+                                                                                               train=True,
+                                                                                               debug=debug)
 
     for fine_tuner in fine_tuners:
         print(f'Initiating {fine_tuner}')
 
         with context_handlers.ClearSession():
             fine_tune_individual_models(fine_tuners=fine_tuners,
-                                        device=device,
+                                        devices=devices,
                                         loaders=loaders)
             print('#' * 100)
 
