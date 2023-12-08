@@ -80,7 +80,7 @@ class ImageFolderWithName(torchvision.datasets.ImageFolder):
 
 class ImageFolderWithNameIndividual(torchvision.datasets.ImageFolder):
     def __getitem__(self,
-                    index: int):
+                    index: int) -> (torch.tensor, int, str):
         path, target = self.samples[index]
         image = self.loader(path)
 
@@ -94,8 +94,8 @@ class ImageFolderWithNameIndividual(torchvision.datasets.ImageFolder):
         return image, target, f'{folder_path}/{name}'
 
 
-def get_datasets(cwd: typing.Union[str, pathlib.Path],
-                 ) -> (dict[str, ImageFolderWithName], int):
+def get_combined_datasets(cwd: typing.Union[str, pathlib.Path],
+                          ) -> (dict[str, ImageFolderWithName], int, int):
     data_dir = pathlib.Path.joinpath(cwd, '.')
     datasets = {f'{train_or_test}': ImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
                                                         transform=get_transforms(train_or_test=train_or_test))
@@ -113,15 +113,15 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path],
     return datasets, num_fine_grain_classes, num_coarse_grain_classes
 
 
-def get_loaders(datasets: dict[str, ImageFolderWithName],
-                batch_size: int) -> dict[str, torch.utils.data.DataLoader]:
+def get_combined_loaders(datasets: dict[str, ImageFolderWithName],
+                         batch_size: int) -> dict[str, torch.utils.data.DataLoader]:
     return {train_or_test: torch.utils.data.DataLoader(
         dataset=datasets[train_or_test],
         batch_size=batch_size,
         shuffle=train_or_test == 'train') for train_or_test in ['train', 'test']}
 
 
-def get_datasets_individual(cwd: typing.Union[str, pathlib.Path],
+def get_individual_datasets(cwd: typing.Union[str, pathlib.Path],
                             granularity: str
                             ) -> (dict[str, ImageFolderWithNameIndividual], int):
     data_dir = pathlib.Path.joinpath(cwd, '.')
@@ -140,7 +140,7 @@ def get_datasets_individual(cwd: typing.Union[str, pathlib.Path],
     return datasets, num_classes
 
 
-def get_loaders_individual(datasets: dict[str, ImageFolderWithNameIndividual],
+def get_individual_loaders(datasets: dict[str, ImageFolderWithNameIndividual],
                            batch_size: int) -> dict[str, torch.utils.data.DataLoader]:
     return {train_or_test: torch.utils.data.DataLoader(
         dataset=datasets[train_or_test],

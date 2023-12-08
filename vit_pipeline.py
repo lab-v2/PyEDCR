@@ -213,7 +213,6 @@ def fine_tune_individual_model(fine_tuner: models.FineTuner,
             np.save(f"{results_path}test_true_{granularity}_individual.npy", test_ground_truths)
 
 
-
 def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              device: torch.device,
                              loaders: dict[str, torch.utils.data.DataLoader],
@@ -356,8 +355,11 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
 
 def initiate(train: bool,
+             combined: bool = True,
              debug: bool = False):
-    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
+    datasets_getter = data_preprocessing.get_combined_datasets if combined \
+        else data_preprocessing.get_individual_datasets
+    datasets, num_fine_grain_classes, num_coarse_grain_classes = datasets_getter(cwd=cwd)
 
     device = torch.device('cpu') if debug and utils.is_local() and not train else (
         torch.device('mps' if torch.backends.mps.is_available() else
@@ -368,8 +370,10 @@ def initiate(train: bool,
                                        num_classes=num_fine_grain_classes + num_coarse_grain_classes)
                    for vit_model_name in vit_model_names]
 
-    loaders = data_preprocessing.get_loaders(datasets=datasets,
-                                             batch_size=batch_size)
+    loaders_getter = data_preprocessing.get_combined_loaders if combined \
+        else data_preprocessing.get_individual_loaders()
+    loaders = loaders_getter(datasets=datasets,
+                             batch_size=batch_size)
 
     return fine_tuners, loaders, device, num_fine_grain_classes, num_coarse_grain_classes
 
@@ -410,9 +414,8 @@ def run_individual_fine_tuning_pipeline(granularity: str):
 
     print(f'Running {granularity}-grain pipeline...\n')
 
-    datasets, num_classes = data_preprocessing.get_datasets_individual(cwd=cwd,
+    datasets, num_classes = data_preprocessing.get_individual_datasets(cwd=cwd,
                                                                        granularity=granularity)
-
 
     device = torch.device('mps' if torch.backends.mps.is_available() else
                           ("cuda" if torch.cuda.is_available() else 'cpu'))
@@ -423,7 +426,7 @@ def run_individual_fine_tuning_pipeline(granularity: str):
 
     print(f'Fine tuners: {[str(fine_tuner) for fine_tuner in fine_tuners]}')
 
-    loaders = data_preprocessing.get_loaders_individual(datasets=datasets,
+    loaders = data_preprocessing.get_individual_loaders(datasets=datasets,
                                                         batch_size=batch_size)
 
     for fine_tuner in fine_tuners:
@@ -440,4 +443,4 @@ def run_individual_fine_tuning_pipeline(granularity: str):
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline()
+    run_individual_fine_tuning_pipeline(granularity='fine')
