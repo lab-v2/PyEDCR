@@ -12,7 +12,7 @@ import utils
 import data_preprocessing
 
 batch_size = 32
-lrs = [1e-4]
+lrs = [1e-6]
 scheduler_gamma = 0.1
 num_epochs = 10
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
@@ -229,8 +229,8 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
 
                         if not utils.is_local() and batch_num > 0 and batch_num % 10 == 0:
                             print(f'\nCompleted batch num {batch_num}/{num_batches}. '
-                              f'Batch fine-grain loss: {round(fine_loss.item(), 3)}, '
-                              f' coarse-grain loss: {round(coarse_loss.item(), 3)}')
+                                  f'Batch fine-grain loss: {round(fine_loss.item(), 3)}, '
+                                  f' coarse-grain loss: {round(coarse_loss.item(), 3)}')
 
             true_fine_labels = np.array(train_fine_ground_truths)
             true_coarse_labels = np.array(train_coarse_ground_truths)
@@ -280,16 +280,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_coarse_ground_truths)
 
 
-class LearnedWeightedLoss(torch.nn.Module):
-    def __init__(self):
-        super(LearnedWeightedLoss, self).__init__()
-        self.a1 = torch.nn.Parameter(torch.Tensor([1.0]),
-                                     requires_grad=True)
-        self.a2 = torch.nn.Parameter(torch.Tensor([1.0]),
-                                     requires_grad=True)
 
-    def forward(self, L1: torch.Tensor, L2: torch.Tensor) -> torch.Tensor:
-        return self.a1 * L1 + self.a2 * L2
 
 
 def fine_tune_combined_model(fine_tuner: models.FineTuner,
@@ -313,7 +304,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                                                     step_size=scheduler_step_size,
                                                     gamma=scheduler_gamma)
 
-        learned_weighted_loss = LearnedWeightedLoss()
+        learned_weighted_loss = models.LearnedWeightedLoss()
 
         train_total_losses = []
         train_fine_losses = []

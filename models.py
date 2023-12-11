@@ -41,3 +41,14 @@ class VITFineTuner(FineTuner):
     def __str__(self):
         return self.vit_model_name
 
+
+class LearnedWeightedLoss(torch.nn.Module):
+    def __init__(self):
+        super(LearnedWeightedLoss, self).__init__()
+        self.a1 = torch.nn.Parameter(torch.Tensor([1.0]),
+                                     requires_grad=True)
+        self.a2 = torch.nn.Parameter(torch.Tensor([1.0]),
+                                     requires_grad=True)
+
+    def forward(self, L1: torch.Tensor, L2: torch.Tensor) -> torch.Tensor:
+        return self.a1 * L1 + self.a2 * L2
