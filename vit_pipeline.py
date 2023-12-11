@@ -279,11 +279,22 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_coarse_ground_truths)
 
 
+class LearnedWeightedLoss(torch.nn.Module):
+    def __init__(self):
+        super(LearnedWeightedLoss, self).__init__()
+        self.a1 = torch.nn.Parameter(torch.Tensor([1.0]),
+                                     requires_grad=True)
+        self.a2 = torch.nn.Parameter(torch.Tensor([1.0]),
+                                     requires_grad=True)
+
+    def forward(self, L1: torch.Tensor, L2: torch.Tensor) -> torch.Tensor:
+        return self.a1 * L1 + self.a2 * L2
+
+
 def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              device: torch.device,
                              loaders: dict[str, torch.utils.data.DataLoader],
-                             num_fine_grain_classes: int,
-                             num_coarse_grain_classes: int):
+                             num_fine_grain_classes: int):
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -291,7 +302,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
     num_batches = len(train_loader)
     criterion = torch.nn.CrossEntropyLoss()
 
-    alpha = num_fine_grain_classes / (num_fine_grain_classes + num_coarse_grain_classes)
+    # alpha = num_fine_grain_classes / (num_fine_grain_classes + num_coarse_grain_classes)
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -300,6 +311,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
                                                     step_size=scheduler_step_size,
                                                     gamma=scheduler_gamma)
+
+        learned_weighted_loss = LearnedWeightedLoss()
 
         train_total_losses = []
         train_fine_losses = []
@@ -351,7 +364,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                     batch_fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
                     batch_coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
 
-                    batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
+                    batch_total_loss = learned_weighted_loss(batch_fine_grain_loss, batch_coarse_grain_loss)
+                    # batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
                     batch_total_loss.backward()
                     optimizer.step()
 
@@ -476,8 +490,7 @@ def run_combined_fine_tuning_pipeline(debug: bool = False):
             fine_tune_combined_model(fine_tuner=fine_tuner,
                                      device=devices[0],
                                      loaders=loaders,
-                                     num_fine_grain_classes=num_fine_grain_classes,
-                                     num_coarse_grain_classes=num_coarse_grain_classes)
+                                     num_fine_grain_classes=num_fine_grain_classes)
             print('#' * 100)
 
 
