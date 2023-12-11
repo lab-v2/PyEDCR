@@ -227,7 +227,8 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
 
                         del X, Y_fine_grain, Y_coarse_grain
 
-                        print(f'\nCompleted batch num {batch_num}/{num_batches}. '
+                        if not utils.is_local() and batch_num > 0 and batch_num % 10 == 0:
+                            print(f'\nCompleted batch num {batch_num}/{num_batches}. '
                               f'Batch fine-grain loss: {round(fine_loss.item(), 3)}, '
                               f' coarse-grain loss: {round(coarse_loss.item(), 3)}')
 
