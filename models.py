@@ -43,13 +43,18 @@ class VITFineTuner(FineTuner):
 
 
 class LearnedWeightedLoss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self,
+                 minimal_value: float = 0.1):
         super(LearnedWeightedLoss, self).__init__()
         self.a1 = torch.nn.Parameter(torch.Tensor([1.0]),
                                      requires_grad=True)
         self.a2 = torch.nn.Parameter(torch.Tensor([1.0]),
                                      requires_grad=True)
+        self.minimal_value = minimal_value
 
     def forward(self, L1: torch.Tensor, L2: torch.Tensor) -> torch.Tensor:
+        self.a1.data = torch.clamp(self.a1.data, min=self.minimal_value)
+        self.a2.data = torch.clamp(self.a2.data, min=self.minimal_value)
+
         return self.a1 * L1 + self.a2 * L2
 
