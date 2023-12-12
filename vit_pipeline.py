@@ -378,7 +378,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                     if not utils.is_local() and batch_num > 0 and batch_num % 10 == 0:
                         print(f'Completed batch num {batch_num}/{num_batches} in {round(time() - batch_start_time, 1)} '
                               f'seconds. Batch fine-grain loss: {round(batch_fine_grain_loss.item(), 3)}, '
-                              f'batch coarse-grain loss: {round(batch_coarse_grain_loss.item(), 3)}')
+                              f'batch coarse-grain loss: {round(batch_coarse_grain_loss.item(), 3)},'
+                              f'')
 
             training_fine_accuracy = accuracy_score(y_true=np.array(train_fine_ground_truths),
                                                     y_pred=np.array(train_fine_predictions))
