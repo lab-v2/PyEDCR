@@ -56,8 +56,10 @@ class LearnedHierarchicalWeightedLoss(torch.nn.Module):
 
         self.minimal_value = default_alpha
 
-    def forward(self, L1: torch.Tensor, L2: torch.Tensor) -> torch.Tensor:
+    def forward(self,
+                fine_loss: torch.Tensor,
+                coarse_loss: torch.Tensor) -> torch.Tensor:
         self.fine_coefficient.data = torch.clamp(self.fine_coefficient.data, min=self.minimal_value)
         self.coarse_coefficient.data = torch.clamp(self.coarse_coefficient.data, min=1 - self.minimal_value)
 
-        return self.a1 * L1 + self.a2 * L2
+        return self.fine_coefficient * fine_loss + self.coarse_coefficient * coarse_loss
