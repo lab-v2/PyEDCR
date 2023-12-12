@@ -42,19 +42,22 @@ class VITFineTuner(FineTuner):
         return self.vit_model_name
 
 
-class LearnedWeightedLoss(torch.nn.Module):
+class LearnedHierarchicalWeightedLoss(torch.nn.Module):
     def __init__(self,
-                 minimal_value: float = 0.1):
-        super(LearnedWeightedLoss, self).__init__()
-        self.a1 = torch.nn.Parameter(torch.Tensor([1.0]),
-                                     requires_grad=True)
-        self.a2 = torch.nn.Parameter(torch.Tensor([1.0]),
-                                     requires_grad=True)
-        self.minimal_value = minimal_value
+                 num_fine_grain_classes: int,
+                 num_coarse_grain_classes: int
+                 ):
+        super(LearnedHierarchicalWeightedLoss, self).__init__()
+        default_alpha = num_fine_grain_classes / (num_fine_grain_classes + num_coarse_grain_classes)
+        self.fine_coefficient = torch.nn.Parameter(torch.Tensor([default_alpha]),
+                                                   requires_grad=True)
+        self.coarse_coefficient = torch.nn.Parameter(torch.Tensor([1 - default_alpha]),
+                                                     requires_grad=True)
+
+        self.minimal_value = default_alpha
 
     def forward(self, L1: torch.Tensor, L2: torch.Tensor) -> torch.Tensor:
-        self.a1.data = torch.clamp(self.a1.data, min=self.minimal_value)
-        self.a2.data = torch.clamp(self.a2.data, min=self.minimal_value)
+        self.fine_coefficient.data = torch.clamp(self.fine_coefficient.data, min=self.minimal_value)
+        self.coarse_coefficient.data = torch.clamp(self.coarse_coefficient.data, min=1 - self.minimal_value)
 
         return self.a1 * L1 + self.a2 * L2
-

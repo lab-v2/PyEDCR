@@ -134,10 +134,6 @@ def test_combined_model(fine_tuner: models.FineTuner,
             test_fine_accuracy, test_coarse_accuracy)
 
 
-def print_init_message():
-    pass
-
-
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                                 devices: list[torch.device],
                                 loaders: dict[str, torch.utils.data.DataLoader]):
@@ -288,7 +284,8 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
 def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              device: torch.device,
                              loaders: dict[str, torch.utils.data.DataLoader],
-                             num_fine_grain_classes: int):
+                             num_fine_grain_classes: int,
+                             num_coarse_grain_classes: int):
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -304,7 +301,9 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                                                     step_size=scheduler_step_size,
                                                     gamma=scheduler_gamma)
 
-        learned_weighted_loss = models.LearnedWeightedLoss().to(device)
+        learned_weighted_loss = models.LearnedHierarchicalWeightedLoss(
+            num_fine_grain_classes=num_fine_grain_classes,
+            num_coarse_grain_classes=num_coarse_grain_classes).to(device)
 
         train_total_losses = []
         train_fine_losses = []
@@ -478,7 +477,8 @@ def run_combined_fine_tuning_pipeline(debug: bool = False):
             fine_tune_combined_model(fine_tuner=fine_tuner,
                                      device=devices[0],
                                      loaders=loaders,
-                                     num_fine_grain_classes=num_fine_grain_classes)
+                                     num_fine_grain_classes=num_fine_grain_classes,
+                                     num_coarse_grain_classes=num_coarse_grain_classes)
             print('#' * 100)
 
 
