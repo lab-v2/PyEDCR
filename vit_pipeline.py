@@ -134,6 +134,10 @@ def test_combined_model(fine_tuner: models.FineTuner,
             test_fine_accuracy, test_coarse_accuracy)
 
 
+def print_init_message():
+    pass
+
+
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                                 devices: list[torch.device],
                                 loaders: dict[str, torch.utils.data.DataLoader]):
@@ -148,8 +152,6 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
     train_loader = loaders['train']
     num_batches = len(train_loader)
     criterion = torch.nn.CrossEntropyLoss()
-
-    constraint_min = 0.1  # Minimum value for a1 and a2
 
     for lr in lrs:
         fine_optimizer = torch.optim.Adam(params=fine_fine_tuner.parameters(),
@@ -176,7 +178,8 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
         test_coarse_ground_truths = []
         test_coarse_accuracies = []
 
-        print(f'Started fine-tuning individual models with lr={lr} on {device_1} and {device_2}...')
+        print(f'Started fine-tuning individual models with lr={lr} for {num_epochs} epochs '
+              f'on {device_1} and {device_2}...')
 
         for epoch in range(num_epochs):
             t1 = time()
@@ -280,9 +283,6 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             np.save(f"{individual_results_path}test_true_fine_individual.npy", test_fine_ground_truths)
         if not os.path.exists(f"{individual_results_path}test_true_coarse_individual.npy"):
             np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_coarse_ground_truths)
-
-
-
 
 
 def fine_tune_combined_model(fine_tuner: models.FineTuner,
@@ -431,7 +431,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 def initiate(combined: bool,
              train: bool,
              debug: bool = False):
-    print(f'Models: {vit_model_names}\nLearning rates: {lrs}\n')
+    print(f'Models: {vit_model_names}\nEpochs num:{num_epochs}\nLearning rates: {lrs}')
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
     if combined:
@@ -440,24 +440,20 @@ def initiate(combined: bool,
                          ("cuda" if torch.cuda.is_available() else 'cpu')))
         devices = [device]
         print(f'Using {device}')
+
+        fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+                                           num_classes=num_fine_grain_classes + num_coarse_grain_classes)
+                       for vit_model_name in vit_model_names]
+        results_path = combined_results_path
     else:
-        # Check the number of available GPUs
         num_gpus = torch.cuda.device_count()
 
         if num_gpus < 2:
             raise ValueError("This setup requires at least 2 GPUs.")
 
         # Assign models to different GPUs
-        device_1 = torch.device("cuda:0")  # Choose GPU 0
-        device_2 = torch.device("cuda:1")  # Choose GPU 1
-        devices = [device_1, device_2]
+        devices = [torch.device("cuda:0"), torch.device("cuda:1")]
 
-    if combined:
-        fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
-                                           num_classes=num_fine_grain_classes + num_coarse_grain_classes)
-                       for vit_model_name in vit_model_names]
-        results_path = combined_results_path
-    else:
         fine_tuners = ([models.VITFineTuner(vit_model_name=vit_model_name,
                                             num_classes=num_fine_grain_classes)
                         for vit_model_name in vit_model_names] +
