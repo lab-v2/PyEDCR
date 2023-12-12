@@ -2,7 +2,7 @@ import os
 import torch
 import torch.utils.data
 import numpy as np
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 from time import time
 import pathlib
 
@@ -148,18 +148,29 @@ def test_combined_model(fine_tuner: models.FineTuner,
             test_fine_accuracy, test_coarse_accuracy)
 
 
-def print_post_epoch_metrics(epoch: int,
-                             epoch_start_time: float,
-                             running_fine_loss: float,
-                             running_coarse_loss: float,
-                             num_batches: int,
-                             training_fine_accuracy: float,
-                             training_coarse_accuracy: float):
+def get_and_print_post_epoch_metrics(epoch: int,
+                                     epoch_start_time: float,
+                                     running_fine_loss: float,
+                                     running_coarse_loss: float,
+                                     num_batches: int,
+                                     train_fine_ground_truth,
+                                     train_fine_prediction,
+                                     train_coarse_ground_truth,
+                                     train_coarse_prediction):
+    training_fine_accuracy = accuracy_score(y_true=train_fine_ground_truth, y_pred=train_fine_prediction)
+    training_coarse_accuracy = accuracy_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction)
+    training_fine_f1 = f1_score(y_true=train_fine_ground_truth, y_pred=train_fine_prediction)
+    training_coarse_f1 = f1_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction)
+
     print(f'\nEpoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}, '
           f'\nTraining fine loss: {round(running_fine_loss / num_batches, 2)}'
           f'\ntraining coarse loss: {round(running_coarse_loss / num_batches, 2)}'
-          f'\ntraining fine accuracy: {round(training_fine_accuracy * 100, 2)}%'
-          f'\ntraining coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%\n')
+          f'\ntraining fine accuracy: {round(training_fine_accuracy * 100, 2)}'
+          f', fine f1: {round(training_fine_f1 * 100, 2)}%\n'
+          f'\ntraining coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%\n'
+          f', coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
+
+    return training_fine_accuracy, training_coarse_accuracy
 
 
 def print_post_batch_metrics(batch_num: int,
@@ -277,24 +288,22 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                                                  batch_fine_grain_loss=batch_fine_grain_loss.item(),
                                                  batch_coarse_grain_loss=batch_coarse_grain_loss.item())
 
-
-
             true_fine_labels = np.array(train_fine_ground_truths)
             true_coarse_labels = np.array(train_coarse_ground_truths)
 
             predicted_fine_labels = np.array(train_fine_predictions)
             predicted_coarse_labels = np.array(train_coarse_predictions)
 
-            training_fine_accuracy = accuracy_score(true_fine_labels, predicted_fine_labels)
-            training_coarse_accuracy = accuracy_score(true_coarse_labels, predicted_coarse_labels)
-
-            print_post_epoch_metrics(epoch=epoch,
-                                     epoch_start_time=epoch_start_time,
-                                     running_fine_loss=running_fine_loss,
-                                     running_coarse_loss=running_coarse_loss,
-                                     num_batches=num_batches,
-                                     training_fine_accuracy=training_fine_accuracy,
-                                     training_coarse_accuracy=training_coarse_accuracy)
+            training_fine_accuracy, training_coarse_accuracy = (
+                get_and_print_post_epoch_metrics(epoch=epoch,
+                                                 epoch_start_time=epoch_start_time,
+                                                 running_fine_loss=running_fine_loss,
+                                                 running_coarse_loss=running_coarse_loss,
+                                                 num_batches=num_batches,
+                                                 train_fine_ground_truth=true_fine_labels,
+                                                 train_fine_prediction=predicted_fine_labels,
+                                                 train_coarse_ground_truth=true_coarse_labels,
+                                                 train_coarse_prediction=predicted_coarse_labels))
 
             train_fine_accuracies += [training_fine_accuracy]
             train_coarse_accuracies += [training_coarse_accuracy]
@@ -429,20 +438,16 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                                              batch_coarse_grain_loss=batch_coarse_grain_loss.item(),
                                              alpha_value=learned_weighted_loss.alpha.item())
 
-
-
-            training_fine_accuracy = accuracy_score(y_true=np.array(train_fine_ground_truths),
-                                                    y_pred=np.array(train_fine_predictions))
-            training_coarse_accuracy = accuracy_score(y_true=np.array(train_coarse_ground_truths),
-                                                      y_pred=np.array(train_coarse_predictions))
-
-            print_post_epoch_metrics(epoch=epoch,
-                                     epoch_start_time=epoch_start_time,
-                                     running_fine_loss=running_fine_loss,
-                                     running_coarse_loss=running_coarse_loss,
-                                     num_batches=num_batches,
-                                     training_fine_accuracy=training_fine_accuracy,
-                                     training_coarse_accuracy=training_coarse_accuracy)
+            training_fine_accuracy, training_coarse_accuracy = (
+                get_and_print_post_epoch_metrics(epoch=epoch,
+                                                 epoch_start_time=epoch_start_time,
+                                                 running_fine_loss=running_fine_loss,
+                                                 running_coarse_loss=running_coarse_loss,
+                                                 num_batches=num_batches,
+                                                 train_fine_ground_truth=np.array(train_fine_ground_truths),
+                                                 train_fine_prediction=np.array(train_fine_predictions),
+                                                 train_coarse_ground_truth=np.array(train_coarse_ground_truths),
+                                                 train_coarse_prediction=np.array(train_coarse_predictions)))
 
             train_fine_accuracies += [training_fine_accuracy]
             train_coarse_accuracies += [training_coarse_accuracy]
