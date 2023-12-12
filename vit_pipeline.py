@@ -165,12 +165,14 @@ def print_post_epoch_metrics(epoch: int,
 def print_post_batch_metrics(batch_num: int,
                              num_batches: int,
                              batch_start_time: float,
-                             batch_fine_grain_loss: torch.Tensor,
-                             batch_coarse_grain_loss: torch.Tensor):
+                             batch_fine_grain_loss: float,
+                             batch_coarse_grain_loss: float,
+                             alpha_value: float = None):
     if not utils.is_local() and batch_num > 0 and batch_num % 10 == 0:
         print(f'Completed batch num {batch_num}/{num_batches} in {int(time() - batch_start_time)} '
-              f'seconds. Batch fine-grain loss: {round(batch_fine_grain_loss.item(), 2)}, '
-              f'batch coarse-grain loss: {round(batch_coarse_grain_loss.item(), 2)}')
+              f'seconds. Batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
+              f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}'
+              + f'alpha value: {alpha_value}' if alpha_value is not None else '')
 
 
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
@@ -272,8 +274,8 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                         print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,
                                                  batch_start_time=batch_start_time,
-                                                 batch_fine_grain_loss=batch_fine_grain_loss,
-                                                 batch_coarse_grain_loss=batch_coarse_grain_loss)
+                                                 batch_fine_grain_loss=batch_fine_grain_loss.item(),
+                                                 batch_coarse_grain_loss=batch_coarse_grain_loss.item())
 
 
 
@@ -423,8 +425,9 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                     print_post_batch_metrics(batch_num=batch_num,
                                              num_batches=num_batches,
                                              batch_start_time=batch_start_time,
-                                             batch_fine_grain_loss=batch_fine_grain_loss,
-                                             batch_coarse_grain_loss=batch_coarse_grain_loss)
+                                             batch_fine_grain_loss=batch_fine_grain_loss.item(),
+                                             batch_coarse_grain_loss=batch_coarse_grain_loss.item(),
+                                             alpha_value=learned_weighted_loss.alpha.item())
 
 
 
