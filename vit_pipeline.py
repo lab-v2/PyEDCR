@@ -15,7 +15,7 @@ batch_size = 32
 lrs = [1e-4]
 scheduler_gamma = 0.1
 num_epochs = 10
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
+vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
 combined_results_path = fr'{files_path}combined_results/'
@@ -134,6 +134,20 @@ def test_combined_model(fine_tuner: models.FineTuner,
             test_fine_accuracy, test_coarse_accuracy)
 
 
+def print_post_epoch_metrics(epoch: int,
+                             epoch_start_time: float,
+                             running_fine_loss: float,
+                             running_coarse_loss: float,
+                             num_batches: int,
+                             training_fine_accuracy: float,
+                             training_coarse_accuracy: float):
+    print(f'\nEpoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}, '
+          f'\nTraining fine loss: {round(running_fine_loss / num_batches, 2)}'
+          f'\ntraining coarse loss: {round(running_coarse_loss / num_batches, 2)}'
+          f'\ntraining fine accuracy: {round(training_fine_accuracy * 100, 2)}%\n'
+          f'\ntraining coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%\n')
+
+
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                                 devices: list[torch.device],
                                 loaders: dict[str, torch.utils.data.DataLoader]):
@@ -178,7 +192,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
               f'on {device_1} and {device_2}...')
 
         for epoch in range(num_epochs):
-            t1 = time()
+            epoch_start_time = time()
             running_fine_loss = 0.0
             running_coarse_loss = 0.0
 
@@ -239,17 +253,19 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             predicted_fine_labels = np.array(train_fine_predictions)
             predicted_coarse_labels = np.array(train_coarse_predictions)
 
-            fine_acc = accuracy_score(true_fine_labels, predicted_fine_labels)
-            coarse_acc = accuracy_score(true_coarse_labels, predicted_coarse_labels)
+            training_fine_accuracy = accuracy_score(true_fine_labels, predicted_fine_labels)
+            training_coarse_accuracy = accuracy_score(true_coarse_labels, predicted_coarse_labels)
 
-            print(f'\nEpoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - t1))}, '
-                  f'\nTraining fine loss: {round(running_fine_loss / num_batches, 3)}'
-                  f'\ntraining coarse loss: {round(running_fine_loss / num_batches, 3)}'
-                  f'\ntraining fine accuracy: {round(fine_acc, 3)}\n'
-                  f'\ntraining coarse accuracy: {round(coarse_acc, 3)}\n')
+            print_post_epoch_metrics(epoch=epoch,
+                                     epoch_start_time=epoch_start_time,
+                                     running_fine_loss=running_fine_loss,
+                                     running_coarse_loss=running_coarse_loss,
+                                     num_batches=num_batches,
+                                     training_fine_accuracy=training_fine_accuracy,
+                                     training_coarse_accuracy=training_coarse_accuracy)
 
-            train_fine_accuracies += [fine_acc]
-            train_coarse_accuracies += [coarse_acc]
+            train_fine_accuracies += [training_fine_accuracy]
+            train_coarse_accuracies += [training_coarse_accuracy]
 
             train_fine_losses += [running_fine_loss / num_batches]
             train_coarse_losses += [running_coarse_loss / num_batches]
@@ -323,12 +339,11 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
         print('#' * 100 + '\n')
 
         for epoch in range(num_epochs):
-
             epoch_start_time = time()
 
             total_running_loss = 0.0
-            fine_running_loss = 0.0
-            coarse_running_loss = 0.0
+            running_fine_loss = 0.0
+            running_coarse_loss = 0.0
 
             train_fine_predictions = []
             train_coarse_predictions = []
@@ -361,8 +376,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                     optimizer.step()
 
                     total_running_loss += batch_total_loss.item()
-                    fine_running_loss += batch_fine_grain_loss.item()
-                    coarse_running_loss += batch_coarse_grain_loss.item()
+                    running_fine_loss += batch_fine_grain_loss.item()
+                    running_coarse_loss += batch_coarse_grain_loss.item()
 
                     predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
                     predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
@@ -386,20 +401,20 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
             training_coarse_accuracy = accuracy_score(y_true=np.array(train_coarse_ground_truths),
                                                       y_pred=np.array(train_coarse_predictions))
 
-            print(f'\nModel: {fine_tuner}\n'
-                  f'Epoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}\n'
-                  f'Training total loss: {round(total_running_loss / num_batches, 3)}\n'
-                  f'Training fine loss: {round(fine_running_loss / num_batches, 3)}\n'
-                  f'Training coarse loss: {round(coarse_running_loss / num_batches, 3)}\n'
-                  f'Training fine accuracy: {round(training_fine_accuracy, 3)}\n'
-                  f'Training coarse accuracy: {round(training_coarse_accuracy, 3)}\n')
+            print_post_epoch_metrics(epoch=epoch,
+                                     epoch_start_time=epoch_start_time,
+                                     running_fine_loss=running_fine_loss,
+                                     running_coarse_loss=running_coarse_loss,
+                                     num_batches=num_batches,
+                                     training_fine_accuracy=training_fine_accuracy,
+                                     training_coarse_accuracy=training_coarse_accuracy)
 
             train_fine_accuracies += [training_fine_accuracy]
             train_coarse_accuracies += [training_coarse_accuracy]
 
             train_total_losses += [total_running_loss / num_batches]
-            train_fine_losses += [fine_running_loss / num_batches]
-            train_coarse_losses += [coarse_running_loss / num_batches]
+            train_fine_losses += [running_fine_loss / num_batches]
+            train_coarse_losses += [running_coarse_loss / num_batches]
 
             scheduler.step()
             (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
