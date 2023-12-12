@@ -156,11 +156,15 @@ def get_and_print_post_epoch_metrics(epoch: int,
                                      train_fine_ground_truth,
                                      train_fine_prediction,
                                      train_coarse_ground_truth,
-                                     train_coarse_prediction):
+                                     train_coarse_prediction,
+                                     num_fine_grain_classes,
+                                     num_coarse_grain_classes):
     training_fine_accuracy = accuracy_score(y_true=train_fine_ground_truth, y_pred=train_fine_prediction)
     training_coarse_accuracy = accuracy_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction)
-    training_fine_f1 = f1_score(y_true=train_fine_ground_truth, y_pred=train_fine_prediction)
-    training_coarse_f1 = f1_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction)
+    training_fine_f1 = f1_score(y_true=train_fine_ground_truth, y_pred=train_fine_prediction,
+                                labels=range(num_fine_grain_classes), average='macro')
+    training_coarse_f1 = f1_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction,
+                                  labels=range(num_coarse_grain_classes), average='macro')
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}, '
           f'\nTraining fine loss: {round(running_fine_loss / num_batches, 2)}'
@@ -188,7 +192,9 @@ def print_post_batch_metrics(batch_num: int,
 
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                                 devices: list[torch.device],
-                                loaders: dict[str, torch.utils.data.DataLoader]):
+                                loaders: dict[str, torch.utils.data.DataLoader],
+                                num_fine_grain_classes: int,
+                                num_coarse_grain_classes: int):
     fine_fine_tuner, coarse_fine_tuner = fine_tuners
     device_1, device_2 = devices
     fine_fine_tuner.to(device_1)
@@ -303,7 +309,9 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                                                  train_fine_ground_truth=true_fine_labels,
                                                  train_fine_prediction=predicted_fine_labels,
                                                  train_coarse_ground_truth=true_coarse_labels,
-                                                 train_coarse_prediction=predicted_coarse_labels))
+                                                 train_coarse_prediction=predicted_coarse_labels,
+                                                 num_fine_grain_classes=num_fine_grain_classes,
+                                                 num_coarse_grain_classes=num_coarse_grain_classes))
 
             train_fine_accuracies += [training_fine_accuracy]
             train_coarse_accuracies += [training_coarse_accuracy]
@@ -447,7 +455,9 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                                                  train_fine_ground_truth=np.array(train_fine_ground_truths),
                                                  train_fine_prediction=np.array(train_fine_predictions),
                                                  train_coarse_ground_truth=np.array(train_coarse_ground_truths),
-                                                 train_coarse_prediction=np.array(train_coarse_predictions)))
+                                                 train_coarse_prediction=np.array(train_coarse_predictions),
+                                                 num_fine_grain_classes=num_fine_grain_classes,
+                                                 num_coarse_grain_classes=num_coarse_grain_classes))
 
             train_fine_accuracies += [training_fine_accuracy]
             train_coarse_accuracies += [training_coarse_accuracy]
@@ -559,7 +569,9 @@ def run_individual_fine_tuning_pipeline(debug: bool = False):
         with context_handlers.ClearSession():
             fine_tune_individual_models(fine_tuners=fine_tuners,
                                         devices=devices,
-                                        loaders=loaders)
+                                        loaders=loaders,
+                                        num_fine_grain_classes=num_fine_grain_classes,
+                                        num_coarse_grain_classes=num_coarse_grain_classes)
             print('#' * 100)
 
 
