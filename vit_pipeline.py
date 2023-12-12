@@ -46,7 +46,7 @@ def get_and_print_post_test_metrics(test_fine_ground_truth: np.array,
     print(f'\nTest fine accuracy: {round(test_fine_accuracy * 100, 2)}%'
           f', fine f1: {round(test_fine_f1 * 100, 2)}%'
           f'\nTest coarse accuracy: {round(test_coarse_accuracy * 100, 2)}%'
-          f'\n, coarse f1: {round(test_coarse_f1 * 100, 2)}%\n')
+          f', coarse f1: {round(test_coarse_f1 * 100, 2)}%\n')
 
     return test_fine_accuracy, test_coarse_accuracy
 
@@ -192,7 +192,7 @@ def get_and_print_post_epoch_metrics(epoch: int,
           f'\ntraining fine accuracy: {round(training_fine_accuracy * 100, 2)}'
           f', fine f1: {round(training_fine_f1 * 100, 2)}%'
           f'\ntraining coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
-          f'\n, coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
+          f', coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
 
     return training_fine_accuracy, training_coarse_accuracy
 
