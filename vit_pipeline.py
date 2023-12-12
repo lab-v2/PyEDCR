@@ -430,7 +430,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 def initiate(combined: bool,
              train: bool,
              debug: bool = False):
-    print(f'Models: {vit_model_names}\nEpochs num:{num_epochs}\nLearning rates: {lrs}')
+    print(f'Models: {vit_model_names}\nEpochs num: {num_epochs}\nLearning rates: {lrs}')
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
     if combined:
