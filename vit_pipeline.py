@@ -24,24 +24,39 @@ cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
 
-def get_and_print_post_test_metrics(test_fine_ground_truth,
-                                    test_fine_prediction,
-                                    test_coarse_ground_truth,
-                                    test_coarse_prediction):
+def get_and_print_post_test_metrics(test_fine_ground_truth: np.array,
+                                    test_fine_prediction: np.array,
+                                    test_coarse_ground_truth: np.array,
+                                    test_coarse_prediction: np.array,
+                                    num_fine_grain_classes: int,
+                                    num_coarse_grain_classes: int):
     test_fine_accuracy = accuracy_score(y_true=test_fine_ground_truth,
                                         y_pred=test_fine_prediction)
     test_coarse_accuracy = accuracy_score(y_true=test_coarse_ground_truth,
                                           y_pred=test_coarse_prediction)
+    test_fine_f1 = f1_score(y_true=test_fine_ground_truth,
+                            y_pred=test_fine_prediction,
+                            labels=range(num_fine_grain_classes),
+                            average='macro')
+    test_coarse_f1 = f1_score(y_true=test_fine_ground_truth,
+                              y_pred=test_fine_prediction,
+                              labels=range(num_coarse_grain_classes),
+                              average='macro')
 
     print(f'\nTest fine accuracy: {round(test_fine_accuracy * 100, 2)}%'
-          f'\nTest coarse accuracy: {round(test_coarse_accuracy * 100, 2)}%')
+          f', fine f1: {round(test_fine_f1 * 100, 2)}%'
+          f'\nTest coarse accuracy: {round(test_coarse_accuracy * 100, 2)}%'
+          f'\n, coarse f1: {round(test_coarse_f1 * 100, 2)}%\n')
 
     return test_fine_accuracy, test_coarse_accuracy
 
 
 def test_individual_models(fine_tuners: list[models.FineTuner],
                            loaders: dict[str, torch.utils.data.DataLoader],
-                           devices: list[torch.device]) -> (list[int], list[int], float):
+                           devices: list[torch.device],
+                           num_fine_grain_classes: int,
+                           num_coarse_grain_classes: int
+                           ) -> (list[int], list[int], float):
     test_loader = loaders[f'test']
     fine_fine_tuner, coarse_fine_tuner = fine_tuners
 
@@ -90,7 +105,9 @@ def test_individual_models(fine_tuners: list[models.FineTuner],
         get_and_print_post_test_metrics(test_fine_ground_truth=test_fine_ground_truth,
                                         test_fine_prediction=test_fine_prediction,
                                         test_coarse_ground_truth=test_coarse_ground_truth,
-                                        test_coarse_prediction=test_coarse_prediction))
+                                        test_coarse_prediction=test_coarse_prediction,
+                                        num_fine_grain_classes=num_fine_grain_classes,
+                                        num_coarse_grain_classes=num_coarse_grain_classes))
 
     return (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
             test_fine_accuracy, test_coarse_accuracy)
@@ -99,7 +116,8 @@ def test_individual_models(fine_tuners: list[models.FineTuner],
 def test_combined_model(fine_tuner: models.FineTuner,
                         loaders: dict[str, torch.utils.data.DataLoader],
                         device: torch.device,
-                        num_fine_grain_classes: int) -> (list[int], list[int], list[int], list[int], float, float):
+                        num_fine_grain_classes: int,
+                        num_coarse_grain_classes: int) -> (list[int], list[int], list[int], list[int], float, float):
     test_loader = loaders['test']
     fine_tuner.to(device)
     fine_tuner.eval()
@@ -142,7 +160,9 @@ def test_combined_model(fine_tuner: models.FineTuner,
         get_and_print_post_test_metrics(test_fine_ground_truth=test_fine_ground_truth,
                                         test_fine_prediction=test_fine_prediction,
                                         test_coarse_ground_truth=test_coarse_ground_truth,
-                                        test_coarse_prediction=test_coarse_prediction))
+                                        test_coarse_prediction=test_coarse_prediction,
+                                        num_fine_grain_classes=num_fine_grain_classes,
+                                        num_coarse_grain_classes=num_coarse_grain_classes))
 
     return (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
             test_fine_accuracy, test_coarse_accuracy)
@@ -170,9 +190,9 @@ def get_and_print_post_epoch_metrics(epoch: int,
           f'\nTraining fine loss: {round(running_fine_loss / num_batches, 2)}'
           f'\ntraining coarse loss: {round(running_coarse_loss / num_batches, 2)}'
           f'\ntraining fine accuracy: {round(training_fine_accuracy * 100, 2)}'
-          f', fine f1: {round(training_fine_f1 * 100, 2)}%\n'
-          f'\ntraining coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%\n'
-          f', coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
+          f', fine f1: {round(training_fine_f1 * 100, 2)}%'
+          f'\ntraining coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
+          f'\n, coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
 
     return training_fine_accuracy, training_coarse_accuracy
 
@@ -323,9 +343,13 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             coarse_scheduler.step()
 
             (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
-             test_fine_accuracy, test_coarse_accuracy) = test_individual_models(fine_tuners=fine_tuners,
-                                                                                loaders=loaders,
-                                                                                devices=devices)
+             test_fine_accuracy, test_coarse_accuracy) = (
+                test_individual_models(fine_tuners=fine_tuners,
+                                       loaders=loaders,
+                                       devices=devices,
+                                       num_fine_grain_classes=num_fine_grain_classes,
+                                       num_coarse_grain_classes=num_coarse_grain_classes
+                                       ))
             test_fine_accuracies += [test_fine_accuracy]
             test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
@@ -468,11 +492,12 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
             scheduler.step()
             (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
-             test_fine_accuracy, test_coarse_accuracy) = test_combined_model(fine_tuner=fine_tuner,
-                                                                             loaders=loaders,
-                                                                             device=device,
-                                                                             num_fine_grain_classes=
-                                                                             num_fine_grain_classes)
+             test_fine_accuracy, test_coarse_accuracy) = (
+                test_combined_model(fine_tuner=fine_tuner,
+                                    loaders=loaders,
+                                    device=device,
+                                    num_fine_grain_classes=num_fine_grain_classes,
+                                    num_coarse_grain_classes=num_coarse_grain_classes))
             test_fine_accuracies += [test_fine_accuracy]
             test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
@@ -555,7 +580,8 @@ def run_combined_testing_pipeline():
     test_combined_model(fine_tuner=fine_tuners[0],
                         loaders=loaders,
                         device=devices[0],
-                        num_fine_grain_classes=num_fine_grain_classes)
+                        num_fine_grain_classes=num_fine_grain_classes,
+                        num_coarse_grain_classes=num_coarse_grain_classes)
 
 
 def run_individual_fine_tuning_pipeline(debug: bool = False):
