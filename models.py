@@ -52,3 +52,4 @@ class LearnedWeightedLoss(torch.nn.Module):
 
     def forward(self, L1: torch.Tensor, L2: torch.Tensor) -> torch.Tensor:
         return self.a1 * L1 + self.a2 * L2
+
