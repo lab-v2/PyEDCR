@@ -49,11 +49,13 @@ class LearnedHierarchicalWeightedLoss(torch.nn.Module):
                  ):
         super(LearnedHierarchicalWeightedLoss, self).__init__()
         self.minimal_alpha = num_fine_grain_classes / (num_fine_grain_classes + num_coarse_grain_classes)
-        self.alpha = torch.nn.Parameter(torch.Tensor([self.minimal_alpha]), requires_grad=True)
+        self.alpha = self.minimal_alpha
 
     def forward(self,
                 fine_loss: torch.Tensor,
                 coarse_loss: torch.Tensor) -> torch.Tensor:
-        self.alpha.data = torch.clamp(self.alpha.data, min=self.minimal_alpha, max=1)
+        epsilon = 1e-8
+        losses_ratio = fine_loss.item() / (coarse_loss + epsilon)
+        self.alpha.data = torch.clamp(losses_ratio, min=self.minimal_alpha)
 
         return self.alpha * fine_loss + (1 - self.alpha) * coarse_loss
