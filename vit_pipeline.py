@@ -304,7 +304,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                                                     step_size=scheduler_step_size,
                                                     gamma=scheduler_gamma)
 
-        learned_weighted_loss = models.LearnedWeightedLoss()
+        learned_weighted_loss = models.LearnedWeightedLoss().to(device)
 
         train_total_losses = []
         train_fine_losses = []
