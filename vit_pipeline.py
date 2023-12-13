@@ -459,8 +459,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                     batch_fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
                     batch_coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
 
-                    running_fine_loss += batch_fine_grain_loss.item()
-                    running_coarse_loss += batch_coarse_grain_loss.item()
+                    running_fine_loss += batch_fine_grain_loss
+                    running_coarse_loss += batch_coarse_grain_loss
 
                     batch_total_loss = learned_weighted_loss(batch_fine_loss=batch_fine_grain_loss,
                                                              batch_coarse_loss=batch_coarse_grain_loss,
@@ -470,7 +470,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                     optimizer.step()
 
                     total_running_loss += batch_total_loss.item()
-
 
                     predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
                     predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
