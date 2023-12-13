@@ -45,17 +45,18 @@ class VITFineTuner(FineTuner):
 class LearnedHierarchicalWeightedLoss(torch.nn.Module):
     def __init__(self,
                  num_fine_grain_classes: int,
-                 num_coarse_grain_classes: int
-                 ):
+                 num_coarse_grain_classes: int):
         super(LearnedHierarchicalWeightedLoss, self).__init__()
         self.minimal_alpha = num_fine_grain_classes / (num_fine_grain_classes + num_coarse_grain_classes)
         self.alpha = torch.nn.Parameter(torch.Tensor([self.minimal_alpha]), requires_grad=False)
 
     def forward(self,
-                fine_loss: torch.Tensor,
-                coarse_loss: torch.Tensor) -> torch.Tensor:
+                batch_fine_loss: torch.Tensor,
+                batch_coarse_loss: torch.Tensor,
+                total_fine_loss: float,
+                total_coarse_loss: float) -> torch.Tensor:
         epsilon = 1e-8
-        losses_ratio = fine_loss.item() / (coarse_loss + epsilon)
+        losses_ratio = torch.Tensor([total_fine_loss / (total_coarse_loss + epsilon)])
         self.alpha.data = torch.clamp(losses_ratio, min=self.minimal_alpha)
 
-        return self.alpha * fine_loss + (1 - self.alpha) * coarse_loss
+        return self.alpha * batch_fine_loss + (1 - self.alpha) * batch_coarse_loss
