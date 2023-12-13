@@ -59,6 +59,8 @@ def get_and_print_post_test_metrics(test_fine_ground_truth: np.array,
           f'\nTest coarse accuracy: {round(test_coarse_accuracy * 100, 2)}%'
           f', coarse f1: {round(test_coarse_f1 * 100, 2)}%\n')
 
+    print_num_inconsistencies(fine_predictions=test_fine_prediction, coarse_predictions=test_coarse_prediction)
+
     return test_fine_accuracy, test_coarse_accuracy
 
 
