@@ -53,10 +53,10 @@ class LearnedHierarchicalWeightedLoss(torch.nn.Module):
     def forward(self,
                 batch_fine_loss: torch.Tensor,
                 batch_coarse_loss: torch.Tensor,
-                total_fine_loss: float,
-                total_coarse_loss: float) -> torch.Tensor:
+                total_fine_loss: torch.Tensor,
+                total_coarse_loss: torch.Tensor) -> torch.Tensor:
         epsilon = 1e-8
-        losses_ratio = torch.Tensor([total_fine_loss / (total_coarse_loss + epsilon)])
+        losses_ratio = total_fine_loss / (total_coarse_loss + epsilon)
         self.alpha.data = torch.clamp(losses_ratio, min=self.minimal_alpha)
 
         return self.alpha * batch_fine_loss + (1 - self.alpha) * batch_coarse_loss

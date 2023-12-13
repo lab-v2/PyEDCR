@@ -429,9 +429,9 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
         for epoch in range(num_epochs):
             epoch_start_time = time()
 
-            total_running_loss = 0.0
-            running_fine_loss = 0.0
-            running_coarse_loss = 0.0
+            total_running_loss = torch.Tensor([0.0])
+            running_fine_loss = torch.Tensor([0.0])
+            running_coarse_loss = torch.Tensor([0.0])
 
             train_fine_predictions = []
             train_coarse_predictions = []
@@ -493,8 +493,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
             training_fine_accuracy, training_coarse_accuracy = (
                 get_and_print_post_epoch_metrics(epoch=epoch,
                                                  epoch_start_time=epoch_start_time,
-                                                 running_fine_loss=running_fine_loss,
-                                                 running_coarse_loss=running_coarse_loss,
+                                                 running_fine_loss=running_fine_loss.item(),
+                                                 running_coarse_loss=running_coarse_loss.item(),
                                                  num_batches=num_batches,
                                                  train_fine_ground_truth=np.array(train_fine_ground_truths),
                                                  train_fine_prediction=np.array(train_fine_predictions),
@@ -506,9 +506,9 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
             train_fine_accuracies += [training_fine_accuracy]
             train_coarse_accuracies += [training_coarse_accuracy]
 
-            train_total_losses += [total_running_loss / num_batches]
-            train_fine_losses += [running_fine_loss / num_batches]
-            train_coarse_losses += [running_coarse_loss / num_batches]
+            train_total_losses += [total_running_loss.item() / num_batches]
+            train_fine_losses += [running_fine_loss.item() / num_batches]
+            train_coarse_losses += [running_coarse_loss.item() / num_batches]
 
             scheduler.step()
             (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
