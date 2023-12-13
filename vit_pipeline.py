@@ -429,9 +429,9 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
         for epoch in range(num_epochs):
             epoch_start_time = time()
 
-            total_running_loss = torch.Tensor([0.0])
-            running_fine_loss = torch.Tensor([0.0])
-            running_coarse_loss = torch.Tensor([0.0])
+            total_running_loss = torch.Tensor([0.0]).to(device)
+            running_fine_loss = torch.Tensor([0.0]).to(device)
+            running_coarse_loss = torch.Tensor([0.0]).to(device)
 
             train_fine_predictions = []
             train_coarse_predictions = []
