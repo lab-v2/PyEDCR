@@ -207,7 +207,7 @@ def print_post_batch_metrics(batch_num: int,
         print(f'Completed batch num {batch_num}/{num_batches} in {int(time() - batch_start_time)} '
               f'seconds. Batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
               f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}'
-              + f', alpha value: {alpha_value}' if alpha_value is not None else '')
+              + (f', alpha value: {alpha_value}' if alpha_value is not None else ''))
 
 
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
