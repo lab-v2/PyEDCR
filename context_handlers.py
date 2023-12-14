@@ -88,4 +88,5 @@ class WrapTQDM(Context):
 
     def update(self,
                n: int = 1):
-        return self.tqdm.update(n) if self.tqdm is not None else None
+        if self.tqdm is not None:
+            return self.tqdm.update(n)
