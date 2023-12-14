@@ -14,7 +14,7 @@ import data_preprocessing
 batch_size = 32
 lrs = [1e-4]
 scheduler_gamma = 0.1
-num_epochs = 10
+num_epochs = 20
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''

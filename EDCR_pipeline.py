@@ -488,8 +488,8 @@ def run_EDCR():
     # secondary_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=secondary_fine_data)
     # secondary_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=secondary_coarse_data)
 
-    print(f'Main prior fine accuracy: {round(main_prior_fine_acc * 100, 2)}%, '
-          f'main prior coarse accuracy: {round(main_prior_coarse_acc * 100, 2)}%\n'
+    print(f'Main model: {main_model_name}\nMain prior fine accuracy: {round(main_prior_fine_acc * 100, 2)}%\n'
+          f'Main prior coarse accuracy: {round(main_prior_coarse_acc * 100, 2)}%\n'
           # f'Secondary fine accuracy: {round(secondary_prior_fine_acc * 100, 2)}%, '
           # f'secondary coarse accuracy: {round(secondary_prior_coarse_acc * 100, 2)}%\n'
           )
@@ -551,8 +551,8 @@ def run_EDCR():
         results = []
         result0 = [0]
 
-        print(f'Started EDCR pipeline for main: {main_granularity}-grain  {main_model_name}, lr: {main_lr}, '
-              # f'secondary: {secondary_model_name}, lr: {secondary_lr}\n'
+        print(f'Started EDCR pipeline for main: {main_granularity}-grain  {main_model_name}, lr: {main_lr}...'
+              # f', secondary: {secondary_model_name}, lr: {secondary_lr}\n'
               )
 
         for count, chart in enumerate(all_charts):
