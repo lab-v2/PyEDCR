@@ -15,7 +15,7 @@ batch_size = 32
 lrs = [1e-4]
 scheduler_gamma = 0.1
 num_epochs = 10
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
+vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
 combined_results_path = fr'{files_path}combined_results/'
@@ -405,9 +405,11 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                                                     step_size=scheduler_step_size,
                                                     gamma=scheduler_gamma)
 
-        learned_weighted_loss = models.LearnedHierarchicalWeightedLoss(
-            num_fine_grain_classes=num_fine_grain_classes,
-            num_coarse_grain_classes=num_coarse_grain_classes).to(device)
+        alpha = num_fine_grain_classes / (num_fine_grain_classes + num_coarse_grain_classes)
+
+        # learned_weighted_loss = models.LearnedHierarchicalWeightedLoss(
+        #     num_fine_grain_classes=num_fine_grain_classes,
+        #     num_coarse_grain_classes=num_coarse_grain_classes).to(device)
 
         train_total_losses = []
         train_fine_losses = []
@@ -462,10 +464,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                     running_fine_loss += batch_fine_grain_loss
                     running_coarse_loss += batch_coarse_grain_loss
 
-                    batch_total_loss = learned_weighted_loss(batch_fine_loss=batch_fine_grain_loss,
-                                                             batch_coarse_loss=batch_coarse_grain_loss,
-                                                             total_fine_loss=running_fine_loss,
-                                                             total_coarse_loss=running_coarse_loss)
+                    batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
+
                     batch_total_loss.backward()
                     optimizer.step()
 
