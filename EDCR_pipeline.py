@@ -231,7 +231,8 @@ def ruleForNPCorrection_worker(i: int,
                                epsilon: float,
                                all_charts: list[list],
                                run_positive_rules: bool,
-                               total_results: list):
+                               total_results: list,
+                               shared_index: mp.Value):
     chart = np.array(chart)
     NCi = GreedyNegRuleSelect(i=i,
                               epsilon=epsilon,
@@ -267,6 +268,9 @@ def ruleForNPCorrection_worker(i: int,
 
     scores_cor = get_scores(chart[:, 1], predict_result)
 
+    shared_index.value += 1
+    print(f'Completed {shared_index.value}/{len(chart)}')
+
     return scores_cor + [neg_i_count,
                          pos_i_count,
                          len(NCi),
@@ -282,13 +286,17 @@ def ruleForNPCorrectionMP(all_charts: list[list],
                           run_positive_rules: bool = True):
     manager = mp.Manager()
     shared_results = manager.list(pred_data)
+    shared_index = manager.Value('i', 0)
 
     # Create argument tuples for each process
-    args_list = [(i, chart, epsilon, all_charts, run_positive_rules, shared_results)
+    args_list = [(i, chart, epsilon, all_charts, run_positive_rules, shared_results, shared_index)
                  for i, chart in enumerate(all_charts)]
 
     # Create a pool of processes and map the function with arguments
-    with mp.Pool(mp.cpu_count()) as pool:
+    processes_num = mp.cpu_count()
+
+    with mp.Pool(processes_num) as pool:
+        print(f'Num of processes: {processes_num}')
         results = pool.starmap(ruleForNPCorrection_worker, args_list)
 
     # Assuming shared_results is a ListProxy object obtained from multiprocessing manager
