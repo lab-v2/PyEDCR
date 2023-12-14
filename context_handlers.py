@@ -1,10 +1,14 @@
 import abc
 import torch
 import matplotlib.pyplot as plt
+
 if torch.backends.mps.is_available():
     from torch import mps
 
 import utils
+
+if utils.is_local():
+    import tqdm
 
 
 class Context(abc.ABC):
@@ -40,11 +44,9 @@ class ClearCache(Context):
     def __init__(self,
                  device: torch.device):
 
-
         self.device_backend = {'cuda': torch.cuda,
                                'mps': mps if torch.backends.mps.is_available() else None,
                                'cpu': None}[device.type]
-
 
     def __enter__(self):
         if self.device_backend:
@@ -69,3 +71,21 @@ class Plot(Context):
         plt.show()
         plt.cla()
         plt.clf()
+
+
+class WrapTQDM(Context):
+    def __init__(self,
+                 total: int = None):
+        self.tqdm = tqdm.tqdm(total=total) if utils.is_local() else None
+
+    def __enter__(self):
+        if self.tqdm is not None:
+            return self.tqdm.__enter__()
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if self.tqdm is not None:
+            return self.tqdm.__exit__(exc_type, exc_value, exc_tb)
+
+    def update(self,
+               n: int = 1):
+        return self.tqdm.update(n) if self.tqdm is not None else None

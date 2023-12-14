@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import time
-import tqdm
+
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import multiprocessing as mp
@@ -15,6 +15,7 @@ warnings.filterwarnings('ignore')
 import vit_pipeline
 import utils
 import data_preprocessing
+import context_handlers
 
 figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
@@ -189,7 +190,8 @@ def GreedyNegRuleSelect(i: int,
         if negi_score < quantity:
             NCn.append(rule)
 
-    with tqdm.tqdm(total=len(NCn)) as progress_bar:
+
+    with context_handlers.WrapTQDM(total=len(NCn)) as progress_bar:
         while NCn:
             best_score = -1
             best_index = -1
