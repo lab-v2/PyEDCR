@@ -464,6 +464,11 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                     running_fine_loss += batch_fine_grain_loss
                     running_coarse_loss += batch_coarse_grain_loss
 
+                    # batch_total_loss = learned_weighted_loss(batch_fine_loss=batch_fine_grain_loss,
+                    #                                          batch_coarse_loss=batch_coarse_grain_loss,
+                    #                                          total_fine_loss=running_fine_loss,
+                    #                                          total_coarse_loss=running_coarse_loss)
+
                     batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
 
                     batch_total_loss.backward()
@@ -487,7 +492,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                                              batch_start_time=batch_start_time,
                                              batch_fine_grain_loss=batch_fine_grain_loss.item(),
                                              batch_coarse_grain_loss=batch_coarse_grain_loss.item(),
-                                             alpha_value=learned_weighted_loss.alpha.item())
+                                             # alpha_value=learned_weighted_loss.alpha.item()
+                                             )
 
             training_fine_accuracy, training_coarse_accuracy = (
                 get_and_print_post_epoch_metrics(epoch=epoch,
