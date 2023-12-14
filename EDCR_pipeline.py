@@ -22,6 +22,7 @@ results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
 main_lr = 0.0001
+num_epochs = 20
 
 
 # secondary_model_name = 'vit_l_16'
@@ -294,7 +295,7 @@ def ruleForNPCorrectionMP(all_charts: list[list],
                  for i, chart in enumerate(all_charts)]
 
     # Create a pool of processes and map the function with arguments
-    processes_num = 10
+    processes_num = min(len(all_charts), mp.cpu_count())
 
     with mp.Pool(processes_num) as pool:
         print(f'Num of processes: {processes_num}')
@@ -464,26 +465,30 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
 
-def run_EDCR():
-    main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e9.npy'
-    main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e9.npy'
+def run_EDCR(combined: bool = True):
+    if combined:
+        main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{num_epochs - 1}.npy'
+        main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{num_epochs - 1}.npy'
+        path = vit_pipeline.combined_results_path
+
+    else:
+        main_model_fine_path = f'{main_model_name}_test_pred_lr{main_lr}_e{num_epochs - 1}_fine_individual.npy'
+        main_model_coarse_path = f'{main_model_name}_test_pred_lr{main_lr}_e{num_epochs - 1}_coarse_individual.npy'
+        path = vit_pipeline.individual_results_path
 
     # secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
     #                              f'_e{vit_pipeline.num_epochs - 1}.npy')
     # secondary_model_coarse_path = (f'{secondary_model_name}_test_coarse_pred_lr{secondary_lr}'
     #                                f'_e{vit_pipeline.num_epochs - 1}.npy')
 
-    main_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, main_model_fine_path))
-    main_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, main_model_coarse_path))
+    main_fine_data = np.load(os.path.join(path, main_model_fine_path))
+    main_coarse_data = np.load(os.path.join(path, main_model_coarse_path))
 
     # secondary_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_fine_path))
     # secondary_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_coarse_path))
 
-    true_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, 'test_fine_true.npy'))
-    true_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, 'test_coarse_true.npy'))
-
-    main_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=main_fine_data)
-    main_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=main_coarse_data)
+    main_prior_fine_acc = accuracy_score(y_true=data_preprocessing.true_fine_data, y_pred=main_fine_data)
+    main_prior_coarse_acc = accuracy_score(y_true=data_preprocessing.true_coarse_data, y_pred=main_coarse_data)
     #
     # secondary_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=secondary_fine_data)
     # secondary_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=secondary_coarse_data)
@@ -516,10 +521,14 @@ def run_EDCR():
         condition_datas[main_or_secondary]['fine_to_coarse'] = rearrange_for_condition_values(derived_coarse)
 
     for main_granularity in data_preprocessing.granularities:
-        classes = data_preprocessing.get_classes(main_granularity)
-
-        true_data = eval(f'true_{main_granularity}_data')
-        pred_data = eval(f'main_{main_granularity}_data')
+        if main_granularity == 'fine':
+            classes = data_preprocessing.fine_grain_classes
+            true_data = data_preprocessing.true_fine_data
+            pred_data = main_fine_data
+        else:
+            classes = data_preprocessing.coarse_grain_classes
+            true_data = data_preprocessing.true_coarse_data
+            pred_data = main_coarse_data
 
         m = true_data.shape[0]
 
@@ -632,4 +641,4 @@ def run_EDCR():
 
 
 if __name__ == '__main__':
-    run_EDCR()
+    run_EDCR(combined=False)
