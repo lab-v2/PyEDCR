@@ -217,8 +217,9 @@ def GreedyNegRuleSelect(i: int,
                     tmp_NCn.append(c)
             NCn = tmp_NCn
 
-            time.sleep(0.1)
-            progress_bar.update(1)
+            if utils.is_local():
+                time.sleep(0.1)
+                progress_bar.update(1)
 
         # print(f"class:{i}, NCi:{NCi}")
 
