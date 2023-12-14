@@ -294,7 +294,7 @@ def ruleForNPCorrectionMP(all_charts: list[list],
                  for i, chart in enumerate(all_charts)]
 
     # Create a pool of processes and map the function with arguments
-    processes_num = min(mp.cpu_count(), len(all_charts))
+    processes_num = 10
 
     with mp.Pool(processes_num) as pool:
         print(f'Num of processes: {processes_num}')
