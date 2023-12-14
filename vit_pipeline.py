@@ -200,12 +200,12 @@ def get_and_print_post_epoch_metrics(epoch: int,
                                   labels=range(num_coarse_grain_classes), average='macro')
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}, '
-          f'\nTraining fine loss: {round(running_fine_loss / num_batches, 2)}'
-          f'\ntraining coarse loss: {round(running_coarse_loss / num_batches, 2)}'
-          f'\ntraining fine accuracy: {round(training_fine_accuracy * 100, 2)}'
-          f', fine f1: {round(training_fine_f1 * 100, 2)}%'
-          f'\ntraining coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
-          f', coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
+          f'\nTraining epoch total fine loss: {round(running_fine_loss / num_batches, 2)}'
+          f'\ntraining epoch total coarse loss: {round(running_coarse_loss / num_batches, 2)}'
+          f'\npost-epoch training fine accuracy: {round(training_fine_accuracy * 100, 2)}'
+          f', post-epoch fine f1: {round(training_fine_f1 * 100, 2)}%'
+          f'\npost-epoch training coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
+          f', post-epoch coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
 
     return training_fine_accuracy, training_coarse_accuracy
 
