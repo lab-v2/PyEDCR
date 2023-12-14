@@ -268,8 +268,9 @@ def ruleForNPCorrection_worker(i: int,
 
     scores_cor = get_scores(chart[:, 1], predict_result)
 
-    shared_index.value += 1
-    print(f'Completed {shared_index.value}/{len(chart)}')
+    if not utils.is_local():
+        shared_index.value += 1
+        print(f'Completed {shared_index.value}/{len(all_charts)}')
 
     return scores_cor + [neg_i_count,
                          pos_i_count,
