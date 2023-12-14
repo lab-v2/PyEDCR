@@ -23,6 +23,7 @@ results_file = "rule_for_NPcorrection.csv"
 main_model_name = 'vit_b_16'
 main_lr = 0.0001
 
+
 # secondary_model_name = 'vit_l_16'
 # secondary_lr = 0.0001
 
@@ -189,7 +190,6 @@ def GreedyNegRuleSelect(i: int,
         negi_score = np.sum(chart[:, 2] * chart[:, rule])
         if negi_score < quantity:
             NCn.append(rule)
-
 
     with context_handlers.WrapTQDM(total=len(NCn)) as progress_bar:
         while NCn:
@@ -465,8 +465,8 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
 
 
 def run_EDCR():
-    main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
-    main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{vit_pipeline.num_epochs - 1}.npy'
+    main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e9.npy'
+    main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e9.npy'
 
     # secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
     #                              f'_e{vit_pipeline.num_epochs - 1}.npy')
@@ -488,11 +488,15 @@ def run_EDCR():
     # secondary_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=secondary_fine_data)
     # secondary_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=secondary_coarse_data)
 
-    print(f'Main model: {main_model_name}\nMain prior fine accuracy: {round(main_prior_fine_acc * 100, 2)}%\n'
-          f'Main prior coarse accuracy: {round(main_prior_coarse_acc * 100, 2)}%\n'
+    print(f'Main model name: {utils.blue_text(main_model_name)} with lr={utils.blue_text(main_lr)}\n'
+          f'Main prior fine accuracy: {utils.green_text(round(main_prior_fine_acc * 100, 2))}%\n'
+          f'Main prior coarse accuracy: {utils.green_text(round(main_prior_coarse_acc * 100, 2))}%\n'
           # f'Secondary fine accuracy: {round(secondary_prior_fine_acc * 100, 2)}%, '
           # f'secondary coarse accuracy: {round(secondary_prior_coarse_acc * 100, 2)}%\n'
           )
+
+    vit_pipeline.print_num_inconsistencies(fine_predictions=main_fine_data,
+                                           coarse_predictions=main_coarse_data)
 
     condition_datas = {}
 
@@ -521,18 +525,18 @@ def run_EDCR():
 
         charts = [[pred_data[i], true_data[i]] +
                   (
-                      get_binary_condition_values(i=i,
-                                                  fine_cla_datas=condition_datas['main']['fine'],
-                                                  coarse_cla_datas=condition_datas['main']['coarse'])
-                      +
-                      get_unary_condition_values(i=i,
-                                                 cla_datas=condition_datas['main']['fine'])
-                      +
-                      get_unary_condition_values(i=i,
-                                                 cla_datas=condition_datas['main']['coarse'])
-                      +
-                      get_unary_condition_values(i=i,
-                                                 cla_datas=condition_datas['main']['fine_to_coarse'])
+                          get_binary_condition_values(i=i,
+                                                      fine_cla_datas=condition_datas['main']['fine'],
+                                                      coarse_cla_datas=condition_datas['main']['coarse'])
+                          +
+                          get_unary_condition_values(i=i,
+                                                     cla_datas=condition_datas['main']['fine'])
+                          +
+                          get_unary_condition_values(i=i,
+                                                     cla_datas=condition_datas['main']['coarse'])
+                          +
+                          get_unary_condition_values(i=i,
+                                                     cla_datas=condition_datas['main']['fine_to_coarse'])
                   )
                   # + (get_binary_condition_values(i=i,
                   #                              fine_cla_datas=condition_datas['secondary']['fine'],
@@ -551,7 +555,7 @@ def run_EDCR():
         results = []
         result0 = [0]
 
-        print(f'Started EDCR pipeline for main: {main_granularity}-grain  {main_model_name}, lr: {main_lr}...'
+        print(f'Started EDCR pipeline for the {main_granularity}-grain main classes...'
               # f', secondary: {secondary_model_name}, lr: {secondary_lr}\n'
               )
 
@@ -584,6 +588,12 @@ def run_EDCR():
         print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
               # f', secondary: {secondary_model_name}, lr={secondary_lr}'
               f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
+
+        vit_pipeline.print_num_inconsistencies(fine_predictions=total_results if main_granularity ==
+                                                                                 'fine' else main_fine_data,
+                                               coarse_predictions=total_results if main_granularity ==
+                                                                                   'coarse' else main_coarse_data,
+                                               prior=False)
 
         col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
         df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
