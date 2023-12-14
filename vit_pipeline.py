@@ -31,8 +31,8 @@ def print_num_inconsistencies(fine_predictions: np.array, coarse_predictions: np
             inconsistencies += 1
 
     print(
-        f'Total prior inconsistencies {inconsistencies}/{len(fine_predictions)} '
-        f'which is {round(inconsistencies / len(fine_predictions) * 100, 2)}%')
+        f'Total prior inconsistencies {utils.red_text(inconsistencies)}/{utils.red_text(len(fine_predictions))} '
+        f'which is {utils.red_text(round(inconsistencies / len(fine_predictions) * 100, 2))}%')
 
 
 def get_and_print_post_test_metrics(test_fine_ground_truth: np.array,
@@ -54,10 +54,10 @@ def get_and_print_post_test_metrics(test_fine_ground_truth: np.array,
                               labels=range(num_coarse_grain_classes),
                               average='macro')
 
-    print(f'\nTest fine accuracy: {round(test_fine_accuracy * 100, 2)}%'
-          f', fine f1: {round(test_fine_f1 * 100, 2)}%'
-          f'\nTest coarse accuracy: {round(test_coarse_accuracy * 100, 2)}%'
-          f', coarse f1: {round(test_coarse_f1 * 100, 2)}%\n')
+    print(f'\nTest fine accuracy: {utils.green_text(round(test_fine_accuracy * 100, 2))}%'
+          f', fine f1: {utils.green_text(round(test_fine_f1 * 100, 2))}%'
+          f'\nTest coarse accuracy: {utils.green_text(round(test_coarse_accuracy * 100, 2))}%'
+          f', coarse f1: {utils.green_text(round(test_coarse_f1 * 100, 2))}%\n')
 
     print_num_inconsistencies(fine_predictions=test_fine_prediction, coarse_predictions=test_coarse_prediction)
 
@@ -217,7 +217,7 @@ def print_post_batch_metrics(batch_num: int,
                              batch_coarse_grain_loss: float,
                              alpha_value: float = None):
     if not utils.is_local() and batch_num > 0 and batch_num % 10 == 0:
-        print(f'Completed batch num {batch_num}/{num_batches} in {int(time() - batch_start_time)} '
+        print(f'Completed batch num {batch_num}/{num_batches} in {round(time() - batch_start_time, 2)} '
               f'seconds. Batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
               f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}'
               + (f', alpha value: {round(alpha_value, 2)}' if alpha_value is not None else ''))
