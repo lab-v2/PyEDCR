@@ -32,7 +32,7 @@ def print_num_inconsistencies(fine_predictions: np.array, coarse_predictions: np
 
     print(
         f'Total prior inconsistencies {utils.red_text(inconsistencies)}/{utils.red_text(len(fine_predictions))} '
-        f'which is {utils.red_text(round(inconsistencies / len(fine_predictions) * 100, 2))}%')
+        f'({utils.red_text(round(inconsistencies / len(fine_predictions) * 100, 2))}%)')
 
 
 def get_and_print_post_test_metrics(test_fine_ground_truth: np.array,
@@ -49,8 +49,8 @@ def get_and_print_post_test_metrics(test_fine_ground_truth: np.array,
                             y_pred=test_fine_prediction,
                             labels=range(num_fine_grain_classes),
                             average='macro')
-    test_coarse_f1 = f1_score(y_true=test_fine_ground_truth,
-                              y_pred=test_fine_prediction,
+    test_coarse_f1 = f1_score(y_true=test_coarse_ground_truth,
+                              y_pred=test_coarse_prediction,
                               labels=range(num_coarse_grain_classes),
                               average='macro')
 
@@ -59,7 +59,8 @@ def get_and_print_post_test_metrics(test_fine_ground_truth: np.array,
           f'\nTest coarse accuracy: {utils.green_text(round(test_coarse_accuracy * 100, 2))}%'
           f', coarse f1: {utils.green_text(round(test_coarse_f1 * 100, 2))}%\n')
 
-    print_num_inconsistencies(fine_predictions=test_fine_prediction, coarse_predictions=test_coarse_prediction)
+    print_num_inconsistencies(fine_predictions=test_fine_prediction,
+                              coarse_predictions=test_coarse_prediction)
 
     return test_fine_accuracy, test_coarse_accuracy
 
