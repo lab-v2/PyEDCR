@@ -527,130 +527,145 @@ def get_conditions_data(main_fine_data: np.array,
     return condition_datas
 
 
-def run_EDCR(combined: bool = True):
+def run_EDCR_for_granularity(main_granularity: str,
+                             main_fine_data: np.array,
+                             main_coarse_data: np.array,
+                             condition_datas: dict[str, dict[str, np.array]],
+                             main_prior_fine_acc,
+                             main_prior_coarse_acc):
+    if main_granularity == 'fine':
+        classes = data_preprocessing.fine_grain_classes
+        true_data = data_preprocessing.true_fine_data
+        pred_data = main_fine_data
+    else:
+        classes = data_preprocessing.coarse_grain_classes
+        true_data = data_preprocessing.true_coarse_data
+        pred_data = main_coarse_data
+
+    m = true_data.shape[0]
+
+    charts = [[pred_data[i], true_data[i]] +
+              (
+                      get_binary_condition_values(i=i,
+                                                  fine_cla_datas=condition_datas['main']['fine'],
+                                                  coarse_cla_datas=condition_datas['main']['coarse'])
+                      +
+                      get_unary_condition_values(i=i,
+                                                 cla_datas=condition_datas['main']['fine'])
+                      +
+                      get_unary_condition_values(i=i,
+                                                 cla_datas=condition_datas['main']['coarse'])
+                      +
+                      get_unary_condition_values(i=i,
+                                                 cla_datas=condition_datas['main']['fine_to_coarse'])
+              )
+              # + (get_binary_condition_values(i=i,
+              #                              fine_cla_datas=condition_datas['secondary']['fine'],
+              #                              coarse_cla_datas=condition_datas['secondary']['coarse']) +
+              #  get_unary_condition_values(i=i,
+              #                             cla_datas=condition_datas['secondary']['fine']) +
+              #  get_unary_condition_values(i=i,
+              #                             cla_datas=condition_datas['secondary']['coarse']) +
+              #  get_unary_condition_values(i=i,
+              #                             cla_datas=condition_datas['secondary']['fine_to_coarse']))
+              for i in range(m)]
+
+    all_charts = generate_chart(n_classes=len(classes),
+                                charts=charts)
+
+    results = []
+    result0 = [0]
+
+    print(f'Started EDCR pipeline for the {main_granularity}-grain main classes...'
+          # f', secondary: {secondary_model_name}, lr: {secondary_lr}\n'
+          )
+
+    for count, chart in enumerate(all_charts):
+        chart = np.array(chart)
+        result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+        result0.extend([0, 0, 0, 0])
+
+    result0.extend(get_scores(true_data, pred_data))
+    results.append(result0)
+
+    posterior_acc = 0
+    total_results = np.zeros_like(pred_data)
+
+    epsilons = [0.002 * i for i in range(1, 2, 1)]
+
+    error_detections = {}
+    corrections = {}
+
+    for e_num, epsilon in enumerate(epsilons):
+        result, posterior_acc, total_results, error_detections, corrections = ruleForNPCorrectionMP(
+            all_charts=all_charts,
+            true_data=true_data,
+            pred_data=pred_data,
+            error_detections=error_detections,
+            corrections=corrections,
+            epsilon=epsilon)
+        results.append([epsilon] + result)
+
+    prior_acc = main_prior_fine_acc if main_granularity == 'fine' else main_prior_coarse_acc
+    print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
+          # f', secondary: {secondary_model_name}, lr={secondary_lr}'
+          f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
+
+    vit_pipeline.print_num_inconsistencies(fine_predictions=total_results if main_granularity ==
+                                                                             'fine' else main_fine_data,
+                                           coarse_predictions=total_results if main_granularity ==
+                                                                               'coarse' else main_coarse_data,
+                                           prior=False)
+
+    col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
+    df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
+
+    df.to_csv(results_file)
+    df = pd.read_csv(results_file)
+
+    folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
+              # f'_secondary_{secondary_model_name}_lr{secondary_lr}'
+              )
+    utils.create_directory(folder)
+
+    # plot(df=df,
+    #      classes=classes,
+    #      col_num=len(col),
+    #      x_values=df['epsilon'][1:],
+    #      main_granularity=main_granularity,
+    #      main_model_name=main_model_name,
+    #      main_lr=main_lr,
+    #      # secondary_model_name=secondary_model_name,
+    #      # secondary_lr=secondary_lr,
+    #      folder=folder)
+
+    np.save(f'{folder}/results.npy', total_results)
+
+    # Save the DataFrame to an Excel file
+    df.to_excel(f'{folder}/results.xlsx')
+
+    # with open(f'{folder}/error_detections.json', 'w') as json_file:
+    #     json.dump(error_detections, json_file)
+    #
+    # with open(f'{folder}/corrections.json', 'w') as json_file:
+    #     json.dump(corrections, json_file)
+
+    print(f'\nsaved error detections and corrections to {folder}\n')
+
+
+def run_EDCR_pipeline(combined: bool = True):
     main_fine_data, main_coarse_data, main_prior_fine_acc, main_prior_coarse_acc = load_priors(combined)
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
                                           main_coarse_data=main_coarse_data)
 
     for main_granularity in data_preprocessing.granularities:
-        if main_granularity == 'fine':
-            classes = data_preprocessing.fine_grain_classes
-            true_data = data_preprocessing.true_fine_data
-            pred_data = main_fine_data
-        else:
-            classes = data_preprocessing.coarse_grain_classes
-            true_data = data_preprocessing.true_coarse_data
-            pred_data = main_coarse_data
-
-        m = true_data.shape[0]
-
-        charts = [[pred_data[i], true_data[i]] +
-                  (
-                          get_binary_condition_values(i=i,
-                                                      fine_cla_datas=condition_datas['main']['fine'],
-                                                      coarse_cla_datas=condition_datas['main']['coarse'])
-                          +
-                          get_unary_condition_values(i=i,
-                                                     cla_datas=condition_datas['main']['fine'])
-                          +
-                          get_unary_condition_values(i=i,
-                                                     cla_datas=condition_datas['main']['coarse'])
-                          +
-                          get_unary_condition_values(i=i,
-                                                     cla_datas=condition_datas['main']['fine_to_coarse'])
-                  )
-                  # + (get_binary_condition_values(i=i,
-                  #                              fine_cla_datas=condition_datas['secondary']['fine'],
-                  #                              coarse_cla_datas=condition_datas['secondary']['coarse']) +
-                  #  get_unary_condition_values(i=i,
-                  #                             cla_datas=condition_datas['secondary']['fine']) +
-                  #  get_unary_condition_values(i=i,
-                  #                             cla_datas=condition_datas['secondary']['coarse']) +
-                  #  get_unary_condition_values(i=i,
-                  #                             cla_datas=condition_datas['secondary']['fine_to_coarse']))
-                  for i in range(m)]
-
-        all_charts = generate_chart(n_classes=len(classes),
-                                    charts=charts)
-
-        results = []
-        result0 = [0]
-
-        print(f'Started EDCR pipeline for the {main_granularity}-grain main classes...'
-              # f', secondary: {secondary_model_name}, lr: {secondary_lr}\n'
-              )
-
-        for count, chart in enumerate(all_charts):
-            chart = np.array(chart)
-            result0.extend(get_scores(chart[:, 1], chart[:, 0]))
-            result0.extend([0, 0, 0, 0])
-
-        result0.extend(get_scores(true_data, pred_data))
-        results.append(result0)
-
-        posterior_acc = 0
-        total_results = np.zeros_like(pred_data)
-
-        epsilons = [0.002 * i for i in range(1, 2, 1)]
-
-        error_detections = {}
-        corrections = {}
-        for e_num, epsilon in enumerate(epsilons):
-            result, posterior_acc, total_results, error_detections, corrections = ruleForNPCorrectionMP(
-                all_charts=all_charts,
-                true_data=true_data,
-                pred_data=pred_data,
-                error_detections=error_detections,
-                corrections=corrections,
-                epsilon=epsilon)
-            results.append([epsilon] + result)
-
-        prior_acc = main_prior_fine_acc if main_granularity == 'fine' else main_prior_coarse_acc
-        print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
-              # f', secondary: {secondary_model_name}, lr={secondary_lr}'
-              f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
-
-        vit_pipeline.print_num_inconsistencies(fine_predictions=total_results if main_granularity ==
-                                                                                 'fine' else main_fine_data,
-                                               coarse_predictions=total_results if main_granularity ==
-                                                                                   'coarse' else main_coarse_data,
-                                               prior=False)
-
-        col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
-        df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
-
-        df.to_csv(results_file)
-        df = pd.read_csv(results_file)
-
-        folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
-                  # f'_secondary_{secondary_model_name}_lr{secondary_lr}'
-                  )
-        utils.create_directory(folder)
-
-        # plot(df=df,
-        #      classes=classes,
-        #      col_num=len(col),
-        #      x_values=df['epsilon'][1:],
-        #      main_granularity=main_granularity,
-        #      main_model_name=main_model_name,
-        #      main_lr=main_lr,
-        #      # secondary_model_name=secondary_model_name,
-        #      # secondary_lr=secondary_lr,
-        #      folder=folder)
-
-        np.save(f'{folder}/results.npy', total_results)
-
-        # Save the DataFrame to an Excel file
-        df.to_excel(f'{folder}/results.xlsx')
-
-        # with open(f'{folder}/error_detections.json', 'w') as json_file:
-        #     json.dump(error_detections, json_file)
-        #
-        # with open(f'{folder}/corrections.json', 'w') as json_file:
-        #     json.dump(corrections, json_file)
-
-        print(f'\nsaved error detections and corrections to {folder}\n')
+        run_EDCR_for_granularity(main_granularity=main_granularity,
+                                 main_fine_data=main_fine_data,
+                                 main_coarse_data=main_coarse_data,
+                                 condition_datas=condition_datas,
+                                 main_prior_fine_acc=main_prior_fine_acc,
+                                 main_prior_coarse_acc=main_prior_coarse_acc)
 
 
 if __name__ == '__main__':
-    run_EDCR(combined=False)
+    run_EDCR_pipeline(combined=False)
