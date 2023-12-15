@@ -3,7 +3,7 @@ import torch
 import torch.utils.data
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
-from time import time
+import time
 import pathlib
 
 import context_handlers
@@ -186,7 +186,6 @@ def test_combined_model(fine_tuner: models.FineTuner,
 
 
 def get_and_print_post_epoch_metrics(epoch: int,
-                                     epoch_start_time: float,
                                      running_fine_loss: float,
                                      running_coarse_loss: float,
                                      num_batches: int,
@@ -203,7 +202,7 @@ def get_and_print_post_epoch_metrics(epoch: int,
     training_coarse_f1 = f1_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction,
                                   labels=range(num_coarse_grain_classes), average='macro')
 
-    print(f'\nEpoch {epoch + 1}/{num_epochs} done in {utils.format_seconds(int(time() - epoch_start_time))}, '
+    print(f'\nEpoch {epoch + 1}/{num_epochs} done, '
           f'\nTraining epoch total fine loss: {round(running_fine_loss / num_batches, 2)}'
           f'\ntraining epoch total coarse loss: {round(running_coarse_loss / num_batches, 2)}'
           f'\npost-epoch training fine accuracy: {round(training_fine_accuracy * 100, 2)}'
@@ -216,13 +215,12 @@ def get_and_print_post_epoch_metrics(epoch: int,
 
 def print_post_batch_metrics(batch_num: int,
                              num_batches: int,
-                             batch_start_time: float,
                              batch_fine_grain_loss: float,
                              batch_coarse_grain_loss: float,
                              alpha_value: float = None):
     if not utils.is_local() and batch_num > 0 and batch_num % 10 == 0:
-        print(f'Completed batch num {batch_num}/{num_batches} in {round(time() - batch_start_time, 2)} '
-              f'seconds. Batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
+        print(f'Completed batch num {batch_num}/{num_batches}.\n'
+              f'Batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
               f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}'
               + (f', alpha value: {round(alpha_value, 2)}' if alpha_value is not None else ''))
 
@@ -275,118 +273,115 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
           f'for {num_epochs} epochs on {device_1} and {device_2}...')
 
     for epoch in range(num_epochs):
-        epoch_start_time = time()
-        running_fine_loss = 0.0
-        running_coarse_loss = 0.0
+        with context_handlers.TimeWrapper():
+            running_fine_loss = 0.0
+            running_coarse_loss = 0.0
 
-        train_fine_predictions = []
-        train_coarse_predictions = []
+            train_fine_predictions = []
+            train_coarse_predictions = []
 
-        train_fine_ground_truths = []
-        train_coarse_ground_truths = []
+            train_fine_ground_truths = []
+            train_coarse_ground_truths = []
 
-        if utils.is_local():
-            from tqdm import tqdm
-            batches = tqdm(enumerate(train_loader, 0), total=num_batches)
-        else:
-            batches = enumerate(train_loader, 0)
+            if utils.is_local():
+                from tqdm import tqdm
+                batches = tqdm(enumerate(train_loader, 0), total=num_batches)
+            else:
+                batches = enumerate(train_loader, 0)
 
-        for batch_num, batch in batches:
-            with context_handlers.ClearCache(device=device_1):
-                with context_handlers.ClearCache(device=device_2):
-                    batch_start_time = time()
+            for batch_num, batch in batches:
+                with context_handlers.ClearCache(device=device_1):
+                    with context_handlers.ClearCache(device=device_2):
 
-                    X, Y_fine_grain, Y_coarse_grain = batch[0], batch[1].to(device_1), batch[3].to(device_2)
+                        X, Y_fine_grain, Y_coarse_grain = batch[0], batch[1].to(device_1), batch[3].to(device_2)
 
-                    fine_optimizer.zero_grad()
-                    coarse_optimizer.zero_grad()
+                        fine_optimizer.zero_grad()
+                        coarse_optimizer.zero_grad()
 
-                    Y_pred_fine = fine_fine_tuner(X.to(device_1))
-                    Y_pred_coarse = coarse_fine_tuner(X.to(device_2))
+                        Y_pred_fine = fine_fine_tuner(X.to(device_1))
+                        Y_pred_coarse = coarse_fine_tuner(X.to(device_2))
 
-                    batch_fine_grain_loss = criterion(Y_pred_fine, Y_fine_grain)
-                    batch_coarse_grain_loss = criterion(Y_pred_coarse, Y_coarse_grain)
+                        batch_fine_grain_loss = criterion(Y_pred_fine, Y_fine_grain)
+                        batch_coarse_grain_loss = criterion(Y_pred_coarse, Y_coarse_grain)
 
-                    batch_fine_grain_loss.backward()
-                    batch_coarse_grain_loss.backward()
+                        batch_fine_grain_loss.backward()
+                        batch_coarse_grain_loss.backward()
 
-                    fine_optimizer.step()
-                    coarse_optimizer.step()
+                        fine_optimizer.step()
+                        coarse_optimizer.step()
 
-                    running_fine_loss += batch_fine_grain_loss.item()
-                    running_coarse_loss += batch_coarse_grain_loss.item()
+                        running_fine_loss += batch_fine_grain_loss.item()
+                        running_coarse_loss += batch_coarse_grain_loss.item()
 
-                    predicted_fine = torch.max(Y_pred_fine, 1)[1]
-                    predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
+                        predicted_fine = torch.max(Y_pred_fine, 1)[1]
+                        predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
 
-                    train_fine_ground_truths += Y_fine_grain.tolist()
-                    train_coarse_ground_truths += Y_coarse_grain.tolist()
+                        train_fine_ground_truths += Y_fine_grain.tolist()
+                        train_coarse_ground_truths += Y_coarse_grain.tolist()
 
-                    train_fine_predictions += predicted_fine.tolist()
-                    train_coarse_predictions += predicted_coarse.tolist()
+                        train_fine_predictions += predicted_fine.tolist()
+                        train_coarse_predictions += predicted_coarse.tolist()
 
-                    del X, Y_fine_grain, Y_coarse_grain
+                        del X, Y_fine_grain, Y_coarse_grain
 
-                    print_post_batch_metrics(batch_num=batch_num,
-                                             num_batches=num_batches,
-                                             batch_start_time=batch_start_time,
-                                             batch_fine_grain_loss=batch_fine_grain_loss.item(),
-                                             batch_coarse_grain_loss=batch_coarse_grain_loss.item())
+                        print_post_batch_metrics(batch_num=batch_num,
+                                                 num_batches=num_batches,
+                                                 batch_fine_grain_loss=batch_fine_grain_loss.item(),
+                                                 batch_coarse_grain_loss=batch_coarse_grain_loss.item())
 
-        true_fine_labels = np.array(train_fine_ground_truths)
-        true_coarse_labels = np.array(train_coarse_ground_truths)
+            true_fine_labels = np.array(train_fine_ground_truths)
+            true_coarse_labels = np.array(train_coarse_ground_truths)
 
-        predicted_fine_labels = np.array(train_fine_predictions)
-        predicted_coarse_labels = np.array(train_coarse_predictions)
+            predicted_fine_labels = np.array(train_fine_predictions)
+            predicted_coarse_labels = np.array(train_coarse_predictions)
 
-        training_fine_accuracy, training_coarse_accuracy = (
-            get_and_print_post_epoch_metrics(epoch=epoch,
-                                             epoch_start_time=epoch_start_time,
-                                             running_fine_loss=running_fine_loss,
-                                             running_coarse_loss=running_coarse_loss,
-                                             num_batches=num_batches,
-                                             train_fine_ground_truth=true_fine_labels,
-                                             train_fine_prediction=predicted_fine_labels,
-                                             train_coarse_ground_truth=true_coarse_labels,
-                                             train_coarse_prediction=predicted_coarse_labels,
-                                             num_fine_grain_classes=num_fine_grain_classes,
-                                             num_coarse_grain_classes=num_coarse_grain_classes))
+            training_fine_accuracy, training_coarse_accuracy = (
+                get_and_print_post_epoch_metrics(epoch=epoch,
+                                                 running_fine_loss=running_fine_loss,
+                                                 running_coarse_loss=running_coarse_loss,
+                                                 num_batches=num_batches,
+                                                 train_fine_ground_truth=true_fine_labels,
+                                                 train_fine_prediction=predicted_fine_labels,
+                                                 train_coarse_ground_truth=true_coarse_labels,
+                                                 train_coarse_prediction=predicted_coarse_labels,
+                                                 num_fine_grain_classes=num_fine_grain_classes,
+                                                 num_coarse_grain_classes=num_coarse_grain_classes))
 
-        train_fine_accuracies += [training_fine_accuracy]
-        train_coarse_accuracies += [training_coarse_accuracy]
+            train_fine_accuracies += [training_fine_accuracy]
+            train_coarse_accuracies += [training_coarse_accuracy]
 
-        train_fine_losses += [running_fine_loss / num_batches]
-        train_coarse_losses += [running_coarse_loss / num_batches]
+            train_fine_losses += [running_fine_loss / num_batches]
+            train_coarse_losses += [running_coarse_loss / num_batches]
 
-        fine_scheduler.step()
-        coarse_scheduler.step()
+            fine_scheduler.step()
+            coarse_scheduler.step()
 
-        (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
-         test_fine_accuracy, test_coarse_accuracy) = (
-            test_individual_models(fine_tuners=fine_tuners,
-                                   loaders=loaders,
-                                   devices=devices,
-                                   num_fine_grain_classes=num_fine_grain_classes,
-                                   num_coarse_grain_classes=num_coarse_grain_classes
-                                   ))
-        test_fine_accuracies += [test_fine_accuracy]
-        test_coarse_accuracies += [test_coarse_accuracy]
-        print('#' * 100)
+            (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
+             test_fine_accuracy, test_coarse_accuracy) = (
+                test_individual_models(fine_tuners=fine_tuners,
+                                       loaders=loaders,
+                                       devices=devices,
+                                       num_fine_grain_classes=num_fine_grain_classes,
+                                       num_coarse_grain_classes=num_coarse_grain_classes
+                                       ))
+            test_fine_accuracies += [test_fine_accuracy]
+            test_coarse_accuracies += [test_coarse_accuracy]
+            print('#' * 100)
 
-        np.save(f"{individual_results_path}{fine_fine_tuner}"
-                f"_test_pred_lr{fine_lr}_e{epoch}_fine_individual.npy",
-                test_fine_prediction)
-        np.save(f"{individual_results_path}{coarse_fine_tuner}"
-                f"_test_pred_lr{coarse_lr}_e{epoch}_coarse_individual.npy",
-                test_coarse_prediction)
+            np.save(f"{individual_results_path}{fine_fine_tuner}"
+                    f"_test_pred_lr{fine_lr}_e{epoch}_fine_individual.npy",
+                    test_fine_prediction)
+            np.save(f"{individual_results_path}{coarse_fine_tuner}"
+                    f"_test_pred_lr{coarse_lr}_e{epoch}_coarse_individual.npy",
+                    test_coarse_prediction)
 
-        torch.save(fine_fine_tuner.state_dict(), f"{fine_fine_tuner}_lr{fine_lr}_fine_individual.pth")
-        torch.save(coarse_fine_tuner.state_dict(), f"{coarse_fine_tuner}_lr{coarse_lr}_coarse_individual.pth")
+    torch.save(fine_fine_tuner.state_dict(), f"{fine_fine_tuner}_lr{fine_lr}_fine_individual.pth")
+    torch.save(coarse_fine_tuner.state_dict(), f"{coarse_fine_tuner}_lr{coarse_lr}_coarse_individual.pth")
 
-        if not os.path.exists(f"{individual_results_path}test_true_fine_individual.npy"):
-            np.save(f"{individual_results_path}test_true_fine_individual.npy", test_fine_ground_truths)
-        if not os.path.exists(f"{individual_results_path}test_true_coarse_individual.npy"):
-            np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_coarse_ground_truths)
+    if not os.path.exists(f"{individual_results_path}test_true_fine_individual.npy"):
+        np.save(f"{individual_results_path}test_true_fine_individual.npy", test_fine_ground_truths)
+    if not os.path.exists(f"{individual_results_path}test_true_coarse_individual.npy"):
+        np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_coarse_ground_truths)
 
 
 def fine_tune_combined_model(fine_tuner: models.FineTuner,
@@ -433,108 +428,104 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
         print('#' * 100 + '\n')
 
         for epoch in range(num_epochs):
-            epoch_start_time = time()
+            with context_handlers.TimeWrapper():
+                total_running_loss = torch.Tensor([0.0]).to(device)
+                running_fine_loss = torch.Tensor([0.0]).to(device)
+                running_coarse_loss = torch.Tensor([0.0]).to(device)
 
-            total_running_loss = torch.Tensor([0.0]).to(device)
-            running_fine_loss = torch.Tensor([0.0]).to(device)
-            running_coarse_loss = torch.Tensor([0.0]).to(device)
+                train_fine_predictions = []
+                train_coarse_predictions = []
 
-            train_fine_predictions = []
-            train_coarse_predictions = []
+                train_fine_ground_truths = []
+                train_coarse_ground_truths = []
 
-            train_fine_ground_truths = []
-            train_coarse_ground_truths = []
+                if utils.is_local():
+                    from tqdm import tqdm
+                    batches = tqdm(enumerate(train_loader, 0), total=num_batches)
+                else:
+                    batches = enumerate(train_loader, 0)
 
-            if utils.is_local():
-                from tqdm import tqdm
-                batches = tqdm(enumerate(train_loader, 0), total=num_batches)
-            else:
-                batches = enumerate(train_loader, 0)
+                for batch_num, batch in batches:
+                    with context_handlers.ClearCache(device=device):
 
-            for batch_num, batch in batches:
-                with context_handlers.ClearCache(device=device):
-                    batch_start_time = time()
+                        X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
+                        optimizer.zero_grad()
 
-                    X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
-                    optimizer.zero_grad()
+                        Y_pred = fine_tuner(X)
+                        Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
+                        Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
 
-                    Y_pred = fine_tuner(X)
-                    Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
-                    Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
+                        batch_fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
+                        batch_coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
 
-                    batch_fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
-                    batch_coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
+                        running_fine_loss += batch_fine_grain_loss
+                        running_coarse_loss += batch_coarse_grain_loss
 
-                    running_fine_loss += batch_fine_grain_loss
-                    running_coarse_loss += batch_coarse_grain_loss
+                        # batch_total_loss = learned_weighted_loss(batch_fine_loss=batch_fine_grain_loss,
+                        #                                          batch_coarse_loss=batch_coarse_grain_loss,
+                        #                                          total_fine_loss=running_fine_loss,
+                        #                                          total_coarse_loss=running_coarse_loss)
 
-                    # batch_total_loss = learned_weighted_loss(batch_fine_loss=batch_fine_grain_loss,
-                    #                                          batch_coarse_loss=batch_coarse_grain_loss,
-                    #                                          total_fine_loss=running_fine_loss,
-                    #                                          total_coarse_loss=running_coarse_loss)
+                        batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
 
-                    batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
+                        batch_total_loss.backward()
+                        optimizer.step()
 
-                    batch_total_loss.backward()
-                    optimizer.step()
+                        total_running_loss += batch_total_loss.item()
 
-                    total_running_loss += batch_total_loss.item()
+                        predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
+                        predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
 
-                    predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
-                    predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
+                        train_fine_predictions += predicted_fine.tolist()
+                        train_coarse_predictions += predicted_coarse.tolist()
 
-                    train_fine_predictions += predicted_fine.tolist()
-                    train_coarse_predictions += predicted_coarse.tolist()
+                        train_fine_ground_truths += Y_fine_grain.tolist()
+                        train_coarse_ground_truths += Y_coarse_grain.tolist()
 
-                    train_fine_ground_truths += Y_fine_grain.tolist()
-                    train_coarse_ground_truths += Y_coarse_grain.tolist()
+                        del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
 
-                    del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
-
-                    print_post_batch_metrics(batch_num=batch_num,
-                                             num_batches=num_batches,
-                                             batch_start_time=batch_start_time,
-                                             batch_fine_grain_loss=batch_fine_grain_loss.item(),
-                                             batch_coarse_grain_loss=batch_coarse_grain_loss.item(),
-                                             # alpha_value=learned_weighted_loss.alpha.item()
-                                             )
-
-            training_fine_accuracy, training_coarse_accuracy = (
-                get_and_print_post_epoch_metrics(epoch=epoch,
-                                                 epoch_start_time=epoch_start_time,
-                                                 running_fine_loss=running_fine_loss.item(),
-                                                 running_coarse_loss=running_coarse_loss.item(),
+                        print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,
-                                                 train_fine_ground_truth=np.array(train_fine_ground_truths),
-                                                 train_fine_prediction=np.array(train_fine_predictions),
-                                                 train_coarse_ground_truth=np.array(train_coarse_ground_truths),
-                                                 train_coarse_prediction=np.array(train_coarse_predictions),
-                                                 num_fine_grain_classes=num_fine_grain_classes,
-                                                 num_coarse_grain_classes=num_coarse_grain_classes))
+                                                 batch_fine_grain_loss=batch_fine_grain_loss.item(),
+                                                 batch_coarse_grain_loss=batch_coarse_grain_loss.item(),
+                                                 # alpha_value=learned_weighted_loss.alpha.item()
+                                                 )
 
-            train_fine_accuracies += [training_fine_accuracy]
-            train_coarse_accuracies += [training_coarse_accuracy]
+                training_fine_accuracy, training_coarse_accuracy = (
+                    get_and_print_post_epoch_metrics(epoch=epoch,
+                                                     running_fine_loss=running_fine_loss.item(),
+                                                     running_coarse_loss=running_coarse_loss.item(),
+                                                     num_batches=num_batches,
+                                                     train_fine_ground_truth=np.array(train_fine_ground_truths),
+                                                     train_fine_prediction=np.array(train_fine_predictions),
+                                                     train_coarse_ground_truth=np.array(train_coarse_ground_truths),
+                                                     train_coarse_prediction=np.array(train_coarse_predictions),
+                                                     num_fine_grain_classes=num_fine_grain_classes,
+                                                     num_coarse_grain_classes=num_coarse_grain_classes))
 
-            train_total_losses += [total_running_loss.item() / num_batches]
-            train_fine_losses += [running_fine_loss.item() / num_batches]
-            train_coarse_losses += [running_coarse_loss.item() / num_batches]
+                train_fine_accuracies += [training_fine_accuracy]
+                train_coarse_accuracies += [training_coarse_accuracy]
 
-            scheduler.step()
-            (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
-             test_fine_accuracy, test_coarse_accuracy) = (
-                test_combined_model(fine_tuner=fine_tuner,
-                                    loaders=loaders,
-                                    device=device,
-                                    num_fine_grain_classes=num_fine_grain_classes,
-                                    num_coarse_grain_classes=num_coarse_grain_classes))
-            test_fine_accuracies += [test_fine_accuracy]
-            test_coarse_accuracies += [test_coarse_accuracy]
-            print('#' * 100)
+                train_total_losses += [total_running_loss.item() / num_batches]
+                train_fine_losses += [running_fine_loss.item() / num_batches]
+                train_coarse_losses += [running_coarse_loss.item() / num_batches]
 
-            np.save(f"{combined_results_path}{fine_tuner}_test_fine_pred_lr{lr}_e{epoch}.npy",
-                    test_fine_prediction)
-            np.save(f"{combined_results_path}{fine_tuner}_test_coarse_pred_lr{lr}_e{epoch}.npy",
-                    test_coarse_prediction)
+                scheduler.step()
+                (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
+                 test_fine_accuracy, test_coarse_accuracy) = (
+                    test_combined_model(fine_tuner=fine_tuner,
+                                        loaders=loaders,
+                                        device=device,
+                                        num_fine_grain_classes=num_fine_grain_classes,
+                                        num_coarse_grain_classes=num_coarse_grain_classes))
+                test_fine_accuracies += [test_fine_accuracy]
+                test_coarse_accuracies += [test_coarse_accuracy]
+                print('#' * 100)
+
+                np.save(f"{combined_results_path}{fine_tuner}_test_fine_pred_lr{lr}_e{epoch}.npy",
+                        test_fine_prediction)
+                np.save(f"{combined_results_path}{fine_tuner}_test_coarse_pred_lr{lr}_e{epoch}.npy",
+                        test_coarse_prediction)
 
         np.save(f"{combined_results_path}{fine_tuner}_test_fine_acc_lr{lr}.npy", test_fine_accuracies)
         np.save(f"{combined_results_path}{fine_tuner}_test_coarse_acc_lr{lr}.npy", test_coarse_accuracies)

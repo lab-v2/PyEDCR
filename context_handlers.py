@@ -1,6 +1,7 @@
 import abc
 import torch
 import matplotlib.pyplot as plt
+import time
 
 if torch.backends.mps.is_available():
     from torch import mps
@@ -90,3 +91,14 @@ class WrapTQDM(Context):
                n: int = 1):
         if self.tqdm is not None:
             return self.tqdm.update(n)
+
+
+class TimeWrapper(Context):
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        self.start = time.time()
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        print(f'Total time: {utils.format_seconds(int(time.time() - self.start))}')
