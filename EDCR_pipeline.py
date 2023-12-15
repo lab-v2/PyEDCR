@@ -532,7 +532,7 @@ def run_EDCR_for_granularity(main_granularity: str,
                              main_coarse_data: np.array,
                              condition_datas: dict[str, dict[str, np.array]],
                              main_prior_fine_acc,
-                             main_prior_coarse_acc):
+                             main_prior_coarse_acc) -> np.array:
     with context_handlers.TimeWrapper():
         if main_granularity == 'fine':
             classes = data_preprocessing.fine_grain_classes
@@ -612,11 +612,11 @@ def run_EDCR_for_granularity(main_granularity: str,
               # f', secondary: {secondary_model_name}, lr={secondary_lr}'
               f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
 
-        vit_pipeline.print_num_inconsistencies(fine_predictions=total_results if main_granularity ==
-                                                                                 'fine' else main_fine_data,
-                                               coarse_predictions=total_results if main_granularity ==
-                                                                                   'coarse' else main_coarse_data,
-                                               prior=False)
+        # vit_pipeline.print_num_inconsistencies(fine_predictions=total_results if main_granularity ==
+        #                                                                          'fine' else main_fine_data,
+        #                                        coarse_predictions=total_results if main_granularity ==
+        #                                                                            'coarse' else main_coarse_data,
+        #                                        prior=False)
 
         col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
         df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
@@ -651,9 +651,11 @@ def run_EDCR_for_granularity(main_granularity: str,
         # with open(f'{folder}/corrections.json', 'w') as json_file:
         #     json.dump(corrections, json_file)
 
-        print(f'\nCompleted {main_granularity}-grain EDCR run,'
-              f'saved error detections and corrections to {folder}\n')
+        print(f'\nCompleted {main_granularity}-grain EDCR run'
+              # f'saved error detections and corrections to {folder}\n'
+              )
 
+    return total_results
 
 
 def run_EDCR_pipeline(combined: bool = True):
@@ -661,13 +663,19 @@ def run_EDCR_pipeline(combined: bool = True):
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
                                           main_coarse_data=main_coarse_data)
 
+    pipeline_results = {}
+
     for main_granularity in data_preprocessing.granularities:
-        run_EDCR_for_granularity(main_granularity=main_granularity,
-                                 main_fine_data=main_fine_data,
-                                 main_coarse_data=main_coarse_data,
-                                 condition_datas=condition_datas,
-                                 main_prior_fine_acc=main_prior_fine_acc,
-                                 main_prior_coarse_acc=main_prior_coarse_acc)
+        pipeline_results[main_granularity] = run_EDCR_for_granularity(main_granularity=main_granularity,
+                                                                      main_fine_data=main_fine_data,
+                                                                      main_coarse_data=main_coarse_data,
+                                                                      condition_datas=condition_datas,
+                                                                      main_prior_fine_acc=main_prior_fine_acc,
+                                                                      main_prior_coarse_acc=main_prior_coarse_acc)
+
+    vit_pipeline.print_num_inconsistencies(fine_predictions=pipeline_results['fine'],
+                                           coarse_predictions=pipeline_results['coarse'],
+                                           prior=False)
 
 
 if __name__ == '__main__':
