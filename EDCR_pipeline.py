@@ -464,12 +464,11 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
 
-def load_priors(combined: bool = True) -> (np.array, np.array):
+def load_priors(combined: bool) -> (np.array, np.array):
     if combined:
         main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{num_epochs - 1}.npy'
         main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{num_epochs - 1}.npy'
         path = vit_pipeline.combined_results_path
-
     else:
         main_model_fine_path = f'{main_model_name}_test_pred_lr{main_lr}_e{num_epochs - 1}_fine_individual.npy'
         main_model_coarse_path = f'{main_model_name}_test_pred_lr{main_lr}_e{num_epochs - 1}_coarse_individual.npy'
@@ -488,19 +487,38 @@ def load_priors(combined: bool = True) -> (np.array, np.array):
 
     main_prior_fine_acc = accuracy_score(y_true=data_preprocessing.true_fine_data, y_pred=main_fine_data)
     main_prior_coarse_acc = accuracy_score(y_true=data_preprocessing.true_coarse_data, y_pred=main_coarse_data)
-    #
+
     # secondary_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=secondary_fine_data)
     # secondary_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=secondary_coarse_data)
 
+    main_prior_fine_average_f1 = f1_score(y_true=data_preprocessing.true_fine_data,
+                                          y_pred=main_fine_data,
+                                          labels=range(len(data_preprocessing.fine_grain_classes)),
+                                          average='macro')
+    main_prior_coarse_f1 = f1_score(y_true=data_preprocessing.true_coarse_data,
+                                    y_pred=main_coarse_data,
+                                    labels=range(len(data_preprocessing.coarse_grain_classes)),
+                                    average='macro')
+
+    combined_str = 'combined' if combined else 'individual'
+
     print(f'Main model name: {utils.blue_text(main_model_name)} with lr={utils.blue_text(main_lr)}\n'
-          f'Main prior fine accuracy: {utils.green_text(round(main_prior_fine_acc * 100, 2))}%\n'
-          f'Main prior coarse accuracy: {utils.green_text(round(main_prior_coarse_acc * 100, 2))}%\n'
+          f'Main {combined_str} prior fine accuracy: {utils.green_text(round(main_prior_fine_acc * 100, 2))}%, '
+          f'main prior average fine-grain f1: {utils.green_text(round(main_prior_fine_average_f1 * 100, 2))}% \n'
+          f'Main {combined_str} prior coarse accuracy: {utils.green_text(round(main_prior_coarse_acc * 100, 2))}%, '
+          f'main prior average coarse-grain f1: {utils.green_text(round(main_prior_coarse_f1 * 100, 2))}% \n'
           # f'Secondary fine accuracy: {round(secondary_prior_fine_acc * 100, 2)}%, '
           # f'secondary coarse accuracy: {round(secondary_prior_coarse_acc * 100, 2)}%\n'
           )
 
-    vit_pipeline.print_num_inconsistencies(fine_predictions=main_fine_data,
-                                           coarse_predictions=main_coarse_data)
+    vit_pipeline.get_and_print_metrics(fine_predictions=main_fine_data,
+                                       coarse_predictions=main_coarse_data,
+                                       combined=combined,
+                                       model_name=main_model_name,
+                                       lr=main_lr)
+
+
+
 
     return main_fine_data, main_coarse_data, main_prior_fine_acc, main_prior_coarse_acc
 
@@ -530,9 +548,7 @@ def get_conditions_data(main_fine_data: np.array,
 def run_EDCR_for_granularity(main_granularity: str,
                              main_fine_data: np.array,
                              main_coarse_data: np.array,
-                             condition_datas: dict[str, dict[str, np.array]],
-                             main_prior_fine_acc,
-                             main_prior_coarse_acc) -> np.array:
+                             condition_datas: dict[str, dict[str, np.array]],) -> np.array:
     with context_handlers.TimeWrapper():
         if main_granularity == 'fine':
             classes = data_preprocessing.fine_grain_classes
@@ -589,7 +605,7 @@ def run_EDCR_for_granularity(main_granularity: str,
         result0.extend(get_scores(true_data, pred_data))
         results.append(result0)
 
-        posterior_acc = 0
+        # posterior_acc = 0
         total_results = np.zeros_like(pred_data)
 
         epsilons = [0.002 * i for i in range(1, 2, 1)]
@@ -607,16 +623,10 @@ def run_EDCR_for_granularity(main_granularity: str,
                 epsilon=epsilon)
             results.append([epsilon] + result)
 
-        prior_acc = main_prior_fine_acc if main_granularity == 'fine' else main_prior_coarse_acc
-        print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
-              # f', secondary: {secondary_model_name}, lr={secondary_lr}'
-              f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
-
-        # vit_pipeline.print_num_inconsistencies(fine_predictions=total_results if main_granularity ==
-        #                                                                          'fine' else main_fine_data,
-        #                                        coarse_predictions=total_results if main_granularity ==
-        #                                                                            'coarse' else main_coarse_data,
-        #                                        prior=False)
+        # prior_acc = main_prior_fine_acc if main_granularity == 'fine' else main_prior_coarse_acc
+        # print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
+        #       # f', secondary: {secondary_model_name}, lr={secondary_lr}'
+        #       f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
 
         col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
         df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
@@ -669,13 +679,15 @@ def run_EDCR_pipeline(combined: bool = True):
         pipeline_results[main_granularity] = run_EDCR_for_granularity(main_granularity=main_granularity,
                                                                       main_fine_data=main_fine_data,
                                                                       main_coarse_data=main_coarse_data,
-                                                                      condition_datas=condition_datas,
-                                                                      main_prior_fine_acc=main_prior_fine_acc,
-                                                                      main_prior_coarse_acc=main_prior_coarse_acc)
+                                                                      condition_datas=condition_datas)
 
-    vit_pipeline.print_num_inconsistencies(fine_predictions=pipeline_results['fine'],
-                                           coarse_predictions=pipeline_results['coarse'],
-                                           prior=False)
+
+    vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
+                                       coarse_predictions=pipeline_results['coarse'],
+                                       prior=False,
+                                       combined=combined,
+                                       model_name=main_model_name,
+                                       lr=main_lr)
 
 
 if __name__ == '__main__':
