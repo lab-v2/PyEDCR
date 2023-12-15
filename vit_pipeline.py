@@ -62,7 +62,7 @@ def get_and_print_metrics(fine_predictions: np.array,
 
 
     print((f'Main model name: {utils.blue_text(model_name)}' if model_name is not None else '') +
-          ('with lr={utils.blue_text(lr)}\n' if lr is not None else '') +
+          (f'with lr={utils.blue_text(lr)}\n' if lr is not None else '') +
           f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(test_fine_accuracy * 100, 2))}%'
           f', fine-grain {prior_str} {combined_str} average f1: {utils.green_text(round(test_fine_f1 * 100, 2))}%'
           f'\nCoarse-grain {prior_str} {combined_str} accuracy: '
