@@ -502,7 +502,7 @@ def load_priors(combined: bool = True) -> (np.array, np.array):
     vit_pipeline.print_num_inconsistencies(fine_predictions=main_fine_data,
                                            coarse_predictions=main_coarse_data)
 
-    return main_fine_data, main_coarse_data
+    return main_fine_data, main_coarse_data, main_prior_fine_acc, main_prior_coarse_acc
 
 
 def get_conditions_data(main_fine_data: np.array,
@@ -528,7 +528,7 @@ def get_conditions_data(main_fine_data: np.array,
 
 
 def run_EDCR(combined: bool = True):
-    main_fine_data, main_coarse_data = load_priors(combined)
+    main_fine_data, main_coarse_data, main_prior_fine_acc, main_prior_coarse_acc = load_priors(combined)
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
                                           main_coarse_data=main_coarse_data)
 
@@ -605,7 +605,7 @@ def run_EDCR(combined: bool = True):
                 epsilon=epsilon)
             results.append([epsilon] + result)
 
-        prior_acc = eval(f'main_prior_{main_granularity}_acc')
+        prior_acc = main_prior_fine_acc if main_granularity == 'fine' else main_prior_coarse_acc
         print(f'\nSaved plots for main: {main_granularity}-grain {main_model_name}, lr={main_lr}'
               # f', secondary: {secondary_model_name}, lr={secondary_lr}'
               f'\nPrior acc:{prior_acc}, post acc: {posterior_acc}')
