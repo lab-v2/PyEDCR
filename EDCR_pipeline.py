@@ -1,5 +1,4 @@
 import os
-# import json
 import numpy as np
 import pandas as pd
 import time
@@ -465,7 +464,7 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
 
-def run_EDCR(combined: bool = True):
+def load_priors(combined: bool = True) -> (np.array, np.array):
     if combined:
         main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{num_epochs - 1}.npy'
         main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{num_epochs - 1}.npy'
@@ -503,6 +502,11 @@ def run_EDCR(combined: bool = True):
     vit_pipeline.print_num_inconsistencies(fine_predictions=main_fine_data,
                                            coarse_predictions=main_coarse_data)
 
+    return main_fine_data, main_coarse_data
+
+
+def get_conditions_data(main_fine_data: np.array,
+                        main_coarse_data: np.array) -> dict[str, dict[str, np.array]]:
     condition_datas = {}
 
     for main_or_secondary in ['main',
@@ -512,13 +516,21 @@ def run_EDCR(combined: bool = True):
             if main_or_secondary not in condition_datas:
                 condition_datas[main_or_secondary] = {}
 
-            cla_data = eval(f'{main_or_secondary}_{granularity}_data')
+            cla_data = main_fine_data if granularity == 'fine' else main_coarse_data
             condition_datas[main_or_secondary][granularity] = rearrange_for_condition_values(cla_data)
 
         derived_coarse = np.array([data_preprocessing.fine_to_course_idx[fine_grain_prediction]
                                    for fine_grain_prediction in eval(f'{main_or_secondary}_fine_data')])
 
         condition_datas[main_or_secondary]['fine_to_coarse'] = rearrange_for_condition_values(derived_coarse)
+
+    return condition_datas
+
+
+def run_EDCR(combined: bool = True):
+    main_fine_data, main_coarse_data = load_priors(combined)
+    condition_datas = get_conditions_data(main_fine_data=main_fine_data,
+                                          main_coarse_data=main_coarse_data)
 
     for main_granularity in data_preprocessing.granularities:
         if main_granularity == 'fine':
@@ -615,16 +627,16 @@ def run_EDCR(combined: bool = True):
                   )
         utils.create_directory(folder)
 
-        plot(df=df,
-             classes=classes,
-             col_num=len(col),
-             x_values=df['epsilon'][1:],
-             main_granularity=main_granularity,
-             main_model_name=main_model_name,
-             main_lr=main_lr,
-             # secondary_model_name=secondary_model_name,
-             # secondary_lr=secondary_lr,
-             folder=folder)
+        # plot(df=df,
+        #      classes=classes,
+        #      col_num=len(col),
+        #      x_values=df['epsilon'][1:],
+        #      main_granularity=main_granularity,
+        #      main_model_name=main_model_name,
+        #      main_lr=main_lr,
+        #      # secondary_model_name=secondary_model_name,
+        #      # secondary_lr=secondary_lr,
+        #      folder=folder)
 
         np.save(f'{folder}/results.npy', total_results)
 
