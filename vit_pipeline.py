@@ -529,7 +529,10 @@ def initiate(combined: bool,
              train: bool,
              pretrained_path: str = None,
              debug: bool = False):
-    print(f'Models: {vit_model_names}\nEpochs num: {num_epochs}\nLearning rates: {lrs}')
+    print(f'Models: {vit_model_names}\n'
+          f'Epochs num: {num_epochs}\n'
+          f'Learning rates: {lrs}')
+
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
     if combined:
