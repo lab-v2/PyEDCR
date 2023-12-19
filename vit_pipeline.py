@@ -60,8 +60,7 @@ def get_and_print_metrics(fine_predictions: np.array,
     prior_str = 'prior' if prior else 'post'
     combined_str = 'combined' if combined else 'individual'
 
-
-    print((f'Main model name: {utils.blue_text(model_name)}' if model_name is not None else '') +
+    print((f'Main model name: {utils.blue_text(model_name)} ' if model_name is not None else '') +
           (f'with lr={utils.blue_text(lr)}\n' if lr is not None else '') +
           f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(test_fine_accuracy * 100, 2))}%'
           f', fine-grain {prior_str} {combined_str} average f1: {utils.green_text(round(test_fine_f1 * 100, 2))}%'
@@ -175,7 +174,7 @@ def test_combined_model(fine_tuner: models.FineTuner,
 
     test_fine_accuracy, test_coarse_accuracy = (
         get_and_print_metrics(fine_predictions=test_fine_prediction,
-                              coarse_predictions=test_coarse_prediction,))
+                              coarse_predictions=test_coarse_prediction, ))
 
     return (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
             test_fine_accuracy, test_coarse_accuracy)
@@ -240,7 +239,6 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
     num_batches = len(train_loader)
     criterion = torch.nn.CrossEntropyLoss()
 
-
     fine_optimizer = torch.optim.Adam(params=fine_fine_tuner.parameters(),
                                       lr=fine_lr)
     coarse_optimizer = torch.optim.Adam(params=coarse_fine_tuner.parameters(),
@@ -288,7 +286,6 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             for batch_num, batch in batches:
                 with context_handlers.ClearCache(device=device_1):
                     with context_handlers.ClearCache(device=device_2):
-
                         X, Y_fine_grain, Y_coarse_grain = batch[0], batch[1].to(device_1), batch[3].to(device_2)
 
                         fine_optimizer.zero_grad()
@@ -440,7 +437,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
-
                         X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
                         optimizer.zero_grad()
 
@@ -531,6 +527,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
 def initiate(combined: bool,
              train: bool,
+             pretrained_path: str = None,
              debug: bool = False):
     print(f'Models: {vit_model_names}\nEpochs num: {num_epochs}\nLearning rates: {lrs}')
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
@@ -542,9 +539,20 @@ def initiate(combined: bool,
         devices = [device]
         print(f'Using {device}')
 
-        fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
-                                           num_classes=num_fine_grain_classes + num_coarse_grain_classes)
-                       for vit_model_name in vit_model_names]
+        num_classes = num_fine_grain_classes + num_coarse_grain_classes
+
+        if (not train) and (pretrained_path is not None):
+            print(f'Loading pretrained model from {pretrained_path}')
+            fine_tuners = [models.VITFineTuner.from_pretrained(vit_model_name=vit_model_name,
+                                                               num_classes=num_classes,
+                                                               pretrained_path=pretrained_path,
+                                                               device=device)
+                           for vit_model_name in vit_model_names]
+        else:
+            fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+                                               num_classes=num_classes)
+                           for vit_model_name in vit_model_names]
+
         results_path = combined_results_path
     else:
         num_gpus = torch.cuda.device_count()
@@ -584,9 +592,11 @@ def run_combined_fine_tuning_pipeline(debug: bool = False):
             print('#' * 100)
 
 
-def run_combined_testing_pipeline():
-    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
-                                                                                               train=False)
+def run_combined_testing_pipeline(pretrained_path: str = None):
+    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+        initiate(combined=True,
+                 train=False,
+                 pretrained_path=pretrained_path))
 
     test_combined_model(fine_tuner=fine_tuners[0],
                         loaders=loaders,
@@ -611,4 +621,5 @@ def run_individual_fine_tuning_pipeline(debug: bool = False):
 
 
 if __name__ == '__main__':
-    run_individual_fine_tuning_pipeline()
+    # run_individual_fine_tuning_pipeline()
+    run_combined_testing_pipeline(pretrained_path='models/model_“b-16_normal_1e-4”.pth')

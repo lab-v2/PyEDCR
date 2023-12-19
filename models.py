@@ -34,9 +34,30 @@ class VITFineTuner(FineTuner):
         self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
                                              out_features=num_classes)
 
+    @classmethod
+    def from_pretrained(cls,
+                        vit_model_name: str,
+                        num_classes: int,
+                        pretrained_path: str,
+                        device: torch.device):
+        instance = cls(vit_model_name, num_classes)
+        predefined_weights = torch.load(pretrained_path,
+                                        map_location=device)
+
+        if 'model_state_dict' in predefined_weights.keys():
+            predefined_weights = predefined_weights['model_state_dict']
+
+        new_predefined_weights = {}
+        for key, value in predefined_weights.items():
+            new_key = key.replace('vit.', '')
+            new_predefined_weights[new_key] = value
+
+        instance.vit.load_state_dict(new_predefined_weights)
+
+        return instance
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.vit(x)
-        return x
+        return self.vit(x)
 
     def __str__(self):
         return self.vit_model_name
