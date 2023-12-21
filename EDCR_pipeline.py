@@ -21,19 +21,19 @@ results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
 main_lr = 0.0001
-num_epochs = 20
+epoches_num = 20
 
 
 # secondary_model_name = 'vit_l_16'
 # secondary_lr = 0.0001
 
 
-def get_binary_condition_values(i: int,
+def get_binary_condition_values(example_index: int,
                                 fine_cla_datas: np.array,
                                 coarse_cla_datas: np.array):
     res = []
-    for fine_i, fine_cls in enumerate(fine_cla_datas[:, i].astype(int)):
-        for coarse_i, coarse_cls in enumerate(coarse_cla_datas[:, i].astype(int)):
+    for fine_i, fine_cls in enumerate(fine_cla_datas[:, example_index].astype(int)):
+        for coarse_i, coarse_cls in enumerate(coarse_cla_datas[:, example_index].astype(int)):
             pred = int(fine_cls & coarse_cls)
             consistent = int(pred & (data_preprocessing.fine_to_course_idx[fine_i] == coarse_i))
             res += [pred, consistent]
@@ -41,9 +41,9 @@ def get_binary_condition_values(i: int,
     return res
 
 
-def get_unary_condition_values(i: int,
+def get_unary_condition_values(example_index: int,
                                cla_datas: np.array):
-    return [int(cls[i]) for cls in cla_datas]
+    return [int(cls[example_index]) for cls in cla_datas]
 
 
 def get_scores(y_true: np.array,
@@ -466,12 +466,12 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
 
 def load_priors(combined: bool) -> (np.array, np.array):
     if combined:
-        main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{num_epochs - 1}.npy'
-        main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{num_epochs - 1}.npy'
+        main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{epoches_num - 1}.npy'
+        main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{epoches_num - 1}.npy'
         path = vit_pipeline.combined_results_path
     else:
-        main_model_fine_path = f'{main_model_name}_test_pred_lr{main_lr}_e{num_epochs - 1}_fine_individual.npy'
-        main_model_coarse_path = f'{main_model_name}_test_pred_lr{main_lr}_e{num_epochs - 1}_coarse_individual.npy'
+        main_model_fine_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epoches_num - 1}_fine_individual.npy'
+        main_model_coarse_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epoches_num - 1}_coarse_individual.npy'
         path = vit_pipeline.individual_results_path
 
     # secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
@@ -535,33 +535,33 @@ def run_EDCR_for_granularity(main_granularity: str,
             true_data = data_preprocessing.true_coarse_data
             pred_data = main_coarse_data
 
-        m = true_data.shape[0]
+        examples_num = true_data.shape[0]
 
-        charts = [[pred_data[i], true_data[i]] +
+        charts = [[pred_data[example_index], true_data[example_index]] +
                   (
-                          get_binary_condition_values(i=i,
+                          get_binary_condition_values(example_index=example_index,
                                                       fine_cla_datas=condition_datas['main']['fine'],
                                                       coarse_cla_datas=condition_datas['main']['coarse'])
                           +
-                          get_unary_condition_values(i=i,
+                          get_unary_condition_values(example_index=example_index,
                                                      cla_datas=condition_datas['main']['fine'])
                           +
-                          get_unary_condition_values(i=i,
+                          get_unary_condition_values(example_index=example_index,
                                                      cla_datas=condition_datas['main']['coarse'])
                           +
-                          get_unary_condition_values(i=i,
+                          get_unary_condition_values(example_index=example_index,
                                                      cla_datas=condition_datas['main']['fine_to_coarse'])
                   )
-                  # + (get_binary_condition_values(i=i,
+                  # + (get_binary_condition_values(example_index=example_index,
                   #                              fine_cla_datas=condition_datas['secondary']['fine'],
                   #                              coarse_cla_datas=condition_datas['secondary']['coarse']) +
-                  #  get_unary_condition_values(i=i,
+                  #  get_unary_condition_values(example_index=example_index,
                   #                             cla_datas=condition_datas['secondary']['fine']) +
-                  #  get_unary_condition_values(i=i,
+                  #  get_unary_condition_values(example_index=example_index,
                   #                             cla_datas=condition_datas['secondary']['coarse']) +
-                  #  get_unary_condition_values(i=i,
+                  #  get_unary_condition_values(example_index=example_index,
                   #                             cla_datas=condition_datas['secondary']['fine_to_coarse']))
-                  for i in range(m)]
+                  for example_index in range(examples_num)]
 
         all_charts = generate_chart(n_classes=len(classes),
                                     charts=charts)
