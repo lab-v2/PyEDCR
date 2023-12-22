@@ -539,21 +539,22 @@ def run_EDCR_for_granularity(main_granularity: str,
         examples_num = true_data.shape[0]
 
         charts = [[pred_data[example_index], true_data[example_index]] +
-                  (
-                          get_binary_condition_values(example_index=example_index,
-                                                      fine_cla_datas=condition_datas['main']['fine'],
-                                                      coarse_cla_datas=condition_datas['main']['coarse'])
-                          +
-                          get_unary_condition_values(example_index=example_index,
-                                                     cla_datas=condition_datas['main']['fine'])
-                          +
-                          get_unary_condition_values(example_index=example_index,
-                                                     cla_datas=condition_datas['main']['coarse'])
-                          +
-                          get_unary_condition_values(example_index=example_index,
-                                                     cla_datas=condition_datas['main']['fine_to_coarse'])
-                  )
-                  + (get_binary_condition_values(example_index=example_index,
+                  # (
+                  #         get_binary_condition_values(example_index=example_index,
+                  #                                     fine_cla_datas=condition_datas['main']['fine'],
+                  #                                     coarse_cla_datas=condition_datas['main']['coarse'])
+                  #         +
+                  #         get_unary_condition_values(example_index=example_index,
+                  #                                    cla_datas=condition_datas['main']['fine'])
+                  #         +
+                  #         get_unary_condition_values(example_index=example_index,
+                  #                                    cla_datas=condition_datas['main']['coarse'])
+                  #         +
+                  #         get_unary_condition_values(example_index=example_index,
+                  #                                    cla_datas=condition_datas['main']['fine_to_coarse'])
+                  # )
+                  # +
+                  (get_binary_condition_values(example_index=example_index,
                                                  fine_cla_datas=condition_datas['secondary']['fine'],
                                                  coarse_cla_datas=condition_datas['secondary']['coarse']) +
                      get_unary_condition_values(example_index=example_index,
