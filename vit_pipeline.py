@@ -24,18 +24,18 @@ cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
 
-def print_num_inconsistencies(fine_predictions: np.array,
-                              coarse_predictions: np.array,
+def print_num_inconsistencies(fine_labels: np.array,
+                              coarse_labels: np.array,
                               prior: bool = True):
     inconsistencies = 0
-    for fine_prediction, coarse_prediction in zip(fine_predictions, coarse_predictions):
-        if data_preprocessing.fine_to_course_idx[fine_prediction] != coarse_prediction:
+    for fine_label, coarse_label in zip(fine_labels, coarse_labels):
+        if data_preprocessing.fine_to_course_idx[fine_label] != coarse_label:
             inconsistencies += 1
 
     print(
         f"Total {'prior' if prior else 'post'} inconsistencies "
-        f"{utils.red_text(inconsistencies)}/{utils.red_text(len(fine_predictions))} "
-        f'({utils.red_text(round(inconsistencies / len(fine_predictions) * 100, 2))}%)')
+        f"{utils.red_text(inconsistencies)}/{utils.red_text(len(fine_labels))} "
+        f'({utils.red_text(round(inconsistencies / len(fine_labels) * 100, 2))}%)')
 
 
 def get_and_print_metrics(fine_predictions: np.array,
@@ -69,8 +69,8 @@ def get_and_print_metrics(fine_predictions: np.array,
           f', coarse-grain {prior_str} {combined_str} average f1: '
           f'{utils.green_text(round(test_coarse_f1 * 100, 2))}%\n')
 
-    print_num_inconsistencies(fine_predictions=fine_predictions,
-                              coarse_predictions=coarse_predictions,
+    print_num_inconsistencies(fine_labels=fine_predictions,
+                              coarse_labels=coarse_predictions,
                               prior=prior)
 
     return test_fine_accuracy, test_coarse_accuracy
@@ -157,6 +157,8 @@ def test_combined_model(fine_tuner: models.FineTuner,
 
         for i, data in gen:
             X, Y_fine_grain, names, Y_coarse_grain = data[0].to(device), data[1].to(device), data[2], data[3].to(device)
+
+            print(print_num_inconsistencies(fine_labels=Y_fine_grain.cpu(), coarse_labels=Y_coarse_grain.cpu()))
             Y_pred = fine_tuner(X)
             Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes)]
             Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes):]
@@ -625,4 +627,4 @@ def run_individual_fine_tuning_pipeline(debug: bool = False):
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
+    run_combined_testing_pipeline(pretrained_path='models/model_“b-16_normal_1e-4”.pth')

@@ -21,11 +21,11 @@ results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
 main_lr = 0.0001
-epoches_num = 20
+epochs_num = 20
 
 
-# secondary_model_name = 'vit_l_16'
-# secondary_lr = 0.0001
+secondary_model_name = 'vit_l_16'
+secondary_lr = 0.0001
 
 
 def get_binary_condition_values(example_index: int,
@@ -466,28 +466,27 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
 
 def load_priors(combined: bool) -> (np.array, np.array):
     if combined:
-        main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{epoches_num - 1}.npy'
-        main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{epoches_num - 1}.npy'
+        main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{epochs_num - 1}.npy'
+        main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{epochs_num - 1}.npy'
         path = vit_pipeline.combined_results_path
     else:
-        main_model_fine_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epoches_num - 1}_fine_individual.npy'
-        main_model_coarse_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epoches_num - 1}_coarse_individual.npy'
+        main_model_fine_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epochs_num - 1}_fine_individual.npy'
+        main_model_coarse_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epochs_num - 1}_coarse_individual.npy'
         path = vit_pipeline.individual_results_path
 
-    # secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
-    #                              f'_e{vit_pipeline.num_epochs - 1}.npy')
-    # secondary_model_coarse_path = (f'{secondary_model_name}_test_coarse_pred_lr{secondary_lr}'
-    #                                f'_e{vit_pipeline.num_epochs - 1}.npy')
+    secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
+                                 f'_e9.npy')
+    secondary_model_coarse_path = (f'{secondary_model_name}_test_coarse_pred_lr{secondary_lr}'
+                                   f'_e9.npy')
 
     main_fine_data = np.load(os.path.join(path, main_model_fine_path))
     main_coarse_data = np.load(os.path.join(path, main_model_coarse_path))
 
-    # secondary_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_fine_path))
-    # secondary_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_coarse_path))
+    secondary_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_fine_path))
+    secondary_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_coarse_path))
 
     # secondary_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=secondary_fine_data)
     # secondary_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=secondary_coarse_data)
-
 
     vit_pipeline.get_and_print_metrics(fine_predictions=main_fine_data,
                                        coarse_predictions=main_coarse_data,
@@ -495,17 +494,19 @@ def load_priors(combined: bool) -> (np.array, np.array):
                                        model_name=main_model_name,
                                        lr=main_lr)
 
-
-    return main_fine_data, main_coarse_data
+    return main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data
 
 
 def get_conditions_data(main_fine_data: np.array,
-                        main_coarse_data: np.array) -> dict[str, dict[str, np.array]]:
+                        main_coarse_data: np.array,
+                        secondary_fine_data: np.array) -> dict[str, dict[str, np.array]]:
     condition_datas = {}
 
     for main_or_secondary in ['main',
-                              # 'secondary'
+                              'secondary'
                               ]:
+        take_conditions_from = main_fine_data if main_or_secondary == 'main' else secondary_fine_data
+
         for granularity in data_preprocessing.granularities:
             if main_or_secondary not in condition_datas:
                 condition_datas[main_or_secondary] = {}
@@ -514,7 +515,7 @@ def get_conditions_data(main_fine_data: np.array,
             condition_datas[main_or_secondary][granularity] = rearrange_for_condition_values(cla_data)
 
         derived_coarse = np.array([data_preprocessing.fine_to_course_idx[fine_grain_prediction]
-                                   for fine_grain_prediction in eval(f'{main_or_secondary}_fine_data')])
+                                   for fine_grain_prediction in take_conditions_from])
 
         condition_datas[main_or_secondary]['fine_to_coarse'] = rearrange_for_condition_values(derived_coarse)
 
@@ -524,7 +525,7 @@ def get_conditions_data(main_fine_data: np.array,
 def run_EDCR_for_granularity(main_granularity: str,
                              main_fine_data: np.array,
                              main_coarse_data: np.array,
-                             condition_datas: dict[str, dict[str, np.array]],) -> np.array:
+                             condition_datas: dict[str, dict[str, np.array]], ) -> np.array:
     with context_handlers.TimeWrapper():
         if main_granularity == 'fine':
             classes = data_preprocessing.fine_grain_classes
@@ -552,15 +553,15 @@ def run_EDCR_for_granularity(main_granularity: str,
                           get_unary_condition_values(example_index=example_index,
                                                      cla_datas=condition_datas['main']['fine_to_coarse'])
                   )
-                  # + (get_binary_condition_values(example_index=example_index,
-                  #                              fine_cla_datas=condition_datas['secondary']['fine'],
-                  #                              coarse_cla_datas=condition_datas['secondary']['coarse']) +
-                  #  get_unary_condition_values(example_index=example_index,
-                  #                             cla_datas=condition_datas['secondary']['fine']) +
-                  #  get_unary_condition_values(example_index=example_index,
-                  #                             cla_datas=condition_datas['secondary']['coarse']) +
-                  #  get_unary_condition_values(example_index=example_index,
-                  #                             cla_datas=condition_datas['secondary']['fine_to_coarse']))
+                  + (get_binary_condition_values(example_index=example_index,
+                                                 fine_cla_datas=condition_datas['secondary']['fine'],
+                                                 coarse_cla_datas=condition_datas['secondary']['coarse']) +
+                     get_unary_condition_values(example_index=example_index,
+                                                cla_datas=condition_datas['secondary']['fine']) +
+                     get_unary_condition_values(example_index=example_index,
+                                                cla_datas=condition_datas['secondary']['coarse']) +
+                     get_unary_condition_values(example_index=example_index,
+                                                cla_datas=condition_datas['secondary']['fine_to_coarse']))
                   for example_index in range(examples_num)]
 
         all_charts = generate_chart(n_classes=len(classes),
@@ -645,9 +646,10 @@ def run_EDCR_for_granularity(main_granularity: str,
 
 
 def run_EDCR_pipeline(combined: bool = True):
-    main_fine_data, main_coarse_data = load_priors(combined)
+    main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data = load_priors(combined)
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
-                                          main_coarse_data=main_coarse_data)
+                                          main_coarse_data=main_coarse_data,
+                                          secondary_fine_data=secondary_fine_data)
 
     pipeline_results = {}
 
@@ -656,7 +658,6 @@ def run_EDCR_pipeline(combined: bool = True):
                                                                       main_fine_data=main_fine_data,
                                                                       main_coarse_data=main_coarse_data,
                                                                       condition_datas=condition_datas)
-
 
     vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
                                        coarse_predictions=pipeline_results['coarse'],
@@ -667,4 +668,4 @@ def run_EDCR_pipeline(combined: bool = True):
 
 
 if __name__ == '__main__':
-    run_EDCR_pipeline(combined=False)
+    run_EDCR_pipeline(combined=True)
