@@ -554,16 +554,17 @@ def run_EDCR_for_granularity(main_granularity: str,
                   # )
                   # +
                   (
-                          get_binary_condition_values(example_index=example_index,
-                                                      fine_cla_datas=condition_datas['secondary']['fine'],
-                                                      coarse_cla_datas=condition_datas['secondary']['coarse'])
-                          +
+                          # get_binary_condition_values(example_index=example_index,
+                          #                             fine_cla_datas=condition_datas['secondary']['fine'],
+                          #                             coarse_cla_datas=condition_datas['secondary']['coarse'])
+                          # +
                           get_unary_condition_values(example_index=example_index,
                                                      cla_datas=condition_datas['secondary']['fine']) +
                           get_unary_condition_values(example_index=example_index,
-                                                     cla_datas=condition_datas['secondary']['coarse']) +
-                          get_unary_condition_values(example_index=example_index,
-                                                     cla_datas=condition_datas['secondary']['fine_to_coarse'])
+                                                     cla_datas=condition_datas['secondary']['coarse'])
+                          # +
+                          # get_unary_condition_values(example_index=example_index,
+                          #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
                   )
                   for example_index in range(examples_num)]
 
