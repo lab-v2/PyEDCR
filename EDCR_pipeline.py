@@ -23,7 +23,6 @@ main_model_name = 'vit_b_16'
 main_lr = 0.0001
 epochs_num = 20
 
-
 secondary_model_name = 'vit_l_16'
 secondary_lr = 0.0001
 
@@ -554,15 +553,17 @@ def run_EDCR_for_granularity(main_granularity: str,
                   #                                    cla_datas=condition_datas['main']['fine_to_coarse'])
                   # )
                   # +
-                  (get_binary_condition_values(example_index=example_index,
-                                                 fine_cla_datas=condition_datas['secondary']['fine'],
-                                                 coarse_cla_datas=condition_datas['secondary']['coarse']) +
-                     get_unary_condition_values(example_index=example_index,
-                                                cla_datas=condition_datas['secondary']['fine']) +
-                     get_unary_condition_values(example_index=example_index,
-                                                cla_datas=condition_datas['secondary']['coarse']) +
-                     get_unary_condition_values(example_index=example_index,
-                                                cla_datas=condition_datas['secondary']['fine_to_coarse']))
+                  (
+                          # get_binary_condition_values(example_index=example_index,
+                          #                      fine_cla_datas=condition_datas['secondary']['fine'],
+                          #                      coarse_cla_datas=condition_datas['secondary']['coarse']) +
+                   get_unary_condition_values(example_index=example_index,
+                                              cla_datas=condition_datas['secondary']['fine']) +
+                   get_unary_condition_values(example_index=example_index,
+                                              cla_datas=condition_datas['secondary']['coarse']) +
+                   get_unary_condition_values(example_index=example_index,
+                                              cla_datas=condition_datas['secondary']['fine_to_coarse'])
+                   )
                   for example_index in range(examples_num)]
 
         all_charts = generate_chart(n_classes=len(classes),
