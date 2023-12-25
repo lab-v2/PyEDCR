@@ -24,13 +24,20 @@ cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
 
+def get_num_inconsistencies(fine_labels: np.array, coarse_labels: np.array) -> int:
+    inconsistencies = 0
+
+    for fine_prediction, coarse_prediction in zip(fine_labels, coarse_labels):
+        if data_preprocessing.fine_to_course_idx[fine_prediction] != coarse_prediction:
+            inconsistencies += 1
+
+    return inconsistencies
+
+
 def print_num_inconsistencies(fine_labels: np.array,
                               coarse_labels: np.array,
                               prior: bool = True):
-    inconsistencies = 0
-    for fine_label, coarse_label in zip(fine_labels, coarse_labels):
-        if data_preprocessing.fine_to_course_idx[fine_label] != coarse_label:
-            inconsistencies += 1
+    inconsistencies = get_num_inconsistencies(fine_labels=fine_labels, coarse_labels=coarse_labels)
 
     print(
         f"Total {'prior' if prior else 'post'} inconsistencies "
