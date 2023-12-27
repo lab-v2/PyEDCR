@@ -41,6 +41,15 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
 
 
 fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
+coarse_to_fine = {
+    'Air Defence': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
+    'BMP': ['BMP-1', 'BMP-2', 'BMP-T15'],
+    'BTR': ['BRDM', 'BTR-60', 'BTR-70', 'BTR-80'],
+    'Tank': ['T-14', 'T-62', 'T-64', 'T-72', 'T-80', 'T-90'],
+    'SPA': ['2S19_MSTA', 'BM-30', 'D-30', 'Tornado', 'TOS-1'],
+    'BMD': ['BMD'],
+    'MT_LB': ['MT_LB']
+}
 
 
 def get_transforms(train_or_test: str) -> torchvision.transforms.Compose:
