@@ -524,7 +524,10 @@ def get_conditions_data(main_fine_data: np.array,
 def run_EDCR_for_granularity(main_granularity: str,
                              main_fine_data: np.array,
                              main_coarse_data: np.array,
-                             condition_datas: dict[str, dict[str, np.array]], ) -> np.array:
+                             condition_datas: dict[str, dict[str, np.array]],
+                             conditions_from_secondary: bool,
+                             conditions_from_main: bool,
+                             consistency_constraints: bool) -> np.array:
     with context_handlers.TimeWrapper():
         if main_granularity == 'fine':
             classes = data_preprocessing.fine_grain_classes
@@ -538,34 +541,36 @@ def run_EDCR_for_granularity(main_granularity: str,
         examples_num = true_data.shape[0]
 
         charts = [[pred_data[example_index], true_data[example_index]] +
-                  # (
-                  #         get_binary_condition_values(example_index=example_index,
-                  #                                     fine_cla_datas=condition_datas['main']['fine'],
-                  #                                     coarse_cla_datas=condition_datas['main']['coarse'])
-                  #         +
-                  #         get_unary_condition_values(example_index=example_index,
-                  #                                    cla_datas=condition_datas['main']['fine'])
-                  #         +
-                  #         get_unary_condition_values(example_index=example_index,
-                  #                                    cla_datas=condition_datas['main']['coarse'])
-                  #         +
-                  #         get_unary_condition_values(example_index=example_index,
-                  #                                    cla_datas=condition_datas['main']['fine_to_coarse'])
-                  # )
-                  # +
+                  ((
+                           (get_binary_condition_values(example_index=example_index,
+                                                        fine_cla_datas=condition_datas['main']['fine'],
+                                                        coarse_cla_datas=condition_datas['main']['coarse'])
+                            if consistency_constraints else [])
+                           +
+                           get_unary_condition_values(example_index=example_index,
+                                                      cla_datas=condition_datas['main']['fine'])
+                           +
+                           get_unary_condition_values(example_index=example_index,
+                                                      cla_datas=condition_datas['main']['coarse'])
+                           +
+                           get_unary_condition_values(example_index=example_index,
+                                                      cla_datas=condition_datas['main']['fine_to_coarse'])
+                   ) if conditions_from_main else [])
+                  +
                   (
-                          # get_binary_condition_values(example_index=example_index,
-                          #                             fine_cla_datas=condition_datas['secondary']['fine'],
-                          #                             coarse_cla_datas=condition_datas['secondary']['coarse'])
-                          # +
-                          get_unary_condition_values(example_index=example_index,
-                                                     cla_datas=condition_datas['secondary']['fine']) +
-                          get_unary_condition_values(example_index=example_index,
-                                                     cla_datas=condition_datas['secondary']['coarse'])
-                          # +
-                          # get_unary_condition_values(example_index=example_index,
-                          #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
-                  )
+                      ((get_binary_condition_values(example_index=example_index,
+                                                    fine_cla_datas=condition_datas['secondary']['fine'],
+                                                    coarse_cla_datas=condition_datas['secondary']['coarse'])
+                        if consistency_constraints else [])
+                       +
+                       get_unary_condition_values(example_index=example_index,
+                                                  cla_datas=condition_datas['secondary']['fine']) +
+                       get_unary_condition_values(example_index=example_index,
+                                                  cla_datas=condition_datas['secondary']['coarse'])
+                       +
+                       get_unary_condition_values(example_index=example_index,
+                                                  cla_datas=condition_datas['secondary']['fine_to_coarse']))
+                      if conditions_from_secondary else [])
                   for example_index in range(examples_num)]
 
         all_charts = generate_chart(n_classes=len(classes),
@@ -649,7 +654,10 @@ def run_EDCR_for_granularity(main_granularity: str,
     return total_results
 
 
-def run_EDCR_pipeline(combined: bool = True):
+def run_EDCR_pipeline(combined: bool,
+                      conditions_from_secondary: bool,
+                      conditions_from_main: bool,
+                      consistency_constraints: bool):
     main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data = load_priors(combined)
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
                                           main_coarse_data=main_coarse_data,
@@ -658,10 +666,14 @@ def run_EDCR_pipeline(combined: bool = True):
     pipeline_results = {}
 
     for main_granularity in data_preprocessing.granularities:
-        pipeline_results[main_granularity] = run_EDCR_for_granularity(main_granularity=main_granularity,
-                                                                      main_fine_data=main_fine_data,
-                                                                      main_coarse_data=main_coarse_data,
-                                                                      condition_datas=condition_datas)
+        pipeline_results[main_granularity] = (
+            run_EDCR_for_granularity(main_granularity=main_granularity,
+                                     main_fine_data=main_fine_data,
+                                     main_coarse_data=main_coarse_data,
+                                     condition_datas=condition_datas,
+                                     conditions_from_secondary=conditions_from_secondary,
+                                     conditions_from_main=conditions_from_main,
+                                     consistency_constraints=consistency_constraints))
 
     vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
                                        coarse_predictions=pipeline_results['coarse'],
@@ -672,4 +684,7 @@ def run_EDCR_pipeline(combined: bool = True):
 
 
 if __name__ == '__main__':
-    run_EDCR_pipeline(combined=True)
+    run_EDCR_pipeline(combined=True,
+                      conditions_from_secondary=True,
+                      conditions_from_main=False,
+                      consistency_constraints=False)
