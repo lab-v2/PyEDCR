@@ -132,7 +132,8 @@ def test_individual_models(fine_tuners: list[models.FineTuner],
 
     test_fine_accuracy, test_coarse_accuracy = (
         get_and_print_metrics(fine_predictions=test_fine_prediction,
-                              coarse_predictions=test_coarse_prediction))
+                              coarse_predictions=test_coarse_prediction,
+                              combined=False))
 
     return (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
             test_fine_accuracy, test_coarse_accuracy)
@@ -209,7 +210,7 @@ def get_and_print_post_epoch_metrics(epoch: int,
     print(f'\nEpoch {epoch + 1}/{num_epochs} done, '
           f'\nTraining epoch total fine loss: {round(running_fine_loss / num_batches, 2)}'
           f'\ntraining epoch total coarse loss: {round(running_coarse_loss / num_batches, 2)}'
-          f'\npost-epoch training fine accuracy: {round(training_fine_accuracy * 100, 2)}'
+          f'\npost-epoch training fine accuracy: {round(training_fine_accuracy * 100, 2)}%'
           f', post-epoch fine f1: {round(training_fine_f1 * 100, 2)}%'
           f'\npost-epoch training coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
           f', post-epoch coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
