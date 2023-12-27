@@ -625,16 +625,16 @@ def run_EDCR_for_granularity(main_granularity: str,
                   )
         utils.create_directory(folder)
 
-        # plot(df=df,
-        #      classes=classes,
-        #      col_num=len(col),
-        #      x_values=df['epsilon'][1:],
-        #      main_granularity=main_granularity,
-        #      main_model_name=main_model_name,
-        #      main_lr=main_lr,
-        #      # secondary_model_name=secondary_model_name,
-        #      # secondary_lr=secondary_lr,
-        #      folder=folder)
+        plot(df=df,
+             classes=classes,
+             col_num=len(col),
+             x_values=df['epsilon'][1:],
+             main_granularity=main_granularity,
+             main_model_name=main_model_name,
+             main_lr=main_lr,
+             secondary_model_name=secondary_model_name,
+             secondary_lr=secondary_lr,
+             folder=folder)
 
         np.save(f'{folder}/results.npy', total_results)
 
