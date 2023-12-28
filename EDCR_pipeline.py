@@ -552,9 +552,9 @@ def run_EDCR_for_granularity(main_granularity: str,
                            +
                            get_unary_condition_values(example_index=example_index,
                                                       cla_datas=condition_datas['main']['coarse'])
-                           # +
-                           # get_unary_condition_values(example_index=example_index,
-                           #                            cla_datas=condition_datas['main']['fine_to_coarse'])
+                           +
+                           get_unary_condition_values(example_index=example_index,
+                                                      cla_datas=condition_datas['main']['fine_to_coarse'])
                    ) if conditions_from_main else [])
                   # +
                   # (
