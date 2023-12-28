@@ -10,7 +10,8 @@ def run():
 
     for a, b, c in itertools.product([True, False], repeat=3):
         print(utils.red_text(f'\nconditions_from_secondary={a}, '
-                       f'conditions_from_main={b}, consistency_constraints={c}\n' + '#' * 100 + '\n'))
+                             f'conditions_from_main={b}, consistency_constraints={c}\n' +
+                             '#' * 100 + '\n'))
 
         EDCR_pipeline.run_EDCR_pipeline(combined=True,
                                         conditions_from_secondary=a,
