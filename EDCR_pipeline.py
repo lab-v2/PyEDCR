@@ -556,22 +556,22 @@ def run_EDCR_for_granularity(main_granularity: str,
                            get_unary_condition_values(example_index=example_index,
                                                       cla_datas=condition_datas['main']['fine_to_coarse'])
                    ) if conditions_from_main else [])
-                  # +
-                  # (
-                  #     ((get_binary_condition_values(example_index=example_index,
-                  #                                   fine_cla_datas=condition_datas['secondary']['fine'],
-                  #                                   coarse_cla_datas=condition_datas['secondary']['coarse'])
-                  #       if consistency_constraints else [])
-                  #      # +
-                  #      # get_unary_condition_values(example_index=example_index,
-                  #      #                            cla_datas=condition_datas['secondary']['fine']) +
-                  #      # get_unary_condition_values(example_index=example_index,
-                  #      #                            cla_datas=condition_datas['secondary']['coarse'])
-                  #      # +
-                  #      # get_unary_condition_values(example_index=example_index,
-                  #      #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
-                  #      )
-                  #     if conditions_from_secondary else [])
+                  +
+                  (
+                      ((get_binary_condition_values(example_index=example_index,
+                                                    fine_cla_datas=condition_datas['secondary']['fine'],
+                                                    coarse_cla_datas=condition_datas['secondary']['coarse'])
+                        if consistency_constraints else [])
+                       +
+                       get_unary_condition_values(example_index=example_index,
+                                                  cla_datas=condition_datas['secondary']['fine']) +
+                       get_unary_condition_values(example_index=example_index,
+                                                  cla_datas=condition_datas['secondary']['coarse'])
+                       +
+                       get_unary_condition_values(example_index=example_index,
+                                                  cla_datas=condition_datas['secondary']['fine_to_coarse'])
+                       )
+                      if conditions_from_secondary else [])
                   for example_index in range(examples_num)]
 
         all_charts = generate_chart(n_classes=len(classes),
