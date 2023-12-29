@@ -2,7 +2,6 @@ import os
 import numpy as np
 import pandas as pd
 import time
-import json
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import multiprocessing as mp
@@ -705,13 +704,6 @@ def run_EDCR_for_granularity(main_granularity: str,
         # Save the DataFrame to an Excel file
         df.to_excel(f'{folder}/results.xlsx')
 
-        # if main_granularity == 'fine':
-        #     with open(f'{folder}/error_detections.json', 'w') as json_file:
-        #         json.dump(error_detections, json_file)
-        #
-        #     with open(f'{folder}/corrections.json', 'w') as json_file:
-        #         json.dump(corrections, json_file)
-
         print(f'\nCompleted {main_granularity}-grain EDCR run'
               # f'saved error detections and corrections to {folder}\n'
               )
@@ -729,7 +721,7 @@ def run_EDCR_pipeline(combined: bool,
                                           secondary_fine_data=secondary_fine_data)
     pipeline_results = {}
 
-    for main_granularity in ['coarse']:
+    for main_granularity in data_preprocessing.granularities:
         pipeline_results[main_granularity] = (
             run_EDCR_for_granularity(main_granularity=main_granularity,
                                      main_fine_data=main_fine_data,
