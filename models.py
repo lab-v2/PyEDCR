@@ -61,6 +61,7 @@ class VITFineTuner(FineTuner):
         # x_dim = [batch_num, num_channels, pixe
         logits = self.vit(X)
         output = self.softmax(logits)
+
         return output
 
     def __str__(self):

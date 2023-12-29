@@ -172,7 +172,6 @@ def test_combined_model(fine_tuner: models.FineTuner,
         for i, data in gen:
             X, Y_fine_grain, names, Y_coarse_grain = data[0].to(device), data[1].to(device), data[2], data[3].to(device)
 
-            print(print_num_inconsistencies(fine_labels=Y_fine_grain.cpu(), coarse_labels=Y_coarse_grain.cpu()))
             Y_pred = fine_tuner(X)
             Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes)]
             Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes):]
@@ -227,13 +226,11 @@ def get_and_print_post_epoch_metrics(epoch: int,
 def print_post_batch_metrics(batch_num: int,
                              num_batches: int,
                              batch_fine_grain_loss: float,
-                             batch_coarse_grain_loss: float,
-                             alpha_value: float = None):
+                             batch_coarse_grain_loss: float):
     if not utils.is_local() and batch_num > 0 and batch_num % 10 == 0:
         print(f'Completed batch num {batch_num}/{num_batches}.\n'
               f'Batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
-              f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}'
-              + (f', alpha value: {round(alpha_value, 2)}' if alpha_value is not None else ''))
+              f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}')
 
 
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
@@ -394,7 +391,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              device: torch.device,
                              loaders: dict[str, torch.utils.data.DataLoader],
                              num_fine_grain_classes: int,
-                             num_coarse_grain_classes: int):
+                             num_coarse_grain_classes: int,
+                             debug: bool):
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -443,7 +441,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                 if utils.is_local():
                     from tqdm import tqdm
-                    batches = tqdm(enumerate([list(train_loader)[0]], 0), total=num_batches)
+                    batches = tqdm(enumerate([list(train_loader)[0]] if debug else train_loader, 0),
+                                   total=num_batches)
                 else:
                     batches = enumerate(train_loader, 0)
 
@@ -483,9 +482,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                         print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,
                                                  batch_fine_grain_loss=batch_fine_grain_loss.item(),
-                                                 batch_coarse_grain_loss=batch_coarse_grain_loss.item(),
-                                                 # alpha_value=learned_weighted_loss.alpha.item()
-                                                 )
+                                                 batch_coarse_grain_loss=batch_coarse_grain_loss.item())
 
                 training_fine_accuracy, training_coarse_accuracy = (
                     get_and_print_post_epoch_metrics(epoch=epoch,
@@ -598,7 +595,8 @@ def run_combined_fine_tuning_pipeline(debug: bool = False):
                                      device=devices[0],
                                      loaders=loaders,
                                      num_fine_grain_classes=num_fine_grain_classes,
-                                     num_coarse_grain_classes=num_coarse_grain_classes)
+                                     num_coarse_grain_classes=num_coarse_grain_classes,
+                                     debug=debug)
             print('#' * 100)
 
 
@@ -631,6 +629,6 @@ def run_individual_fine_tuning_pipeline(debug: bool = False):
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline(debug=True)
+    run_combined_fine_tuning_pipeline(debug=False)
     # run_individual_fine_tuning_pipeline()
     # run_combined_testing_pipeline(pretrained_path='models/model_“b-16_normal_1e-4”.pth')
