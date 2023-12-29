@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import time
-
+import json
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import multiprocessing as mp
@@ -340,6 +340,18 @@ def ruleForNPCorrection(all_charts: list,
         if np.sum(tem_cond) > 0:
             for ct, cv in enumerate(chart):
                 if tem_cond[ct] and predict_result[ct]:
+
+                    curr_class = data_preprocessing.coarse_grain_classes[i]
+                    sec_class = data_preprocessing.fine_grain_classes[np.argmax(cv[4:])]
+
+                    if data_preprocessing.fine_to_coarse[sec_class] != curr_class:
+                        if curr_class not in corrections:
+                            corrections[curr_class] = {sec_class: 1}
+                        elif sec_class not in corrections[curr_class]:
+                            corrections[curr_class][sec_class] = 1
+                        else:
+                            corrections[curr_class][sec_class] += 1
+
                     neg_i_count += 1
                     predict_result[ct] = 0
 
@@ -645,8 +657,8 @@ def run_EDCR_for_granularity(main_granularity: str,
         # with open(f'{folder}/error_detections.json', 'w') as json_file:
         #     json.dump(error_detections, json_file)
         #
-        # with open(f'{folder}/corrections.json', 'w') as json_file:
-        #     json.dump(corrections, json_file)
+        with open(f'{folder}/corrections.json', 'w') as json_file:
+            json.dump(corrections, json_file)
 
         print(f'\nCompleted {main_granularity}-grain EDCR run'
               # f'saved error detections and corrections to {folder}\n'
@@ -686,7 +698,7 @@ def run_EDCR_pipeline(combined: bool,
 
 if __name__ == '__main__':
     run_EDCR_pipeline(combined=True,
-                      conditions_from_secondary=False,
+                      conditions_from_secondary=True,
                       conditions_from_main=True,
                       consistency_constraints=True
                       )
