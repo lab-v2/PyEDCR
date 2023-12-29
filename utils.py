@@ -5,6 +5,8 @@ import datetime
 from typing import Union
 
 
+
+
 def format_seconds(seconds: int):
     # Create a timedelta object with the given seconds
     time_delta = datetime.timedelta(seconds=seconds)
@@ -44,6 +46,11 @@ def is_running_in_colab() -> bool:
 
 def is_local() -> bool:
     return pathlib.Path(__file__).parent.parent.name == 'PycharmProjects'
+
+
+def is_debug_mode():
+    # Check if the script was launched with the -d or --debug flag
+    return is_local() and (any(arg in sys.argv for arg in ['-d', '--debug']) or os.getenv('PYCHARM_HOSTED') == '1')
 
 
 def colored_text(color: str):

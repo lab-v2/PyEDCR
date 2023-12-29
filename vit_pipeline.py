@@ -73,8 +73,8 @@ def get_and_print_metrics(fine_predictions: np.array,
     prior_str = 'prior' if prior else 'post'
     combined_str = 'combined' if combined else 'individual'
 
-    print((f'Main model name: {utils.blue_text(model_name)} ' if model_name is not None else '') +
-          (f'with lr={utils.blue_text(lr)}\n' if lr is not None else '') +
+    print((f'Main model name: {utils.blue_text(model_name)} ' if model_name != '' else '') +
+          (f'with lr={utils.blue_text(lr)}\n' if lr != '' else '') +
           f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(test_fine_accuracy * 100, 2))}%'
           f', fine-grain {prior_str} {combined_str} average f1: {utils.green_text(round(test_fine_f1 * 100, 2))}%'
           f'\nCoarse-grain {prior_str} {combined_str} accuracy: '
@@ -551,7 +551,7 @@ def initiate(combined: bool,
         if (not train) and (pretrained_path is not None):
             print(f'Loading pretrained model from {pretrained_path}')
             fine_tuners = [models.VITFineTuner.from_pretrained(vit_model_name=vit_model_name,
-                                                               num_classes=num_classes,
+                                                               classes_num=num_classes,
                                                                pretrained_path=pretrained_path,
                                                                device=device)
                            for vit_model_name in vit_model_names]
@@ -629,6 +629,6 @@ def run_individual_fine_tuning_pipeline(debug: bool = False):
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline(debug=False)
+    run_combined_fine_tuning_pipeline(debug=utils.is_debug_mode())
     # run_individual_fine_tuning_pipeline()
     # run_combined_testing_pipeline(pretrained_path='models/model_“b-16_normal_1e-4”.pth')
