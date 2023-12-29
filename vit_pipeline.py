@@ -24,7 +24,8 @@ cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
 
-def get_num_inconsistencies(fine_labels: np.array, coarse_labels: np.array) -> int:
+def get_num_inconsistencies(fine_labels: np.array,
+                            coarse_labels: np.array) -> int:
     inconsistencies = 0
 
     for fine_prediction, coarse_prediction in zip(fine_labels, coarse_labels):
@@ -437,7 +438,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                 if utils.is_local():
                     from tqdm import tqdm
-                    batches = tqdm(enumerate(train_loader, 0), total=num_batches)
+                    batches = tqdm(enumerate([list(train_loader)[0]], 0), total=num_batches)
                 else:
                     batches = enumerate(train_loader, 0)
 
