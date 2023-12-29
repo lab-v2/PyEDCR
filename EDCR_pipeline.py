@@ -731,12 +731,12 @@ def run_EDCR_pipeline(combined: bool,
                                      conditions_from_main=conditions_from_main,
                                      consistency_constraints=consistency_constraints))
 
-    # vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
-    #                                    coarse_predictions=pipeline_results['coarse'],
-    #                                    prior=False,
-    #                                    combined=combined,
-    #                                    model_name=main_model_name,
-    #                                    lr=main_lr)
+    vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
+                                       coarse_predictions=pipeline_results['coarse'],
+                                       prior=False,
+                                       combined=combined,
+                                       model_name=main_model_name,
+                                       lr=main_lr)
 
 
 if __name__ == '__main__':
