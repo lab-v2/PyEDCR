@@ -24,9 +24,13 @@ cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = num_epochs
 
 
-def get_num_inconsistencies(fine_labels: np.array,
-                            coarse_labels: np.array) -> int:
+def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
+                            coarse_labels: typing.Union[np.array, torch.Tensor]) -> int:
     inconsistencies = 0
+
+    if isinstance(fine_labels, torch.Tensor):
+        fine_labels = np.array(fine_labels.cpu())
+        coarse_labels = np.array(coarse_labels.cpu())
 
     for fine_prediction, coarse_prediction in zip(fine_labels, coarse_labels):
         if data_preprocessing.fine_to_course_idx[fine_prediction] != coarse_prediction:
@@ -38,7 +42,8 @@ def get_num_inconsistencies(fine_labels: np.array,
 def print_num_inconsistencies(fine_labels: np.array,
                               coarse_labels: np.array,
                               prior: bool = True):
-    inconsistencies = get_num_inconsistencies(fine_labels=fine_labels, coarse_labels=coarse_labels)
+    inconsistencies = get_num_inconsistencies(fine_labels=fine_labels,
+                                              coarse_labels=coarse_labels)
 
     print(
         f"Total {'prior' if prior else 'post'} inconsistencies "
@@ -456,11 +461,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                         running_fine_loss += batch_fine_grain_loss
                         running_coarse_loss += batch_coarse_grain_loss
-
-                        # batch_total_loss = learned_weighted_loss(batch_fine_loss=batch_fine_grain_loss,
-                        #                                          batch_coarse_loss=batch_coarse_grain_loss,
-                        #                                          total_fine_loss=running_fine_loss,
-                        #                                          total_coarse_loss=running_coarse_loss)
 
                         batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
 

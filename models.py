@@ -33,7 +33,7 @@ class VITFineTuner(FineTuner):
         self.vit = vit_model(weights=vit_weights)
         self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
                                              out_features=num_classes)
-        self.softmax = torch.nn.Softmax()
+        self.softmax = torch.nn.Softmax(dim=0)
 
     @classmethod
     def from_pretrained(cls,
@@ -57,8 +57,9 @@ class VITFineTuner(FineTuner):
 
         return instance
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        logits = self.vit(x)
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        # x_dim = [batch_num, num_channels, pixe
+        logits = self.vit(X)
         output = self.softmax(logits)
         return output
 

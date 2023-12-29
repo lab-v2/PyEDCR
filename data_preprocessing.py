@@ -20,6 +20,12 @@ true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
 
 
 def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
+    """
+    Creates and returns a dictionary with fine-grain labels as keys and their corresponding coarse grain-labels
+    as values, and a dictionary with fine-grain label indices as keys and their corresponding coarse-grain label
+    indices as values
+    """
+
     fine_to_coarse = {}
     fine_to_course_idx = {}
     training_df = dataframes_by_sheet['Training']
@@ -53,6 +59,10 @@ coarse_to_fine = {
 
 
 def get_transforms(train_or_test: str) -> torchvision.transforms.Compose:
+    """
+    Returns the transforms required for the VIT for training or test datasets
+    """
+
     resize_num = 224
     means = stds = [0.5] * 3
 
@@ -66,9 +76,22 @@ def get_transforms(train_or_test: str) -> torchvision.transforms.Compose:
          ])
 
 
-class ImageFolderWithName(torchvision.datasets.ImageFolder):
+class CombinedImageFolderWithName(torchvision.datasets.ImageFolder):
+    """
+    Subclass of torchvision.datasets for a combined coarse and fine grain models that returns an image with its filename
+    """
+
     def __getitem__(self,
                     index: int) -> (torch.tensor, int, str):
+        """
+        Returns one image from the dataset
+
+        Parameters
+        ----------
+
+        index: Index of the image in the dataset
+        """
+
         path, y_fine_grain = self.samples[index]
 
         y_coarse_grain = fine_to_course_idx[y_fine_grain]
@@ -87,27 +110,55 @@ class ImageFolderWithName(torchvision.datasets.ImageFolder):
         return x, y_fine_grain, x_identifier, y_coarse_grain
 
 
-class ImageFolderWithNameIndividual(torchvision.datasets.ImageFolder):
+class IndividualImageFolderWithName(torchvision.datasets.ImageFolder):
+    """
+    Subclass of torchvision.datasets for individual coarse or fine grain models that returns an image with its filename
+    """
+
     def __getitem__(self,
                     index: int) -> (torch.tensor, int, str):
-        path, target = self.samples[index]
-        image = self.loader(path)
+        """
+        Returns one image from the dataset
+
+        Parameters
+        ----------
+
+        index: Index of the image in the dataset
+        """
+
+        path, y = self.samples[index]
+        x = self.loader(path)
 
         if self.transform is not None:
-            image = self.transform(image)
+            x = self.transform(x)
         if self.target_transform is not None:
-            target = self.target_transform(target)
+            y = self.target_transform(y)
+
         name = os.path.basename(path)
         folder_path = os.path.basename(os.path.dirname(path))
 
-        return image, target, f'{folder_path}/{name}'
+        x_identifier = f'{folder_path}/{name}'
+
+        return x, y, x_identifier
 
 
 def get_datasets(cwd: typing.Union[str, pathlib.Path],
-                          ) -> (dict[str, ImageFolderWithName], int, int):
+                 combined: bool = True) -> \
+        (dict[str, typing.Union[CombinedImageFolderWithName, IndividualImageFolderWithName]], int, int):
+    """
+    Instantiates and returns train and test datasets
+
+    Parameters
+    ----------
+        cwd: Path to the current working folder
+        combined: Whether the model is combining fine and coarse grain or not
+    """
+
     data_dir = pathlib.Path.joinpath(cwd, '.')
-    datasets = {f'{train_or_test}': ImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                        transform=get_transforms(train_or_test=train_or_test))
+    datasets = {f'{train_or_test}': CombinedImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
+                                                                transform=get_transforms(train_or_test=train_or_test))
+                if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
+                                                               transform=get_transforms(train_or_test=train_or_test))
                 for train_or_test in ['train', 'test']}
 
     print(f"Total number of train images: {len(datasets['train'])}\n"
@@ -122,8 +173,17 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path],
     return datasets, num_fine_grain_classes, num_coarse_grain_classes
 
 
-def get_loaders(datasets: dict[str, ImageFolderWithNameIndividual],
+def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, IndividualImageFolderWithName]],
                 batch_size: int) -> dict[str, torch.utils.data.DataLoader]:
+    """
+    Instantiates and returns train and test torch data loaders
+
+    Parameters
+    ----------
+        datasets: Train and test datasets to use with the loaders
+        batch_size
+    """
+
     return {train_or_test: torch.utils.data.DataLoader(
         dataset=datasets[train_or_test],
         batch_size=batch_size,
