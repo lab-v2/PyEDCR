@@ -390,6 +390,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
 def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              device: torch.device,
                              loaders: dict[str, torch.utils.data.DataLoader],
+                             loss: str,
                              num_fine_grain_classes: int,
                              num_coarse_grain_classes: int,
                              debug: bool):
@@ -398,7 +399,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
     train_loader = loaders['train']
     num_batches = len(train_loader)
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = {'CE': torch.nn.CrossEntropyLoss(),
+                 'BCE': torch.nn.BCEWithLogitsLoss()}[loss]
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -448,36 +450,43 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
-                        X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
+                        X, Y_true_fine, Y_true_coarse = batch[0].to(device), batch[1].to(device), batch[3].to(device)
                         optimizer.zero_grad()
 
                         Y_pred = fine_tuner(X)
-                        Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
-                        Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
 
-                        batch_fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
-                        batch_coarse_grain_loss = criterion(Y_pred_coarse_grain, Y_coarse_grain)
+                        if loss == 'CE':
+                            Y_pred_fine = Y_pred[:, :num_fine_grain_classes]
+                            Y_pred_coarse = Y_pred[:, num_fine_grain_classes:]
 
-                        running_fine_loss += batch_fine_grain_loss
-                        running_coarse_loss += batch_coarse_grain_loss
+                            batch_fine_grain_loss = criterion(Y_pred_fine, Y_true_fine)
+                            batch_coarse_grain_loss = criterion(Y_pred_coarse, Y_true_coarse)
 
-                        batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
+                            running_fine_loss += batch_fine_grain_loss
+                            running_coarse_loss += batch_coarse_grain_loss
+
+                            batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
+                        else:
+                            Y_true = torch.cat(tensors=(Y_true_fine.view(batch_size, 1),
+                                                        Y_true_coarse.view(batch_size, 1)),
+                                               dim=1)
+                            batch_total_loss = criterion(Y_pred, Y_true)
 
                         batch_total_loss.backward()
                         optimizer.step()
 
                         total_running_loss += batch_total_loss.item()
 
-                        predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
-                        predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
+                        predicted_fine = torch.max(Y_pred_fine, 1)[1]
+                        predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
 
                         train_fine_predictions += predicted_fine.tolist()
                         train_coarse_predictions += predicted_coarse.tolist()
 
-                        train_fine_ground_truths += Y_fine_grain.tolist()
-                        train_coarse_ground_truths += Y_coarse_grain.tolist()
+                        train_fine_ground_truths += Y_true_fine.tolist()
+                        train_coarse_ground_truths += Y_true_coarse.tolist()
 
-                        del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
+                        del X, Y_true_fine, Y_true_coarse, Y_pred, Y_pred_fine, Y_pred_coarse
 
                         print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,
@@ -585,7 +594,8 @@ def initiate(combined: bool,
     return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
 
 
-def run_combined_fine_tuning_pipeline(debug: bool = False):
+def run_combined_fine_tuning_pipeline(loss: str,
+                                      debug: bool = False):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
                                                                                                train=True,
                                                                                                debug=debug)
@@ -594,6 +604,7 @@ def run_combined_fine_tuning_pipeline(debug: bool = False):
             fine_tune_combined_model(fine_tuner=fine_tuner,
                                      device=devices[0],
                                      loaders=loaders,
+                                     loss=loss,
                                      num_fine_grain_classes=num_fine_grain_classes,
                                      num_coarse_grain_classes=num_coarse_grain_classes,
                                      debug=debug)
@@ -629,6 +640,7 @@ def run_individual_fine_tuning_pipeline(debug: bool = False):
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline(debug=utils.is_debug_mode())
+    run_combined_fine_tuning_pipeline(loss='CE',
+                                      debug=utils.is_debug_mode())
     # run_individual_fine_tuning_pipeline()
     # run_combined_testing_pipeline(pretrained_path='models/model_“b-16_normal_1e-4”.pth')

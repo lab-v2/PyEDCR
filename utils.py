@@ -50,7 +50,7 @@ def is_local() -> bool:
 
 def is_debug_mode():
     # Check if the script was launched with the -d or --debug flag
-    return is_local() and (any(arg in sys.argv for arg in ['-d', '--debug']) or os.getenv('PYCHARM_HOSTED') == '1')
+    return is_local() and (any(arg in sys.argv for arg in ['-d', '--debug']) or sys.gettrace() is not None)
 
 
 def colored_text(color: str):
