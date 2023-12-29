@@ -21,7 +21,7 @@ results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
 main_lr = 0.0001
-epochs_num = 2
+epochs_num = 20
 
 secondary_model_name = 'vit_l_16'
 secondary_lr = 0.0001
@@ -608,7 +608,6 @@ def run_EDCR_for_granularity(main_granularity: str,
 
         charts = [[pred_data[example_index], true_data[example_index]] +
                   ((
-
                            get_unary_condition_values(example_index=example_index,
                                                       cla_datas=condition_datas['main']['fine'])
                            +
@@ -730,7 +729,7 @@ def run_EDCR_pipeline(combined: bool,
                                           secondary_fine_data=secondary_fine_data)
     pipeline_results = {}
 
-    for main_granularity in reversed(data_preprocessing.granularities):
+    for main_granularity in ['coarse']:
         pipeline_results[main_granularity] = (
             run_EDCR_for_granularity(main_granularity=main_granularity,
                                      main_fine_data=main_fine_data,
@@ -740,12 +739,12 @@ def run_EDCR_pipeline(combined: bool,
                                      conditions_from_main=conditions_from_main,
                                      consistency_constraints=consistency_constraints))
 
-    vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
-                                       coarse_predictions=pipeline_results['coarse'],
-                                       prior=False,
-                                       combined=combined,
-                                       model_name=main_model_name,
-                                       lr=main_lr)
+    # vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
+    #                                    coarse_predictions=pipeline_results['coarse'],
+    #                                    prior=False,
+    #                                    combined=combined,
+    #                                    model_name=main_model_name,
+    #                                    lr=main_lr)
 
 
 if __name__ == '__main__':
