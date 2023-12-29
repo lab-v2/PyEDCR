@@ -100,8 +100,10 @@ def generate_chart(n_classes: int,
                 each_items.append(1)
             else:
                 each_items.append(0)
+
             each_items.extend(data[2:])
             jj.append(each_items)
+
     return all_charts
 
 
@@ -234,7 +236,8 @@ def ruleForNPCorrection_worker(i: int,
                                total_results: list,
                                shared_index: mp.Value,
                                error_detections: dict,
-                               corrections: dict):
+                               corrections: dict
+                               ):
     chart = np.array(chart)
     NCi = GreedyNegRuleSelect(i=i,
                               epsilon=epsilon,
@@ -260,7 +263,7 @@ def ruleForNPCorrection_worker(i: int,
 
                 sec_class = data_preprocessing.fine_grain_classes[np.argmax(cv[4:len(classes)])]
 
-                if main_granularity == 'fine' and data_preprocessing.fine_to_coarse[sec_class] != curr_class:
+                if data_preprocessing.fine_to_coarse[sec_class] != curr_class:
                     if curr_class not in error_detections:
                         error_detections[curr_class] = {sec_class: 1}
                     elif sec_class not in error_detections[curr_class]:
@@ -600,9 +603,9 @@ def run_EDCR_for_granularity(main_granularity: str,
                            +
                            get_unary_condition_values(example_index=example_index,
                                                       cla_datas=condition_datas['main']['coarse'])
-                           +
-                           get_unary_condition_values(example_index=example_index,
-                                                      cla_datas=condition_datas['main']['fine_to_coarse'])
+                           # +
+                           # get_unary_condition_values(example_index=example_index,
+                           #                            cla_datas=condition_datas['main']['fine_to_coarse'])
                    ) if conditions_from_main else [])
                   +
                   (
@@ -615,9 +618,9 @@ def run_EDCR_for_granularity(main_granularity: str,
                                                   cla_datas=condition_datas['secondary']['fine']) +
                        get_unary_condition_values(example_index=example_index,
                                                   cla_datas=condition_datas['secondary']['coarse'])
-                       +
-                       get_unary_condition_values(example_index=example_index,
-                                                  cla_datas=condition_datas['secondary']['fine_to_coarse'])
+                       # +
+                       # get_unary_condition_values(example_index=example_index,
+                       #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
                        )
                       if conditions_from_secondary else [])
                   for example_index in range(examples_num)]
@@ -733,5 +736,5 @@ if __name__ == '__main__':
     run_EDCR_pipeline(combined=True,
                       conditions_from_secondary=False,
                       conditions_from_main=True,
-                      consistency_constraints=True
+                      consistency_constraints=False
                       )
