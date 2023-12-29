@@ -474,23 +474,33 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                         
                         elif loss_mode == "BCE loss":
                             criterion = torch.nn.BCEwithLogitsLoss()
-                            batch_total_loss = criterion(Y_pred, Y_combine)
+                            sigmoid = torch.nn.Sigmoid()
+                            batch_total_loss = criterion(sigmoid(Y_pred), Y_combine)
+
+                                               
+                        elif loss_mode == "CE loss":
+                            criterion = torch.nn.CrossEntropyLoss()
+                            softmax = torch.nn.Softmax(dim=1)
+                            batch_total_loss = criterion(softmax(Y_pred), Y_combine)
 
                         elif loss_mode == "soft marginal loss":
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
-                            batch_total_loss = criterion(Y_pred, Y_combine)
+                            sigmoid = torch.nn.Sigmoid()
+                            batch_total_loss = criterion(sigmoid(Y_pred), Y_combine)
                         
                         elif loss_mode == "LTN BCE loss":
                             criterion = torch.nn.BCEwithLogitsLoss()
+                            sigmoid = torch.nn.Sigmoid()
                             sat_agg = compute_sat_normally(logits_to_predicate,
                                                Y_pred, Y_coarse_grain, Y_fine_grain)
-                            batch_total_loss = beta*(1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                            batch_total_loss = beta*(1. - sat_agg) + (1 - beta) * (criterion(sigmoid(Y_pred), Y_combine))
 
                         elif loss_mode == "LTN Soft marginal loss":
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
+                            sigmoid = torch.nn.Sigmoid()
                             sat_agg = compute_sat_normally(logits_to_predicate,
                                                Y_pred, Y_coarse_grain, Y_fine_grain)
-                            batch_total_loss = beta*(1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                            batch_total_loss = beta*(1. - sat_agg) + (1 - beta) * (criterion(sigmoid(Y_pred), Y_combine))
 
 
                         batch_total_loss.backward()
