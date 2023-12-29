@@ -12,7 +12,7 @@ def run():
         print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
                              '#' * 100 + '\n'))
 
-        EDCR_pipeline.run_EDCR_pipeline(combined=True,
+        EDCR_pipeline.run_EDCR_pipeline(combined=False,
                                         conditions_from_secondary=a,
                                         conditions_from_main=b,
                                         consistency_constraints=True)

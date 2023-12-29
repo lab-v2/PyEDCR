@@ -740,7 +740,7 @@ def run_EDCR_pipeline(combined: bool,
 
 
 if __name__ == '__main__':
-    run_EDCR_pipeline(combined=True,
+    run_EDCR_pipeline(combined=False,
                       conditions_from_secondary=False,
                       conditions_from_main=True,
                       consistency_constraints=True
