@@ -406,10 +406,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
         alpha = num_fine_grain_classes / (num_fine_grain_classes + num_coarse_grain_classes)
 
-        # learned_weighted_loss = models.LearnedHierarchicalWeightedLoss(
-        #     num_fine_grain_classes=num_fine_grain_classes,
-        #     num_coarse_grain_classes=num_coarse_grain_classes).to(device)
-
         train_total_losses = []
         train_fine_losses = []
         train_coarse_losses = []
@@ -546,7 +542,7 @@ def initiate(combined: bool,
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
     if combined:
-        device = torch.device('cpu') if debug and utils.is_local() and not train else (
+        device = torch.device('cpu') if (debug and utils.is_local()) else (
             torch.device('mps' if torch.backends.mps.is_available() else
                          ("cuda" if torch.cuda.is_available() else 'cpu')))
         devices = [device]
@@ -634,6 +630,6 @@ def run_individual_fine_tuning_pipeline(debug: bool = False):
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline()
+    run_combined_fine_tuning_pipeline(debug=True)
     # run_individual_fine_tuning_pipeline()
     # run_combined_testing_pipeline(pretrained_path='models/model_“b-16_normal_1e-4”.pth')
