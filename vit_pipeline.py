@@ -634,5 +634,6 @@ def run_individual_fine_tuning_pipeline(debug: bool = False):
 
 
 if __name__ == '__main__':
+    run_combined_fine_tuning_pipeline()
     # run_individual_fine_tuning_pipeline()
-    run_combined_testing_pipeline(pretrained_path='models/model_“b-16_normal_1e-4”.pth')
+    # run_combined_testing_pipeline(pretrained_path='models/model_“b-16_normal_1e-4”.pth')
