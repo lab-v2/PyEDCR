@@ -21,7 +21,7 @@ results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
 main_lr = 0.0001
-epochs_num = 20
+epochs_num = 2
 
 secondary_model_name = 'vit_l_16'
 secondary_lr = 0.0001
@@ -255,21 +255,45 @@ def ruleForNPCorrection_worker(i: int,
         else data_preprocessing.coarse_grain_classes
     curr_class = classes[i]
 
+    recovered = set()
+
     if np.sum(tem_cond) > 0:
-        for example_index, cv in enumerate(chart):
+        print('\n')
+
+        for example_index, example_values in enumerate(chart):
             if tem_cond[example_index] and predict_result[example_index]:
                 neg_i_count += 1
                 predict_result[example_index] = 0
 
-                sec_class = data_preprocessing.fine_grain_classes[np.argmax(cv[4:len(classes)])]
+                if main_granularity == 'coarse':
+                    condition_values = example_values[4:]
+                    fine_grain_condition_values = condition_values[:len(data_preprocessing.fine_grain_classes)]
+                    coarse_grain_condition_values = condition_values[len(data_preprocessing.fine_grain_classes):
+                                                                     len(data_preprocessing.fine_grain_classes) +
+                                                                     len(data_preprocessing.coarse_grain_classes)]
+                    fine_grain_prediction = data_preprocessing.fine_grain_classes[
+                        np.argmax(fine_grain_condition_values)]
+                    coarse_grain_prediction = data_preprocessing.coarse_grain_classes[
+                        np.argmax(coarse_grain_condition_values)]
 
-                if data_preprocessing.fine_to_coarse[sec_class] != curr_class:
-                    if curr_class not in error_detections:
-                        error_detections[curr_class] = {sec_class: 1}
-                    elif sec_class not in error_detections[curr_class]:
-                        error_detections[curr_class][sec_class] = 1
-                    else:
-                        error_detections[curr_class][sec_class] += 1
+                    assert curr_class == coarse_grain_prediction
+
+                    if (data_preprocessing.fine_to_coarse[fine_grain_prediction] != coarse_grain_prediction
+                            and fine_grain_prediction not in recovered):
+
+                        recovered = recovered.union({fine_grain_prediction})
+
+                        print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
+                              f'and predicted_fine_grain = {fine_grain_prediction}')
+
+                        # if curr_class not in error_detections:
+                        #     error_detections[curr_class] = {other_class: 1}
+                        # elif other_class not in error_detections[curr_class]:
+                        #     error_detections[curr_class][other_class] = 1
+                        # else:
+                        #     error_detections[curr_class][other_class] += 1
+                        # #
+                        #
 
     CCi = DetUSMPosRuleSelect(i=i, all_charts=all_charts) if run_positive_rules else []
     tem_cond = np.zeros_like(chart[:, 0])
@@ -311,7 +335,6 @@ def ruleForNPCorrectionMP(all_charts: list[list],
                           main_granularity: str,
                           epsilon: float,
                           run_positive_rules: bool = True):
-
     manager = mp.Manager()
     shared_results = manager.list(pred_data)
     error_detections = manager.dict({})
@@ -340,7 +363,7 @@ def ruleForNPCorrectionMP(all_charts: list[list],
 
     shared_results = np.array(list(shared_results))
     error_detections = dict(error_detections)
-    corrections = dict(corrections)
+    # corrections = dict(corrections)
 
     results = [item for sublist in results for item in sublist]
 
@@ -349,7 +372,9 @@ def ruleForNPCorrectionMP(all_charts: list[list],
     posterior_acc = accuracy_score(y_true=true_data,
                                    y_pred=shared_results)
 
-    return results, posterior_acc, shared_results, error_detections, corrections
+    # retrieve_error_detection_rule(error_detections)
+
+    return results, posterior_acc, shared_results
 
 
 def ruleForNPCorrection(all_charts: list,
@@ -492,22 +517,11 @@ def plot(df: pd.DataFrame,
     plt.cla()
 
 
-def retrieve_error_detection_rule(best_coarse_main_model,
-                                  main_model_name,
-                                  main_lr,
-                                  best_coarse_main_lr,
-                                  secondary_model_name,
-                                  best_coarse_secondary_model,
-                                  secondary_lr,
-                                  best_coarse_secondary_lr,
-                                  error_detections):
-    if (best_coarse_main_model == main_model_name and main_lr == best_coarse_main_lr
-            and secondary_model_name == best_coarse_secondary_model and secondary_lr == best_coarse_secondary_lr):
-
-        for coarse_grain_label, coarse_grain_label_data in error_detections.items():
-            for fine_grain_label in coarse_grain_label_data.keys():
-                print(f'error <- predicted_coarse_grain = {coarse_grain_label} '
-                      f'and predicted_fine_grain = {fine_grain_label}')
+def retrieve_error_detection_rule(error_detections):
+    for coarse_grain_label, coarse_grain_label_data in error_detections.items():
+        for fine_grain_label in coarse_grain_label_data.keys():
+            print(f'error <- predicted_coarse_grain = {coarse_grain_label} '
+                  f'and predicted_fine_grain = {fine_grain_label}')
 
 
 def rearrange_for_condition_values(arr: np.array) -> np.array:
@@ -579,7 +593,7 @@ def run_EDCR_for_granularity(main_granularity: str,
                              conditions_from_secondary: bool,
                              conditions_from_main: bool,
                              consistency_constraints: bool) -> np.array:
-    with context_handlers.TimeWrapper():
+    with (context_handlers.TimeWrapper()):
         if main_granularity == 'fine':
             classes = data_preprocessing.fine_grain_classes
             true_data = data_preprocessing.true_fine_data
@@ -593,35 +607,37 @@ def run_EDCR_for_granularity(main_granularity: str,
 
         charts = [[pred_data[example_index], true_data[example_index]] +
                   ((
+
+                           get_unary_condition_values(example_index=example_index,
+                                                      cla_datas=condition_datas['main']['fine'])
+                           +
+                           get_unary_condition_values(example_index=example_index,
+                                                      cla_datas=condition_datas['main']['coarse'])
+                           +
                            (get_binary_condition_values(example_index=example_index,
                                                         fine_cla_datas=condition_datas['main']['fine'],
                                                         coarse_cla_datas=condition_datas['main']['coarse'])
                             if consistency_constraints else [])
                            +
                            get_unary_condition_values(example_index=example_index,
-                                                      cla_datas=condition_datas['main']['fine'])
-                           +
-                           get_unary_condition_values(example_index=example_index,
-                                                      cla_datas=condition_datas['main']['coarse'])
-                           # +
-                           # get_unary_condition_values(example_index=example_index,
-                           #                            cla_datas=condition_datas['main']['fine_to_coarse'])
+                                                      cla_datas=condition_datas['main']['fine_to_coarse'])
                    ) if conditions_from_main else [])
                   +
                   (
-                      ((get_binary_condition_values(example_index=example_index,
-                                                    fine_cla_datas=condition_datas['secondary']['fine'],
-                                                    coarse_cla_datas=condition_datas['secondary']['coarse'])
-                        if consistency_constraints else [])
-                       +
-                       get_unary_condition_values(example_index=example_index,
-                                                  cla_datas=condition_datas['secondary']['fine']) +
-                       get_unary_condition_values(example_index=example_index,
-                                                  cla_datas=condition_datas['secondary']['coarse'])
-                       # +
-                       # get_unary_condition_values(example_index=example_index,
-                       #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
-                       )
+                      (
+                              get_unary_condition_values(example_index=example_index,
+                                                         cla_datas=condition_datas['secondary']['fine']) +
+                              get_unary_condition_values(example_index=example_index,
+                                                         cla_datas=condition_datas['secondary']['coarse'])
+                              +
+                              (get_binary_condition_values(example_index=example_index,
+                                                           fine_cla_datas=condition_datas['secondary']['fine'],
+                                                           coarse_cla_datas=condition_datas['secondary']['coarse'])
+                               if consistency_constraints else [])
+                              +
+                              get_unary_condition_values(example_index=example_index,
+                                                         cla_datas=condition_datas['secondary']['fine_to_coarse'])
+                      )
                       if conditions_from_secondary else [])
                   for example_index in range(examples_num)]
 
@@ -649,7 +665,7 @@ def run_EDCR_for_granularity(main_granularity: str,
         epsilons = [0.002 * i for i in range(1, 2, 1)]
 
         for epsilon in epsilons:
-            result, posterior_acc, total_results, error_detections, corrections = ruleForNPCorrectionMP(
+            result, posterior_acc, total_results = ruleForNPCorrectionMP(
                 all_charts=all_charts,
                 true_data=true_data,
                 pred_data=pred_data,
@@ -689,12 +705,12 @@ def run_EDCR_for_granularity(main_granularity: str,
         # Save the DataFrame to an Excel file
         df.to_excel(f'{folder}/results.xlsx')
 
-        if main_granularity == 'fine':
-            with open(f'{folder}/error_detections.json', 'w') as json_file:
-                json.dump(error_detections, json_file)
-
-            with open(f'{folder}/corrections.json', 'w') as json_file:
-                json.dump(corrections, json_file)
+        # if main_granularity == 'fine':
+        #     with open(f'{folder}/error_detections.json', 'w') as json_file:
+        #         json.dump(error_detections, json_file)
+        #
+        #     with open(f'{folder}/corrections.json', 'w') as json_file:
+        #         json.dump(corrections, json_file)
 
         print(f'\nCompleted {main_granularity}-grain EDCR run'
               # f'saved error detections and corrections to {folder}\n'
@@ -711,7 +727,6 @@ def run_EDCR_pipeline(combined: bool,
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
                                           main_coarse_data=main_coarse_data,
                                           secondary_fine_data=secondary_fine_data)
-
     pipeline_results = {}
 
     for main_granularity in data_preprocessing.granularities:
@@ -736,5 +751,5 @@ if __name__ == '__main__':
     run_EDCR_pipeline(combined=True,
                       conditions_from_secondary=False,
                       conditions_from_main=True,
-                      consistency_constraints=False
+                      consistency_constraints=True
                       )
