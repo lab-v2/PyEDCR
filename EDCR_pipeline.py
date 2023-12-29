@@ -654,9 +654,9 @@ def run_EDCR_for_granularity(main_granularity: str,
         # Save the DataFrame to an Excel file
         df.to_excel(f'{folder}/results.xlsx')
 
-        # with open(f'{folder}/error_detections.json', 'w') as json_file:
-        #     json.dump(error_detections, json_file)
-        #
+        with open(f'{folder}/error_detections.json', 'w') as json_file:
+            json.dump(error_detections, json_file)
+
         with open(f'{folder}/corrections.json', 'w') as json_file:
             json.dump(corrections, json_file)
 
