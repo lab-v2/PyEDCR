@@ -258,7 +258,9 @@ def ruleForNPCorrection_worker(i: int,
     recovered = set()
 
     if np.sum(tem_cond) > 0:
-        print('\n')
+
+        if main_granularity == 'coarse':
+            print('\n')
 
         for example_index, example_values in enumerate(chart):
             if tem_cond[example_index] and predict_result[example_index]:
@@ -280,7 +282,6 @@ def ruleForNPCorrection_worker(i: int,
 
                     if (data_preprocessing.fine_to_coarse[fine_grain_prediction] != coarse_grain_prediction
                             and fine_grain_prediction not in recovered):
-
                         recovered = recovered.union({fine_grain_prediction})
 
                         print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
@@ -729,7 +730,7 @@ def run_EDCR_pipeline(combined: bool,
                                           secondary_fine_data=secondary_fine_data)
     pipeline_results = {}
 
-    for main_granularity in data_preprocessing.granularities:
+    for main_granularity in reversed(data_preprocessing.granularities):
         pipeline_results[main_granularity] = (
             run_EDCR_for_granularity(main_granularity=main_granularity,
                                      main_fine_data=main_fine_data,
@@ -749,7 +750,7 @@ def run_EDCR_pipeline(combined: bool,
 
 if __name__ == '__main__':
     run_EDCR_pipeline(combined=True,
-                      conditions_from_secondary=False,
+                      conditions_from_secondary=True,
                       conditions_from_main=True,
                       consistency_constraints=True
                       )
