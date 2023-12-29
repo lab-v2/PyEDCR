@@ -229,9 +229,12 @@ def ruleForNPCorrection_worker(i: int,
                                chart: list,
                                epsilon: float,
                                all_charts: list[list],
+                               main_granularity: str,
                                run_positive_rules: bool,
                                total_results: list,
-                               shared_index: mp.Value):
+                               shared_index: mp.Value,
+                               error_detections: dict,
+                               corrections: dict):
     chart = np.array(chart)
     NCi = GreedyNegRuleSelect(i=i,
                               epsilon=epsilon,
@@ -245,25 +248,47 @@ def ruleForNPCorrection_worker(i: int,
     for cc in NCi:
         tem_cond |= chart[:, cc]
 
-    if np.sum(tem_cond) > 0:
-        for ct, cv in enumerate(chart):
-            if tem_cond[ct] and predict_result[ct]:
-                neg_i_count += 1
-                predict_result[ct] = 0
+    classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' \
+        else data_preprocessing.coarse_grain_classes
+    curr_class = classes[i]
 
-    CCi = DetUSMPosRuleSelect(i=i,
-                              all_charts=all_charts) if run_positive_rules else []
+    if np.sum(tem_cond) > 0:
+        for example_index, cv in enumerate(chart):
+            if tem_cond[example_index] and predict_result[example_index]:
+                neg_i_count += 1
+                predict_result[example_index] = 0
+
+                sec_class = data_preprocessing.fine_grain_classes[np.argmax(cv[4:len(classes)])]
+
+                if main_granularity == 'fine' and data_preprocessing.fine_to_coarse[sec_class] != curr_class:
+                    if curr_class not in error_detections:
+                        error_detections[curr_class] = {sec_class: 1}
+                    elif sec_class not in error_detections[curr_class]:
+                        error_detections[curr_class][sec_class] = 1
+                    else:
+                        error_detections[curr_class][sec_class] += 1
+
+    CCi = DetUSMPosRuleSelect(i=i, all_charts=all_charts) if run_positive_rules else []
     tem_cond = np.zeros_like(chart[:, 0])
 
     for cc in CCi:
         tem_cond |= chart[:, cc]
 
     if np.sum(tem_cond) > 0:
-        for ct, cv in enumerate(chart):
-            if tem_cond[ct] and not predict_result[ct]:
+        for example_index, cv in enumerate(chart):
+            if tem_cond[example_index] and not predict_result[example_index]:
                 pos_i_count += 1
-                predict_result[ct] = 1
-                total_results[ct] = i
+                predict_result[example_index] = 1
+                total_results[example_index] = i
+
+                # sec_class = data_preprocessing.fine_grain_classes[np.argmax(cv[4:])]
+                #
+                # if curr_class not in corrections:
+                #     corrections[curr_class] = {sec_class: 1}
+                # elif sec_class not in corrections[curr_class]:
+                #     corrections[curr_class][sec_class] = 1
+                # else:
+                #     corrections[curr_class][sec_class] += 1
 
     scores_cor = get_scores(chart[:, 1], predict_result)
 
@@ -280,16 +305,27 @@ def ruleForNPCorrection_worker(i: int,
 def ruleForNPCorrectionMP(all_charts: list[list],
                           true_data: np.array,
                           pred_data: np.array,
+                          main_granularity: str,
                           epsilon: float,
-                          error_detections: dict,
-                          corrections: dict,
                           run_positive_rules: bool = True):
+
     manager = mp.Manager()
     shared_results = manager.list(pred_data)
+    error_detections = manager.dict({})
+    corrections = manager.dict({})
     shared_index = manager.Value('i', 0)
 
     # Create argument tuples for each process
-    args_list = [(i, chart, epsilon, all_charts, run_positive_rules, shared_results, shared_index)
+    args_list = [(i,
+                  chart,
+                  epsilon,
+                  all_charts,
+                  main_granularity,
+                  run_positive_rules,
+                  shared_results,
+                  shared_index,
+                  error_detections,
+                  corrections)
                  for i, chart in enumerate(all_charts)]
 
     # Create a pool of processes and map the function with arguments
@@ -299,8 +335,9 @@ def ruleForNPCorrectionMP(all_charts: list[list],
         print(f'Num of processes: {processes_num}')
         results = pool.starmap(ruleForNPCorrection_worker, args_list)
 
-    # Assuming shared_results is a ListProxy object obtained from multiprocessing manager
-    shared_results = np.array(list(shared_results))  # Convert ListProxy to a regular list
+    shared_results = np.array(list(shared_results))
+    error_detections = dict(error_detections)
+    corrections = dict(corrections)
 
     results = [item for sublist in results for item in sublist]
 
@@ -466,8 +503,7 @@ def retrieve_error_detection_rule(best_coarse_main_model,
 
         for coarse_grain_label, coarse_grain_label_data in error_detections.items():
             for fine_grain_label in coarse_grain_label_data.keys():
-                print('Corrections: '
-                      f'error <- predicted_coarse_grain = {coarse_grain_label} '
+                print(f'error <- predicted_coarse_grain = {coarse_grain_label} '
                       f'and predicted_fine_grain = {fine_grain_label}')
 
 
@@ -609,16 +645,12 @@ def run_EDCR_for_granularity(main_granularity: str,
 
         epsilons = [0.002 * i for i in range(1, 2, 1)]
 
-        error_detections = {}
-        corrections = {}
-
-        for e_num, epsilon in enumerate(epsilons):
+        for epsilon in epsilons:
             result, posterior_acc, total_results, error_detections, corrections = ruleForNPCorrectionMP(
                 all_charts=all_charts,
                 true_data=true_data,
                 pred_data=pred_data,
-                error_detections=error_detections,
-                corrections=corrections,
+                main_granularity=main_granularity,
                 epsilon=epsilon)
             results.append([epsilon] + result)
 
@@ -654,11 +686,12 @@ def run_EDCR_for_granularity(main_granularity: str,
         # Save the DataFrame to an Excel file
         df.to_excel(f'{folder}/results.xlsx')
 
-        with open(f'{folder}/error_detections.json', 'w') as json_file:
-            json.dump(error_detections, json_file)
+        if main_granularity == 'fine':
+            with open(f'{folder}/error_detections.json', 'w') as json_file:
+                json.dump(error_detections, json_file)
 
-        with open(f'{folder}/corrections.json', 'w') as json_file:
-            json.dump(corrections, json_file)
+            with open(f'{folder}/corrections.json', 'w') as json_file:
+                json.dump(corrections, json_file)
 
         print(f'\nCompleted {main_granularity}-grain EDCR run'
               # f'saved error detections and corrections to {folder}\n'
@@ -698,7 +731,7 @@ def run_EDCR_pipeline(combined: bool,
 
 if __name__ == '__main__':
     run_EDCR_pipeline(combined=True,
-                      conditions_from_secondary=True,
+                      conditions_from_secondary=False,
                       conditions_from_main=True,
                       consistency_constraints=True
                       )
