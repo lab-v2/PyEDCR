@@ -3,6 +3,7 @@ import ltn
 import torch
 import data_preprocessing
 
+
 class LogitsToPredicate(torch.nn.Module):
     """
     This model has inside a logits model, that is a model which compute logits for the classes given an input example x.
@@ -22,6 +23,7 @@ class LogitsToPredicate(torch.nn.Module):
         probs = self.sigmoid(x)
         out = torch.sum(probs * d, dim=1)
         return out
+
 
 def compute_sat_normally(logits_to_predicate,
                          prediction, labels_coarse, labels_fine):
@@ -45,10 +47,11 @@ def compute_sat_normally(logits_to_predicate,
     SatAgg = ltn.fuzzy_ops.SatAgg()
 
     fine_label_dict = {name: label for label, name in enumerate(data_preprocessing.fine_grain_classes)}
-    coarse_label_dict = {name: label + len(data_preprocessing.fine_grain_classes) for label, name in enumerate(data_preprocessing.coarse_grain_classes)}
+    coarse_label_dict = {name: label + len(data_preprocessing.fine_grain_classes) for label, name in
+                         enumerate(data_preprocessing.coarse_grain_classes)}
     labels_fine = labels_fine.detach().to('cpu')
     labels_coarse = labels_coarse.detach().to('cpu') + len(data_preprocessing.fine_grain_classes)
-        
+
     # Define constant
     l = {}
     num_labels = len(data_preprocessing.fine_grain_classes) + len(data_preprocessing.coarse_grain_classes)
@@ -84,16 +87,17 @@ def compute_sat_normally(logits_to_predicate,
 
     for i in coarse_label_dict.values():
         for j in coarse_label_dict.values():
-            if i != j :
+            if i != j:
                 sat_agg_list.append(Forall(x, Not(And(logits_to_predicate(x, l[i]), logits_to_predicate(x, l[j])))))
 
     # Fine to coarse label: for all x[fine], x[fine] and x[correspond coarse]
 
     for label_fine, label_coarse in data_preprocessing.fine_to_course_idx.items():
-        label_coarse = label_coarse + len(fine_label_dict) 
+        label_coarse = label_coarse + len(fine_label_dict)
         if x_variables[label_fine].value.numel() != 0:
             sat_agg_list.append(Forall(x_variables[label_fine],
-                                        And(logits_to_predicate(x_variables[label_fine], l[label_fine]), logits_to_predicate(x_variables[label_fine], l[label_coarse])))
+                                       And(logits_to_predicate(x_variables[label_fine], l[label_fine]),
+                                           logits_to_predicate(x_variables[label_fine], l[label_coarse])))
                                 )
 
     # Fine labels: for all x[i], x[i] -> l[i]
@@ -107,7 +111,7 @@ def compute_sat_normally(logits_to_predicate,
 
     for i in fine_label_dict.values():
         for j in fine_label_dict.values():
-            if i != j :
+            if i != j:
                 sat_agg_list.append(Forall(x, Not(And(logits_to_predicate(x, l[i]), logits_to_predicate(x, l[j])))))
 
     sat_agg = SatAgg(

@@ -8,7 +8,7 @@ import typing
 import context_handlers
 import models
 import utils
-from ltn_support import *
+import data_preprocessing
 
 batch_size = 32
 lrs = [1e-4]
@@ -383,7 +383,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
     train_loader = loaders['train']
     num_batches = len(train_loader)
-    logits_to_predicate = ltn.Predicate(LogitsToPredicate()).to(ltn.device)
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -476,19 +475,25 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
-                        elif loss == "LTN_BCE":
-                            criterion = torch.nn.BCEWithLogitsLoss()
+                        elif loss.split('_')[0] == 'LTN':
+                            import ltn
+                            import ltn_support
 
-                            sat_agg = compute_sat_normally(logits_to_predicate,
-                                                           Y_pred, Y_coarse_grain, Y_fine_grain)
-                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                            logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
-                        elif loss == "LTN_soft_marginal":
-                            criterion = torch.nn.MultiLabelSoftMarginLoss()
+                            if loss.split('_')[1] == "BCE":
+                                criterion = torch.nn.BCEWithLogitsLoss()
 
-                            sat_agg = compute_sat_normally(logits_to_predicate,
-                                                           Y_pred, Y_coarse_grain, Y_fine_grain)
-                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
+                                                                           Y_pred, Y_coarse_grain, Y_fine_grain)
+                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+
+                            elif loss.split('_')[1] == "soft_marginal":
+                                criterion = torch.nn.MultiLabelSoftMarginLoss()
+
+                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
+                                                                           Y_pred, Y_coarse_grain, Y_fine_grain)
+                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
                         batch_total_loss.backward()
                         optimizer.step()
@@ -505,8 +510,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                         train_coarse_ground_truths += Y_coarse_grain.tolist()
 
                         del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
-
-
 
                 training_fine_accuracy, training_coarse_accuracy = (
                     get_and_print_post_epoch_metrics(epoch=epoch,
