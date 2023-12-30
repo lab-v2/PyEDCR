@@ -567,7 +567,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
         if not os.path.exists(f"{combined_results_path}test_coarse_true.npy"):
             np.save(f"{combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
-        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
+        torch.save(fine_tuner.state_dict(), f”{fine_tuner}_lr{lr}_beta_{beta}.pth”)
 
 
 def initiate(combined: bool,
