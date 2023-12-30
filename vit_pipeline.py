@@ -1,5 +1,4 @@
 import os
-import torch
 import torch.utils.data
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
@@ -9,7 +8,6 @@ import typing
 import context_handlers
 import models
 import utils
-import data_preprocessing
 from ltn_support import *
 
 batch_size = 32
@@ -393,8 +391,9 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              loaders: dict[str, torch.utils.data.DataLoader],
                              num_fine_grain_classes: int,
                              num_coarse_grain_classes: int,
-                             loss_mode: str,
-                             beta: float = 0.1):
+                             loss_mode: str = 'BCE',
+                             beta: float = 0.1,
+                             debug: bool = False):
     fine_tuner.to(device)
     fine_tuner.train()
 
@@ -451,8 +450,10 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
                         X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
-                        Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(data_preprocessing.fine_grain_classes))
-                        Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(data_preprocessing.coarse_grain_classes))
+                        Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
+                            data_preprocessing.fine_grain_classes))
+                        Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
+                            data_preprocessing.coarse_grain_classes))
 
                         Y_combine = torch.cat([Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
                         optimizer.zero_grad()
@@ -461,7 +462,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                         Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
                         Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
 
-                        if loss_mode == "Josh loss":
+                        if loss_mode == "weighted":
                             criterion = torch.nn.CrossEntropyLoss()
 
                             batch_fine_grain_loss = criterion(Y_pred_fine_grain, Y_fine_grain)
@@ -470,42 +471,36 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                             running_fine_loss += batch_fine_grain_loss
                             running_coarse_loss += batch_coarse_grain_loss
 
-                            # batch_total_loss = learned_weighted_loss(batch_fine_loss=batch_fine_grain_loss,
-                            #                                          batch_coarse_loss=batch_coarse_grain_loss,
-                            #                                          total_fine_loss=running_fine_loss,
-                            #                                          total_coarse_loss=running_coarse_loss)
-
                             batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
 
-                        elif loss_mode == "BCE loss":
-                            criterion = torch.nn.BCEwithLogitsLoss()
+                        elif loss_mode == "BCE":
+                            criterion = torch.nn.BCEWithLogitsLoss()
 
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
 
-                        elif loss_mode == "CE loss":
+                        elif loss_mode == "CE":
                             criterion = torch.nn.CrossEntropyLoss()
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
-                        elif loss_mode == "soft marginal loss":
+                        elif loss_mode == "soft_marginal":
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
-                        elif loss_mode == "LTN BCE loss":
-                            criterion = torch.nn.BCEwithLogitsLoss()
+                        elif loss_mode == "LTN_BCE":
+                            criterion = torch.nn.BCEWithLogitsLoss()
 
                             sat_agg = compute_sat_normally(logits_to_predicate,
-                                               Y_pred, Y_coarse_grain, Y_fine_grain)
-                            batch_total_loss = beta*(1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                                                           Y_pred, Y_coarse_grain, Y_fine_grain)
+                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
-                        elif loss_mode == "LTN Soft marginal loss":
+                        elif loss_mode == "LTN_soft_marginal":
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
                             sat_agg = compute_sat_normally(logits_to_predicate,
-                                               Y_pred, Y_coarse_grain, Y_fine_grain)
-                            batch_total_loss = beta*(1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
-
+                                                           Y_pred, Y_coarse_grain, Y_fine_grain)
+                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
                         batch_total_loss.backward()
                         optimizer.step()
@@ -570,7 +565,10 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
         if not os.path.exists(f"{combined_results_path}test_coarse_true.npy"):
             np.save(f"{combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
-        torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
+        if loss_mode.split('_')[0] == 'LTN':
+            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_beta{beta}.pth")
+        else:
+            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
 
 def initiate(combined: bool,
