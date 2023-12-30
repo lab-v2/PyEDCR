@@ -208,12 +208,16 @@ def get_and_print_post_epoch_metrics(epoch: int,
 
 def print_post_batch_metrics(batch_num: int,
                              num_batches: int,
-                             batch_fine_grain_loss: float,
-                             batch_coarse_grain_loss: float):
+                             batch_fine_grain_loss: float = None,
+                             batch_coarse_grain_loss: float = None,
+                             batch_total_loss: float = None):
     if batch_num > 0 and batch_num % 10 == 0:
-        print(f'\nCompleted batch num {batch_num}/{num_batches}.\n'
-              f'Batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
-              f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}\n')
+        print(f'\nCompleted batch num {batch_num}/{num_batches}\n')
+        if batch_fine_grain_loss is not None:
+            print(f'Batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
+                  f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}\n')
+        else:
+            print(f'Batch total loss: {round(batch_total_loss, 2)}\n')
 
 
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
@@ -456,11 +460,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                             batch_total_loss = alpha * batch_fine_grain_loss + (1 - alpha) * batch_coarse_grain_loss
 
-                            print_post_batch_metrics(batch_num=batch_num,
-                                                     num_batches=num_batches,
-                                                     batch_fine_grain_loss=batch_fine_grain_loss.item(),
-                                                     batch_coarse_grain_loss=batch_coarse_grain_loss.item())
-
                         elif loss == "BCE":
                             criterion = torch.nn.BCEWithLogitsLoss()
 
@@ -494,6 +493,10 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                                 sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+
+                        print_post_batch_metrics(batch_num=batch_num,
+                                                 num_batches=num_batches,
+                                                 batch_total_loss=batch_total_loss.item())
 
                         batch_total_loss.backward()
                         optimizer.step()
