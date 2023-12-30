@@ -19,6 +19,7 @@ true_fine_data = np.load(r'test_fine/test_true_fine.npy')
 true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
 
 
+
 def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
     """
     Creates and returns a dictionary with fine-grain labels as keys and their corresponding coarse grain-labels
@@ -58,7 +59,22 @@ coarse_to_fine = {
 }
 
 
-def get_transforms(train_or_test: str) -> torchvision.transforms.Compose:
+def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
+                            coarse_labels: typing.Union[np.array, torch.Tensor]) -> int:
+    inconsistencies = 0
+
+    if isinstance(fine_labels, torch.Tensor):
+        fine_labels = np.array(fine_labels.cpu())
+        coarse_labels = np.array(coarse_labels.cpu())
+
+    for fine_prediction, coarse_prediction in zip(fine_labels, coarse_labels):
+        if fine_to_course_idx[fine_prediction] != coarse_prediction:
+            inconsistencies += 1
+
+    return inconsistencies
+
+
+def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose:
     """
     Returns the transforms required for the VIT for training or test datasets
     """
@@ -156,9 +172,9 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path],
 
     data_dir = pathlib.Path.joinpath(cwd, '.')
     datasets = {f'{train_or_test}': CombinedImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                                transform=get_transforms(train_or_test=train_or_test))
+                                                                transform=get_dataset_transforms(train_or_test=train_or_test))
                 if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                               transform=get_transforms(train_or_test=train_or_test))
+                                                               transform=get_dataset_transforms(train_or_test=train_or_test))
                 for train_or_test in ['train', 'test']}
 
     print(f"Total number of train images: {len(datasets['train'])}\n"
