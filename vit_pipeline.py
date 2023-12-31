@@ -212,12 +212,12 @@ def print_post_batch_metrics(batch_num: int,
                              batch_coarse_grain_loss: float = None,
                              batch_total_loss: float = None):
     if batch_num > 0 and batch_num % 10 == 0:
-        print(f'\nCompleted batch num {batch_num}/{num_batches}\n')
         if batch_fine_grain_loss is not None:
-            print(f'Batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
-                  f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}\n')
+            print(f'Completed batch num {batch_num}/{num_batches}, '
+                  f'batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
+                  f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}')
         else:
-            print(f'Batch total loss: {round(batch_total_loss, 2)}\n')
+            print(f'Completed batch num {batch_num}/{num_batches}, batch total loss: {round(batch_total_loss, 2)}')
 
 
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
