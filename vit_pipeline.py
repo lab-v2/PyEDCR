@@ -384,7 +384,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              num_fine_grain_classes: int,
                              num_coarse_grain_classes: int,
                              loss: str,
-                             num_epochs : int,
+                             ltn_num_epochs : int,
                              beta: float = 0.1,
                              debug: bool = False):
     fine_tuner.to(device)
@@ -419,8 +419,12 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
         print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {num_epochs} epochs '
               f'using lr={lr} on {device}...')
         print('#' * 100 + '\n')
+        if loss.split('_')[0] == 'LTN':
+           epochs = ltn_num_epochs
+        else:
+            epochs = num_epochs 
 
-        for epoch in range(num_epochs):
+        for epoch in range(epochs):
             with context_handlers.TimeWrapper():
                 total_running_loss = torch.Tensor([0.0]).to(device)
                 running_fine_loss = torch.Tensor([0.0]).to(device)
@@ -569,7 +573,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 def initiate(combined: bool,
              train: bool,
              pretrained_path: str = None,
-             num_epochs : int = 20,
              debug: bool = False):
     print(f'Models: {vit_model_names}\n'
           f'Epochs num: {num_epochs}\n'
@@ -627,7 +630,6 @@ def run_combined_fine_tuning_pipeline(loss: str = 'BCE',
                                       debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
                                                                                                train=True,
-                                                                                               num_epochs = 20,
                                                                                                debug=debug)
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
