@@ -384,6 +384,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              num_fine_grain_classes: int,
                              num_coarse_grain_classes: int,
                              loss: str,
+                             num_epochs : int,
                              beta: float = 0.1,
                              debug: bool = False):
     fine_tuner.to(device)
@@ -626,6 +627,7 @@ def run_combined_fine_tuning_pipeline(loss: str = 'BCE',
                                       debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
                                                                                                train=True,
+                                                                                               num_epochs = 20,
                                                                                                debug=debug)
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
