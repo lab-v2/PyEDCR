@@ -415,15 +415,15 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
         test_fine_accuracies = []
         test_coarse_accuracies = []
-
-        print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {num_epochs} epochs '
-              f'using lr={lr} on {device}...')
-        print('#' * 100 + '\n')
         if loss.split('_')[0] == 'LTN':
            epochs = ltn_num_epochs
         else:
             epochs = num_epochs 
 
+        print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
+              f'using lr={lr} on {device}...')
+        print('#' * 100 + '\n')
+        
         for epoch in range(epochs):
             with context_handlers.TimeWrapper():
                 total_running_loss = torch.Tensor([0.0]).to(device)
@@ -575,7 +575,7 @@ def initiate(combined: bool,
              pretrained_path: str = None,
              debug: bool = False):
     print(f'Models: {vit_model_names}\n'
-          f'Epochs num: {num_epochs}\n'
+          f'Epochs num: {epochs}\n'
           f'Learning rates: {lrs}')
 
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
