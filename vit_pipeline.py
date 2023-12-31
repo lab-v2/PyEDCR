@@ -179,15 +179,17 @@ def test_combined_model(fine_tuner: models.FineTuner,
 
 
 def get_and_print_post_epoch_metrics(epoch: int,
-                                     running_fine_loss: float,
-                                     running_coarse_loss: float,
                                      num_batches: int,
                                      train_fine_ground_truth: np.array,
                                      train_fine_prediction: np.array,
                                      train_coarse_ground_truth: np.array,
                                      train_coarse_prediction: np.array,
                                      num_fine_grain_classes: int,
-                                     num_coarse_grain_classes: int):
+                                     num_coarse_grain_classes: int,
+                                     running_fine_loss: float = None,
+                                     running_coarse_loss: float = None,
+                                     running_total_loss: float = None
+                                     ):
     training_fine_accuracy = accuracy_score(y_true=train_fine_ground_truth, y_pred=train_fine_prediction)
     training_coarse_accuracy = accuracy_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction)
     training_fine_f1 = f1_score(y_true=train_fine_ground_truth, y_pred=train_fine_prediction,
@@ -195,9 +197,11 @@ def get_and_print_post_epoch_metrics(epoch: int,
     training_coarse_f1 = f1_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction,
                                   labels=range(num_coarse_grain_classes), average='macro')
 
-    print(f'\nEpoch {epoch + 1}/{num_epochs} done, '
-          f'\nTraining epoch total fine loss: {round(running_fine_loss / num_batches, 2)}'
-          f'\ntraining epoch total coarse loss: {round(running_coarse_loss / num_batches, 2)}'
+    loss_str = (f'Training epoch total fine loss: {round(running_fine_loss / num_batches, 2)}' 
+                f'\ntraining epoch total coarse loss: {round(running_coarse_loss / num_batches, 2)}') \
+        if running_fine_loss is not None else f'Training epoch total loss: {round(running_total_loss / num_batches, 2)}'
+    print(f'\nEpoch {epoch + 1}/{num_epochs} done,\n'
+          f'{loss_str}'
           f'\npost-epoch training fine accuracy: {round(training_fine_accuracy * 100, 2)}%'
           f', post-epoch fine f1: {round(training_fine_f1 * 100, 2)}%'
           f'\npost-epoch training coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
@@ -462,7 +466,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                         elif loss == "BCE":
                             criterion = torch.nn.BCEWithLogitsLoss()
-
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
                         elif loss == "CE":
