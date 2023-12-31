@@ -668,4 +668,5 @@ def run_individual_fine_tuning_pipeline(debug: bool = utils.is_debug_mode()):
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
     run_combined_fine_tuning_pipeline()
+    run_individual_fine_tuning_pipeline
     # run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
