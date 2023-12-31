@@ -568,6 +568,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 def initiate(combined: bool,
              train: bool,
              pretrained_path: str = None,
+             num_epochs : int = 20,
              debug: bool = False):
     print(f'Models: {vit_model_names}\n'
           f'Epochs num: {num_epochs}\n'
