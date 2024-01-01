@@ -385,6 +385,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              num_fine_grain_classes: int,
                              num_coarse_grain_classes: int,
                              loss: str,
+                             ltn_num_epochs : int,
                              beta: float = 0.1,
                              debug: bool = False):
     fine_tuner.to(device)
