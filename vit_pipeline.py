@@ -14,6 +14,7 @@ batch_size = 32
 lrs = [1e-4]
 scheduler_gamma = 0.1
 num_epochs = 20
+ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
@@ -384,7 +385,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              num_fine_grain_classes: int,
                              num_coarse_grain_classes: int,
                              loss: str,
-                             ltn_num_epochs : int,
                              beta: float = 0.1,
                              debug: bool = False):
     fine_tuner.to(device)
@@ -673,5 +673,4 @@ def run_individual_fine_tuning_pipeline(debug: bool = utils.is_debug_mode()):
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
     run_combined_fine_tuning_pipeline()
-    run_individual_fine_tuning_pipeline
     # run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
