@@ -393,7 +393,7 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              debug: bool = False):
     fine_tuner.to(device)
     fine_tuner.train()
-
+    logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
     train_loader = loaders['train']
     num_batches = len(train_loader)
 
@@ -487,9 +487,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
                         elif loss == 'LTN_BCE':
-                            logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
-
-                            
                             criterion = torch.nn.BCEWithLogitsLoss()
 
                             sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
@@ -497,7 +494,6 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
                         elif loss == "LTN_soft_marginal":
-                            logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
                             sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
