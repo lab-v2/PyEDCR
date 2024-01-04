@@ -10,6 +10,9 @@ import models
 import utils
 import data_preprocessing
 
+import ltn
+import ltn_support
+
 batch_size = 32
 lrs = [1e-4]
 scheduler_gamma = 0.1
@@ -483,25 +486,23 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
-                        elif loss.split('_')[0] == 'LTN':
-                            import ltn
-                            import ltn_support
-
+                        elif loss == 'LTN_BCE':
                             logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
-                            if loss.split('_')[1] == "BCE":
-                                criterion = torch.nn.BCEWithLogitsLoss()
+                            
+                            criterion = torch.nn.BCEWithLogitsLoss()
 
-                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
+                            sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
-                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
-                            elif loss.split('_')[1] == "soft_marginal":
-                                criterion = torch.nn.MultiLabelSoftMarginLoss()
+                        elif loss == "LTN_soft_marginal":
+                            logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
+                            criterion = torch.nn.MultiLabelSoftMarginLoss()
 
-                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
+                            sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
-                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
                         print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,
