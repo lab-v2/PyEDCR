@@ -11,7 +11,7 @@ import utils
 import data_preprocessing
 
 batch_size = 32
-lrs = [1e-4]
+lrs = [1e-5, 1e-6]
 scheduler_gamma = 0.1
 num_epochs = 20
 ltn_num_epochs = 5
@@ -80,11 +80,12 @@ def save_test_files(fine_tuners: typing.Union[models.FineTuner, dict[str, models
                     lrs: typing.Union[str, float, dict[str, typing.Union[str, float]]],
                     epoch: int,
                     test_fine_prediction: np.array,
-                    test_coarse_prediction: np.array):
+                    test_coarse_prediction: np.array,
+                    loss: str = 'BCE'):
     if combined:
-        np.save(f"{combined_results_path}{fine_tuners}_test_fine_pred_lr{lrs}_e{epoch}.npy",
+        np.save(f"{combined_results_path}{fine_tuners}_{loss}_test_fine_pred_lr{lrs}_e{epoch}.npy",
                 test_fine_prediction)
-        np.save(f"{combined_results_path}{fine_tuners}_test_coarse_pred_lr{lrs}_e{epoch}.npy",
+        np.save(f"{combined_results_path}{fine_tuners}_{loss}_test_coarse_pred_lr{lrs}_e{epoch}.npy",
                 test_coarse_prediction)
     else:
         np.save(f"{individual_results_path}{fine_tuners['fine']}"
@@ -598,7 +599,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                                     lrs=lr,
                                     epoch=epoch,
                                     test_fine_prediction=test_fine_predictions,
-                                    test_coarse_prediction=test_coarse_predictions)
+                                    test_coarse_prediction=test_coarse_predictions,
+                                    loss=loss)
 
         if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
             np.save(f"{combined_results_path}test_fine_true.npy", test_fine_ground_truths)
