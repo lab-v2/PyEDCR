@@ -75,6 +75,26 @@ def get_and_print_metrics(fine_predictions: np.array,
     return test_fine_accuracy, test_coarse_accuracy
 
 
+def save_test_files(fine_tuners: typing.Union[models.FineTuner, dict[str, models.FineTuner]],
+                    combined: bool,
+                    lrs: typing.Union[str, float, dict[str, typing.Union[str, float]]],
+                    epoch: int,
+                    test_fine_prediction: np.array,
+                    test_coarse_prediction: np.array):
+    if combined:
+        np.save(f"{combined_results_path}{fine_tuners}_test_fine_pred_lr{lrs}_e{epoch}.npy",
+                test_fine_prediction)
+        np.save(f"{combined_results_path}{fine_tuners}_test_coarse_pred_lr{lrs}_e{epoch}.npy",
+                test_coarse_prediction)
+    else:
+        np.save(f"{individual_results_path}{fine_tuners['fine']}"
+                f"_test_pred_lr{lrs['fine']}_e{epoch}_fine_individual.npy",
+                test_fine_prediction)
+        np.save(f"{individual_results_path}{fine_tuners['coarse']}"
+                f"_test_pred_lr{lrs['coarse']}_e{epoch}_coarse_individual.npy",
+                test_coarse_prediction)
+
+
 def test_individual_models(fine_tuners: list[models.FineTuner],
                            loaders: dict[str, torch.utils.data.DataLoader],
                            devices: list[torch.device]) -> (list[int], list[int], float):
@@ -138,11 +158,11 @@ def test_combined_model(fine_tuner: models.FineTuner,
     fine_tuner.to(device)
     fine_tuner.eval()
 
-    test_fine_prediction = []
-    test_coarse_prediction = []
+    test_fine_predictions = []
+    test_coarse_predictions = []
 
-    test_fine_ground_truth = []
-    test_coarse_ground_truth = []
+    test_fine_ground_truths = []
+    test_coarse_ground_truths = []
 
     print(f'Testing {fine_tuner} on {device}...')
 
@@ -163,19 +183,19 @@ def test_combined_model(fine_tuner: models.FineTuner,
             predicted_fine = torch.max(Y_pred_fine, 1)[1]
             predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
 
-            test_fine_ground_truth += Y_true_fine.tolist()
-            test_coarse_ground_truth += Y_true_coarse.tolist()
+            test_fine_ground_truths += Y_true_fine.tolist()
+            test_coarse_ground_truths += Y_true_coarse.tolist()
 
-            test_fine_prediction += predicted_fine.tolist()
-            test_coarse_prediction += predicted_coarse.tolist()
+            test_fine_predictions += predicted_fine.tolist()
+            test_coarse_predictions += predicted_coarse.tolist()
 
     test_fine_accuracy, test_coarse_accuracy = (
-        get_and_print_metrics(fine_predictions=test_fine_prediction,
-                              coarse_predictions=test_coarse_prediction,
-                              true_fine_data=test_fine_ground_truth,
-                              true_coarse_data=test_coarse_ground_truth))
+        get_and_print_metrics(fine_predictions=test_fine_predictions,
+                              coarse_predictions=test_coarse_predictions,
+                              true_fine_data=test_fine_ground_truths,
+                              true_coarse_data=test_coarse_ground_truths))
 
-    return (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
+    return (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
             test_fine_accuracy, test_coarse_accuracy)
 
 
@@ -224,13 +244,28 @@ def print_post_batch_metrics(batch_num: int,
             print(f'Completed batch num {batch_num}/{num_batches}, batch total loss: {round(batch_total_loss, 2)}')
 
 
+def get_fine_tuning_batches(train_loader: torch.utils.data.DataLoader,
+                            num_batches: int,
+                            debug: bool):
+    if utils.is_local():
+        from tqdm import tqdm
+        batches = tqdm(enumerate([list(train_loader)[0]] if debug else train_loader, 0),
+                       total=num_batches)
+    else:
+        batches = enumerate(train_loader, 0)
+
+    return batches
+
+
 def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                                 devices: list[torch.device],
                                 loaders: dict[str, torch.utils.data.DataLoader],
                                 num_fine_grain_classes: int,
                                 num_coarse_grain_classes: int,
                                 fine_lr: float = 1e-4,
-                                coarse_lr: float = 1e-4):
+                                coarse_lr: float = 1e-4,
+                                save_files: bool = True,
+                                debug: bool = False):
     fine_fine_tuner, coarse_fine_tuner = fine_tuners
     device_1, device_2 = devices
     fine_fine_tuner.to(device_1)
@@ -281,11 +316,9 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             train_fine_ground_truths = []
             train_coarse_ground_truths = []
 
-            if utils.is_local():
-                from tqdm import tqdm
-                batches = tqdm(enumerate(train_loader, 0), total=num_batches)
-            else:
-                batches = enumerate(train_loader, 0)
+            batches = get_fine_tuning_batches(train_loader=train_loader,
+                                              num_batches=num_batches,
+                                              debug=debug)
 
             for batch_num, batch in batches:
                 with context_handlers.ClearCache(device=device_1):
@@ -353,7 +386,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             fine_scheduler.step()
             coarse_scheduler.step()
 
-            (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
+            (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
              test_fine_accuracy, test_coarse_accuracy) = (
                 test_individual_models(fine_tuners=fine_tuners,
                                        loaders=loaders,
@@ -364,10 +397,20 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
 
             np.save(f"{individual_results_path}{fine_fine_tuner}"
                     f"_test_pred_lr{fine_lr}_e{epoch}_fine_individual.npy",
-                    test_fine_prediction)
+                    test_fine_predictions)
             np.save(f"{individual_results_path}{coarse_fine_tuner}"
                     f"_test_pred_lr{coarse_lr}_e{epoch}_coarse_individual.npy",
-                    test_coarse_prediction)
+                    test_coarse_predictions)
+
+            if save_files:
+                save_test_files(fine_tuners={'fine': fine_fine_tuner,
+                                             'coarse': coarse_fine_tuner},
+                                combined=False,
+                                lrs={'fine': fine_lr,
+                                     'coarse': coarse_lr},
+                                epoch=epoch,
+                                test_fine_prediction=test_fine_predictions,
+                                test_coarse_prediction=test_coarse_predictions)
 
     torch.save(fine_fine_tuner.state_dict(), f"{fine_fine_tuner}_lr{fine_lr}_fine_individual.pth")
     torch.save(coarse_fine_tuner.state_dict(), f"{coarse_fine_tuner}_lr{coarse_lr}_coarse_individual.pth")
@@ -386,13 +429,12 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              loss: str,
                              ltn_num_epochs: int = None,
                              beta: float = 0.1,
+                             save_files: bool = True,
                              debug: bool = False):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
     num_batches = len(train_loader)
-
-
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -442,12 +484,9 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                 train_fine_ground_truths = []
                 train_coarse_ground_truths = []
 
-                if utils.is_local():
-                    from tqdm import tqdm
-                    batches = tqdm(enumerate([list(train_loader)[0]] if debug else train_loader, 0),
-                                   total=num_batches)
-                else:
-                    batches = enumerate(train_loader, 0)
+                batches = get_fine_tuning_batches(train_loader=train_loader,
+                                                  num_batches=num_batches,
+                                                  debug=debug)
 
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
@@ -543,22 +582,23 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                 train_coarse_losses += [running_coarse_loss.item() / num_batches]
 
                 scheduler.step()
-                (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
+                (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
                  test_fine_accuracy, test_coarse_accuracy) = (
                     test_combined_model(fine_tuner=fine_tuner,
                                         loaders=loaders,
                                         device=device))
+
                 test_fine_accuracies += [test_fine_accuracy]
                 test_coarse_accuracies += [test_coarse_accuracy]
                 print('#' * 100)
 
-                np.save(f"{combined_results_path}{fine_tuner}_test_fine_pred_lr{lr}_e{epoch}.npy",
-                        test_fine_prediction)
-                np.save(f"{combined_results_path}{fine_tuner}_test_coarse_pred_lr{lr}_e{epoch}.npy",
-                        test_coarse_prediction)
-
-        np.save(f"{combined_results_path}{fine_tuner}_test_fine_acc_lr{lr}.npy", test_fine_accuracies)
-        np.save(f"{combined_results_path}{fine_tuner}_test_coarse_acc_lr{lr}.npy", test_coarse_accuracies)
+                if save_files:
+                    save_test_files(fine_tuners=fine_tuner,
+                                    combined=True,
+                                    lrs=lr,
+                                    epoch=epoch,
+                                    test_fine_prediction=test_fine_predictions,
+                                    test_coarse_prediction=test_coarse_predictions)
 
         if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
             np.save(f"{combined_results_path}test_fine_true.npy", test_fine_ground_truths)
@@ -628,6 +668,7 @@ def initiate(combined: bool,
 
 
 def run_combined_fine_tuning_pipeline(loss: str = 'BCE',
+                                      save_files: bool = True,
                                       debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
                                                                                                train=True,
@@ -639,24 +680,14 @@ def run_combined_fine_tuning_pipeline(loss: str = 'BCE',
                                      loaders=loaders,
                                      num_fine_grain_classes=num_fine_grain_classes,
                                      num_coarse_grain_classes=num_coarse_grain_classes,
-                                     loss=loss)
+                                     loss=loss,
+                                     save_files=save_files,
+                                     debug=debug)
             print('#' * 100)
 
 
-def run_combined_testing_pipeline(pretrained_path: str = None,
-                                  debug: bool = utils.is_debug_mode()):
-    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        initiate(combined=True,
-                 train=False,
-                 pretrained_path=pretrained_path,
-                 debug=debug))
-
-    test_combined_model(fine_tuner=fine_tuners[0],
-                        loaders=loaders,
-                        device=devices[0])
-
-
-def run_individual_fine_tuning_pipeline(debug: bool = utils.is_debug_mode()):
+def run_individual_fine_tuning_pipeline(save_files: bool = True,
+                                        debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=False,
                                                                                                train=True,
                                                                                                debug=debug)
@@ -669,11 +700,37 @@ def run_individual_fine_tuning_pipeline(debug: bool = utils.is_debug_mode()):
                                         devices=devices,
                                         loaders=loaders,
                                         num_fine_grain_classes=num_fine_grain_classes,
-                                        num_coarse_grain_classes=num_coarse_grain_classes)
+                                        num_coarse_grain_classes=num_coarse_grain_classes,
+                                        save_files=save_files)
             print('#' * 100)
+
+
+def run_combined_testing_pipeline(pretrained_path: str = None,
+                                  save_files: bool = True,
+                                  debug: bool = utils.is_debug_mode()):
+    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+        initiate(combined=True,
+                 train=False,
+                 pretrained_path=pretrained_path,
+                 debug=debug))
+
+    (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
+     test_fine_accuracy, test_coarse_accuracy) = test_combined_model(fine_tuner=fine_tuners[0],
+                                                                     loaders=loaders,
+                                                                     device=devices[0])
+
+    if save_files:
+        save_test_files(fine_tuners=fine_tuners[0],
+                        combined=True,
+                        lrs=lrs[0],
+                        epoch=num_epochs,
+                        test_fine_prediction=test_fine_predictions,
+                        test_coarse_prediction=test_coarse_predictions)
+
+
 
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    run_combined_fine_tuning_pipeline()
-    # run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
+    # run_combined_fine_tuning_pipeline()
+    run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
