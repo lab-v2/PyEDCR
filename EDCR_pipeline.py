@@ -289,7 +289,7 @@ def ruleForNPCorrection_worker(i: int,
     if main_granularity == 'coarse':
         all_possible_constraints = (len(data_preprocessing.fine_grain_classes) -
                                     len(data_preprocessing.coarse_to_fine[curr_class]))
-        print(f'Total recovered constraints for class {i}: '
+        print(f'Total recovered constraints for class {curr_class}: '
               f'{round(len(recovered) / all_possible_constraints * 100, 2)}%')
 
     CCi = DetUSMPosRuleSelect(i=i, all_charts=all_charts) if run_positive_rules else []
