@@ -53,7 +53,7 @@ coarse_to_fine = {
     'BMP': ['BMP-1', 'BMP-2', 'BMP-T15'],
     'BTR': ['BRDM', 'BTR-60', 'BTR-70', 'BTR-80'],
     'Tank': ['T-14', 'T-62', 'T-64', 'T-72', 'T-80', 'T-90'],
-    'SPA': ['2S19_MSTA', 'BM-30', 'D-30', 'Tornado', 'TOS-1'],
+    'Self Propelled Artillery': ['2S19_MSTA', 'BM-30', 'D-30', 'Tornado', 'TOS-1'],
     'BMD': ['BMD'],
     'MT_LB': ['MT_LB']
 }
