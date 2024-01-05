@@ -667,7 +667,7 @@ if __name__ == '__main__':
     for a, b in itertools.product([True, False], repeat=2):
         print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
                              '#' * 100 + '\n'))
-        run_EDCR_pipeline(combined=False,
+        run_EDCR_pipeline(combined=True,
                           conditions_from_secondary=a,
                           conditions_from_main=b,
                           consistency_constraints=True
