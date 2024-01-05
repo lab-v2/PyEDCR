@@ -10,9 +10,6 @@ import models
 import utils
 import data_preprocessing
 
-import ltn
-import ltn_support
-
 batch_size = 32
 lrs = [1e-4]
 scheduler_gamma = 0.1
@@ -200,7 +197,7 @@ def get_and_print_post_epoch_metrics(epoch: int,
     training_coarse_f1 = f1_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction,
                                   labels=range(num_coarse_grain_classes), average='macro')
 
-    loss_str = (f'Training epoch total fine loss: {round(running_fine_loss / num_batches, 2)}' 
+    loss_str = (f'Training epoch total fine loss: {round(running_fine_loss / num_batches, 2)}'
                 f'\ntraining epoch total coarse loss: {round(running_coarse_loss / num_batches, 2)}') \
         if running_fine_loss is not None else f'Training epoch total loss: {round(running_total_loss / num_batches, 2)}'
     print(f'\nEpoch {epoch + 1}/{num_epochs} done,\n'
@@ -387,14 +384,15 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
                              num_fine_grain_classes: int,
                              num_coarse_grain_classes: int,
                              loss: str,
-                             ltn_num_epochs : int,
+                             ltn_num_epochs: int = None,
                              beta: float = 0.1,
                              debug: bool = False):
     fine_tuner.to(device)
     fine_tuner.train()
-    logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
     train_loader = loaders['train']
     num_batches = len(train_loader)
+
+
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -418,15 +416,20 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
         test_fine_accuracies = []
         test_coarse_accuracies = []
+
         if loss.split('_')[0] == 'LTN':
-           epochs = ltn_num_epochs
+            import ltn
+            import ltn_support
+
+            epochs = ltn_num_epochs
+            logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
         else:
-            epochs = num_epochs 
+            epochs = num_epochs
 
         print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
               f'using lr={lr} on {device}...')
         print('#' * 100 + '\n')
-        
+
         for epoch in range(epochs):
             with context_handlers.TimeWrapper():
                 total_running_loss = torch.Tensor([0.0]).to(device)
@@ -485,19 +488,20 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
 
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
-                        elif loss == 'LTN_BCE':
-                            criterion = torch.nn.BCEWithLogitsLoss()
+                        elif loss.split('_')[0] == 'LTN':
+                            if loss == 'LTN_BCE':
+                                criterion = torch.nn.BCEWithLogitsLoss()
 
-                            sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
+                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
-                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
-                        elif loss == "LTN_soft_marginal":
-                            criterion = torch.nn.MultiLabelSoftMarginLoss()
+                            if loss == "LTN_soft_marginal":
+                                criterion = torch.nn.MultiLabelSoftMarginLoss()
 
-                            sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
+                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
-                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
                         print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,
@@ -671,5 +675,5 @@ def run_individual_fine_tuning_pipeline(debug: bool = utils.is_debug_mode()):
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    # run_combined_fine_tuning_pipeline()
-    run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
+    run_combined_fine_tuning_pipeline()
+    # run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
