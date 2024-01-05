@@ -283,14 +283,15 @@ def ruleForNPCorrection_worker(i: int,
                             and fine_grain_prediction not in recovered):
                         recovered = recovered.union({fine_grain_prediction})
 
-                        print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
-                              f'and predicted_fine_grain = {fine_grain_prediction}')
+                        # print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
+                        #       f'and predicted_fine_grain = {fine_grain_prediction}')
 
     if main_granularity == 'coarse':
         all_possible_constraints = (len(data_preprocessing.fine_grain_classes) -
                                     len(data_preprocessing.coarse_to_fine[curr_class]))
-        print(f'Total recovered constraints for class {curr_class}: '
-              f'{round(len(recovered) / all_possible_constraints * 100, 2)}%')
+        # print(f'Total recovered constraints for class {curr_class}: '
+        #       f'{round(len(recovered) / all_possible_constraints * 100, 2)}%')
+        error_detections[curr_class] = round(len(recovered) / all_possible_constraints * 100, 2)
 
     CCi = DetUSMPosRuleSelect(i=i, all_charts=all_charts) if run_positive_rules else []
     tem_cond = np.zeros_like(chart[:, 0])
@@ -350,7 +351,9 @@ def ruleForNPCorrectionMP(all_charts: list[list],
         results = pool.starmap(ruleForNPCorrection_worker, args_list)
 
     shared_results = np.array(list(shared_results))
-    error_detections = dict(error_detections)
+    error_detections = np.array(dict(error_detections).values())
+
+    print(f'Mean error detections found {np.mean(error_detections)}')
     # corrections = dict(corrections)
 
     results = [item for sublist in results for item in sublist]
