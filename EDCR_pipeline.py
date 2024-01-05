@@ -295,6 +295,12 @@ def ruleForNPCorrection_worker(i: int,
                         # #
                         #
 
+    if main_granularity == 'coarse':
+        all_possible_constraints = (len(data_preprocessing.fine_grain_classes) -
+                                    len(data_preprocessing.coarse_to_fine[i]))
+        print(f'Total recovered constraints for class {i}: '
+              f'{round(len(recovered) / all_possible_constraints * 100, 2)}%')
+
     CCi = DetUSMPosRuleSelect(i=i, all_charts=all_charts) if run_positive_rules else []
     tem_cond = np.zeros_like(chart[:, 0])
 
@@ -375,75 +381,6 @@ def ruleForNPCorrectionMP(all_charts: list[list],
     # retrieve_error_detection_rule(error_detections)
 
     return results, posterior_acc, shared_results
-
-
-def ruleForNPCorrection(all_charts: list,
-                        true_data,
-                        pred_data,
-                        epsilon: float,
-                        error_detections: dict,
-                        corrections: dict,
-                        run_positive_rules: bool = True):
-    results = []
-    total_results = np.copy(pred_data)
-    print(len(all_charts))
-
-    for i, chart in enumerate(all_charts):
-        chart = np.array(chart)
-        NCi = GreedyNegRuleSelect(i=i,
-                                  epsilon=epsilon,
-                                  all_charts=all_charts)
-        neg_i_count = 0
-        pos_i_count = 0
-
-        predict_result = np.copy(chart[:, 0])
-        tem_cond = np.zeros_like(chart[:, 0])
-
-        for cc in NCi:
-            tem_cond |= chart[:, cc]
-
-        if np.sum(tem_cond) > 0:
-            for ct, cv in enumerate(chart):
-                if tem_cond[ct] and predict_result[ct]:
-
-                    curr_class = data_preprocessing.coarse_grain_classes[i]
-                    sec_class = data_preprocessing.fine_grain_classes[np.argmax(cv[4:])]
-
-                    if data_preprocessing.fine_to_coarse[sec_class] != curr_class:
-                        if curr_class not in corrections:
-                            corrections[curr_class] = {sec_class: 1}
-                        elif sec_class not in corrections[curr_class]:
-                            corrections[curr_class][sec_class] = 1
-                        else:
-                            corrections[curr_class][sec_class] += 1
-
-                    neg_i_count += 1
-                    predict_result[ct] = 0
-
-        CCi = DetUSMPosRuleSelect(i=i,
-                                  all_charts=all_charts) if run_positive_rules else []
-        tem_cond = np.zeros_like(chart[:, 0])
-
-        for cc in CCi:
-            tem_cond |= chart[:, cc]
-
-        if np.sum(tem_cond) > 0:
-            for ct, cv in enumerate(chart):
-                if tem_cond[ct] and not predict_result[ct]:
-                    pos_i_count += 1
-                    predict_result[ct] = 1
-                    total_results[ct] = i
-
-        scores_cor = get_scores(chart[:, 1], predict_result)
-        results.extend(scores_cor + [neg_i_count,
-                                     pos_i_count,
-                                     len(NCi),
-                                     len(CCi)])
-
-    results.extend(get_scores(true_data, total_results))
-    posterior_acc = accuracy_score(true_data, total_results)
-
-    return results, posterior_acc, total_results, error_detections, corrections
 
 
 def plot(df: pd.DataFrame,
@@ -741,6 +678,7 @@ def run_EDCR_pipeline(combined: bool,
 
 if __name__ == '__main__':
     import itertools
+
     for a, b in itertools.product([True, False], repeat=2):
         print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
                              '#' * 100 + '\n'))
