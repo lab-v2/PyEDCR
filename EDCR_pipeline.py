@@ -351,7 +351,7 @@ def ruleForNPCorrectionMP(all_charts: list[list],
         results = pool.starmap(ruleForNPCorrection_worker, args_list)
 
     shared_results = np.array(list(shared_results))
-    error_detections = np.array(dict(error_detections).values())
+    error_detections = np.array(list(dict(error_detections).values()))
 
     print(f'Mean error detections found {np.mean(error_detections)}')
     # corrections = dict(corrections)
