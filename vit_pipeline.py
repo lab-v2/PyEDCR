@@ -189,8 +189,7 @@ def get_and_print_post_epoch_metrics(epoch: int,
                                      num_coarse_grain_classes: int,
                                      running_fine_loss: float = None,
                                      running_coarse_loss: float = None,
-                                     running_total_loss: float = None
-                                     ):
+                                     running_total_loss: float = None):
     training_fine_accuracy = accuracy_score(y_true=train_fine_ground_truth, y_pred=train_fine_prediction)
     training_coarse_accuracy = accuracy_score(y_true=train_coarse_ground_truth, y_pred=train_coarse_prediction)
     training_fine_f1 = f1_score(y_true=train_fine_ground_truth, y_pred=train_fine_prediction,
@@ -581,7 +580,7 @@ def initiate(combined: bool,
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
 
     if combined:
-        device = torch.device('cpu') if (debug and utils.is_local()) else (
+        device = torch.device('cpu') if debug else (
             torch.device('mps' if torch.backends.mps.is_available() else
                          ("cuda" if torch.cuda.is_available() else 'cpu')))
         devices = [device]
@@ -642,11 +641,13 @@ def run_combined_fine_tuning_pipeline(loss: str = 'BCE',
             print('#' * 100)
 
 
-def run_combined_testing_pipeline(pretrained_path: str = None):
+def run_combined_testing_pipeline(pretrained_path: str = None,
+                                  debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
         initiate(combined=True,
                  train=False,
-                 pretrained_path=pretrained_path))
+                 pretrained_path=pretrained_path,
+                 debug=debug))
 
     test_combined_model(fine_tuner=fine_tuners[0],
                         loaders=loaders,
@@ -672,5 +673,5 @@ def run_individual_fine_tuning_pipeline(debug: bool = utils.is_debug_mode()):
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    run_combined_fine_tuning_pipeline()
-    # run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
+    # run_combined_fine_tuning_pipeline()
+    run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
