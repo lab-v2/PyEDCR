@@ -286,18 +286,9 @@ def ruleForNPCorrection_worker(i: int,
                         print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
                               f'and predicted_fine_grain = {fine_grain_prediction}')
 
-                        # if curr_class not in error_detections:
-                        #     error_detections[curr_class] = {other_class: 1}
-                        # elif other_class not in error_detections[curr_class]:
-                        #     error_detections[curr_class][other_class] = 1
-                        # else:
-                        #     error_detections[curr_class][other_class] += 1
-                        # #
-                        #
-
     if main_granularity == 'coarse':
         all_possible_constraints = (len(data_preprocessing.fine_grain_classes) -
-                                    len(data_preprocessing.coarse_to_fine[i]))
+                                    len(data_preprocessing.coarse_to_fine[curr_class]))
         print(f'Total recovered constraints for class {i}: '
               f'{round(len(recovered) / all_possible_constraints * 100, 2)}%')
 
@@ -313,15 +304,6 @@ def ruleForNPCorrection_worker(i: int,
                 pos_i_count += 1
                 predict_result[example_index] = 1
                 total_results[example_index] = i
-
-                # sec_class = data_preprocessing.fine_grain_classes[np.argmax(cv[4:])]
-                #
-                # if curr_class not in corrections:
-                #     corrections[curr_class] = {sec_class: 1}
-                # elif sec_class not in corrections[curr_class]:
-                #     corrections[curr_class][sec_class] = 1
-                # else:
-                #     corrections[curr_class][sec_class] += 1
 
     scores_cor = get_scores(chart[:, 1], predict_result)
 
