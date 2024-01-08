@@ -353,7 +353,8 @@ def ruleForNPCorrectionMP(all_charts: list[list],
     shared_results = np.array(list(shared_results))
     error_detections = np.array(list(dict(error_detections).values()))
 
-    print(f'Mean error detections found {np.mean(error_detections)}')
+    if main_granularity == 'coarse':
+        print(f'Mean error detections found {np.mean(error_detections)}')
     # corrections = dict(corrections)
 
     results = [item for sublist in results for item in sublist]
