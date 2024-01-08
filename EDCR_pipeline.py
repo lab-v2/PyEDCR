@@ -5,7 +5,7 @@ import time
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import multiprocessing as mp
-
+import itertools
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -19,7 +19,7 @@ figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
-main_lr = 0.0001
+main_lr = 1e-5
 epochs_num = 20
 
 secondary_model_name = 'vit_l_16'
@@ -454,11 +454,11 @@ def load_priors(combined: bool) -> (np.array, np.array):
     if combined:
         main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{epochs_num - 1}.npy'
         main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{epochs_num - 1}.npy'
-        path = vit_pipeline.combined_results_path
     else:
         main_model_fine_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epochs_num - 1}_fine_individual.npy'
         main_model_coarse_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epochs_num - 1}_coarse_individual.npy'
-        path = vit_pipeline.individual_results_path
+
+    path = vit_pipeline.combined_results_path if combined else vit_pipeline.individual_results_path
 
     secondary_model_fine_path = (f'{secondary_model_name}_test_fine_pred_lr{secondary_lr}'
                                  f'_e9.npy')
@@ -662,12 +662,11 @@ def run_EDCR_pipeline(combined: bool,
 
 
 if __name__ == '__main__':
-    import itertools
-
-    for a, b, c in itertools.product([True, False], repeat=3):
+    combined = False
+    for a, b in itertools.product([True, False], repeat=2):
         print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
-                             f'combined={c}\n' + '#' * 100 + '\n'))
-        run_EDCR_pipeline(combined=c,
+                             f'combined={combined}\n' + '#' * 100 + '\n'))
+        run_EDCR_pipeline(combined=combined,
                           conditions_from_secondary=a,
                           conditions_from_main=b,
                           consistency_constraints=True

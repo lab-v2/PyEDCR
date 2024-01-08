@@ -11,10 +11,11 @@ def run():
 
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
-    for a, b, c in itertools.product([True, False], repeat=3):
+    combined = False
+    for a, b in itertools.product([True, False], repeat=2):
         print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
-                             f'combined={c}\n' + '#' * 100 + '\n'))
-        EDCR_pipeline.run_EDCR_pipeline(combined=c,
+                             f'combined={combined}\n' + '#' * 100 + '\n'))
+        EDCR_pipeline.run_EDCR_pipeline(combined=combined,
                                         conditions_from_secondary=a,
                                         conditions_from_main=b,
                                         consistency_constraints=True
