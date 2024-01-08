@@ -14,7 +14,7 @@ batch_size = 32
 scheduler_gamma = 0.1
 num_epochs = 20
 ltn_num_epochs = 5
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
+vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['l_16']]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
 combined_results_path = fr'{files_path}combined_results/'
@@ -742,6 +742,7 @@ def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    run_combined_fine_tuning_pipeline(lrs=[1e-4])
+    run_combined_fine_tuning_pipeline(lrs=[1e-4],
+                                      loss='soft_marginal')
     # run_combined_testing_pipeline(lrs=[1e-4],
     #                               pretrained_path='models/vit_b_16_lr0.0001.pth')
