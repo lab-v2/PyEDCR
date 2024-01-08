@@ -593,7 +593,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                 test_coarse_accuracies += [test_coarse_accuracy]
                 print('#' * 100)
 
-                if save_files:
+                if (epoch == num_epochs - 1) and save_files:
                     save_test_files(fine_tuners=fine_tuner,
                                     combined=True,
                                     lrs=lr,
