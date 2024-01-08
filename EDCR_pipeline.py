@@ -664,10 +664,11 @@ def run_EDCR_pipeline(combined: bool,
 if __name__ == '__main__':
     combined = False
     for a, b in itertools.product([True, False], repeat=2):
-        print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
-                             f'combined={combined}\n' + '#' * 100 + '\n'))
-        run_EDCR_pipeline(combined=combined,
-                          conditions_from_secondary=a,
-                          conditions_from_main=b,
-                          consistency_constraints=True
-                          )
+        if a or b:
+            print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
+                                 f'combined={combined}\n' + '#' * 100 + '\n'))
+            run_EDCR_pipeline(combined=combined,
+                              conditions_from_secondary=a,
+                              conditions_from_main=b,
+                              consistency_constraints=True
+                              )
