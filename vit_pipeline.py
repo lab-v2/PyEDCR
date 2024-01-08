@@ -11,7 +11,6 @@ import utils
 import data_preprocessing
 
 batch_size = 32
-lrs = [1e-5, 1e-6]
 scheduler_gamma = 0.1
 num_epochs = 20
 ltn_num_epochs = 5
@@ -422,7 +421,8 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
         np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_coarse_ground_truths)
 
 
-def fine_tune_combined_model(fine_tuner: models.FineTuner,
+def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
+                             fine_tuner: models.FineTuner,
                              device: torch.device,
                              loaders: dict[str, torch.utils.data.DataLoader],
                              num_fine_grain_classes: int,
@@ -613,7 +613,8 @@ def fine_tune_combined_model(fine_tuner: models.FineTuner,
             torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}.pth")
 
 
-def initiate(combined: bool,
+def initiate(lrs: list[typing.Union[str, float]],
+             combined: bool,
              train: bool,
              pretrained_path: str = None,
              debug: bool = False):
@@ -669,15 +670,18 @@ def initiate(combined: bool,
     return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
 
 
-def run_combined_fine_tuning_pipeline(loss: str = 'BCE',
+def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
+                                      loss: str = 'BCE',
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode()):
-    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
+    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(lrs=lrs,
+                                                                                               combined=True,
                                                                                                train=True,
                                                                                                debug=debug)
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
-            fine_tune_combined_model(fine_tuner=fine_tuner,
+            fine_tune_combined_model(lrs=lrs,
+                                     fine_tuner=fine_tuner,
                                      device=devices[0],
                                      loaders=loaders,
                                      num_fine_grain_classes=num_fine_grain_classes,
@@ -688,9 +692,11 @@ def run_combined_fine_tuning_pipeline(loss: str = 'BCE',
             print('#' * 100)
 
 
-def run_individual_fine_tuning_pipeline(save_files: bool = True,
+def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
+                                        save_files: bool = True,
                                         debug: bool = utils.is_debug_mode()):
-    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=False,
+    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(lrs=lrs,
+                                                                                               combined=False,
                                                                                                train=True,
                                                                                                debug=debug)
 
@@ -707,11 +713,13 @@ def run_individual_fine_tuning_pipeline(save_files: bool = True,
             print('#' * 100)
 
 
-def run_combined_testing_pipeline(pretrained_path: str = None,
+def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
+                                  pretrained_path: str = None,
                                   save_files: bool = True,
                                   debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        initiate(combined=True,
+        initiate(lrs=lrs,
+                 combined=True,
                  train=False,
                  pretrained_path=pretrained_path,
                  debug=debug))
@@ -735,4 +743,5 @@ def run_combined_testing_pipeline(pretrained_path: str = None,
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
     # run_combined_fine_tuning_pipeline()
-    run_combined_testing_pipeline(pretrained_path='models/vit_b_16_lr0.0001.pth')
+    run_combined_testing_pipeline(lrs=[1e-4],
+                                  pretrained_path='models/vit_b_16_lr0.0001.pth')
