@@ -5,8 +5,8 @@ import utils
 
 
 def run():
-    # vit_pipeline.run_combined_fine_tuning_pipeline(lrs=[1e-4],
-    #                                                loss='soft_marginal')
+    vit_pipeline.run_combined_fine_tuning_pipeline(lrs=[0.0001],
+                                                   loss='BCE')
 
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
@@ -14,11 +14,11 @@ def run():
 
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
-    combined = True
-    conditions_from_main = False
-
-    EDCR_pipeline.run_EDCR_pipeline(combined=combined,
-                                    conditions_from_secondary=not conditions_from_main,
-                                    conditions_from_main=conditions_from_main,
-                                    consistency_constraints=True
-                                    )
+    # combined = True
+    # conditions_from_main = False
+    #
+    # EDCR_pipeline.run_EDCR_pipeline(combined=combined,
+    #                                 conditions_from_secondary=not conditions_from_main,
+    #                                 conditions_from_main=conditions_from_main,
+    #                                 consistency_constraints=True
+    #                                 )

@@ -742,7 +742,7 @@ def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    run_combined_fine_tuning_pipeline(lrs=[1e-4],
-                                      loss='soft_marginal')
+    run_combined_fine_tuning_pipeline(lrs=[0.0001],
+                                      loss='BCE')
     # run_combined_testing_pipeline(lrs=[1e-4],
     #                               pretrained_path='models/vit_b_16_lr0.0001.pth')
