@@ -451,13 +451,17 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
 
-def load_priors(combined: bool) -> (np.array, np.array):
+def load_priors(loss: str,
+                combined: bool) -> (np.array, np.array):
+    loss_str = f'{loss}_' if loss != 'BCE' else ''
     if combined:
-        main_model_fine_path = f'{main_model_name}_test_fine_pred_lr{main_lr}_e{epochs_num - 1}.npy'
-        main_model_coarse_path = f'{main_model_name}_test_coarse_pred_lr{main_lr}_e{epochs_num - 1}.npy'
+        main_model_fine_path = f'{main_model_name}_{loss_str}test_fine_pred_lr{main_lr}_e{epochs_num - 1}.npy'
+        main_model_coarse_path = f'{main_model_name}_{loss_str}test_coarse_pred_lr{main_lr}_e{epochs_num - 1}.npy'
     else:
-        main_model_fine_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epochs_num - 1}_fine_individual.npy'
-        main_model_coarse_path = f'{main_model_name}_test_pred_lr{main_lr}_e{epochs_num - 1}_coarse_individual.npy'
+        main_model_fine_path = (f'{main_model_name}_{loss_str}test_pred_lr{main_lr}_e{epochs_num - 1}'
+                                f'_fine_individual.npy')
+        main_model_coarse_path = (f'{main_model_name}_{loss_str}test_pred_lr{main_lr}_e{epochs_num - 1}'
+                                  f'_coarse_individual.npy')
 
     path = vit_pipeline.combined_results_path if combined else vit_pipeline.individual_results_path
 
@@ -477,6 +481,7 @@ def load_priors(combined: bool) -> (np.array, np.array):
 
     vit_pipeline.get_and_print_metrics(fine_predictions=main_fine_data,
                                        coarse_predictions=main_coarse_data,
+                                       loss=loss,
                                        combined=combined,
                                        model_name=main_model_name,
                                        lr=main_lr)
@@ -635,10 +640,12 @@ def run_EDCR_for_granularity(main_granularity: str,
 
 
 def run_EDCR_pipeline(combined: bool,
+                      loss: str,
                       conditions_from_secondary: bool,
                       conditions_from_main: bool,
                       consistency_constraints: bool):
-    main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data = load_priors(combined)
+    main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data = load_priors(loss=loss,
+                                                                                               combined=combined)
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
                                           main_coarse_data=main_coarse_data,
                                           secondary_fine_data=secondary_fine_data)
@@ -656,6 +663,7 @@ def run_EDCR_pipeline(combined: bool,
 
     vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
                                        coarse_predictions=pipeline_results['coarse'],
+                                       loss=loss,
                                        prior=False,
                                        combined=combined,
                                        model_name=main_model_name,
@@ -663,10 +671,11 @@ def run_EDCR_pipeline(combined: bool,
 
 
 if __name__ == '__main__':
-    combined = False
+    combined = True
     conditions_from_main = False
 
     run_EDCR_pipeline(combined=combined,
+                      loss='soft_marginal',
                       conditions_from_secondary=not conditions_from_main,
                       conditions_from_main=conditions_from_main,
                       consistency_constraints=True

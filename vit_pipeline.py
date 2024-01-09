@@ -36,6 +36,7 @@ def print_num_inconsistencies(fine_labels: np.array,
 
 def get_and_print_metrics(fine_predictions: np.array,
                           coarse_predictions: np.array,
+                          loss: str,
                           true_fine_data: np.array = data_preprocessing.true_fine_data,
                           true_coarse_data: np.array = data_preprocessing.true_coarse_data,
                           prior: bool = True,
@@ -59,6 +60,7 @@ def get_and_print_metrics(fine_predictions: np.array,
     combined_str = 'combined' if combined else 'individual'
 
     print((f'Main model name: {utils.blue_text(model_name)} ' if model_name != '' else '') +
+          f'with {utils.blue_text(loss)} loss\n' +
           (f'with lr={utils.blue_text(lr)}\n' if lr != '' else '') +
           f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(test_fine_accuracy * 100, 2))}%'
           f', fine-grain {prior_str} {combined_str} average f1: {utils.green_text(round(test_fine_f1 * 100, 2))}%'
@@ -145,6 +147,7 @@ def test_individual_models(fine_tuners: list[models.FineTuner],
     test_fine_accuracy, test_coarse_accuracy = (
         get_and_print_metrics(fine_predictions=test_fine_prediction,
                               coarse_predictions=test_coarse_prediction,
+                              loss='Cross Entropy',
                               combined=False))
 
     return (test_fine_ground_truth, test_coarse_ground_truth, test_fine_prediction, test_coarse_prediction,
@@ -153,6 +156,7 @@ def test_individual_models(fine_tuners: list[models.FineTuner],
 
 def test_combined_model(fine_tuner: models.FineTuner,
                         loaders: dict[str, torch.utils.data.DataLoader],
+                        loss: str,
                         device: torch.device) -> (list[int], list[int], list[int], list[int], float, float):
     test_loader = loaders['test']
     fine_tuner.to(device)
@@ -192,6 +196,7 @@ def test_combined_model(fine_tuner: models.FineTuner,
     test_fine_accuracy, test_coarse_accuracy = (
         get_and_print_metrics(fine_predictions=test_fine_predictions,
                               coarse_predictions=test_coarse_predictions,
+                              loss=loss,
                               true_fine_data=test_fine_ground_truths,
                               true_coarse_data=test_coarse_ground_truths))
 
@@ -587,6 +592,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                  test_fine_accuracy, test_coarse_accuracy) = (
                     test_combined_model(fine_tuner=fine_tuner,
                                         loaders=loaders,
+                                        loss=loss,
                                         device=device))
 
                 test_fine_accuracies += [test_fine_accuracy]
@@ -714,6 +720,7 @@ def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
 
 
 def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
+                                  loss: str,
                                   pretrained_path: str = None,
                                   save_files: bool = True,
                                   debug: bool = utils.is_debug_mode()):
@@ -727,6 +734,7 @@ def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
     (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
      test_fine_accuracy, test_coarse_accuracy) = test_combined_model(fine_tuner=fine_tuners[0],
                                                                      loaders=loaders,
+                                                                     loss=loss,
                                                                      device=devices[0])
 
     if save_files:
