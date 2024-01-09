@@ -663,7 +663,7 @@ def run_EDCR_pipeline(combined: bool,
 
 
 if __name__ == '__main__':
-    combined = True
+    combined = False
     conditions_from_main = False
 
     run_EDCR_pipeline(combined=combined,
