@@ -16,7 +16,7 @@ def run():
     combined = True
     for a, b in itertools.product([True, False], repeat=2):
         if a or b:
-            print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}, mp={c}\n' +
+            print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
                                  f'combined={combined}\n' + '#' * 100 + '\n'))
             EDCR_pipeline.run_EDCR_pipeline(combined=combined,
                                             loss='BCE',
