@@ -351,10 +351,11 @@ def ruleForNPCorrectionMP(all_charts: list[list],
         results = pool.starmap(ruleForNPCorrection_worker, args_list)
 
     shared_results = np.array(list(shared_results))
-    error_detections = np.array(list(dict(error_detections).values()))
+    error_detections_values = np.array(list(dict(error_detections).values()))
 
     if main_granularity == 'coarse':
-        print(f'Mean error detections found {np.mean(error_detections)}')
+        print(error_detections)
+        print(f'Mean error detections found {np.mean(error_detections_values)}')
     # corrections = dict(corrections)
 
     results = [item for sublist in results for item in sublist]
@@ -734,12 +735,14 @@ if __name__ == '__main__':
     combined = True
     conditions_from_secondary = True
     conditions_from_main = False
+
     run_EDCR_pipeline(combined=combined,
-                      loss='BCE',
+                      loss='soft_marginal',
                       conditions_from_secondary=conditions_from_secondary,
                       conditions_from_main=conditions_from_main,
                       consistency_constraints=True,
                       multiprocessing=True)
+
     print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
                          f'conditions_from_main={conditions_from_main}\n' +
                          f'combined={combined}\n' + '#' * 100 + '\n'))
