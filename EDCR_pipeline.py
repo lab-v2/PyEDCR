@@ -731,9 +731,15 @@ def run_EDCR_pipeline(combined: bool,
 
 
 if __name__ == '__main__':
-    run_EDCR_pipeline(combined=False,
+    combined = False
+    conditions_from_secondary = True
+    conditions_from_main = False
+    run_EDCR_pipeline(combined=combined,
                       loss='BCE',
-                      conditions_from_secondary=True,
-                      conditions_from_main=True,
+                      conditions_from_secondary=conditions_from_secondary,
+                      conditions_from_main=conditions_from_main,
                       consistency_constraints=True,
                       multiprocessing=True)
+    print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
+                         f'conditions_from_main={conditions_from_main}\n' +
+                         f'combined={combined}\n' + '#' * 100 + '\n'))
