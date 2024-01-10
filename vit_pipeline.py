@@ -83,10 +83,11 @@ def save_test_files(fine_tuners: typing.Union[models.FineTuner, dict[str, models
                     test_fine_prediction: np.array,
                     test_coarse_prediction: np.array,
                     loss: str = 'BCE'):
+    loss_str = f'{loss}_' if loss != 'BCE' else ''
     if combined:
-        np.save(f"{combined_results_path}{fine_tuners}_{loss}_test_fine_pred_lr{lrs}_e{epoch}.npy",
+        np.save(f"{combined_results_path}{fine_tuners}_{loss_str}_test_fine_pred_lr{lrs}_e{epoch}.npy",
                 test_fine_prediction)
-        np.save(f"{combined_results_path}{fine_tuners}_{loss}_test_coarse_pred_lr{lrs}_e{epoch}.npy",
+        np.save(f"{combined_results_path}{fine_tuners}_{loss_str}_test_coarse_pred_lr{lrs}_e{epoch}.npy",
                 test_coarse_prediction)
     else:
         np.save(f"{individual_results_path}{fine_tuners['fine']}"
@@ -750,7 +751,8 @@ def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    run_combined_fine_tuning_pipeline(lrs=[0.0001],
-                                      loss='BCE')
-    # run_combined_testing_pipeline(lrs=[1e-4],
-    #                               pretrained_path='models/vit_b_16_lr0.0001.pth')
+    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
+    #                                   loss='BCE')
+    run_combined_testing_pipeline(lrs=[1e-5],
+                                  loss='BCE',
+                                  pretrained_path='models/vit_b_16_BCE_lr1e-05.pth')

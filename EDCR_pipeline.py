@@ -19,7 +19,7 @@ figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
-main_lr = 1e-6
+main_lr = 1e-5
 epochs_num = 20
 
 secondary_model_name = 'vit_l_16'
@@ -675,7 +675,7 @@ if __name__ == '__main__':
     conditions_from_main = False
 
     run_EDCR_pipeline(combined=combined,
-                      loss='soft_marginal',
+                      loss='BCE',
                       conditions_from_secondary=not conditions_from_main,
                       conditions_from_main=conditions_from_main,
                       consistency_constraints=True
