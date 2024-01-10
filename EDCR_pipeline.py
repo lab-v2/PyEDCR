@@ -509,7 +509,7 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
 
 def load_priors(loss: str,
                 combined: bool) -> (np.array, np.array):
-    loss_str = f'{loss}_' if loss != 'BCE' else ''
+    loss_str = f'{loss}_' if loss == 'soft_marginal' else ''
     if combined:
         main_model_fine_path = f'{main_model_name}_{loss_str}test_fine_pred_lr{main_lr}_e{epochs_num - 1}.npy'
         main_model_coarse_path = f'{main_model_name}_{loss_str}test_coarse_pred_lr{main_lr}_e{epochs_num - 1}.npy'
