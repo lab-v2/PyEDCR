@@ -19,7 +19,7 @@ figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
-main_lr = 0.0001
+main_lr = 3e-6
 epochs_num = 20
 
 secondary_model_name = 'vit_l_16'
