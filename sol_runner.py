@@ -19,7 +19,7 @@ def run():
             print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
                                  f'combined={combined}\n' + '#' * 100 + '\n'))
             EDCR_pipeline.run_EDCR_pipeline(combined=combined,
-                                            loss='BCE',
+                                            loss='soft_marginal',
                                             conditions_from_secondary=a,
                                             conditions_from_main=b,
                                             consistency_constraints=True,
