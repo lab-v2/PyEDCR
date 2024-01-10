@@ -323,46 +323,60 @@ def ruleForNPCorrectionMP(all_charts: list[list],
                           pred_data: np.array,
                           main_granularity: str,
                           epsilon: float,
+                          multiprocessing: bool,
                           run_positive_rules: bool = True):
-    manager = mp.Manager()
-    shared_results = manager.list(pred_data)
-    error_detections = manager.dict({})
-    corrections = manager.dict({})
-    shared_index = manager.Value('i', 0)
+    if multiprocessing:
+        manager = mp.Manager()
+        shared_results = manager.list(pred_data)
+        error_detections = manager.dict({})
+        corrections = manager.dict({})
+        shared_index = manager.Value('i', 0)
 
-    # Create argument tuples for each process
-    args_list = [(i,
-                  chart,
-                  epsilon,
-                  all_charts,
-                  main_granularity,
-                  run_positive_rules,
-                  shared_results,
-                  shared_index,
-                  error_detections,
-                  corrections)
-                 for i, chart in enumerate(all_charts)]
+        # Create argument tuples for each process
+        args_list = [(i,
+                      chart,
+                      epsilon,
+                      all_charts,
+                      main_granularity,
+                      run_positive_rules,
+                      shared_results,
+                      shared_index,
+                      error_detections,
+                      corrections)
+                     for i, chart in enumerate(all_charts)]
 
-    # Create a pool of processes and map the function with arguments
-    processes_num = min(len(all_charts), mp.cpu_count())
+        # Create a pool of processes and map the function with arguments
+        processes_num = min(len(all_charts), mp.cpu_count())
 
-    with mp.Pool(processes_num) as pool:
-        print(f'Num of processes: {processes_num}')
-        results = pool.starmap(ruleForNPCorrection_worker, args_list)
+        with mp.Pool(processes_num) as pool:
+            print(f'Num of processes: {processes_num}')
+            results = pool.starmap(ruleForNPCorrection_worker, args_list)
 
-    shared_results = np.array(list(shared_results))
-    error_detections = np.array(list(dict(error_detections).values()))
+        shared_results = np.array(list(shared_results))
+        error_detections = np.array(list(dict(error_detections).values()))
 
-    if main_granularity == 'coarse':
-        print(f'Mean error detections found {np.mean(error_detections)}')
-    # corrections = dict(corrections)
+        if main_granularity == 'coarse':
+            print(f'Mean error detections found {np.mean(error_detections)}')
+        # corrections = dict(corrections)
 
-    results = [item for sublist in results for item in sublist]
+        results = [item for sublist in results for item in sublist]
 
-    results.extend(get_scores(y_true=true_data,
-                              y_pred=shared_results))
-    posterior_acc = accuracy_score(y_true=true_data,
-                                   y_pred=shared_results)
+        results.extend(get_scores(y_true=true_data,
+                                  y_pred=shared_results))
+        posterior_acc = accuracy_score(y_true=true_data,
+                                       y_pred=shared_results)
+    else:
+        for i, chart in enumerate(all_charts):
+            result_i = ruleForNPCorrection_worker(i,
+                                                  chart,
+                                                  epsilon,
+                                                  all_charts,
+                                                  main_granularity,
+                                                  run_positive_rules,
+                                                  shared_results,
+                                                  shared_index,
+                                                  error_detections,
+                                                  corrections)
 
     # retrieve_error_detection_rule(error_detections)
 
@@ -520,7 +534,8 @@ def run_EDCR_for_granularity(main_granularity: str,
                              condition_datas: dict[str, dict[str, np.array]],
                              conditions_from_secondary: bool,
                              conditions_from_main: bool,
-                             consistency_constraints: bool) -> np.array:
+                             consistency_constraints: bool,
+                             multiprocessing: bool) -> np.array:
     with (context_handlers.TimeWrapper()):
         if main_granularity == 'fine':
             classes = data_preprocessing.fine_grain_classes
@@ -643,7 +658,8 @@ def run_EDCR_pipeline(combined: bool,
                       loss: str,
                       conditions_from_secondary: bool,
                       conditions_from_main: bool,
-                      consistency_constraints: bool):
+                      consistency_constraints: bool,
+                      multiprocessing: bool = True):
     main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data = load_priors(loss=loss,
                                                                                                combined=combined)
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
@@ -659,7 +675,8 @@ def run_EDCR_pipeline(combined: bool,
                                      condition_datas=condition_datas,
                                      conditions_from_secondary=conditions_from_secondary,
                                      conditions_from_main=conditions_from_main,
-                                     consistency_constraints=consistency_constraints))
+                                     consistency_constraints=consistency_constraints,
+                                     multiprocessing=multiprocessing))
 
     vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
                                        coarse_predictions=pipeline_results['coarse'],
@@ -673,6 +690,7 @@ def run_EDCR_pipeline(combined: bool,
 if __name__ == '__main__':
     combined = True
     conditions_from_main = False
+    multiprocessing = False
 
     run_EDCR_pipeline(combined=combined,
                       loss='BCE',
