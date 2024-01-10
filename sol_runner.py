@@ -14,13 +14,17 @@ def run():
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
     combined = False
-    for a, b in itertools.product([True, False], repeat=2):
-        if a or b:
-            print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
-                                 f'combined={combined}\n' + '#' * 100 + '\n'))
-            EDCR_pipeline.run_EDCR_pipeline(combined=combined,
-                                            loss='BCE',
-                                            conditions_from_secondary=a,
-                                            conditions_from_main=b,
-                                            consistency_constraints=True,
-                                            multiprocessing=True)
+    # for conditions_from_secondary, conditions_from_main in itertools.product([True, False], repeat=2):
+    #     if a or b:
+    conditions_from_secondary = True
+    conditions_from_main = False
+
+    print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
+                         f'conditions_from_main={conditions_from_main}\n' +
+                         f'combined={combined}\n' + '#' * 100 + '\n'))
+    EDCR_pipeline.run_EDCR_pipeline(combined=combined,
+                                    loss='CE',
+                                    conditions_from_secondary=conditions_from_secondary,
+                                    conditions_from_main=conditions_from_main,
+                                    consistency_constraints=True,
+                                    multiprocessing=True)
