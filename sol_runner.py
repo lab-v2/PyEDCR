@@ -5,7 +5,7 @@ import utils
 
 
 def run():
-    vit_pipeline.run_combined_fine_tuning_pipeline(lrs=[0.0001],
+    vit_pipeline.run_combined_fine_tuning_pipeline(lrs=[5e-5],
                                                    loss='BCE')
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
