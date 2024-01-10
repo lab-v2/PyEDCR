@@ -13,7 +13,7 @@ def run():
 
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
-    combined = True
+    combined = False
     for a, b in itertools.product([True, False], repeat=2):
         if a or b:
             print(utils.red_text(f'\nconditions_from_secondary={a}, conditions_from_main={b}\n' +
