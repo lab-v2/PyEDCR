@@ -323,64 +323,105 @@ def ruleForNPCorrectionMP(all_charts: list[list],
                           pred_data: np.array,
                           main_granularity: str,
                           epsilon: float,
-                          multiprocessing: bool,
                           run_positive_rules: bool = True):
-    if multiprocessing:
-        manager = mp.Manager()
-        shared_results = manager.list(pred_data)
-        error_detections = manager.dict({})
-        corrections = manager.dict({})
-        shared_index = manager.Value('i', 0)
+    manager = mp.Manager()
+    shared_results = manager.list(pred_data)
+    error_detections = manager.dict({})
+    corrections = manager.dict({})
+    shared_index = manager.Value('i', 0)
 
-        # Create argument tuples for each process
-        args_list = [(i,
-                      chart,
-                      epsilon,
-                      all_charts,
-                      main_granularity,
-                      run_positive_rules,
-                      shared_results,
-                      shared_index,
-                      error_detections,
-                      corrections)
-                     for i, chart in enumerate(all_charts)]
+    # Create argument tuples for each process
+    args_list = [(i,
+                  chart,
+                  epsilon,
+                  all_charts,
+                  main_granularity,
+                  run_positive_rules,
+                  shared_results,
+                  shared_index,
+                  error_detections,
+                  corrections)
+                 for i, chart in enumerate(all_charts)]
 
-        # Create a pool of processes and map the function with arguments
-        processes_num = min(len(all_charts), mp.cpu_count())
+    # Create a pool of processes and map the function with arguments
+    processes_num = min(len(all_charts), mp.cpu_count())
 
-        with mp.Pool(processes_num) as pool:
-            print(f'Num of processes: {processes_num}')
-            results = pool.starmap(ruleForNPCorrection_worker, args_list)
+    with mp.Pool(processes_num) as pool:
+        print(f'Num of processes: {processes_num}')
+        results = pool.starmap(ruleForNPCorrection_worker, args_list)
 
-        shared_results = np.array(list(shared_results))
-        error_detections = np.array(list(dict(error_detections).values()))
+    shared_results = np.array(list(shared_results))
+    error_detections = np.array(list(dict(error_detections).values()))
 
-        if main_granularity == 'coarse':
-            print(f'Mean error detections found {np.mean(error_detections)}')
-        # corrections = dict(corrections)
+    if main_granularity == 'coarse':
+        print(f'Mean error detections found {np.mean(error_detections)}')
+    # corrections = dict(corrections)
 
-        results = [item for sublist in results for item in sublist]
+    results = [item for sublist in results for item in sublist]
 
-        results.extend(get_scores(y_true=true_data,
-                                  y_pred=shared_results))
-        posterior_acc = accuracy_score(y_true=true_data,
-                                       y_pred=shared_results)
-    else:
-        for i, chart in enumerate(all_charts):
-            result_i = ruleForNPCorrection_worker(i,
-                                                  chart,
-                                                  epsilon,
-                                                  all_charts,
-                                                  main_granularity,
-                                                  run_positive_rules,
-                                                  shared_results,
-                                                  shared_index,
-                                                  error_detections,
-                                                  corrections)
+    results.extend(get_scores(y_true=true_data,
+                              y_pred=shared_results))
+    posterior_acc = accuracy_score(y_true=true_data,
+                                   y_pred=shared_results)
 
     # retrieve_error_detection_rule(error_detections)
 
     return results, posterior_acc, shared_results
+
+
+def ruleForNPCorrection(all_charts: list,
+                        true_data,
+                        pred_data,
+                        epsilon: float,
+                        run_positive_rules: bool = True):
+    results = []
+    total_results = np.copy(pred_data)
+    print(len(all_charts))
+
+    for i, chart in enumerate(all_charts):
+        chart = np.array(chart)
+        NCi = GreedyNegRuleSelect(i=i,
+                                  epsilon=epsilon,
+                                  all_charts=all_charts)
+        neg_i_count = 0
+        pos_i_count = 0
+
+        predict_result = np.copy(chart[:, 0])
+        tem_cond = np.zeros_like(chart[:, 0])
+
+        for cc in NCi:
+            tem_cond |= chart[:, cc]
+
+        if np.sum(tem_cond) > 0:
+            for ct, cv in enumerate(chart):
+                if tem_cond[ct] and predict_result[ct]:
+                    neg_i_count += 1
+                    predict_result[ct] = 0
+
+        CCi = DetUSMPosRuleSelect(i=i,
+                                  all_charts=all_charts) if run_positive_rules else []
+        tem_cond = np.zeros_like(chart[:, 0])
+
+        for cc in CCi:
+            tem_cond |= chart[:, cc]
+
+        if np.sum(tem_cond) > 0:
+            for ct, cv in enumerate(chart):
+                if tem_cond[ct] and not predict_result[ct]:
+                    pos_i_count += 1
+                    predict_result[ct] = 1
+                    total_results[ct] = i
+
+        scores_cor = get_scores(chart[:, 1], predict_result)
+        results.extend(scores_cor + [neg_i_count,
+                                     pos_i_count,
+                                     len(NCi),
+                                     len(CCi)])
+
+    results.extend(get_scores(true_data, total_results))
+    posterior_acc = accuracy_score(true_data, total_results)
+
+    return results, posterior_acc, total_results
 
 
 def plot(df: pd.DataFrame,
@@ -612,7 +653,9 @@ def run_EDCR_for_granularity(main_granularity: str,
                 true_data=true_data,
                 pred_data=pred_data,
                 main_granularity=main_granularity,
-                epsilon=epsilon)
+                epsilon=epsilon) if multiprocessing else ruleForNPCorrection(all_charts=all_charts,
+                                                                             true_data=true_data,
+                                                                             pred_data=pred_data, epsilon=epsilon)
             results.append([epsilon] + result)
 
         # prior_acc = main_prior_fine_acc if main_granularity == 'fine' else main_prior_coarse_acc
@@ -696,5 +739,5 @@ if __name__ == '__main__':
                       loss='BCE',
                       conditions_from_secondary=not conditions_from_main,
                       conditions_from_main=conditions_from_main,
-                      consistency_constraints=True
-                      )
+                      consistency_constraints=True,
+                      multiprocessing=False)
