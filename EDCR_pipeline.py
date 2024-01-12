@@ -5,6 +5,7 @@ import time
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import multiprocessing as mp
+import itertools
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -76,12 +77,12 @@ def get_scores(y_true: np.array,
         return [pre, f1, f1micro]
 
 
-def rearrange_conditions_values(n_classes: int,
-                                condition_values: list) -> list:
-    output_conditions_values = [[] for _ in range(n_classes)]
+def generate_chart(n_classes: int,
+                   charts: list) -> list:
+    all_charts = [[] for _ in range(n_classes)]
 
-    for data in condition_values:
-        for count, jj in enumerate(output_conditions_values):
+    for data in charts:
+        for count, jj in enumerate(all_charts):
             # pred, corr, tp, fp, cond1, cond2 ... condn
             each_items = []
             for d in data[:2]:
@@ -102,7 +103,7 @@ def rearrange_conditions_values(n_classes: int,
             each_items.extend(data[2:])
             jj.append(each_items)
 
-    return output_conditions_values
+    return all_charts
 
 
 def DetUSMPosRuleSelect(i: int,
@@ -168,52 +169,50 @@ def DetUSMPosRuleSelect(i: int,
     return cci
 
 
-def DetRuleLearn(i: int,
-                 epsilon: float,
-                 condition_values: list):
-    class_conditions_values = np.array(condition_values[i])
-
-    rule_indices = [i for i in range(4, len(class_conditions_values[0]))]
-    each_sum = np.sum(class_conditions_values, axis=0)
+def GreedyNegRuleSelect(i: int,
+                        epsilon: float,
+                        all_charts: list):
+    chart = all_charts[i]
+    chart = np.array(chart)
+    rule_indexs = [i for i in range(4, len(chart[0]))]
+    each_sum = np.sum(chart, axis=0)
     tpi = each_sum[2]
     fpi = each_sum[3]
     pi = tpi * 1.0 / (tpi + fpi)
     ri = tpi * 1.0 / each_sum[1]
     ni = each_sum[0]
     quantity = epsilon * ni * pi / ri
+    # print(f"class{count}, quantity:{quantity}")
 
     NCi = []
     NCn = []
-
-    for rule_index in rule_indices:
-        negi_score = np.sum(class_conditions_values[:, 2] * class_conditions_values[:, rule_index])
+    for rule in rule_indexs:
+        negi_score = np.sum(chart[:, 2] * chart[:, rule])
         if negi_score < quantity:
-            NCn.append(rule_index)
+            NCn.append(rule)
 
     with context_handlers.WrapTQDM(total=len(NCn)) as progress_bar:
         while NCn:
             best_score = -1
             best_index = -1
-
             for c in NCn:
                 tem_cond = 0
                 for cc in NCi:
-                    tem_cond |= class_conditions_values[:, cc]
-                tem_cond |= class_conditions_values[:, c]
-                posi_score = np.sum(class_conditions_values[:, 3] * tem_cond)
+                    tem_cond |= chart[:, cc]
+                tem_cond |= chart[:, c]
+                posi_score = np.sum(chart[:, 3] * tem_cond)
                 if best_score < posi_score:
                     best_score = posi_score
                     best_index = c
-
             NCi.append(best_index)
             NCn.remove(best_index)
             tem_cond = 0
             for cc in NCi:
-                tem_cond |= class_conditions_values[:, cc]
+                tem_cond |= chart[:, cc]
             tmp_NCn = []
             for c in NCn:
-                tem = tem_cond | class_conditions_values[:, c]
-                negi_score = np.sum(class_conditions_values[:, 2] * tem)
+                tem = tem_cond | chart[:, c]
+                negi_score = np.sum(chart[:, 2] * tem)
                 if negi_score < quantity:
                     tmp_NCn.append(c)
             NCn = tmp_NCn
@@ -222,31 +221,35 @@ def DetRuleLearn(i: int,
                 time.sleep(0.1)
                 progress_bar.update(1)
 
+        # print(f"class:{i}, NCi:{NCi}")
+
     return NCi
 
 
 def ruleForNPCorrection_worker(i: int,
                                chart: list,
                                epsilon: float,
-                               condition_values: list[list],
+                               all_charts: list[list],
                                main_granularity: str,
                                run_positive_rules: bool,
                                total_results: list,
                                shared_index: mp.Value,
                                error_detections: dict,
-                               corrections: dict
+                               corrections: dict,
+                               pred_data: np.array,
+                               true_data: np.array
                                ):
     chart = np.array(chart)
-    DC_i = DetRuleLearn(i=i,
-                        epsilon=epsilon,
-                        condition_values=condition_values)
+    NCi = GreedyNegRuleSelect(i=i,
+                              epsilon=epsilon,
+                              all_charts=all_charts)
     neg_i_count = 0
     pos_i_count = 0
 
     predict_result = np.copy(chart[:, 0])
     tem_cond = np.zeros_like(chart[:, 0])
 
-    for cc in DC_i:
+    for cc in NCi:
         tem_cond |= chart[:, cc]
 
     classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' \
@@ -278,20 +281,24 @@ def ruleForNPCorrection_worker(i: int,
 
                     assert curr_class == coarse_grain_prediction
 
-                    if data_preprocessing.fine_to_coarse[fine_grain_prediction] != coarse_grain_prediction:
+                    if (data_preprocessing.fine_to_coarse[fine_grain_prediction] != coarse_grain_prediction
+                            and fine_grain_prediction not in recovered):
                         recovered = recovered.union({fine_grain_prediction})
 
                         # print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
                         #       f'and predicted_fine_grain = {fine_grain_prediction}')
 
     if main_granularity == 'coarse':
-        all_possible_constraints = (len(data_preprocessing.fine_grain_classes) -
-                                    len(data_preprocessing.coarse_to_fine[curr_class]))
         # print(f'Total recovered constraints for class {curr_class}: '
         #       f'{round(len(recovered) / all_possible_constraints * 100, 2)}%')
+        fine_grain_unique_constraint, _ = np.unique(pred_data[true_data==i], return_counts=True) # do not exclude coressponding fine
+        coarse_to_fine_given_i = [key for key, value in data_preprocessing.fine_to_course_idx.items() if value == i]
+        mask = np.isin(fine_grain_unique_constraint, coarse_to_fine_given_i)
+        all_possible_constraints = len(fine_grain_unique_constraint[~mask])
         error_detections[curr_class] = round(len(recovered) / all_possible_constraints * 100, 2)
 
-    CCi = DetUSMPosRuleSelect(i=i, all_charts=condition_values) if run_positive_rules else []
+
+    CCi = DetUSMPosRuleSelect(i=i, all_charts=all_charts) if run_positive_rules else []
     tem_cond = np.zeros_like(chart[:, 0])
 
     for cc in CCi:
@@ -308,15 +315,15 @@ def ruleForNPCorrection_worker(i: int,
 
     if not utils.is_local():
         shared_index.value += 1
-        print(f'Completed {shared_index.value}/{len(condition_values)}')
+        print(f'Completed {shared_index.value}/{len(all_charts)}')
 
     return scores_cor + [neg_i_count,
                          pos_i_count,
-                         len(DC_i),
+                         len(NCi),
                          len(CCi)]
 
 
-def ruleForNPCorrectionMP(condition_values: list[list],
+def ruleForNPCorrectionMP(all_charts: list[list],
                           true_data: np.array,
                           pred_data: np.array,
                           main_granularity: str,
@@ -332,22 +339,23 @@ def ruleForNPCorrectionMP(condition_values: list[list],
     args_list = [(i,
                   chart,
                   epsilon,
-                  condition_values,
+                  all_charts,
                   main_granularity,
                   run_positive_rules,
                   shared_results,
                   shared_index,
                   error_detections,
-                  corrections)
-                 for i, chart in enumerate(condition_values)]
+                  corrections, 
+                  pred_data,
+                  true_data)
+                 for i, chart in enumerate(all_charts)]
 
     # Create a pool of processes and map the function with arguments
-    processes_num = min(len(condition_values), mp.cpu_count())
+    processes_num = min(len(all_charts), mp.cpu_count())
 
     with mp.Pool(processes_num) as pool:
         print(f'Num of processes: {processes_num}')
-        results = pool.starmap(func=ruleForNPCorrection_worker,
-                               iterable=args_list)
+        results = pool.starmap(ruleForNPCorrection_worker, args_list)
 
     shared_results = np.array(list(shared_results))
     error_detections_values = np.array(list(dict(error_detections).values()))
@@ -369,20 +377,20 @@ def ruleForNPCorrectionMP(condition_values: list[list],
     return results, posterior_acc, shared_results
 
 
-def ruleForNPCorrection(condition_values: list,
+def ruleForNPCorrection(all_charts: list,
                         true_data,
                         pred_data,
                         epsilon: float,
                         run_positive_rules: bool = True):
     results = []
     total_results = np.copy(pred_data)
-    print(len(condition_values))
+    print(len(all_charts))
 
-    for i, chart in enumerate(condition_values):
+    for i, chart in enumerate(all_charts):
         chart = np.array(chart)
-        NCi = DetRuleLearn(i=i,
-                           epsilon=epsilon,
-                           condition_values=condition_values)
+        NCi = GreedyNegRuleSelect(i=i,
+                                  epsilon=epsilon,
+                                  all_charts=all_charts)
         neg_i_count = 0
         pos_i_count = 0
 
@@ -399,7 +407,7 @@ def ruleForNPCorrection(condition_values: list,
                     predict_result[ct] = 0
 
         CCi = DetUSMPosRuleSelect(i=i,
-                                  all_charts=condition_values) if run_positive_rules else []
+                                  all_charts=all_charts) if run_positive_rules else []
         tem_cond = np.zeros_like(chart[:, 0])
 
         for cc in CCi:
@@ -589,46 +597,43 @@ def run_EDCR_for_granularity(main_granularity: str,
 
         examples_num = true_data.shape[0]
 
-        condition_values = [[pred_data[example_index], true_data[example_index]] +
-                            ((
-                                     get_unary_condition_values(example_index=example_index,
-                                                                cla_datas=condition_datas['main']['fine'])
-                                     +
-                                     get_unary_condition_values(example_index=example_index,
-                                                                cla_datas=condition_datas['main']['coarse'])
-                                     +
-                                     (get_binary_condition_values(example_index=example_index,
-                                                                  fine_cla_datas=condition_datas['main']['fine'],
-                                                                  coarse_cla_datas=condition_datas['main']['coarse'])
-                                      if consistency_constraints else [])
-                                     +
-                                     get_unary_condition_values(example_index=example_index,
-                                                                cla_datas=condition_datas['main']['fine_to_coarse'])
-                             ) if conditions_from_main else [])
-                            +
-                            (
-                                (
-                                        get_unary_condition_values(example_index=example_index,
-                                                                   cla_datas=condition_datas['secondary']['fine']) +
-                                        get_unary_condition_values(example_index=example_index,
-                                                                   cla_datas=condition_datas['secondary']['coarse'])
-                                        +
-                                        (get_binary_condition_values(example_index=example_index,
-                                                                     fine_cla_datas=condition_datas['secondary'][
-                                                                         'fine'],
-                                                                     coarse_cla_datas=condition_datas['secondary'][
-                                                                         'coarse'])
-                                         if consistency_constraints else [])
-                                        +
-                                        get_unary_condition_values(example_index=example_index,
-                                                                   cla_datas=condition_datas['secondary'][
-                                                                       'fine_to_coarse'])
-                                )
-                                if conditions_from_secondary else [])
-                            for example_index in range(examples_num)]
+        charts = [[pred_data[example_index], true_data[example_index]] +
+                  ((
+                           get_unary_condition_values(example_index=example_index,
+                                                      cla_datas=condition_datas['main']['fine'])
+                           +
+                           get_unary_condition_values(example_index=example_index,
+                                                      cla_datas=condition_datas['main']['coarse'])
+                           +
+                           (get_binary_condition_values(example_index=example_index,
+                                                        fine_cla_datas=condition_datas['main']['fine'],
+                                                        coarse_cla_datas=condition_datas['main']['coarse'])
+                            if consistency_constraints else [])
+                           +
+                           get_unary_condition_values(example_index=example_index,
+                                                      cla_datas=condition_datas['main']['fine_to_coarse'])
+                   ) if conditions_from_main else [])
+                  +
+                  (
+                      (
+                              get_unary_condition_values(example_index=example_index,
+                                                         cla_datas=condition_datas['secondary']['fine']) +
+                              get_unary_condition_values(example_index=example_index,
+                                                         cla_datas=condition_datas['secondary']['coarse'])
+                              +
+                              (get_binary_condition_values(example_index=example_index,
+                                                           fine_cla_datas=condition_datas['secondary']['fine'],
+                                                           coarse_cla_datas=condition_datas['secondary']['coarse'])
+                               if consistency_constraints else [])
+                              +
+                              get_unary_condition_values(example_index=example_index,
+                                                         cla_datas=condition_datas['secondary']['fine_to_coarse'])
+                      )
+                      if conditions_from_secondary else [])
+                  for example_index in range(examples_num)]
 
-        condition_values = rearrange_conditions_values(n_classes=len(classes),
-                                                       condition_values=condition_values)
+        all_charts = generate_chart(n_classes=len(classes),
+                                    charts=charts)
 
         results = []
         result0 = [0]
@@ -637,7 +642,7 @@ def run_EDCR_for_granularity(main_granularity: str,
               # f', secondary: {secondary_model_name}, lr: {secondary_lr}\n'
               )
 
-        for count, chart in enumerate(condition_values):
+        for count, chart in enumerate(all_charts):
             chart = np.array(chart)
             result0.extend(get_scores(chart[:, 1], chart[:, 0]))
             result0.extend([0, 0, 0, 0])
@@ -652,11 +657,11 @@ def run_EDCR_for_granularity(main_granularity: str,
 
         for epsilon in epsilons:
             result, posterior_acc, total_results = ruleForNPCorrectionMP(
-                condition_values=condition_values,
+                all_charts=all_charts,
                 true_data=true_data,
                 pred_data=pred_data,
                 main_granularity=main_granularity,
-                epsilon=epsilon) if multiprocessing else ruleForNPCorrection(condition_values=condition_values,
+                epsilon=epsilon) if multiprocessing else ruleForNPCorrection(all_charts=all_charts,
                                                                              true_data=true_data,
                                                                              pred_data=pred_data, epsilon=epsilon)
             results.append([epsilon] + result)
