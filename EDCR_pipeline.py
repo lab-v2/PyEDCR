@@ -77,12 +77,12 @@ def get_scores(y_true: np.array,
         return [pre, f1, f1micro]
 
 
-def generate_chart(n_classes: int,
-                   charts: list) -> list:
-    all_charts = [[] for _ in range(n_classes)]
+def rearrange_conditions_values(n_classes: int,
+                                condition_values: list) -> list:
+    output_conditions_values = [[] for _ in range(n_classes)]
 
-    for data in charts:
-        for count, jj in enumerate(all_charts):
+    for data in condition_values:
+        for count, jj in enumerate(output_conditions_values):
             # pred, corr, tp, fp, cond1, cond2 ... condn
             each_items = []
             for d in data[:2]:
@@ -103,7 +103,7 @@ def generate_chart(n_classes: int,
             each_items.extend(data[2:])
             jj.append(each_items)
 
-    return all_charts
+    return output_conditions_values
 
 
 def DetUSMPosRuleSelect(i: int,
@@ -169,9 +169,9 @@ def DetUSMPosRuleSelect(i: int,
     return cci
 
 
-def GreedyNegRuleSelect(i: int,
-                        epsilon: float,
-                        all_charts: list):
+def DetRuleLearn(i: int,
+                 epsilon: float,
+                 all_charts: list):
     chart = all_charts[i]
     chart = np.array(chart)
     rule_indexs = [i for i in range(4, len(chart[0]))]
@@ -238,16 +238,16 @@ def ruleForNPCorrection_worker(i: int,
                                corrections: dict
                                ):
     chart = np.array(chart)
-    NCi = GreedyNegRuleSelect(i=i,
-                              epsilon=epsilon,
-                              all_charts=all_charts)
+    DC_i = DetRuleLearn(i=i,
+                        epsilon=epsilon,
+                        all_charts=all_charts)
     neg_i_count = 0
     pos_i_count = 0
 
     predict_result = np.copy(chart[:, 0])
     tem_cond = np.zeros_like(chart[:, 0])
 
-    for cc in NCi:
+    for cc in DC_i:
         tem_cond |= chart[:, cc]
 
     classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' \
@@ -313,7 +313,7 @@ def ruleForNPCorrection_worker(i: int,
 
     return scores_cor + [neg_i_count,
                          pos_i_count,
-                         len(NCi),
+                         len(DC_i),
                          len(CCi)]
 
 
@@ -347,7 +347,8 @@ def ruleForNPCorrectionMP(all_charts: list[list],
 
     with mp.Pool(processes_num) as pool:
         print(f'Num of processes: {processes_num}')
-        results = pool.starmap(ruleForNPCorrection_worker, args_list)
+        results = pool.starmap(func=ruleForNPCorrection_worker,
+                               iterable=args_list)
 
     shared_results = np.array(list(shared_results))
     error_detections_values = np.array(list(dict(error_detections).values()))
@@ -380,9 +381,9 @@ def ruleForNPCorrection(all_charts: list,
 
     for i, chart in enumerate(all_charts):
         chart = np.array(chart)
-        NCi = GreedyNegRuleSelect(i=i,
-                                  epsilon=epsilon,
-                                  all_charts=all_charts)
+        NCi = DetRuleLearn(i=i,
+                           epsilon=epsilon,
+                           all_charts=all_charts)
         neg_i_count = 0
         pos_i_count = 0
 
@@ -589,43 +590,46 @@ def run_EDCR_for_granularity(main_granularity: str,
 
         examples_num = true_data.shape[0]
 
-        charts = [[pred_data[example_index], true_data[example_index]] +
-                  ((
-                           get_unary_condition_values(example_index=example_index,
-                                                      cla_datas=condition_datas['main']['fine'])
-                           +
-                           get_unary_condition_values(example_index=example_index,
-                                                      cla_datas=condition_datas['main']['coarse'])
-                           +
-                           (get_binary_condition_values(example_index=example_index,
-                                                        fine_cla_datas=condition_datas['main']['fine'],
-                                                        coarse_cla_datas=condition_datas['main']['coarse'])
-                            if consistency_constraints else [])
-                           +
-                           get_unary_condition_values(example_index=example_index,
-                                                      cla_datas=condition_datas['main']['fine_to_coarse'])
-                   ) if conditions_from_main else [])
-                  +
-                  (
-                      (
-                              get_unary_condition_values(example_index=example_index,
-                                                         cla_datas=condition_datas['secondary']['fine']) +
-                              get_unary_condition_values(example_index=example_index,
-                                                         cla_datas=condition_datas['secondary']['coarse'])
-                              +
-                              (get_binary_condition_values(example_index=example_index,
-                                                           fine_cla_datas=condition_datas['secondary']['fine'],
-                                                           coarse_cla_datas=condition_datas['secondary']['coarse'])
-                               if consistency_constraints else [])
-                              +
-                              get_unary_condition_values(example_index=example_index,
-                                                         cla_datas=condition_datas['secondary']['fine_to_coarse'])
-                      )
-                      if conditions_from_secondary else [])
-                  for example_index in range(examples_num)]
+        condition_values = [[pred_data[example_index], true_data[example_index]] +
+                            ((
+                                     get_unary_condition_values(example_index=example_index,
+                                                                cla_datas=condition_datas['main']['fine'])
+                                     +
+                                     get_unary_condition_values(example_index=example_index,
+                                                                cla_datas=condition_datas['main']['coarse'])
+                                     +
+                                     (get_binary_condition_values(example_index=example_index,
+                                                                  fine_cla_datas=condition_datas['main']['fine'],
+                                                                  coarse_cla_datas=condition_datas['main']['coarse'])
+                                      if consistency_constraints else [])
+                                     +
+                                     get_unary_condition_values(example_index=example_index,
+                                                                cla_datas=condition_datas['main']['fine_to_coarse'])
+                             ) if conditions_from_main else [])
+                            +
+                            (
+                                (
+                                        get_unary_condition_values(example_index=example_index,
+                                                                   cla_datas=condition_datas['secondary']['fine']) +
+                                        get_unary_condition_values(example_index=example_index,
+                                                                   cla_datas=condition_datas['secondary']['coarse'])
+                                        +
+                                        (get_binary_condition_values(example_index=example_index,
+                                                                     fine_cla_datas=condition_datas['secondary'][
+                                                                         'fine'],
+                                                                     coarse_cla_datas=condition_datas['secondary'][
+                                                                         'coarse'])
+                                         if consistency_constraints else [])
+                                        +
+                                        get_unary_condition_values(example_index=example_index,
+                                                                   cla_datas=condition_datas['secondary'][
+                                                                       'fine_to_coarse'])
+                                )
+                                if conditions_from_secondary else [])
+                            for example_index in range(examples_num)]
 
-        all_charts = generate_chart(n_classes=len(classes),
-                                    charts=charts)
+        all_charts = rearrange_conditions_values(n_classes=len(classes),
+                                                 condition_values=condition_values)
 
         results = []
         result0 = [0]
