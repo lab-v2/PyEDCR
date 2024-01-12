@@ -171,10 +171,10 @@ def DetUSMPosRuleSelect(i: int,
 def DetRuleLearn(i: int,
                  epsilon: float,
                  condition_values: list):
-    chart = condition_values[i]
-    chart = np.array(chart)
-    rule_indices = [i for i in range(4, len(chart[0]))]
-    each_sum = np.sum(chart, axis=0)
+    class_conditions_values = np.array(condition_values[i])
+
+    rule_indices = [i for i in range(4, len(class_conditions_values[0]))]
+    each_sum = np.sum(class_conditions_values, axis=0)
     tpi = each_sum[2]
     fpi = each_sum[3]
     pi = tpi * 1.0 / (tpi + fpi)
@@ -186,7 +186,7 @@ def DetRuleLearn(i: int,
     NCn = []
 
     for rule_index in rule_indices:
-        negi_score = np.sum(chart[:, 2] * chart[:, rule_index])
+        negi_score = np.sum(class_conditions_values[:, 2] * class_conditions_values[:, rule_index])
         if negi_score < quantity:
             NCn.append(rule_index)
 
@@ -194,24 +194,26 @@ def DetRuleLearn(i: int,
         while NCn:
             best_score = -1
             best_index = -1
+
             for c in NCn:
                 tem_cond = 0
                 for cc in NCi:
-                    tem_cond |= chart[:, cc]
-                tem_cond |= chart[:, c]
-                posi_score = np.sum(chart[:, 3] * tem_cond)
+                    tem_cond |= class_conditions_values[:, cc]
+                tem_cond |= class_conditions_values[:, c]
+                posi_score = np.sum(class_conditions_values[:, 3] * tem_cond)
                 if best_score < posi_score:
                     best_score = posi_score
                     best_index = c
+
             NCi.append(best_index)
             NCn.remove(best_index)
             tem_cond = 0
             for cc in NCi:
-                tem_cond |= chart[:, cc]
+                tem_cond |= class_conditions_values[:, cc]
             tmp_NCn = []
             for c in NCn:
-                tem = tem_cond | chart[:, c]
-                negi_score = np.sum(chart[:, 2] * tem)
+                tem = tem_cond | class_conditions_values[:, c]
+                negi_score = np.sum(class_conditions_values[:, 2] * tem)
                 if negi_score < quantity:
                     tmp_NCn.append(c)
             NCn = tmp_NCn
