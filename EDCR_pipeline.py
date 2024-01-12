@@ -5,7 +5,6 @@ import time
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import multiprocessing as mp
-import itertools
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -171,10 +170,10 @@ def DetUSMPosRuleSelect(i: int,
 
 def DetRuleLearn(i: int,
                  epsilon: float,
-                 all_charts: list):
-    chart = all_charts[i]
+                 condition_values: list):
+    chart = condition_values[i]
     chart = np.array(chart)
-    rule_indexs = [i for i in range(4, len(chart[0]))]
+    rule_indices = [i for i in range(4, len(chart[0]))]
     each_sum = np.sum(chart, axis=0)
     tpi = each_sum[2]
     fpi = each_sum[3]
@@ -182,14 +181,14 @@ def DetRuleLearn(i: int,
     ri = tpi * 1.0 / each_sum[1]
     ni = each_sum[0]
     quantity = epsilon * ni * pi / ri
-    # print(f"class{count}, quantity:{quantity}")
 
     NCi = []
     NCn = []
-    for rule in rule_indexs:
-        negi_score = np.sum(chart[:, 2] * chart[:, rule])
+
+    for rule_index in rule_indices:
+        negi_score = np.sum(chart[:, 2] * chart[:, rule_index])
         if negi_score < quantity:
-            NCn.append(rule)
+            NCn.append(rule_index)
 
     with context_handlers.WrapTQDM(total=len(NCn)) as progress_bar:
         while NCn:
@@ -221,15 +220,13 @@ def DetRuleLearn(i: int,
                 time.sleep(0.1)
                 progress_bar.update(1)
 
-        # print(f"class:{i}, NCi:{NCi}")
-
     return NCi
 
 
 def ruleForNPCorrection_worker(i: int,
                                chart: list,
                                epsilon: float,
-                               all_charts: list[list],
+                               condition_values: list[list],
                                main_granularity: str,
                                run_positive_rules: bool,
                                total_results: list,
@@ -240,7 +237,7 @@ def ruleForNPCorrection_worker(i: int,
     chart = np.array(chart)
     DC_i = DetRuleLearn(i=i,
                         epsilon=epsilon,
-                        all_charts=all_charts)
+                        condition_values=condition_values)
     neg_i_count = 0
     pos_i_count = 0
 
@@ -292,7 +289,7 @@ def ruleForNPCorrection_worker(i: int,
         #       f'{round(len(recovered) / all_possible_constraints * 100, 2)}%')
         error_detections[curr_class] = round(len(recovered) / all_possible_constraints * 100, 2)
 
-    CCi = DetUSMPosRuleSelect(i=i, all_charts=all_charts) if run_positive_rules else []
+    CCi = DetUSMPosRuleSelect(i=i, all_charts=condition_values) if run_positive_rules else []
     tem_cond = np.zeros_like(chart[:, 0])
 
     for cc in CCi:
@@ -309,7 +306,7 @@ def ruleForNPCorrection_worker(i: int,
 
     if not utils.is_local():
         shared_index.value += 1
-        print(f'Completed {shared_index.value}/{len(all_charts)}')
+        print(f'Completed {shared_index.value}/{len(condition_values)}')
 
     return scores_cor + [neg_i_count,
                          pos_i_count,
@@ -317,7 +314,7 @@ def ruleForNPCorrection_worker(i: int,
                          len(CCi)]
 
 
-def ruleForNPCorrectionMP(all_charts: list[list],
+def ruleForNPCorrectionMP(condition_values: list[list],
                           true_data: np.array,
                           pred_data: np.array,
                           main_granularity: str,
@@ -333,17 +330,17 @@ def ruleForNPCorrectionMP(all_charts: list[list],
     args_list = [(i,
                   chart,
                   epsilon,
-                  all_charts,
+                  condition_values,
                   main_granularity,
                   run_positive_rules,
                   shared_results,
                   shared_index,
                   error_detections,
                   corrections)
-                 for i, chart in enumerate(all_charts)]
+                 for i, chart in enumerate(condition_values)]
 
     # Create a pool of processes and map the function with arguments
-    processes_num = min(len(all_charts), mp.cpu_count())
+    processes_num = min(len(condition_values), mp.cpu_count())
 
     with mp.Pool(processes_num) as pool:
         print(f'Num of processes: {processes_num}')
@@ -370,20 +367,20 @@ def ruleForNPCorrectionMP(all_charts: list[list],
     return results, posterior_acc, shared_results
 
 
-def ruleForNPCorrection(all_charts: list,
+def ruleForNPCorrection(condition_values: list,
                         true_data,
                         pred_data,
                         epsilon: float,
                         run_positive_rules: bool = True):
     results = []
     total_results = np.copy(pred_data)
-    print(len(all_charts))
+    print(len(condition_values))
 
-    for i, chart in enumerate(all_charts):
+    for i, chart in enumerate(condition_values):
         chart = np.array(chart)
         NCi = DetRuleLearn(i=i,
                            epsilon=epsilon,
-                           all_charts=all_charts)
+                           condition_values=condition_values)
         neg_i_count = 0
         pos_i_count = 0
 
@@ -400,7 +397,7 @@ def ruleForNPCorrection(all_charts: list,
                     predict_result[ct] = 0
 
         CCi = DetUSMPosRuleSelect(i=i,
-                                  all_charts=all_charts) if run_positive_rules else []
+                                  all_charts=condition_values) if run_positive_rules else []
         tem_cond = np.zeros_like(chart[:, 0])
 
         for cc in CCi:
@@ -628,8 +625,8 @@ def run_EDCR_for_granularity(main_granularity: str,
                                 if conditions_from_secondary else [])
                             for example_index in range(examples_num)]
 
-        all_charts = rearrange_conditions_values(n_classes=len(classes),
-                                                 condition_values=condition_values)
+        condition_values = rearrange_conditions_values(n_classes=len(classes),
+                                                       condition_values=condition_values)
 
         results = []
         result0 = [0]
@@ -638,7 +635,7 @@ def run_EDCR_for_granularity(main_granularity: str,
               # f', secondary: {secondary_model_name}, lr: {secondary_lr}\n'
               )
 
-        for count, chart in enumerate(all_charts):
+        for count, chart in enumerate(condition_values):
             chart = np.array(chart)
             result0.extend(get_scores(chart[:, 1], chart[:, 0]))
             result0.extend([0, 0, 0, 0])
@@ -653,11 +650,11 @@ def run_EDCR_for_granularity(main_granularity: str,
 
         for epsilon in epsilons:
             result, posterior_acc, total_results = ruleForNPCorrectionMP(
-                all_charts=all_charts,
+                condition_values=condition_values,
                 true_data=true_data,
                 pred_data=pred_data,
                 main_granularity=main_granularity,
-                epsilon=epsilon) if multiprocessing else ruleForNPCorrection(all_charts=all_charts,
+                epsilon=epsilon) if multiprocessing else ruleForNPCorrection(condition_values=condition_values,
                                                                              true_data=true_data,
                                                                              pred_data=pred_data, epsilon=epsilon)
             results.append([epsilon] + result)
