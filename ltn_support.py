@@ -90,16 +90,11 @@ def compute_sat_normally(logits_to_predicate,
             if i != j:
                 sat_agg_list.append(Forall(x, Not(And(logits_to_predicate(x, l[i]), logits_to_predicate(x, l[j])))))
 
-    # Fine to coarse label: for all x[fine], x[fine] and x[correspond coarse]
-
-    for label_fine, label_coarse in data_preprocessing.fine_to_course_idx.items():
-        label_coarse = label_coarse + len(fine_label_dict)
-        if x_variables[label_fine].value.numel() != 0:
-            sat_agg_list.append(Forall(x_variables[label_fine],
-                                       And(logits_to_predicate(x_variables[label_fine], l[label_fine]),
-                                           logits_to_predicate(x_variables[label_fine], l[label_coarse])))
-                                )
-
+    # Rewrite the inconsistency code (Forall(x, Implies(P(x,coarse_label), Not(P(x,coarse_to_not_fine))))
+    for i in coarse_label_dict.values():
+        for j in coarse_to_not_fine.values():
+            sat_agg_list.append(
+                Forall(x_variables[i],Implies(logits_to_predicate(x,l[i]),Not(x,l_c[j]))))
     # Fine labels: for all x[i], x[i] -> l[i]
 
     for i in fine_label_dict.values():
