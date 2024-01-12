@@ -13,7 +13,7 @@ import data_preprocessing
 batch_size = 32
 scheduler_gamma = 0.1
 num_epochs = 20
-ltn_num_epochs = 5
+ltn_num_epochs = 1
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
@@ -751,8 +751,31 @@ def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    run_combined_fine_tuning_pipeline(lrs=[0.0001],
-                                      loss='BCE')
-    # run_combined_testing_pipeline(lrs=[1e-6],
-    #                               loss='BCE',
-    #                               pretrained_path='models/vit_b_16_BCE_lr1e-05.pth')
+    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
+    #                                   loss='BCE')
+    for beta in [0.2, 0.4, 0.6, 0.8]:
+        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+                initiate(lrs=[1e-04],
+                         combined=True,
+                         train=False,
+                         pretrained_path= "/Users/khoavo2003/cs224/metacognitive_error_detection_and_correction_v2/vit_b_16_BCE_lr0.0001.pth",
+                         debug=False))
+        (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
+             test_fine_accuracy, test_coarse_accuracy) = test_combined_model(fine_tuner=fine_tuners[0],
+                                                                             loaders=loaders,
+                                                                             loss="",
+                                                                             device=devices[0])
+        for fine_tuner in fine_tuners:
+                with context_handlers.ClearSession():
+                    fine_tune_combined_model(lrs=[1e-04],
+                                             fine_tuner=fine_tuner,
+                                             device=devices[0],
+                                             loaders=loaders,
+                                             num_fine_grain_classes=num_fine_grain_classes,
+                                             num_coarse_grain_classes=num_coarse_grain_classes,
+                                             loss="LTN_BCE",
+                                             ltn_num_epochs = 1,
+                                             beta=beta,
+                                             save_files=True,
+                                             debug=False)
+                    print('#' * 100)
