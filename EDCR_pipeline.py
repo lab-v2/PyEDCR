@@ -285,6 +285,7 @@ def ruleForNPCorrection_worker(i: int,
                         #       f'and predicted_fine_grain = {fine_grain_prediction}')
 
     if main_granularity == 'coarse':
+
         all_possible_constraints = (len(data_preprocessing.fine_grain_classes) -
                                     len(data_preprocessing.coarse_to_fine[curr_class]))
         # print(f'Total recovered constraints for class {curr_class}: '
@@ -540,6 +541,24 @@ def load_priors(loss: str,
                                        combined=combined,
                                        model_name=main_model_name,
                                        lr=main_lr)
+
+    consistency_constraints_for_main_model = {}
+
+    for fine_prediction_index, coarse_prediction_index in zip(main_fine_data, main_coarse_data):
+        fine_prediction = data_preprocessing.fine_grain_classes[fine_prediction_index]
+        coarse_prediction = data_preprocessing.coarse_grain_classes[coarse_prediction_index]
+
+        if data_preprocessing.fine_to_coarse[fine_prediction] != coarse_prediction:
+            if coarse_prediction not in consistency_constraints_for_main_model:
+                consistency_constraints_for_main_model[coarse_prediction] = {fine_prediction}
+            else:
+                consistency_constraints_for_main_model[coarse_prediction] = (
+                    consistency_constraints_for_main_model[coarse_prediction].union({fine_prediction}))
+
+    for coarse_prediction, fine_grain_inconsistencies in consistency_constraints_for_main_model.items():
+        assert len(set(data_preprocessing.coarse_to_fine[coarse_prediction]).
+                   intersection(fine_grain_inconsistencies)) == 0
+
 
     return main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data
 
