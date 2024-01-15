@@ -273,9 +273,6 @@ def ruleForNPCorrection_worker(i: int,
 
                     if derived_coarse_grain_prediction != curr_class:
                         recovered = recovered.union({fine_grain_prediction})
-
-                        # print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
-                        #       f'and predicted_fine_grain = {fine_grain_prediction}')
                 else:
                     coarse_grain_condition_values = condition_values[len(data_preprocessing.fine_grain_classes):
                                                                      len(data_preprocessing.fine_grain_classes) +
@@ -289,11 +286,10 @@ def ruleForNPCorrection_worker(i: int,
 
     if curr_class in consistency_constraints_for_main_model:
         all_possible_constraints = len(consistency_constraints_for_main_model[curr_class])
-        # print(f'Total recovered constraints for class {curr_class}: '
-        #       f'{round(len(recovered) / all_possible_constraints * 100, 2)}%')
         error_detections[curr_class] = round(len(recovered) / all_possible_constraints * 100, 2)
 
-    CCi = DetUSMPosRuleSelect(i=i, all_charts=all_charts) if run_positive_rules else []
+    CCi = DetUSMPosRuleSelect(i=i,
+                              all_charts=all_charts) if run_positive_rules else []
     tem_cond = np.zeros_like(chart[:, 0])
 
     for cc in CCi:
