@@ -558,9 +558,15 @@ def load_priors(loss: str,
                 consistency_constraints_for_main_model[coarse_prediction] = (
                     consistency_constraints_for_main_model[coarse_prediction].union({fine_prediction}))
 
-    for coarse_prediction, fine_grain_inconsistencies in consistency_constraints_for_main_model.items():
-        assert len(set(data_preprocessing.coarse_to_fine[coarse_prediction]).
-                   intersection(fine_grain_inconsistencies)) == 0
+            if fine_prediction not in consistency_constraints_for_main_model:
+                consistency_constraints_for_main_model[fine_prediction] = {coarse_prediction}
+            else:
+                consistency_constraints_for_main_model[fine_prediction] = (
+                    consistency_constraints_for_main_model[fine_prediction].union({coarse_prediction}))
+
+    # for coarse_prediction, fine_grain_inconsistencies in consistency_constraints_for_main_model.items():
+    #     assert len(set(data_preprocessing.coarse_to_fine[coarse_prediction]).
+    #                intersection(fine_grain_inconsistencies)) == 0
 
     print([f'{k}: {len(v)}' for k, v in consistency_constraints_for_main_model.items()])
 
@@ -638,11 +644,11 @@ def run_EDCR_for_granularity(main_granularity: str,
                               +
                               get_unary_condition_values(example_index=example_index,
                                                          cla_datas=condition_datas['secondary']['coarse'])
-                              # +
-                              # (get_binary_condition_values(example_index=example_index,
-                              #                              fine_cla_datas=condition_datas['secondary']['fine'],
-                              #                              coarse_cla_datas=condition_datas['secondary']['coarse'])
-                              #  if consistency_constraints else [])
+                          # +
+                          # (get_binary_condition_values(example_index=example_index,
+                          #                              fine_cla_datas=condition_datas['secondary']['fine'],
+                          #                              coarse_cla_datas=condition_datas['secondary']['coarse'])
+                          #  if consistency_constraints else [])
                           # +
                           # get_unary_condition_values(example_index=example_index,
                           #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
