@@ -19,6 +19,11 @@ def run():
 
     for main_lr in lrs:
         for loss in losses:
+            print('\n')
+            for i in range(3):
+                print(utils.red_text('#' * 150))
+            print('\n')
+
             for conditions_from_main in [True, False]:
 
                 print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
