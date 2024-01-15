@@ -1,6 +1,5 @@
 import vit_pipeline
 import EDCR_pipeline
-import itertools
 import utils
 
 
@@ -13,19 +12,23 @@ def run():
 
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
-    loss = ['soft_marginal', 'BCE'][1]
     combined = True
     conditions_from_secondary = True
+    losses = ['soft_marginal', 'BCE']
+    lrs = [0.0001, 3e-6]
 
-    for conditions_from_main in [True, False]:
+    for main_lr in lrs:
+        for loss in losses:
+            for conditions_from_main in [True, False]:
 
-        print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
-                             f'conditions_from_main={conditions_from_main}\n' +
-                             f'combined={combined}\n' + '#' * 100 + '\n'))
+                print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
+                                     f'conditions_from_main={conditions_from_main}\n' +
+                                     f'combined={combined}\n' + '#' * 100 + '\n'))
 
-        EDCR_pipeline.run_EDCR_pipeline(combined=combined,
-                                        loss=loss,
-                                        conditions_from_secondary=conditions_from_secondary,
-                                        conditions_from_main=conditions_from_main,
-                                        consistency_constraints=True,
-                                        multiprocessing=True)
+                EDCR_pipeline.run_EDCR_pipeline(main_lr=main_lr,
+                                                combined=combined,
+                                                loss=loss,
+                                                conditions_from_secondary=conditions_from_secondary,
+                                                conditions_from_main=conditions_from_main,
+                                                consistency_constraints=True,
+                                                multiprocessing=True)

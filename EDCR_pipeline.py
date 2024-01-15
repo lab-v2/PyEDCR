@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import multiprocessing as mp
 import multiprocessing.managers
-import itertools
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -20,7 +19,7 @@ figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
-main_lr = 0.0001
+# main_lr = 0.0001
 epochs_num = 20
 
 secondary_model_name = 'vit_l_16'
@@ -511,7 +510,8 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
 
-def load_priors(loss: str,
+def load_priors(main_lr,
+                loss: str,
                 combined: bool) -> (np.array, np.array):
     loss_str = f'{loss}_' if (loss == 'soft_marginal' and combined) else ''
     if combined:
@@ -600,7 +600,8 @@ def get_conditions_data(main_fine_data: np.array,
     return condition_datas
 
 
-def run_EDCR_for_granularity(main_granularity: str,
+def run_EDCR_for_granularity(main_lr,
+                             main_granularity: str,
                              main_fine_data: np.array,
                              main_coarse_data: np.array,
                              condition_datas: dict[str, dict[str, np.array]],
@@ -734,14 +735,16 @@ def run_EDCR_for_granularity(main_granularity: str,
     return total_results, error_detections_mean
 
 
-def run_EDCR_pipeline(combined: bool,
+def run_EDCR_pipeline(main_lr,
+                      combined: bool,
                       loss: str,
                       conditions_from_secondary: bool,
                       conditions_from_main: bool,
                       consistency_constraints: bool,
                       multiprocessing: bool = True):
     (main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data,
-     consistency_constraints_for_main_model) = load_priors(loss=loss,
+     consistency_constraints_for_main_model) = load_priors(main_lr=main_lr,
+                                                           loss=loss,
                                                            combined=combined)
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
                                           main_coarse_data=main_coarse_data,
@@ -751,7 +754,8 @@ def run_EDCR_pipeline(combined: bool,
 
     for main_granularity in data_preprocessing.granularities:
         res = (
-            run_EDCR_for_granularity(main_granularity=main_granularity,
+            run_EDCR_for_granularity(main_lr=main_lr,
+                                     main_granularity=main_granularity,
                                      main_fine_data=main_fine_data,
                                      main_coarse_data=main_coarse_data,
                                      condition_datas=condition_datas,
@@ -782,7 +786,8 @@ if __name__ == '__main__':
                          f'conditions_from_main={conditions_from_main}\n' +
                          f'combined={combined}\n' + '#' * 100 + '\n'))
 
-    run_EDCR_pipeline(combined=combined,
+    run_EDCR_pipeline(main_lr=0.0001,
+                      combined=combined,
                       loss='soft_marginal',
                       conditions_from_secondary=not conditions_from_main,
                       conditions_from_main=conditions_from_main,
