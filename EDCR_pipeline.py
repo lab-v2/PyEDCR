@@ -264,8 +264,9 @@ def ruleForNPCorrection_worker(i: int,
                 neg_i_count += 1
                 predict_result[example_index] = 0
 
+                condition_values = example_values[4:]
+
                 if main_granularity == 'coarse':
-                    condition_values = example_values[4:]
                     fine_grain_condition_values = condition_values[:len(data_preprocessing.fine_grain_classes)]
                     fine_grain_prediction = data_preprocessing.fine_grain_classes[
                         np.argmax(fine_grain_condition_values)]
@@ -276,8 +277,18 @@ def ruleForNPCorrection_worker(i: int,
 
                         # print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
                         #       f'and predicted_fine_grain = {fine_grain_prediction}')
+                else:
+                    coarse_grain_condition_values = condition_values[len(data_preprocessing.fine_grain_classes):
+                                                                     len(data_preprocessing.fine_grain_classes) +
+                                                                     len(data_preprocessing.coarse_grain_classes)]
+                    coarse_grain_prediction = data_preprocessing.coarse_grain_classes[
+                        np.argmax(coarse_grain_condition_values)]
+                    derived_coarse_grain_prediction = data_preprocessing.fine_to_coarse[curr_class]
 
-    if main_granularity == 'coarse' and curr_class in consistency_constraints_for_main_model:
+                    if coarse_grain_prediction != derived_coarse_grain_prediction:
+                        recovered = recovered.union({coarse_grain_prediction})
+
+    if curr_class in consistency_constraints_for_main_model:
         all_possible_constraints = len(consistency_constraints_for_main_model[curr_class])
         # print(f'Total recovered constraints for class {curr_class}: '
         #       f'{round(len(recovered) / all_possible_constraints * 100, 2)}%')
@@ -345,9 +356,9 @@ def ruleForNPCorrectionMP(all_charts: list[list],
     shared_results = np.array(list(shared_results))
     error_detections_values = np.array(list(dict(error_detections).values()))
 
-    if main_granularity == 'coarse':
-        print(error_detections)
-        print(f'Mean error detections found {np.mean(error_detections_values)}')
+    # if main_granularity == 'coarse':
+    print(error_detections)
+    print(f'Mean error detections found {np.mean(error_detections_values)}')
     # corrections = dict(corrections)
 
     results = [item for sublist in results for item in sublist]
@@ -615,9 +626,9 @@ def run_EDCR_for_granularity(main_granularity: str,
                                                         fine_cla_datas=condition_datas['main']['fine'],
                                                         coarse_cla_datas=condition_datas['main']['coarse'])
                             if consistency_constraints else [])
-                           # +
-                           # get_unary_condition_values(example_index=example_index,
-                           #                            cla_datas=condition_datas['main']['fine_to_coarse'])
+                       # +
+                       # get_unary_condition_values(example_index=example_index,
+                       #                            cla_datas=condition_datas['main']['fine_to_coarse'])
                    ) if conditions_from_main else [])
                   +
                   (
@@ -627,14 +638,14 @@ def run_EDCR_for_granularity(main_granularity: str,
                               +
                               get_unary_condition_values(example_index=example_index,
                                                          cla_datas=condition_datas['secondary']['coarse'])
-                              +
-                              (get_binary_condition_values(example_index=example_index,
-                                                           fine_cla_datas=condition_datas['secondary']['fine'],
-                                                           coarse_cla_datas=condition_datas['secondary']['coarse'])
-                               if consistency_constraints else [])
                               # +
-                              # get_unary_condition_values(example_index=example_index,
-                              #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
+                              # (get_binary_condition_values(example_index=example_index,
+                              #                              fine_cla_datas=condition_datas['secondary']['fine'],
+                              #                              coarse_cla_datas=condition_datas['secondary']['coarse'])
+                              #  if consistency_constraints else [])
+                          # +
+                          # get_unary_condition_values(example_index=example_index,
+                          #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
                       )
                       if conditions_from_secondary else [])
                   for example_index in range(examples_num)]
@@ -764,5 +775,3 @@ if __name__ == '__main__':
                       conditions_from_main=conditions_from_main,
                       consistency_constraints=True,
                       multiprocessing=True)
-
-
