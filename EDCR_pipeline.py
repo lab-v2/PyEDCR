@@ -109,14 +109,14 @@ def DetUSMPosRuleSelect(i: int,
                         all_charts: list):
     chart = all_charts[i]
     chart = np.array(chart)
-    rule_indexs = [i for i in range(4, len(chart[0]))]
+    rule_indices = [i for i in range(4, len(chart[0]))]
     each_sum = np.sum(chart, axis=0)
     tpi = each_sum[2]
     fpi = each_sum[3]
     pi = tpi * 1.0 / (tpi + fpi)
 
     pb_scores = []
-    for ri in rule_indexs:
+    for ri in rule_indices:
         posi = np.sum(chart[:, 1] * chart[:, ri], axis=0)
         bodyi = np.sum(chart[:, ri], axis=0)
         score = posi * 1.0 / bodyi
@@ -732,7 +732,7 @@ def run_EDCR_pipeline(combined: bool,
                                           secondary_fine_data=secondary_fine_data)
     pipeline_results = {}
 
-    for main_granularity in data_preprocessing.granularities:
+    for main_granularity in [data_preprocessing.granularities[0]]:
         pipeline_results[main_granularity] = (
             run_EDCR_for_granularity(main_granularity=main_granularity,
                                      main_fine_data=main_fine_data,
@@ -743,13 +743,13 @@ def run_EDCR_pipeline(combined: bool,
                                      consistency_constraints=consistency_constraints,
                                      multiprocessing=multiprocessing))
 
-    vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
-                                       coarse_predictions=pipeline_results['coarse'],
-                                       loss=loss,
-                                       prior=False,
-                                       combined=combined,
-                                       model_name=main_model_name,
-                                       lr=main_lr)
+    # vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
+    #                                    coarse_predictions=pipeline_results['coarse'],
+    #                                    loss=loss,
+    #                                    prior=False,
+    #                                    combined=combined,
+    #                                    model_name=main_model_name,
+    #                                    lr=main_lr)
 
 
 if __name__ == '__main__':
