@@ -259,10 +259,6 @@ def ruleForNPCorrection_worker(i: int,
     recovered = set()
 
     if np.sum(tem_cond) > 0:
-
-        if main_granularity == 'coarse':
-            print('\n')
-
         for example_index, example_values in enumerate(chart):
             if tem_cond[example_index] and predict_result[example_index]:
                 neg_i_count += 1
@@ -273,8 +269,9 @@ def ruleForNPCorrection_worker(i: int,
                     fine_grain_condition_values = condition_values[:len(data_preprocessing.fine_grain_classes)]
                     fine_grain_prediction = data_preprocessing.fine_grain_classes[
                         np.argmax(fine_grain_condition_values)]
+                    derived_coarse_grain_prediction = data_preprocessing.fine_to_coarse[fine_grain_prediction]
 
-                    if data_preprocessing.fine_to_coarse[fine_grain_prediction] != curr_class:
+                    if derived_coarse_grain_prediction != curr_class:
                         recovered = recovered.union({fine_grain_prediction})
 
                         # print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
@@ -630,11 +627,11 @@ def run_EDCR_for_granularity(main_granularity: str,
                               +
                               get_unary_condition_values(example_index=example_index,
                                                          cla_datas=condition_datas['secondary']['coarse'])
-                              # +
-                              # (get_binary_condition_values(example_index=example_index,
-                              #                              fine_cla_datas=condition_datas['secondary']['fine'],
-                              #                              coarse_cla_datas=condition_datas['secondary']['coarse'])
-                              #  if consistency_constraints else [])
+                              +
+                              (get_binary_condition_values(example_index=example_index,
+                                                           fine_cla_datas=condition_datas['secondary']['fine'],
+                                                           coarse_cla_datas=condition_datas['secondary']['coarse'])
+                               if consistency_constraints else [])
                               # +
                               # get_unary_condition_values(example_index=example_index,
                               #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
