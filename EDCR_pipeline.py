@@ -5,6 +5,7 @@ import time
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import multiprocessing as mp
+import multiprocessing.managers
 import itertools
 import warnings
 
@@ -19,7 +20,7 @@ figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
-main_lr = 1e-6
+main_lr = 3e-6
 epochs_num = 20
 
 secondary_model_name = 'vit_l_16'
@@ -232,10 +233,10 @@ def ruleForNPCorrection_worker(i: int,
                                all_charts: list[list],
                                main_granularity: str,
                                run_positive_rules: bool,
-                               total_results: list,
-                               shared_index: mp.Value,
-                               error_detections: dict,
-                               corrections: dict,
+                               total_results: multiprocessing.managers.ListProxy,
+                               shared_index: multiprocessing.managers.ValueProxy,
+                               error_detections: multiprocessing.managers.DictProxy,
+                               corrections: multiprocessing.managers.DictProxy,
                                consistency_constraints_for_main_model: dict[str, set]
                                ):
     chart = np.array(chart)
