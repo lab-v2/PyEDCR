@@ -19,7 +19,7 @@ figs_folder = 'figs/'
 results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
-main_lr = 0.0001
+main_lr = 1e-6
 epochs_num = 20
 
 secondary_model_name = 'vit_l_16'
@@ -560,7 +560,7 @@ def load_priors(loss: str,
         assert len(set(data_preprocessing.coarse_to_fine[coarse_prediction]).
                    intersection(fine_grain_inconsistencies)) == 0
 
-    print(f'{k}: {len(v)}' for k, v in consistency_constraints_for_main_model.items())
+    print([f'{k}: {len(v)}' for k, v in consistency_constraints_for_main_model.items()])
 
     return (main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data,
             consistency_constraints_for_main_model)
