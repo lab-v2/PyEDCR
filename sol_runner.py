@@ -12,28 +12,28 @@ def run():
 
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
-    combined = True
+    combined = False
     conditions_from_secondary = True
     losses = ['soft_marginal', 'BCE']
     lrs = [0.0001, 3e-6]
 
     for main_lr in lrs:
-        for loss in losses:
-            print('\n')
-            for i in range(3):
-                print(utils.red_text('#' * 150))
-            print('\n')
+        # for loss in losses:
+        print('\n')
+        for i in range(3):
+            print(utils.red_text('#' * 150))
+        print('\n')
 
-            for conditions_from_main in [True, False]:
+        for conditions_from_main in [True, False]:
 
-                print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
-                                     f'conditions_from_main={conditions_from_main}\n' +
-                                     f'combined={combined}\n' + '#' * 100 + '\n'))
+            print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
+                                 f'conditions_from_main={conditions_from_main}\n' +
+                                 f'combined={combined}\n' + '#' * 100 + '\n'))
 
-                EDCR_pipeline.run_EDCR_pipeline(main_lr=main_lr,
-                                                combined=combined,
-                                                loss=loss,
-                                                conditions_from_secondary=conditions_from_secondary,
-                                                conditions_from_main=conditions_from_main,
-                                                consistency_constraints=True,
-                                                multiprocessing=True)
+            EDCR_pipeline.run_EDCR_pipeline(main_lr=main_lr,
+                                            combined=combined,
+                                            loss=losses[0],
+                                            conditions_from_secondary=conditions_from_secondary,
+                                            conditions_from_main=conditions_from_main,
+                                            consistency_constraints=True,
+                                            multiprocessing=True)

@@ -606,7 +606,7 @@ def run_EDCR_for_granularity(main_lr,
                              consistency_constraints: bool,
                              multiprocessing: bool,
                              consistency_constraints_for_main_model: dict[str, set]) -> np.array:
-    with context_handlers.TimeWrapper():
+    with ((context_handlers.TimeWrapper())):
         if main_granularity == 'fine':
             classes = data_preprocessing.fine_grain_classes
             true_data = data_preprocessing.true_fine_data
@@ -630,9 +630,9 @@ def run_EDCR_for_granularity(main_lr,
                                                         fine_cla_datas=condition_datas['main']['fine'],
                                                         coarse_cla_datas=condition_datas['main']['coarse'])
                             if consistency_constraints else [])
-                           # +
-                           # get_unary_condition_values(example_index=example_index,
-                           #                            cla_datas=condition_datas['main']['fine_to_coarse'])
+                       # +
+                       # get_unary_condition_values(example_index=example_index,
+                       #                            cla_datas=condition_datas['main']['fine_to_coarse'])
                    ) if conditions_from_main else [])
                   +
                   (
@@ -684,11 +684,11 @@ def run_EDCR_for_granularity(main_lr,
                 pred_data=pred_data,
                 main_granularity=main_granularity,
                 epsilon=epsilon,
-                consistency_constraints_for_main_model=consistency_constraints_for_main_model) if multiprocessing else \
-                ruleForNPCorrection(all_charts=all_charts,
-                                    true_data=true_data,
-                                    pred_data=pred_data,
-                                    epsilon=epsilon)
+                consistency_constraints_for_main_model=consistency_constraints_for_main_model
+            ) if multiprocessing else ruleForNPCorrection(all_charts=all_charts,
+                                                          true_data=true_data,
+                                                          pred_data=pred_data,
+                                                          epsilon=epsilon)
 
             results.append([epsilon] + result)
 
