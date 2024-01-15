@@ -13,16 +13,16 @@ def run():
 
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
-    for a in [True, False]:
+    for conditions_from_secondary in [True, False]:
         combined = True
-        conditions_from_main = a
-        print(utils.red_text(f'\nconditions_from_secondary={not conditions_from_main}, '
+        conditions_from_main = True
+        print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
                              f'conditions_from_main={conditions_from_main}\n' +
                              f'combined={combined}\n' + '#' * 100 + '\n'))
 
         EDCR_pipeline.run_EDCR_pipeline(combined=combined,
                                         loss='soft_marginal',
-                                        conditions_from_secondary=not conditions_from_main,
+                                        conditions_from_secondary=conditions_from_secondary,
                                         conditions_from_main=conditions_from_main,
                                         consistency_constraints=True,
                                         multiprocessing=True)
