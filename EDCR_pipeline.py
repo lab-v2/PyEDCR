@@ -620,11 +620,11 @@ def run_EDCR_for_granularity(main_granularity: str,
                            +
                            get_unary_condition_values(example_index=example_index,
                                                       cla_datas=condition_datas['main']['coarse'])
-                           # +
-                           # (get_binary_condition_values(example_index=example_index,
-                           #                              fine_cla_datas=condition_datas['main']['fine'],
-                           #                              coarse_cla_datas=condition_datas['main']['coarse'])
-                           #  if consistency_constraints else [])
+                           +
+                           (get_binary_condition_values(example_index=example_index,
+                                                        fine_cla_datas=condition_datas['main']['fine'],
+                                                        coarse_cla_datas=condition_datas['main']['coarse'])
+                            if consistency_constraints else [])
                            # +
                            # get_unary_condition_values(example_index=example_index,
                            #                            cla_datas=condition_datas['main']['fine_to_coarse'])
