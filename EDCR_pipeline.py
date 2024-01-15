@@ -768,7 +768,7 @@ def run_EDCR_pipeline(main_lr,
         error_detections += [res[1]]
 
     error_detections = np.mean(np.array(error_detections))
-    print(f'Mean error detections found {np.mean(error_detections)}')
+    print(utils.green_text(f'Mean error detections found {np.mean(error_detections)}'))
 
     vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
                                        coarse_predictions=pipeline_results['coarse'],
