@@ -13,9 +13,9 @@ def run():
 
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
-    for conditions_from_secondary in [True, False]:
+    for conditions_from_main in [True, False]:
         combined = True
-        conditions_from_main = True
+        conditions_from_secondary = True
         print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
                              f'conditions_from_main={conditions_from_main}\n' +
                              f'combined={combined}\n' + '#' * 100 + '\n'))
