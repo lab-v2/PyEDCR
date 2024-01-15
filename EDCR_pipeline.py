@@ -271,17 +271,17 @@ def ruleForNPCorrection_worker(i: int,
                 if main_granularity == 'coarse':
                     condition_values = example_values[4:]
                     fine_grain_condition_values = condition_values[:len(data_preprocessing.fine_grain_classes)]
-                    coarse_grain_condition_values = condition_values[len(data_preprocessing.fine_grain_classes):
-                                                                     len(data_preprocessing.fine_grain_classes) +
-                                                                     len(data_preprocessing.coarse_grain_classes)]
+                    # coarse_grain_condition_values = condition_values[len(data_preprocessing.fine_grain_classes):
+                    #                                                  len(data_preprocessing.fine_grain_classes) +
+                    #                                                  len(data_preprocessing.coarse_grain_classes)]
                     fine_grain_prediction = data_preprocessing.fine_grain_classes[
                         np.argmax(fine_grain_condition_values)]
-                    coarse_grain_prediction = data_preprocessing.coarse_grain_classes[
-                        np.argmax(coarse_grain_condition_values)]
+                    # coarse_grain_prediction = data_preprocessing.coarse_grain_classes[
+                    #     np.argmax(coarse_grain_condition_values)]
 
-                    assert curr_class == coarse_grain_prediction
+                    # assert curr_class == coarse_grain_prediction
 
-                    if data_preprocessing.fine_to_coarse[fine_grain_prediction] != coarse_grain_prediction:
+                    if data_preprocessing.fine_to_coarse[fine_grain_prediction] != curr_class:
                         recovered = recovered.union({fine_grain_prediction})
 
                         # print(f'error <- predicted_coarse_grain = {coarse_grain_prediction} '
@@ -617,9 +617,9 @@ def run_EDCR_for_granularity(main_granularity: str,
                   ((
                            get_unary_condition_values(example_index=example_index,
                                                       cla_datas=condition_datas['main']['fine'])
-                           +
-                           get_unary_condition_values(example_index=example_index,
-                                                      cla_datas=condition_datas['main']['coarse'])
+                           # +
+                           # get_unary_condition_values(example_index=example_index,
+                           #                            cla_datas=condition_datas['main']['coarse'])
                            # +
                            # (get_binary_condition_values(example_index=example_index,
                            #                              fine_cla_datas=condition_datas['main']['fine'],
@@ -633,9 +633,10 @@ def run_EDCR_for_granularity(main_granularity: str,
                   (
                       (
                               get_unary_condition_values(example_index=example_index,
-                                                         cla_datas=condition_datas['secondary']['fine']) +
-                              get_unary_condition_values(example_index=example_index,
-                                                         cla_datas=condition_datas['secondary']['coarse'])
+                                                         cla_datas=condition_datas['secondary']['fine'])
+                              # +
+                              # get_unary_condition_values(example_index=example_index,
+                              #                            cla_datas=condition_datas['secondary']['coarse'])
                               # +
                               # (get_binary_condition_values(example_index=example_index,
                               #                              fine_cla_datas=condition_datas['secondary']['fine'],
