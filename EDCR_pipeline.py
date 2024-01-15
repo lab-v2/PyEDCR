@@ -761,7 +761,7 @@ def run_EDCR_pipeline(combined: bool,
                                      multiprocessing=multiprocessing,
                                      consistency_constraints_for_main_model=consistency_constraints_for_main_model))
         pipeline_results[main_granularity] = res[0]
-        error_detections[main_granularity] = res[1]
+        error_detections += res[1]
 
     error_detections = np.mean(np.array(error_detections))
     print(f'Mean error detections found {np.mean(error_detections)}')
