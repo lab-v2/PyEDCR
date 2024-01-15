@@ -560,7 +560,7 @@ def load_priors(loss: str,
         assert len(set(data_preprocessing.coarse_to_fine[coarse_prediction]).
                    intersection(fine_grain_inconsistencies)) == 0
 
-    print(consistency_constraints_for_main_model)
+    print(f'{k}: {len(v)}' for k, v in consistency_constraints_for_main_model.items())
 
     return (main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data,
             consistency_constraints_for_main_model)
