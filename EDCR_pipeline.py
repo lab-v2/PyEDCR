@@ -357,8 +357,8 @@ def ruleForNPCorrectionMP(all_charts: list[list],
     error_detections_values = np.array(list(dict(error_detections).values()))
 
     # if main_granularity == 'coarse':
-    print(error_detections)
-    print(f'Mean error detections found {np.mean(error_detections_values)}')
+    # print(error_detections)
+    print(f'Mean error detections found for {main_granularity}-grain: {np.mean(error_detections_values)}')
     # corrections = dict(corrections)
 
     results = [item for sublist in results for item in sublist]
@@ -370,7 +370,7 @@ def ruleForNPCorrectionMP(all_charts: list[list],
 
     # retrieve_error_detection_rule(error_detections)
 
-    return results, posterior_acc, shared_results
+    return results, posterior_acc, shared_results, error_detections_values
 
 
 def ruleForNPCorrection(all_charts: list,
@@ -568,7 +568,7 @@ def load_priors(loss: str,
     #     assert len(set(data_preprocessing.coarse_to_fine[coarse_prediction]).
     #                intersection(fine_grain_inconsistencies)) == 0
 
-    print([f'{k}: {len(v)}' for k, v in consistency_constraints_for_main_model.items()])
+    # print([f'{k}: {len(v)}' for k, v in consistency_constraints_for_main_model.items()])
 
     return (main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data,
             consistency_constraints_for_main_model)
@@ -680,7 +680,7 @@ def run_EDCR_for_granularity(main_granularity: str,
         epsilons = [0.002 * i for i in range(1, 2, 1)]
 
         for epsilon in epsilons:
-            result, posterior_acc, total_results = ruleForNPCorrectionMP(
+            result, posterior_acc, total_results, error_detections = ruleForNPCorrectionMP(
                 all_charts=all_charts,
                 true_data=true_data,
                 pred_data=pred_data,
@@ -730,7 +730,7 @@ def run_EDCR_for_granularity(main_granularity: str,
               # f'saved error detections and corrections to {folder}\n'
               )
 
-    return total_results
+    return total_results, error_detections
 
 
 def run_EDCR_pipeline(combined: bool,
@@ -746,9 +746,10 @@ def run_EDCR_pipeline(combined: bool,
                                           main_coarse_data=main_coarse_data,
                                           secondary_fine_data=secondary_fine_data)
     pipeline_results = {}
+    error_detections = {}
 
     for main_granularity in data_preprocessing.granularities:
-        pipeline_results[main_granularity] = (
+        pipeline_results[main_granularity], error_detections[main_granularity] = (
             run_EDCR_for_granularity(main_granularity=main_granularity,
                                      main_fine_data=main_fine_data,
                                      main_coarse_data=main_coarse_data,
@@ -758,6 +759,10 @@ def run_EDCR_pipeline(combined: bool,
                                      consistency_constraints=consistency_constraints,
                                      multiprocessing=multiprocessing,
                                      consistency_constraints_for_main_model=consistency_constraints_for_main_model))
+
+    print(f'Mean error detections found '
+          f'{np.mean(np.array([error_detections[main_granularity] 
+                               for main_granularity in data_preprocessing.granularities]))}')
 
     vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
                                        coarse_predictions=pipeline_results['coarse'],
