@@ -760,9 +760,9 @@ def run_EDCR_pipeline(combined: bool,
                                      multiprocessing=multiprocessing,
                                      consistency_constraints_for_main_model=consistency_constraints_for_main_model))
 
-    print(f'Mean error detections found '
-          f'{np.mean(np.array([error_detections[main_granularity] 
-                               for main_granularity in data_preprocessing.granularities]))}')
+    error_detections = np.array([error_detections[main_granularity]
+                                 for main_granularity in data_preprocessing.granularities])
+    print(f'Mean error detections found {np.mean(error_detections)}')
 
     vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
                                        coarse_predictions=pipeline_results['coarse'],
