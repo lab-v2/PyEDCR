@@ -540,7 +540,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                                 sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
-                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_combine)
 
                             if loss == "LTN_soft_marginal":
                                 criterion = torch.nn.MultiLabelSoftMarginLoss()

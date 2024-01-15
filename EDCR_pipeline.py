@@ -757,6 +757,10 @@ if __name__ == '__main__':
     conditions_from_secondary = True
     conditions_from_main = False
 
+    print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
+                         f'conditions_from_main={conditions_from_main}\n' +
+                         f'combined={combined}\n' + '#' * 100 + '\n'))
+
     run_EDCR_pipeline(combined=combined,
                       loss='soft_marginal',
                       conditions_from_secondary=conditions_from_secondary,
@@ -764,6 +768,4 @@ if __name__ == '__main__':
                       consistency_constraints=True,
                       multiprocessing=True)
 
-    print(utils.red_text(f'\nconditions_from_secondary={conditions_from_secondary}, '
-                         f'conditions_from_main={conditions_from_main}\n' +
-                         f'combined={combined}\n' + '#' * 100 + '\n'))
+
