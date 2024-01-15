@@ -762,7 +762,6 @@ def run_EDCR_pipeline(combined: bool,
 if __name__ == '__main__':
     combined = False
     conditions_from_main = True
-
     print(utils.red_text(f'\nconditions_from_secondary={not conditions_from_main}, '
                          f'conditions_from_main={conditions_from_main}\n' +
                          f'combined={combined}\n' + '#' * 100 + '\n'))
