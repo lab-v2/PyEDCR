@@ -22,6 +22,7 @@ scheduler_gamma = 0.5
 num_epochs = 5
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
+lrs = [1e-04]
 loss = "LTN_BCE"
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
@@ -1024,7 +1025,7 @@ if __name__ == '__main__':
         
         for beta in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
             fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-                    initiate(lrs=[1e-04],
+                    initiate(lrs=lrs,
                              combined=True,
                              train=False,
                              pretrained_path= pretrained_path,
@@ -1036,7 +1037,7 @@ if __name__ == '__main__':
                                                                                  device=devices[0])
             for fine_tuner in fine_tuners:
                     with context_handlers.ClearSession():
-                        fine_tune_combined_model(lrs=[1e-04],
+                        fine_tune_combined_model(lrs=lrs,
                                                  fine_tuner=fine_tuner,
                                                  device=devices[0],
                                                  loaders=loaders,
