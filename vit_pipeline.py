@@ -9,18 +9,36 @@ import context_handlers
 import models
 import utils
 import data_preprocessing
+import re
+import openpyxl  # Using openpyxl for Excel creation
+from openpyxl.chart import (
+    LineChart,
+    Reference,
+    Series,
+)
 
-batch_size = 32
-scheduler_gamma = 0.1
-num_epochs = 20
-ltn_num_epochs = 1
+batch_size = 512
+scheduler_gamma = 0.5
+num_epochs = 5
+ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
+loss = "LTN_BCE"
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
 combined_results_path = fr'{files_path}combined_results/'
 individual_results_path = fr'{files_path}individual_results/'
 cwd = pathlib.Path(__file__).parent.resolve()
-scheduler_step_size = num_epochs
+scheduler_step_size = 2
+
+# if fine_tune, specify it here:
+training = True
+
+# add path to model you want to evaluate and save in the excel file:
+folder_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/model/vit_b_16_lr0.0001_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
+workbook_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/{loss}_batch_size_{batch_size}_Results.xlsx"
+
+# otherwise, set the baseline model path here:
+pretrained_path = "/home/ngocbach/metacognitive_error_detection_and_correction_v2/vit_b_16_BCE_lr0.0001.pth"
 
 
 def print_num_inconsistencies(fine_labels: np.array,
@@ -608,6 +626,15 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                     test_fine_prediction=test_fine_predictions,
                                     test_coarse_prediction=test_coarse_predictions,
                                     loss=loss)
+                    
+        # Get the current working directory as the base path
+        base_path = os.getcwd()
+
+        # Create folder with configuration details if it doesn't exist
+        config_folder_name = f"{fine_tuner}_lr{lr}_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
+        config_folder_path = os.path.join(base_path, "model", config_folder_name)
+        os.makedirs(config_folder_path, exist_ok=True)
+
 
         if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
             np.save(f"{combined_results_path}test_fine_true.npy", test_fine_ground_truths)
@@ -615,10 +642,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
             np.save(f"{combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
         if loss.split('_')[0] == 'LTN':
-            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
+            torch.save(fine_tuner.state_dict(), os.path.join(config_folder_path, f"{fine_tuner}_lr{lr}_{loss}_beta_{beta}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}.pth"))
         else:
-            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}.pth")
-
+            torch.save(fine_tuner.state_dict(), os.path.join(config_folder_path, f"{fine_tuner}_lr{lr}_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}.pth"))
 
 def initiate(lrs: list[typing.Union[str, float]],
              combined: bool,
@@ -745,37 +771,289 @@ def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
                         epoch=num_epochs,
                         test_fine_prediction=test_fine_predictions,
                         test_coarse_prediction=test_coarse_predictions)
+        
 
 
+def get_model_file_paths(folder_path):
+    """
+    Returns a list of paths to all model files within the specified folder.
 
+    Args:
+        folder_path (str): The path to the folder to search for model files.
+
+    Returns:
+        list: A list of paths to the model files found in the folder.
+    """
+
+    model_file_paths = []
+
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith(('.pth')):  # Add more extensions if needed
+                file_path = os.path.join(root, file)
+                model_file_paths.append(file_path)
+
+    return model_file_paths
+
+
+def get_and_not_print_metrics_update(fine_predictions: np.array,
+                          coarse_predictions: np.array,
+                          loss: str,
+                          true_fine_data: np.array = data_preprocessing.true_fine_data,
+                          true_coarse_data: np.array = data_preprocessing.true_coarse_data,
+                          prior: bool = True,
+                          combined: bool = True,
+                          model_name: str = '',
+                          lr: typing.Union[str, float] = ''):
+    test_fine_accuracy = accuracy_score(y_true=true_fine_data,
+                                        y_pred=fine_predictions)
+    test_coarse_accuracy = accuracy_score(y_true=true_coarse_data,
+                                          y_pred=coarse_predictions)
+    test_fine_f1 = f1_score(y_true=true_fine_data,
+                            y_pred=fine_predictions,
+                            labels=range(len(data_preprocessing.fine_grain_classes)),
+                            average='macro')
+    test_coarse_f1 = f1_score(y_true=true_coarse_data,
+                              y_pred=coarse_predictions,
+                              labels=range(len(data_preprocessing.coarse_grain_classes)),
+                              average='macro')
+    
+    return test_fine_accuracy, test_fine_f1, test_coarse_accuracy, test_coarse_f1
+
+def test_combined_model_update(fine_tuner: models.FineTuner,
+                                loaders: dict[str, torch.utils.data.DataLoader],
+                                loss: str,
+                                device: torch.device) -> (list[int], list[int], list[int], list[int], float, float):
+    test_loader = loaders['test']
+    fine_tuner.to(device)
+    fine_tuner.eval()
+
+    test_fine_predictions = []
+    test_coarse_predictions = []
+
+    test_fine_ground_truths = []
+    test_coarse_ground_truths = []
+
+    print(f'Testing {fine_tuner} on {device}...')
+
+    with torch.no_grad():
+        if utils.is_local():
+            from tqdm import tqdm
+            gen = tqdm(enumerate(test_loader), total=len(test_loader))
+        else:
+            gen = enumerate(test_loader)
+
+        for i, data in gen:
+            X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
+
+            Y_pred = fine_tuner(X)
+            Y_pred_fine = Y_pred[:, :len(data_preprocessing.fine_grain_classes)]
+            Y_pred_coarse = Y_pred[:, len(data_preprocessing.fine_grain_classes):]
+
+            predicted_fine = torch.max(Y_pred_fine, 1)[1]
+            predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
+
+            test_fine_ground_truths += Y_true_fine.tolist()
+            test_coarse_ground_truths += Y_true_coarse.tolist()
+
+            test_fine_predictions += predicted_fine.tolist()
+            test_coarse_predictions += predicted_coarse.tolist()
+
+    test_fine_accuracy, test_fine_f1, test_coarse_accuracy, test_coarse_f1 = (
+        get_and_not_print_metrics_update(fine_predictions=test_fine_predictions,
+                              coarse_predictions=test_coarse_predictions,
+                              loss=loss,
+                              true_fine_data=test_fine_ground_truths,
+                              true_coarse_data=test_coarse_ground_truths))
+    
+    get_and_print_metrics(fine_predictions=test_fine_predictions,
+                              coarse_predictions=test_coarse_predictions,
+                              loss=loss,
+                              true_fine_data=test_fine_ground_truths,
+                              true_coarse_data=test_coarse_ground_truths)
+    
+    num_inconsistencies = data_preprocessing.get_num_inconsistencies(fine_labels=test_fine_predictions,
+                                                                 coarse_labels=test_coarse_predictions)
+
+    return (test_fine_accuracy, test_fine_f1, test_coarse_accuracy, test_coarse_f1, num_inconsistencies)
+
+
+def test_and_save_LTN_combine_model(folder_model_path, workbook_path = None):
+    # Assume all the model is in 1 file:
+
+    assert os.path.exists(folder_model_path), "the path is not exist"
+
+    all_model_path = get_model_file_paths(folder_model_path)
+
+    if "BCE" in all_model_path[0]:
+        loss_name = "BCE"
+    else:
+        loss_name = "soft_marginal"
+
+    result = []
+
+    for model_path in all_model_path:
+        
+        # load model
+        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+                initiate(lrs=[1e-04],
+                         combined=True,
+                         train=False,
+                         pretrained_path= model_path,
+                         debug=False))
+        
+        # get result
+        test_fine_accuracy, test_fine_f1, \
+        test_coarse_accuracy, test_coarse_f1, num_inconsistencies = test_combined_model_update(fine_tuners[0], 
+                                                                                           loaders, 
+                                                                                           loss_name, 
+                                                                                           devices[0])
+
+        beta = float(re.search(r"beta_([0-9]+\.[0-9]+)", model_path).group(1))
+        percent_inconsistencies = num_inconsistencies / 1621 # TODO: change the number to len of dataset
+        total_fine_coarse_accuracy = test_fine_accuracy + test_coarse_accuracy
+        # add to list result
+
+        result.append([
+            round(beta, 2), 
+            round(test_fine_accuracy * 100, 2), 
+            round(test_fine_f1 * 100, 2), 
+            round(test_coarse_accuracy * 100, 2), 
+            round(test_coarse_f1 * 100, 2), 
+            round(num_inconsistencies, 2), 
+            round(percent_inconsistencies * 100, 2), 
+            round(total_fine_coarse_accuracy * 100, 2)
+        ])
+        
+    # the result will have the list contain what you need for. Help me create an excel file
+
+    # Create Excel file and format it as shown in the screenshot
+    if workbook_path:
+        if os.path.exists(workbook_path):
+            workbook = openpyxl.load_workbook(workbook_path)
+        else:
+            workbook = openpyxl.Workbook()
+            workbook_name = os.path.basename(workbook_path)
+            workbook.save(workbook_path)
+    else:
+        workbook = openpyxl.Workbook()
+
+    sheet = workbook.active
+
+    # Find the last non-empty row (starting from row 1)
+    last_row = max(sheet.max_row, 1)  # Ensure at least one row
+    while not any(sheet.cell(row=last_row, column=col).value for col in range(1, 8)):
+        last_row -= 1
+        if last_row == 0:  # Break if we reach row 0 (which doesn't exist)
+            break
+
+    # Set the base row three rows below the last non-empty row
+    base_row = last_row + 4
+
+    # Set the title as the folder_model_path
+    sheet.merge_cells(f'A{base_row}:H{base_row}')  # Merge cells for title
+    title_cell = sheet.cell(row=base_row, column=1)
+    title_cell.value = os.path.basename(folder_model_path)
+    title_cell.font = openpyxl.styles.Font(bold=True, size=14)
+
+
+    # Write headers in bold
+    headers = ['Beta', 'Fine-grain Prior Combined Accuracy', 'Fine-grain Prior Combined Average F1',
+               'Coarse-grain Prior Combined Accuracy', 'Coarse-grain Prior Combined Average F1',
+               'Total Prior Inconsistencies', 'Total Prior Inconsistencies (%)',
+               'Fine and Coarse Accuracy']
+    for i, header in enumerate(headers):
+        cell = sheet.cell(row=base_row + 1, column=i + 1)
+        cell.value = header
+        cell.font = openpyxl.styles.Font(bold=True)
+
+    # Sort the results based on beta in ascending order
+    result.sort(key=lambda row: row[0])  # Sort based on the first element (beta)
+
+    max_accuracy = 0
+    min_inconsistencies = 0
+
+    min_inconsistencies_row = None
+    max_accuracy_row = None
+    
+    for row_num, row_data in enumerate(result, start=base_row + 2):
+        for col_num, value in enumerate(row_data, start=1):
+            cell = sheet.cell(row=row_num, column=col_num)
+            cell.value = value
+    
+            # Find minimum Total Prior Inconsistencies (%) row (only once)
+            if col_num == 7 and min_inconsistencies_row is None:
+                min_inconsistencies_row = row_num
+                min_inconsistencies = value
+            elif col_num == 7 and value < min_inconsistencies:
+                min_inconsistencies = value
+                min_inconsistencies_row = row_num
+    
+            # Find maximum Fine and Coarse Accuracy row (only once)
+            if col_num == 8 and max_accuracy_row is None:
+                max_accuracy_row = row_num
+                max_accuracy = value
+            elif col_num == 8 and value > max_accuracy:
+                max_accuracy = value
+                max_accuracy_row = row_num
+
+    # Highlight the found rows after the loop
+    # Change text color of entire rows
+    if min_inconsistencies_row is not None:
+        for col_num in range(1, sheet.max_column + 1):  # Iterate through all columns
+            cell = sheet.cell(row=min_inconsistencies_row, column=col_num)
+            cell.font = openpyxl.styles.Font(color="00FF00")  # Green text color
+    
+    if max_accuracy_row is not None:
+        for col_num in range(1, sheet.max_column + 1):
+            cell = sheet.cell(row=max_accuracy_row, column=col_num)
+            cell.font = openpyxl.styles.Font(color="FF0000")  # Red text color
+
+    # Save the Excel file
+    workbook.save(workbook_path)
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
     # run_combined_fine_tuning_pipeline(lrs=[0.0001],
     #                                   loss='BCE')
-    for beta in [0.2, 0.4, 0.6, 0.8]:
-        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-                initiate(lrs=[1e-04],
-                         combined=True,
-                         train=False,
-                         pretrained_path= "/Users/khoavo2003/cs224/metacognitive_error_detection_and_correction_v2/vit_b_16_BCE_lr0.0001.pth",
-                         debug=False))
-        (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
-             test_fine_accuracy, test_coarse_accuracy) = test_combined_model(fine_tuner=fine_tuners[0],
-                                                                             loaders=loaders,
-                                                                             loss="",
-                                                                             device=devices[0])
-        for fine_tuner in fine_tuners:
-                with context_handlers.ClearSession():
-                    fine_tune_combined_model(lrs=[1e-04],
-                                             fine_tuner=fine_tuner,
-                                             device=devices[0],
-                                             loaders=loaders,
-                                             num_fine_grain_classes=num_fine_grain_classes,
-                                             num_coarse_grain_classes=num_coarse_grain_classes,
-                                             loss="LTN_BCE",
-                                             ltn_num_epochs = 1,
-                                             beta=beta,
-                                             save_files=True,
-                                             debug=False)
-                    print('#' * 100)
+    if not training:
+        test_and_save_LTN_combine_model(folder_path, workbook_path)
+        exit()
+
+    else:
+        
+        for beta in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
+            fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+                    initiate(lrs=[1e-04],
+                             combined=True,
+                             train=False,
+                             pretrained_path= pretrained_path,
+                             debug=False))
+            (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
+                 test_fine_accuracy, test_coarse_accuracy) = test_combined_model(fine_tuner=fine_tuners[0],
+                                                                                 loaders=loaders,
+                                                                                 loss="",
+                                                                                 device=devices[0])
+            for fine_tuner in fine_tuners:
+                    with context_handlers.ClearSession():
+                        fine_tune_combined_model(lrs=[1e-04],
+                                                 fine_tuner=fine_tuner,
+                                                 device=devices[0],
+                                                 loaders=loaders,
+                                                 num_fine_grain_classes=num_fine_grain_classes,
+                                                 num_coarse_grain_classes=num_coarse_grain_classes,
+                                                 loss=loss,
+                                                 ltn_num_epochs = ltn_num_epochs,
+                                                 beta=beta,
+                                                 save_files=True,
+                                                 debug=False)
+                        print('#' * 100)
+    
+
+
+
+
+
+
+    
+
