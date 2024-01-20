@@ -35,7 +35,7 @@ scheduler_step_size = 2
 training = True
 
 # add path to model you want to evaluate and save in the excel file:
-folder_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/model/vit_b_16_lr0.0001_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
+model_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/model/vit_b_16_lr0.0001_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
 workbook_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/{loss}_batch_size_{batch_size}_Results.xlsx"
 
 # otherwise, set the baseline model path here:
@@ -775,12 +775,12 @@ def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
         
 
 
-def get_model_file_paths(folder_path):
+def get_model_file_paths(model_path):
     """
     Returns a list of paths to all model files within the specified folder.
 
     Args:
-        folder_path (str): The path to the folder to search for model files.
+        model_path (str): The path to the folder to search for model files.
 
     Returns:
         list: A list of paths to the model files found in the folder.
@@ -788,7 +788,7 @@ def get_model_file_paths(folder_path):
 
     model_file_paths = []
 
-    for root, _, files in os.walk(folder_path):
+    for root, _, files in os.walk(model_path):
         for file in files:
             if file.endswith(('.pth')):  # Add more extensions if needed
                 file_path = os.path.join(root, file)
@@ -1018,7 +1018,7 @@ if __name__ == '__main__':
     # run_combined_fine_tuning_pipeline(lrs=[0.0001],
     #                                   loss='BCE')
     if not training:
-        test_and_save_LTN_combine_model(folder_path, workbook_path)
+        test_and_save_LTN_combine_model(model_path, workbook_path)
         exit()
 
     else:
