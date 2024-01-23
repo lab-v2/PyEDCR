@@ -784,7 +784,7 @@ if __name__ == '__main__':
 
     run_EDCR_pipeline(main_lr=0.0001,
                       combined=combined,
-                      loss='soft_marginal',
+                      loss='BCE',
                       conditions_from_secondary=not conditions_from_main,
                       conditions_from_main=conditions_from_main,
                       consistency_constraints=True,
