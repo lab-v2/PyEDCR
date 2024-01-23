@@ -1082,14 +1082,16 @@ def test_dropbox():
     
 
 if __name__ == '__main__':
-    # test sending file to dropbox. If this code has error, change the tokenized to dropbox, or ...
+    # test sending file to dropbox. If this code has error and stop training, change the tokenized to dropbox...
+    # otherwise, the token work successfully
     test_dropbox()
     if not training:
+        # here is the code to test and save ltn result in the google sheet
         test_and_save_LTN_combine_model(folder_path, workbook_path)
         exit()
 
     else:
-        
+        # here is the code for training
         for beta in betas:
             fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
                     initiate(lrs=lrs,
