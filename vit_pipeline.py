@@ -20,23 +20,26 @@ import dropbox
 from utils import TransferData
 
 
-# token for Dropbox API
-access_token = "sl.BuINytzCUmdk8REkn3UGusxsuMe2QaLNBUD2PX-6vVV1BfZhNrxjlIaiQFYWaHJ6TN8gq3MCsP8boeHqpzhwXDaCtL7NHFnxCc3eh2tFTNg54Uk8Mqa156AmN2VATF_vWUhTHzCx8xMRJcsWDtDMSbs"
+# token for Dropbox API. You can get the token from dropbox by go to dropbox:
+# https://www.dropbox.com/developers/apps?_tk=pilot_lp&_ad=topbar4&_camp=myapps
+# Notice that if your school account not work, use a different account
+access_token = "Your token"
 transferData = TransferData(access_token)
 
 batch_size = 512
-scheduler_gamma = 0.5
+scheduler_gamma = 0.8
 num_epochs = 5
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 loss = "LTN_soft_marginal"
-lrs=[1e-04]
+lrs=[3e-06]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
 combined_results_path = fr'{files_path}combined_results/'
 individual_results_path = fr'{files_path}individual_results/'
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = 1
+betas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
 # if fine_tune, specify it here:
 training = True
@@ -45,8 +48,11 @@ training = True
 folder_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/model/vit_b_16_lr0.0001_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
 workbook_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/{loss}_batch_size_{batch_size}_Results.xlsx"
 
-# otherwise, set the baseline model path here:
-pretrained_path = "/home/ngocbach/metacognitive_error_detection_and_correction_v2/vit_b_16_softmarginal_1e-4.pth"
+# set the baseline model path here:
+if loss == "LTN_BCE":
+    pretrained_path = "/home/ngocbach/metacognitive_error_detection_and_correction_v2/vit_b_16_BCE_lr0.0001.pth"
+else:
+    pretrained_path = "/home/ngocbach/metacognitive_error_detection_and_correction_v2/vit_b_16_softmarginal_1e-4.pth"
 
 
 def print_num_inconsistencies(fine_labels: np.array,
@@ -666,16 +672,16 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
             file_based_to = f"/EDCR/combined/{file_to_folder_loss}/vit_b_16/lr_{file_to_folder_lr}/batch_size_{batch_size}/scheduler_gamma_{scheduler_gamma}/step_size_{scheduler_step_size}/beta_{beta}/" 
 
             # transfer model
-            file_model_from = f"{save_model_path}.pth"
+            file_model_from = f"{file_based_from}.pth"
             file_model_to = f"{file_based_to}{file_name}.pth"
             transferData.upload_file(file_model_from, file_model_to)
 
             # transfer prediction
-            file_fine_pred_from = f"{save_model_path}_fine_pred.npy"
+            file_fine_pred_from = f"{file_based_from}_fine_pred.npy"
             file_fine_pred_to = f"{file_based_to}{file_name}_fine_pred.npy"
             transferData.upload_file(file_fine_pred_from, file_fine_pred_to)
 
-            file_coarse_pred_from = f"{save_model_path}_coarse_pred.npy"
+            file_coarse_pred_from = f"{file_based_from}_coarse_pred.npy"
             file_coarse_pred_to = f"{file_based_to}{file_name}_coarse_pred.npy"
             transferData.upload_file(file_coarse_pred_from, file_coarse_pred_to)
 
@@ -960,7 +966,7 @@ def test_and_save_LTN_combine_model(folder_model_path, workbook_path = None):
             round(test_coarse_f1 * 100, 2), 
             round(num_inconsistencies, 2), 
             round(percent_inconsistencies * 100, 2), 
-            round(total_fine_coarse_accuracy * 100, 2)
+            round(total_fine_coarse_accuracy * 100 / 2, 2)
         ])
         
     # the result will have the list contain what you need for. Help me create an excel file
@@ -1084,7 +1090,7 @@ if __name__ == '__main__':
 
     else:
         
-        for beta in [0.1, 0.2]:
+        for beta in betas:
             fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
                     initiate(lrs=lrs,
                              combined=True,
