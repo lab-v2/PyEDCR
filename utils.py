@@ -3,8 +3,9 @@ import sys
 import pathlib
 import datetime
 from typing import Union
+import dropbox
 
-
+CHUNK_SIZE = 4 * 1024 * 1024
 
 
 def format_seconds(seconds: int):
@@ -71,3 +72,55 @@ def red_text(s: Union[str, float]) -> str:
 
 def blue_text(s: Union[str, float]) -> str:
     return colored_text('blue')(s)
+
+class TransferData:
+    def __init__(self, access_token):
+        self.access_token = access_token
+
+    def upload_file(self, file_from, file_to):
+        """upload a file to Dropbox using API v2
+        """
+        dbx = dropbox.Dropbox(self.access_token)
+
+        f = open(file_from, "rb")
+
+        file_size = os.path.getsize(file_from)
+
+        if file_size <= CHUNK_SIZE:
+        
+            dbx.files_upload(f.read(), file_to)
+        
+        else:
+        
+            upload_session_start_result = dbx.files_upload_session_start(f.read(CHUNK_SIZE))
+            cursor = dropbox.files.UploadSessionCursor(session_id=upload_session_start_result.session_id,
+                                                       offset=f.tell())
+            commit = dropbox.files.CommitInfo(path=file_to)
+        
+            while f.tell() < file_size:
+                if ((file_size - f.tell()) <= CHUNK_SIZE):
+                    dbx.files_upload_session_finish(f.read(CHUNK_SIZE),
+                                                    cursor,
+                                                    commit)
+                else:
+                    dbx.files_upload_session_append(f.read(CHUNK_SIZE),
+                                                    cursor.session_id,
+                                                    cursor.offset)
+                    cursor.offset = f.tell()
+
+    def download_file(self, file_from, file_to):
+        """Download a file from Dropbox to a local file."""
+        dbx = dropbox.Dropbox(self.access_token)
+
+        try:
+            # Download the file from Dropbox
+            metadata, response = dbx.files_download(file_from)
+
+            # Save the file locally
+            with open(file_to, 'wb') as f:
+                f.write(response.content)
+
+            print(f"File downloaded successfully: {file_to}")
+
+        except dropbox.exceptions.ApiError as err:
+            print(f"Error downloading file: {err}")

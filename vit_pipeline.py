@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 import pathlib
 import typing
-
+import random
 import context_handlers
 import models
 import utils
@@ -16,30 +16,37 @@ from openpyxl.chart import (
     Reference,
     Series,
 )
+import dropbox
+from utils import TransferData
+
+
+# token for Dropbox API
+access_token = "sl.BuINytzCUmdk8REkn3UGusxsuMe2QaLNBUD2PX-6vVV1BfZhNrxjlIaiQFYWaHJ6TN8gq3MCsP8boeHqpzhwXDaCtL7NHFnxCc3eh2tFTNg54Uk8Mqa156AmN2VATF_vWUhTHzCx8xMRJcsWDtDMSbs"
+transferData = TransferData(access_token)
 
 batch_size = 512
 scheduler_gamma = 0.5
 num_epochs = 5
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
-lrs = [1e-04]
-loss = "LTN_BCE"
+loss = "LTN_soft_marginal"
+lrs=[1e-04]
 
 files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
 combined_results_path = fr'{files_path}combined_results/'
 individual_results_path = fr'{files_path}individual_results/'
 cwd = pathlib.Path(__file__).parent.resolve()
-scheduler_step_size = 2
+scheduler_step_size = 1
 
 # if fine_tune, specify it here:
 training = True
 
 # add path to model you want to evaluate and save in the excel file:
-model_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/model/vit_b_16_lr0.0001_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
+folder_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/model/vit_b_16_lr0.0001_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
 workbook_path = f"/home/ngocbach/metacognitive_error_detection_and_correction_v2/{loss}_batch_size_{batch_size}_Results.xlsx"
 
 # otherwise, set the baseline model path here:
-pretrained_path = "/home/ngocbach/metacognitive_error_detection_and_correction_v2/vit_b_16_BCE_lr0.0001.pth"
+pretrained_path = "/home/ngocbach/metacognitive_error_detection_and_correction_v2/vit_b_16_softmarginal_1e-4.pth"
 
 
 def print_num_inconsistencies(fine_labels: np.array,
@@ -495,7 +502,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
             epochs = num_epochs
 
         print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
-              f'using lr={lr} on {device}...')
+              f'using lr={lr} and beta={beta} and step_size={scheduler_step_size} and gamma={scheduler_gamma} on {device}...')
         print('#' * 100 + '\n')
 
         for epoch in range(epochs):
@@ -643,7 +650,37 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
             np.save(f"{combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
         if loss.split('_')[0] == 'LTN':
-            torch.save(fine_tuner.state_dict(), os.path.join(config_folder_path, f"{fine_tuner}_lr{lr}_{loss}_beta_{beta}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}.pth"))
+            # Saving file in the current directory
+            file_name = f"{fine_tuner}_lr{lr}_{loss}_beta_{beta}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
+            save_model_path = os.path.join(config_folder_path, file_name)
+            torch.save(fine_tuner.state_dict(), f"{save_model_path}.pth")
+            np.save(f"{save_model_path}_fine_pred.npy", test_fine_predictions)
+            np.save(f"{save_model_path}_coarse_pred.npy", test_coarse_predictions)
+
+            # transfer file
+            file_based_from = save_model_path
+
+            # from folder structure at dropbox
+            file_to_folder_loss = "BCE" if loss == "LTN_BCE" else "Softmarginal"
+            file_to_folder_lr = "1e-4" if lrs[0] == 1e-04 else "3e-6"
+            file_based_to = f"/EDCR/combined/{file_to_folder_loss}/vit_b_16/lr_{file_to_folder_lr}/batch_size_{batch_size}/scheduler_gamma_{scheduler_gamma}/step_size_{scheduler_step_size}/beta_{beta}/" 
+
+            # transfer model
+            file_model_from = f"{save_model_path}.pth"
+            file_model_to = f"{file_based_to}{file_name}.pth"
+            transferData.upload_file(file_model_from, file_model_to)
+
+            # transfer prediction
+            file_fine_pred_from = f"{save_model_path}_fine_pred.npy"
+            file_fine_pred_to = f"{file_based_to}{file_name}_fine_pred.npy"
+            transferData.upload_file(file_fine_pred_from, file_fine_pred_to)
+
+            file_coarse_pred_from = f"{save_model_path}_coarse_pred.npy"
+            file_coarse_pred_to = f"{file_based_to}{file_name}_coarse_pred.npy"
+            transferData.upload_file(file_coarse_pred_from, file_coarse_pred_to)
+
+            print(f"predict fine and coarse and model is sent to: {file_based_to} with file name: {file_name}")
+            
         else:
             torch.save(fine_tuner.state_dict(), os.path.join(config_folder_path, f"{fine_tuner}_lr{lr}_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}.pth"))
 
@@ -775,12 +812,12 @@ def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
         
 
 
-def get_model_file_paths(model_path):
+def get_model_file_paths(folder_path):
     """
     Returns a list of paths to all model files within the specified folder.
 
     Args:
-        model_path (str): The path to the folder to search for model files.
+        folder_path (str): The path to the folder to search for model files.
 
     Returns:
         list: A list of paths to the model files found in the folder.
@@ -788,7 +825,7 @@ def get_model_file_paths(model_path):
 
     model_file_paths = []
 
-    for root, _, files in os.walk(model_path):
+    for root, _, files in os.walk(folder_path):
         for file in files:
             if file.endswith(('.pth')):  # Add more extensions if needed
                 file_path = os.path.join(root, file)
@@ -1013,17 +1050,41 @@ def test_and_save_LTN_combine_model(folder_model_path, workbook_path = None):
     # Save the Excel file
     workbook.save(workbook_path)
 
+def generate_random_text(length=20):
+    letters_and_digits = random.random()
+    return str(letters_and_digits)
+
+
+def test_dropbox():
+    print("begin test dropbox")
+    folder_name = "test_folder/"  # You can customize the folder name
+    file_name = "test_file.txt"
+    
+    os.makedirs(folder_name, exist_ok=True)  # Create folder if it doesn't exist
+
+    random_text = generate_random_text()
+    
+    with open(os.path.join(folder_name, file_name), "w") as f:
+        f.write(random_text)  # Write random text to the file
+
+    try:
+        transferData.upload_file(os.path.join(folder_name, file_name), "/test/test.txt")
+        print(random_text)
+        print("File uploaded successfully!")
+    except dropbox.exceptions.ApiError as err:
+        print(f"Error uploading file: {err}")
+    
+
 if __name__ == '__main__':
-    # run_individual_fine_tuning_pipeline()
-    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
-    #                                   loss='BCE')
+    # test sending file to dropbox. If this code has error, change the tokenized to dropbox, or ...
+    test_dropbox()
     if not training:
-        test_and_save_LTN_combine_model(model_path, workbook_path)
+        test_and_save_LTN_combine_model(folder_path, workbook_path)
         exit()
 
     else:
         
-        for beta in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
+        for beta in [0.1, 0.2]:
             fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
                     initiate(lrs=lrs,
                              combined=True,
