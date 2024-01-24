@@ -14,8 +14,8 @@ def run():
 
     combined = False
     conditions_from_secondary = True
-    losses = ['soft_marginal', 'BCE']
-    lrs = [1e-6]
+    losses = ['soft_marginal']
+    lrs = [0.0001, 1e-6]
 
     for main_lr in lrs:
         # for loss in losses:
