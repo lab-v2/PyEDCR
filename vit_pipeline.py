@@ -815,40 +815,14 @@ def run_combined_testing_pipeline(lrs: list[typing.Union[str, float]],
                         epoch=num_epochs,
                         test_fine_prediction=test_fine_predictions,
                         test_coarse_prediction=test_coarse_predictions)
-        
 
-
-def get_model_file_paths(folder_path):
-    """
-    Returns a list of paths to all model files within the specified folder.
-
-    Args:
-        folder_path (str): The path to the folder to search for model files.
-
-    Returns:
-        list: A list of paths to the model files found in the folder.
-    """
-
-    model_file_paths = []
-
-    for root, _, files in os.walk(folder_path):
-        for file in files:
-            if file.endswith(('.pth')):  # Add more extensions if needed
-                file_path = os.path.join(root, file)
-                model_file_paths.append(file_path)
-
-    return model_file_paths
 
 
 def get_and_not_print_metrics_update(fine_predictions: np.array,
                           coarse_predictions: np.array,
                           loss: str,
                           true_fine_data: np.array = data_preprocessing.true_fine_data,
-                          true_coarse_data: np.array = data_preprocessing.true_coarse_data,
-                          prior: bool = True,
-                          combined: bool = True,
-                          model_name: str = '',
-                          lr: typing.Union[str, float] = ''):
+                          true_coarse_data: np.array = data_preprocessing.true_coarse_data,):
     test_fine_accuracy = accuracy_score(y_true=true_fine_data,
                                         y_pred=fine_predictions)
     test_coarse_accuracy = accuracy_score(y_true=true_coarse_data,
@@ -864,98 +838,84 @@ def get_and_not_print_metrics_update(fine_predictions: np.array,
     
     return test_fine_accuracy, test_fine_f1, test_coarse_accuracy, test_coarse_f1
 
-def test_combined_model_update(fine_tuner: models.FineTuner,
-                                loaders: dict[str, torch.utils.data.DataLoader],
-                                loss: str,
-                                device: torch.device) -> (list[int], list[int], list[int], list[int], float, float):
-    test_loader = loaders['test']
-    fine_tuner.to(device)
-    fine_tuner.eval()
+def load_prediction_from_dropbox(
+    config_folder_path, 
+    loss, 
+    lr, 
+    beta, 
+    batch_size, 
+    scheduler_step_size, 
+    scheduler_gamma
+):
+    """
+    Load the model from the dropbox
 
-    test_fine_predictions = []
-    test_coarse_predictions = []
+    Args:
+        config_folder_path: The path to the configuration folder.
+        loss: The type of loss function used.
+        lr: The learning rate used for training.
+        beta: Beta value for LTN-based losses (if applicable).
+        batch_size: The batch size used for training.
+        scheduler_step_size: The step size for the learning rate scheduler.
+        scheduler_gamma: The gamma value for the learning rate scheduler.
+        test_fine_predictions: The fine-grained predictions on the test set.
+        test_coarse_predictions: The coarse-grained predictions on the test set.
+    """
 
-    test_fine_ground_truths = []
-    test_coarse_ground_truths = []
+    file_name = f"vit_b_16_lr{lr}_{loss}_beta_{beta}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
+    save_model_path = os.path.join(config_folder_path, file_name)
 
-    print(f'Testing {fine_tuner} on {device}...')
+    # Load files
+    file_based_to = save_model_path
+    file_to_folder_loss = "BCE" if loss == "LTN_BCE" else "Softmarginal"
+    file_to_folder_lr = "1e-4" if lr == 1e-4 else "3e-6"
+    file_based_from = f"/EDCR/Results/combined/{file_to_folder_loss}/vit_b_16/lr_{file_to_folder_lr}/batch_size_{batch_size}/scheduler_gamma_{scheduler_gamma}/step_size_{scheduler_step_size}/beta_{beta}/"
 
-    with torch.no_grad():
-        if utils.is_local():
-            from tqdm import tqdm
-            gen = tqdm(enumerate(test_loader), total=len(test_loader))
-        else:
-            gen = enumerate(test_loader)
-
-        for i, data in gen:
-            X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
-
-            Y_pred = fine_tuner(X)
-            Y_pred_fine = Y_pred[:, :len(data_preprocessing.fine_grain_classes)]
-            Y_pred_coarse = Y_pred[:, len(data_preprocessing.fine_grain_classes):]
-
-            predicted_fine = torch.max(Y_pred_fine, 1)[1]
-            predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
-
-            test_fine_ground_truths += Y_true_fine.tolist()
-            test_coarse_ground_truths += Y_true_coarse.tolist()
-
-            test_fine_predictions += predicted_fine.tolist()
-            test_coarse_predictions += predicted_coarse.tolist()
-
-    test_fine_accuracy, test_fine_f1, test_coarse_accuracy, test_coarse_f1 = (
-        get_and_not_print_metrics_update(fine_predictions=test_fine_predictions,
-                              coarse_predictions=test_coarse_predictions,
-                              loss=loss,
-                              true_fine_data=test_fine_ground_truths,
-                              true_coarse_data=test_coarse_ground_truths))
+    try:
+        transferData.download_file(f"{file_based_from}{file_name}_fine_pred.npy", f"{file_based_to}_fine_pred.npy")
+        transferData.download_file(f"{file_based_from}{file_name}_coarse_pred.npy", f"{file_based_to}_coarse_pred.npy")
     
-    get_and_print_metrics(fine_predictions=test_fine_predictions,
-                              coarse_predictions=test_coarse_predictions,
-                              loss=loss,
-                              true_fine_data=test_fine_ground_truths,
-                              true_coarse_data=test_coarse_ground_truths)
-    
-    num_inconsistencies = data_preprocessing.get_num_inconsistencies(fine_labels=test_fine_predictions,
-                                                                 coarse_labels=test_coarse_predictions)
+        print(f"Predict fine and coarse and model is download to: {file_based_to} with file name: {file_name}")
+    except dropbox.exceptions.ApiError as err:
+        print(f"Error uploading file: {err}")
 
-    return (test_fine_accuracy, test_fine_f1, test_coarse_accuracy, test_coarse_f1, num_inconsistencies)
+    return f"{file_based_to}_fine_pred.npy", f"{file_based_to}_coarse_pred.npy"
 
+def test_and_save_LTN_combine_prediction(loss, lr, scheduler_step_size, scheduler_gamma, workbook_path=None):
+    """
+    Get prediction from dropbox file and send it to an excel file
+    """
 
-def test_and_save_LTN_combine_model(folder_model_path, workbook_path = None):
-    # Assume all the model is in 1 file:
-
-    assert os.path.exists(folder_model_path), "the path is not exist"
-
-    all_model_path = get_model_file_paths(folder_model_path)
-
-    if "BCE" in all_model_path[0]:
-        loss_name = "BCE"
-    else:
-        loss_name = "soft_marginal"
+    base_path = os.getcwd()
+    config_folder_name = f"vit_b_16_lr{lr}_{loss}_batch_size_{batch_size}_step_size_{scheduler_step_size}_scheduler_gamma_{scheduler_gamma}"
+    config_folder_path = os.path.join(base_path, "model", config_folder_name)
+    os.makedirs(config_folder_path, exist_ok=True)
 
     result = []
 
-    for model_path in all_model_path:
+    for beta in betas:
         
-        # load model
-        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-                initiate(lrs=[1e-04],
-                         combined=True,
-                         train=False,
-                         pretrained_path= model_path,
-                         debug=False))
-        
-        # get result
-        test_fine_accuracy, test_fine_f1, \
-        test_coarse_accuracy, test_coarse_f1, num_inconsistencies = test_combined_model_update(fine_tuners[0], 
-                                                                                           loaders, 
-                                                                                           loss_name, 
-                                                                                           devices[0])
+        fine_pred_path, coarse_pred_path = load_prediction_from_dropbox(
+            config_folder_path, 
+            loss, 
+            lr, 
+            beta, 
+            batch_size, 
+            scheduler_step_size, 
+            scheduler_gamma
+        )
 
-        beta = float(re.search(r"beta_([0-9]+\.[0-9]+)", model_path).group(1))
+        # get result
+        fine_predictions = np.load(fine_pred_path)
+        coarse_predictions = np.load(coarse_pred_path)
+
+        # Do EDCR on it to get the new fine and coarse prediction instead
+
+        test_fine_accuracy, test_fine_f1, test_coarse_accuracy, test_coarse_f1 = get_and_not_print_metrics_update(fine_predictions, coarse_predictions, loss="")
+        num_inconsistencies = data_preprocessing.get_num_inconsistencies(fine_predictions, coarse_predictions)
         percent_inconsistencies = num_inconsistencies / 1621 # TODO: change the number to len of dataset
         total_fine_coarse_accuracy = test_fine_accuracy + test_coarse_accuracy
+
         # add to list result
 
         result.append([
@@ -997,7 +957,7 @@ def test_and_save_LTN_combine_model(folder_model_path, workbook_path = None):
     # Set the title as the folder_model_path
     sheet.merge_cells(f'A{base_row}:H{base_row}')  # Merge cells for title
     title_cell = sheet.cell(row=base_row, column=1)
-    title_cell.value = os.path.basename(folder_model_path)
+    title_cell.value = os.path.basename(config_folder_name)
     title_cell.font = openpyxl.styles.Font(bold=True, size=14)
 
 
@@ -1085,39 +1045,38 @@ if __name__ == '__main__':
     # test sending file to dropbox. If this code has error and stop training, change the tokenized to dropbox...
     # otherwise, the token work successfully
     test_dropbox()
-    if not training:
-        # here is the code to test and save ltn result in the google sheet
-        test_and_save_LTN_combine_model(folder_path, workbook_path)
-        exit()
-
-    else:
-        # here is the code for training
-        for beta in betas:
-            fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-                    initiate(lrs=lrs,
-                             combined=True,
-                             train=False,
-                             pretrained_path= pretrained_path,
-                             debug=False))
-            (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
-                 test_fine_accuracy, test_coarse_accuracy) = test_combined_model(fine_tuner=fine_tuners[0],
-                                                                                 loaders=loaders,
-                                                                                 loss="",
-                                                                                 device=devices[0])
-            for fine_tuner in fine_tuners:
-                    with context_handlers.ClearSession():
-                        fine_tune_combined_model(lrs=lrs,
-                                                 fine_tuner=fine_tuner,
-                                                 device=devices[0],
-                                                 loaders=loaders,
-                                                 num_fine_grain_classes=num_fine_grain_classes,
-                                                 num_coarse_grain_classes=num_coarse_grain_classes,
-                                                 loss=loss,
-                                                 ltn_num_epochs = ltn_num_epochs,
-                                                 beta=beta,
-                                                 save_files=True,
-                                                 debug=False)
-                        print('#' * 100)
+    # here is the code for training
+    # for beta in betas:
+    #     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+    #             initiate(lrs=lrs,
+    #                         combined=True,
+    #                         train=False,
+    #                         pretrained_path= pretrained_path,
+    #                         debug=False))
+    #     (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
+    #             test_fine_accuracy, test_coarse_accuracy) = test_combined_model(fine_tuner=fine_tuners[0],
+    #                                                                             loaders=loaders,
+    #                                                                             loss="",
+    #                                                                             device=devices[0])
+    #     for fine_tuner in fine_tuners:
+    #             with context_handlers.ClearSession():
+    #                 fine_tune_combined_model(lrs=lrs,
+    #                                             fine_tuner=fine_tuner,
+    #                                             device=devices[0],
+    #                                             loaders=loaders,
+    #                                             num_fine_grain_classes=num_fine_grain_classes,
+    #                                             num_coarse_grain_classes=num_coarse_grain_classes,
+    #                                             loss=loss,
+    #                                             ltn_num_epochs = ltn_num_epochs,
+    #                                             beta=beta,
+    #                                             save_files=True,
+    #                                             debug=False)
+    #                 print('#' * 100)
+    for loss in ["LTN_BCE", "LTN_soft_marginal"]:
+        for lr in [1e-04]:
+            for scheduler_step_size in [1, 2]:
+                for scheduler_gamma in [0.1, 0.3, 0.5, 0.8]:
+                    test_and_save_LTN_combine_prediction(loss, lr, scheduler_step_size, scheduler_gamma, "/Users/khoavo2003/cs224/metacognitive_error_detection_and_correction_v2/LTN_Combine_Results.xlsx")
     
 
 
