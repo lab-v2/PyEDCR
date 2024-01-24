@@ -776,7 +776,7 @@ def run_EDCR_pipeline(main_lr,
 
 
 if __name__ == '__main__':
-    combined = True
+    combined = False
     conditions_from_main = False
     print(utils.red_text(f'\nconditions_from_secondary={not conditions_from_main}, '
                          f'conditions_from_main={conditions_from_main}\n' +
