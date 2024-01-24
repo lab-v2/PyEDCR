@@ -239,3 +239,19 @@ def test_and_save_LTN_combine_prediction(loss, lr, scheduler_step_size, schedule
 
     # Save the Excel file
     workbook.save(workbook_path)
+
+if __name__ == '__main__':
+    for loss in ["LTN_BCE", "LTN_soft_marginal"]:
+        for lr in [1e-04]:
+            for scheduler_step_size in [1, 2]:
+                for scheduler_gamma in [0.1, 0.3, 0.5, 0.8]:
+                    test_and_save_LTN_combine_prediction(loss, lr, scheduler_step_size, scheduler_gamma, "/Users/khoavo2003/cs224/metacognitive_error_detection_and_correction_v2/LTN_Combine_Results.xlsx")
+    
+
+
+
+
+
+
+    
+
