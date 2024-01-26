@@ -313,7 +313,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
 
     for epoch in range(num_epochs):
         print(f"Current fine lr={fine_optimizer.param_groups[0]['lr']}")
-        print(f"Current coarse lr={coarse_scheduler.param_groups[0]['lr']}")
+        print(f"Current coarse lr={coarse_optimizer.param_groups[0]['lr']}")
 
         with context_handlers.TimeWrapper():
             running_fine_loss = 0.0
