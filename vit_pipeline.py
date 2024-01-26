@@ -20,7 +20,7 @@ files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
 combined_results_path = fr'{files_path}combined_results/'
 individual_results_path = fr'{files_path}individual_results/'
 cwd = pathlib.Path(__file__).parent.resolve()
-scheduler_step_size = num_epochs
+scheduler_step_size = 1
 
 
 def print_num_inconsistencies(fine_labels: np.array,
