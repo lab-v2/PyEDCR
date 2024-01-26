@@ -312,6 +312,9 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
           f'for {num_epochs} epochs on {device_1} and {device_2}...')
 
     for epoch in range(num_epochs):
+        print(f"Current fine lr={fine_optimizer.param_groups[0]['lr']}")
+        print(f"Current coarse lr={coarse_scheduler.param_groups[0]['lr']}")
+
         with context_handlers.TimeWrapper():
             running_fine_loss = 0.0
             running_coarse_loss = 0.0
@@ -481,6 +484,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
         for epoch in range(epochs):
             print(f"Current lr={optimizer.param_groups[0]['lr']}")
+
             with context_handlers.TimeWrapper():
                 total_running_loss = torch.Tensor([0.0]).to(device)
                 running_fine_loss = torch.Tensor([0.0]).to(device)

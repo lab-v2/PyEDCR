@@ -4,7 +4,7 @@ import utils
 
 
 def run():
-    vit_pipeline.run_combined_fine_tuning_pipeline(lrs=[0.001],
+    vit_pipeline.run_combined_fine_tuning_pipeline(lrs=[0.0001],
                                                    loss='soft_marginal')
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
