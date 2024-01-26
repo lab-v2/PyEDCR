@@ -16,7 +16,6 @@ import data_preprocessing
 import context_handlers
 
 figs_folder = 'figs/'
-results_file = "rule_for_NPcorrection.csv"
 
 main_model_name = 'vit_b_16'
 # main_lr = 0.0001
@@ -700,8 +699,8 @@ def run_EDCR_for_granularity(main_lr,
         col = ['pre', 'recall', 'F1', 'NSC', 'PSC', 'NRC', 'PRC']
         df = pd.DataFrame(results, columns=['epsilon'] + col * len(classes) + ['acc', 'macro-F1', 'micro-F1'])
 
-        df.to_csv(results_file)
-        df = pd.read_csv(results_file)
+        # df.to_csv(results_file)
+        # df = pd.read_csv(results_file)
 
         folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
                   # f'_secondary_{secondary_model_name}_lr{secondary_lr}'
@@ -788,4 +787,4 @@ if __name__ == '__main__':
                       conditions_from_secondary=not conditions_from_main,
                       conditions_from_main=conditions_from_main,
                       consistency_constraints=True,
-                      multiprocessing=True)
+                      multiprocessing=False)
