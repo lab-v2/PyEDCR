@@ -234,7 +234,6 @@ def ruleForNPCorrection_worker(i: int,
                                total_results: multiprocessing.managers.ListProxy,
                                shared_index: multiprocessing.managers.ValueProxy,
                                error_detections: multiprocessing.managers.DictProxy,
-                               corrections: multiprocessing.managers.DictProxy,
                                consistency_constraints_for_main_model: dict[str, set]
                                ):
     chart = np.array(chart)
@@ -323,10 +322,8 @@ def ruleForNPCorrectionMP(all_charts: list[list],
     manager = mp.Manager()
     shared_results = manager.list(pred_data)
     error_detections = manager.dict({})
-    corrections = manager.dict({})
     shared_index = manager.Value('i', 0)
 
-    # Create argument tuples for each process
     args_list = [(i,
                   chart,
                   epsilon,
@@ -336,7 +333,6 @@ def ruleForNPCorrectionMP(all_charts: list[list],
                   shared_results,
                   shared_index,
                   error_detections,
-                  corrections,
                   consistency_constraints_for_main_model)
                  for i, chart in enumerate(all_charts)]
 
@@ -350,11 +346,8 @@ def ruleForNPCorrectionMP(all_charts: list[list],
     shared_results = np.array(list(shared_results))
     error_detections_values = np.array(list(dict(error_detections).values()))
 
-    # if main_granularity == 'coarse':
-    # print(error_detections)
     error_detections_mean = np.mean(error_detections_values)
     print(f'Mean error detections found for {main_granularity}-grain: {error_detections_mean}')
-    # corrections = dict(corrections)
 
     results = [item for sublist in results for item in sublist]
 
@@ -378,49 +371,50 @@ def ruleForNPCorrection(all_charts: list,
     print(len(all_charts))
 
     for i, chart in enumerate(all_charts):
-        chart = np.array(chart)
-        NCi = GreedyNegRuleSelect(i=i,
-                                  epsilon=epsilon,
-                                  all_charts=all_charts)
-        neg_i_count = 0
-        pos_i_count = 0
+        with ((context_handlers.TimeWrapper(s=f'Class {i} is done'))):
+            chart = np.array(chart)
+            NCi = GreedyNegRuleSelect(i=i,
+                                      epsilon=epsilon,
+                                      all_charts=all_charts)
+            neg_i_count = 0
+            pos_i_count = 0
 
-        predict_result = np.copy(chart[:, 0])
-        tem_cond = np.zeros_like(chart[:, 0])
+            predict_result = np.copy(chart[:, 0])
+            tem_cond = np.zeros_like(chart[:, 0])
 
-        for cc in NCi:
-            tem_cond |= chart[:, cc]
+            for cc in NCi:
+                tem_cond |= chart[:, cc]
 
-        if np.sum(tem_cond) > 0:
-            for ct, cv in enumerate(chart):
-                if tem_cond[ct] and predict_result[ct]:
-                    neg_i_count += 1
-                    predict_result[ct] = 0
+            if np.sum(tem_cond) > 0:
+                for ct, cv in enumerate(chart):
+                    if tem_cond[ct] and predict_result[ct]:
+                        neg_i_count += 1
+                        predict_result[ct] = 0
 
-        CCi = DetUSMPosRuleSelect(i=i,
-                                  all_charts=all_charts) if run_positive_rules else []
-        tem_cond = np.zeros_like(chart[:, 0])
+            CCi = DetUSMPosRuleSelect(i=i,
+                                      all_charts=all_charts) if run_positive_rules else []
+            tem_cond = np.zeros_like(chart[:, 0])
 
-        for cc in CCi:
-            tem_cond |= chart[:, cc]
+            for cc in CCi:
+                tem_cond |= chart[:, cc]
 
-        if np.sum(tem_cond) > 0:
-            for ct, cv in enumerate(chart):
-                if tem_cond[ct] and not predict_result[ct]:
-                    pos_i_count += 1
-                    predict_result[ct] = 1
-                    total_results[ct] = i
+            if np.sum(tem_cond) > 0:
+                for ct, cv in enumerate(chart):
+                    if tem_cond[ct] and not predict_result[ct]:
+                        pos_i_count += 1
+                        predict_result[ct] = 1
+                        total_results[ct] = i
 
-        scores_cor = get_scores(chart[:, 1], predict_result)
-        results.extend(scores_cor + [neg_i_count,
-                                     pos_i_count,
-                                     len(NCi),
-                                     len(CCi)])
+            scores_cor = get_scores(chart[:, 1], predict_result)
+            results.extend(scores_cor + [neg_i_count,
+                                         pos_i_count,
+                                         len(NCi),
+                                         len(CCi)])
 
     results.extend(get_scores(true_data, total_results))
     posterior_acc = accuracy_score(true_data, total_results)
 
-    return results, posterior_acc, total_results
+    return results, posterior_acc, total_results, None
 
 
 def plot(df: pd.DataFrame,
@@ -760,10 +754,12 @@ def run_EDCR_pipeline(main_lr,
                                      multiprocessing=multiprocessing,
                                      consistency_constraints_for_main_model=consistency_constraints_for_main_model))
         pipeline_results[main_granularity] = res[0]
-        error_detections += [res[1]]
+        if multiprocessing:
+            error_detections += [res[1]]
 
-    error_detections = np.mean(np.array(error_detections))
-    print(utils.green_text(f'Mean error detections found {np.mean(error_detections)}'))
+    if multiprocessing:
+        error_detections = np.mean(np.array(error_detections))
+        print(utils.green_text(f'Mean error detections found {np.mean(error_detections)}'))
 
     vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
                                        coarse_predictions=pipeline_results['coarse'],

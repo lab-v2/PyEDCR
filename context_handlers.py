@@ -94,11 +94,15 @@ class WrapTQDM(Context):
 
 
 class TimeWrapper(Context):
-    def __init__(self):
-        pass
+    def __init__(self,
+                 s: str = None):
+        self.s = s
 
     def __enter__(self):
         self.start = time.time()
 
     def __exit__(self, exc_type, exc_value, exc_tb):
+        if self.s is not None:
+            print(self.s)
+
         print(f'Total time: {utils.format_seconds(int(time.time() - self.start))}')
