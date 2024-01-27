@@ -3,7 +3,7 @@ import sys
 import pathlib
 import datetime
 from typing import Union
-
+from math import floor
 
 
 
@@ -20,11 +20,11 @@ def format_seconds(seconds: int):
 
     # Create the formatted string
     if hours > 0:
-        return f"{int(hours)} hour{'s' if hours > 1 else ''}"
+        return f"{floor(hours)} hour{'s' if hours > 1 else ''}"
     elif minutes > 0:
-        return f"{int(minutes)} minute{'s' if minutes > 1 else ''}"
+        return f"{floor(minutes)} minute{'s' if minutes > 1 else ''}"
     else:
-        return f"{int(seconds)} second{'s' if seconds > 1 else ''}"
+        return f"{floor(seconds)} second{'s' if seconds > 1 else ''}"
 
 
 # Function to create a directory if it doesn't exist
