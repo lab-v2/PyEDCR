@@ -13,7 +13,7 @@
 
 # What is this?
 
-[`PyEDCR`](https://github.com/lab-v2/metacognitive_error_detection_and_correction_v2/tree/master) is a Python implementation of Error Detection and Correction Rules. The goal of PyEDCR is to use a set of conditions to learn when a machine learning model makes an incorrect prediction and to fix it to the correct prediction. The theoretical foundations and formulations were given in:
+[`PyEDCR`](https://github.com/lab-v2/metacognitive_error_detection_and_correction_v2/tree/master) is a Python implementation of Error Detection and Correction Rules. Given a machine learning model,PyEDCR will use a set of conditions to detect when the model is making false predictions and another set of conditions to correct the errors to predict the right class. The theoretical foundations and formulations were given in:
 - https://arxiv.org/pdf/2308.14250.pdf
 
 # Installation
