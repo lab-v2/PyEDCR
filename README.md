@@ -31,22 +31,21 @@ The package was tested for Python >= 3.10, along with the listed packages versio
 To demonstrate the use of the package, we provide running examples. The main function of this package is run_EDCR_pipeline from the EDCR_pipeline module. 
 
 ```python
-from EDCR_pipeline import run_EDCR_pipeline
+from PyEDCR.EDCR_pipeline import run_EDCR_pipeline
 
-if __name__ == '__main__':
-    combined = False
-    conditions_from_main = True
-    print(utils.red_text(f'\nconditions_from_secondary={not conditions_from_main}, '
-                         f'conditions_from_main={conditions_from_main}\n' +
-                         f'combined={combined}\n' + '#' * 100 + '\n'))
+combined = False
+conditions_from_main = True
+print(utils.red_text(f'\nconditions_from_secondary={not conditions_from_main}, '
+                     f'conditions_from_main={conditions_from_main}\n' +
+                     f'combined={combined}\n' + '#' * 100 + '\n'))
 
-    run_EDCR_pipeline(main_lr=0.0001,
-                      combined=combined,
-                      loss='soft_marginal',
-                      conditions_from_secondary=not conditions_from_main,
-                      conditions_from_main=conditions_from_main,
-                      consistency_constraints=True,
-                      multiprocessing=True)
+run_EDCR_pipeline(main_lr=0.0001,
+                  combined=combined,
+                  loss='soft_marginal',
+                  conditions_from_secondary=not conditions_from_main,
+                  conditions_from_main=conditions_from_main,
+                  consistency_constraints=True,
+                  multiprocessing=True)
 ```
 Here, 'main_lr' refers to the learning rate of the model in question. 'combined' is a flag for individual vs combined models. Combined models predict both fine and coarse grain while individual predicts one or the other. 'loss' refers to the specified loss. In our development, we used soft_marginal and BCE. 'conditions_from_main' specifies where the conditions for EDCR come from. If 'conditions_from_main' is true, a combined model will use it's own predictions as conditions for EDCR. If false, conditions will be from another model. 'consistency_constraints' is a flag to print the information for the recovered constraints and the mean constraints among all fine and coarse classes. 'multiprocessing' is used to enable multiprocessing. 
 
