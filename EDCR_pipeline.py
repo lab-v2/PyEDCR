@@ -783,4 +783,4 @@ if __name__ == '__main__':
                       conditions_from_secondary=not conditions_from_main,
                       conditions_from_main=conditions_from_main,
                       consistency_constraints=True,
-                      multiprocessing=False)
+                      multiprocessing=True)
