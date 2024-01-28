@@ -36,3 +36,17 @@ def run():
     #                                         conditions_from_main=conditions_from_main,
     #                                         consistency_constraints=True,
     #                                         multiprocessing=True)
+
+    combined = False
+    conditions_from_main = True
+    print(utils.red_text(f'\nconditions_from_secondary={not conditions_from_main}, '
+                         f'conditions_from_main={conditions_from_main}\n' +
+                         f'combined={combined}\n' + '#' * 100 + '\n'))
+
+    EDCR_pipeline.run_EDCR_pipeline(main_lr=0.0001,
+                                    combined=combined,
+                                    loss='soft_marginal',
+                                    conditions_from_secondary=not conditions_from_main,
+                                    conditions_from_main=conditions_from_main,
+                                    consistency_constraints=True,
+                                    multiprocessing=False)
