@@ -49,7 +49,7 @@ run_EDCR_pipeline(main_lr=0.0001,
 ```
 Here, 'main_lr' refers to the learning rate of the model in question. 'combined' is a flag for individual vs combined models. Combined models predict both fine and coarse grain while individual predicts one or the other. 'loss' refers to the specified loss. In our development, we used soft_marginal and BCE. 'conditions_from_main' specifies where the conditions for EDCR come from. If 'conditions_from_main' is true, a combined model will use it's own predictions as conditions for EDCR. If false, conditions will be from another model. 'consistency_constraints' is a flag to print the information for the recovered constraints and the mean constraints among all fine and coarse classes. 'multiprocessing' is used to enable multiprocessing. 
 
-To specify a model for EDCR, predictions from the model to be improved must be specified. Main and Secondary fine and coarse paths should be changed in the load_priors function under EDCR_pipeline to work with the user's paths. Below is the implementation of our model predictions were loaded.
+To specify a model for EDCR, predictions from the model to be improved must be specified in the form of numpy arrays. Main and Secondary fine and coarse paths should be changed in the load_priors function under EDCR_pipeline to work with the user's paths. Below is the implementation of how our model predictions were loaded.
 
 ```python
 
