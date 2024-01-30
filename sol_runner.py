@@ -4,8 +4,16 @@ import utils
 
 
 def run():
-    vit_pipeline.run_combined_fine_tuning_pipeline(lrs=[0.0001],
-                                                   loss='soft_marginal')
+    combined = False
+    print(utils.red_text(f'combined={combined}\n' + '#' * 100 + '\n'))
+
+    EDCR_pipeline.run_EDCR_pipeline(main_lr=0.0001,
+                                    combined=combined,
+                                    loss='soft_marginal',
+                                    consistency_constraints=True,
+                                    multiprocessing=True)
+    # vit_pipeline.run_combined_fine_tuning_pipeline(lrs=[0.0001],
+    #                                                loss='soft_marginal')
     # vit_pipeline.run_individual_fine_tuning_pipeline()
 
     # vit_pipeline.run_combined_testing_pipeline(pretrained_path='vit_b_16_lr0.0001.pth')

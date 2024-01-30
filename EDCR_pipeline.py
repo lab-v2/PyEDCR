@@ -769,7 +769,6 @@ def run_EDCR_pipeline(main_lr,
 
 if __name__ == '__main__':
     combined = False
-    conditions_from_main = True
     print(utils.red_text(f'combined={combined}\n' + '#' * 100 + '\n'))
 
     run_EDCR_pipeline(main_lr=0.0001,
