@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 import multiprocessing as mp
 import multiprocessing.managers
+import typing
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -589,13 +590,12 @@ def get_conditions_data(main_fine_data: np.array,
     return condition_datas
 
 
-def run_EDCR_for_granularity(main_lr,
+def run_EDCR_for_granularity(combined: bool,
+                             main_lr: typing.Union[str, float],
                              main_granularity: str,
                              main_fine_data: np.array,
                              main_coarse_data: np.array,
                              condition_datas: dict[str, dict[str, np.array]],
-                             conditions_from_secondary: bool,
-                             conditions_from_main: bool,
                              consistency_constraints: bool,
                              multiprocessing: bool,
                              consistency_constraints_for_main_model: dict[str, set]) -> np.array:
@@ -626,7 +626,7 @@ def run_EDCR_for_granularity(main_lr,
                        # +
                        # get_unary_condition_values(example_index=example_index,
                        #                            cla_datas=condition_datas['main']['fine_to_coarse'])
-                   ) if conditions_from_main else [])
+                   ) if combined else [])
                   +
                   (
                       (
@@ -644,7 +644,7 @@ def run_EDCR_for_granularity(main_lr,
                           # get_unary_condition_values(example_index=example_index,
                           #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
                       )
-                      if conditions_from_secondary else [])
+                      if not combined else [])
                   for example_index in range(examples_num)]
 
         all_charts = generate_chart(n_classes=len(classes),
@@ -727,8 +727,6 @@ def run_EDCR_for_granularity(main_lr,
 def run_EDCR_pipeline(main_lr,
                       combined: bool,
                       loss: str,
-                      conditions_from_secondary: bool,
-                      conditions_from_main: bool,
                       consistency_constraints: bool,
                       multiprocessing: bool = True):
     (main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data,
@@ -743,13 +741,12 @@ def run_EDCR_pipeline(main_lr,
 
     for main_granularity in data_preprocessing.granularities:
         res = (
-            run_EDCR_for_granularity(main_lr=main_lr,
+            run_EDCR_for_granularity(combined=combined,
+                                     main_lr=main_lr,
                                      main_granularity=main_granularity,
                                      main_fine_data=main_fine_data,
                                      main_coarse_data=main_coarse_data,
                                      condition_datas=condition_datas,
-                                     conditions_from_secondary=conditions_from_secondary,
-                                     conditions_from_main=conditions_from_main,
                                      consistency_constraints=consistency_constraints,
                                      multiprocessing=multiprocessing,
                                      consistency_constraints_for_main_model=consistency_constraints_for_main_model))
@@ -773,14 +770,10 @@ def run_EDCR_pipeline(main_lr,
 if __name__ == '__main__':
     combined = False
     conditions_from_main = True
-    print(utils.red_text(f'\nconditions_from_secondary={not conditions_from_main}, '
-                         f'conditions_from_main={conditions_from_main}\n' +
-                         f'combined={combined}\n' + '#' * 100 + '\n'))
+    print(utils.red_text(f'combined={combined}\n' + '#' * 100 + '\n'))
 
     run_EDCR_pipeline(main_lr=0.0001,
                       combined=combined,
                       loss='soft_marginal',
-                      conditions_from_secondary=not conditions_from_main,
-                      conditions_from_main=conditions_from_main,
                       consistency_constraints=True,
                       multiprocessing=True)
