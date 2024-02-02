@@ -439,9 +439,9 @@ def plot(df: pd.DataFrame,
         df_i = df.iloc[1:, 2 + i * col_num:2 + (i + 1) * col_num]
 
         added_str = f'.{i}' if i else ''
-        precision_i = df_i[f'pre{added_str}']
-        recall_i = df_i[f'recall{added_str}']
-        f1_score_i = df_i[f'F1{added_str}']
+        precision_i = df_i[f'pre']
+        recall_i = df_i[f'recall']
+        f1_score_i = df_i[f'F1']
 
         average_precision += float(precision_i)
         average_recall += float(recall_i)
@@ -708,8 +708,6 @@ def run_EDCR_for_granularity(combined: bool,
         #      main_granularity=main_granularity,
         #      main_model_name=main_model_name,
         #      main_lr=main_lr,
-        #      secondary_model_name=secondary_model_name,
-        #      secondary_lr=secondary_lr,
         #      folder=folder)
 
         np.save(f'{folder}/results.npy', total_results)
