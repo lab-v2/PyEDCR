@@ -501,7 +501,8 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
 
 def load_priors(main_lr,
                 loss: str,
-                combined: bool) -> (np.array, np.array):
+                combined: bool,
+                baseline: bool) -> (np.array, np.array):
     loss_str = f'{loss}_' if (loss == 'soft_marginal' and combined) else ''
     if combined:
         main_model_fine_path = f'{main_model_name}_{loss_str}test_fine_pred_lr{main_lr}_e{epochs_num - 1}.npy'
@@ -590,6 +591,7 @@ def get_conditions_data(main_fine_data: np.array,
 
 
 def run_EDCR_for_granularity(main_lr,
+                             combined: bool,
                              main_granularity: str,
                              main_fine_data: np.array,
                              main_coarse_data: np.array,
@@ -696,9 +698,16 @@ def run_EDCR_for_granularity(main_lr,
         # df.to_csv(results_file)
         # df = pd.read_csv(results_file)
 
-        folder = (f'{figs_folder}/main_{main_granularity}_{main_model_name}_lr{main_lr}'
-                  # f'_secondary_{secondary_model_name}_lr{secondary_lr}'
-                  )
+        if combined:
+            folder = (f'{figs_folder}/combined_main_{main_granularity}_{main_model_name}_lr{main_lr}'
+                      # f'_secondary_{secondary_model_name}_lr{secondary_lr}'
+                      )
+
+        else:
+            folder = (f'{figs_folder}/individual_main_{main_granularity}_{main_model_name}_lr{main_lr}'
+                      # f'_secondary_{secondary_model_name}_lr{secondary_lr}'
+                      )
+
         utils.create_directory(folder)
 
         # plot(df=df,
@@ -730,7 +739,8 @@ def run_EDCR_pipeline(main_lr,
                       conditions_from_secondary: bool,
                       conditions_from_main: bool,
                       consistency_constraints: bool,
-                      multiprocessing: bool = True):
+                      multiprocessing: bool = True,
+                      baseline: bool = True):
     (main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data,
      consistency_constraints_for_main_model) = load_priors(main_lr=main_lr,
                                                            loss=loss,
@@ -744,6 +754,7 @@ def run_EDCR_pipeline(main_lr,
     for main_granularity in data_preprocessing.granularities:
         res = (
             run_EDCR_for_granularity(main_lr=main_lr,
+                                     combined=combined,
                                      main_granularity=main_granularity,
                                      main_fine_data=main_fine_data,
                                      main_coarse_data=main_coarse_data,
