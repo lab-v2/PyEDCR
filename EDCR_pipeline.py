@@ -518,7 +518,7 @@ def load_priors(main_lr,
 
     else:
         main_model_fine_path = f'{figs_folder}{combined_str}_main_fine_{main_model_name}_lr{main_lr}/results.npy'
-        main_model_coarse_path = f'{figs_folder}{combined_str}_main_fine_{main_model_name}_lr{main_lr}/results.npy'
+        main_model_coarse_path = f'{figs_folder}{combined_str}_main_coarse_{main_model_name}_lr{main_lr}/results.npy'
 
     path = vit_pipeline.combined_results_path if combined else vit_pipeline.individual_results_path
 
