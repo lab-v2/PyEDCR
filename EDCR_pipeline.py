@@ -517,8 +517,8 @@ def load_priors(main_lr,
                                   f'_coarse_individual.npy')
 
     else:
-        main_model_fine_path = f'{figs_folder}/{combined_str}_main_fine_{main_model_name}_lr{main_lr}/results.npy'
-        main_model_coarse_path = f'{figs_folder}/{combined_str}_coarse_fine_{main_model_name}_lr{main_lr}/results.npy'
+        main_model_fine_path = f'{figs_folder}{combined_str}_main_fine_{main_model_name}_lr{main_lr}/results.npy'
+        main_model_coarse_path = f'{figs_folder}{combined_str}_coarse_fine_{main_model_name}_lr{main_lr}/results.npy'
 
     path = vit_pipeline.combined_results_path if combined else vit_pipeline.individual_results_path
 
@@ -527,8 +527,9 @@ def load_priors(main_lr,
     secondary_model_coarse_path = (f'{secondary_model_name}_test_coarse_pred_lr{secondary_lr}'
                                    f'_e9.npy')
 
-    main_fine_data = np.load(os.path.join(path, main_model_fine_path))
-    main_coarse_data = np.load(os.path.join(path, main_model_coarse_path))
+    main_fine_data = np.load(os.path.join(path, main_model_fine_path)) if baseline else np.load(main_model_fine_path)
+    main_coarse_data = np.load(os.path.join(path, main_model_coarse_path)) if baseline else np.load(
+        main_model_coarse_path)
 
     secondary_fine_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_fine_path))
     secondary_coarse_data = np.load(os.path.join(vit_pipeline.combined_results_path, secondary_model_coarse_path))
