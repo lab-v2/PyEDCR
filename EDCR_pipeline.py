@@ -502,7 +502,7 @@ def rearrange_for_condition_values(arr: np.array) -> np.array:
 def load_priors(main_lr,
                 loss: str,
                 combined: bool,
-                baseline: bool) -> (np.array, np.array):
+                baseline: bool = True) -> (np.array, np.array):
     loss_str = f'{loss}_' if (loss == 'soft_marginal' and combined) else ''
     if combined:
         main_model_fine_path = f'{main_model_name}_{loss_str}test_fine_pred_lr{main_lr}_e{epochs_num - 1}.npy'
@@ -744,7 +744,8 @@ def run_EDCR_pipeline(main_lr,
     (main_fine_data, main_coarse_data, secondary_fine_data, secondary_coarse_data,
      consistency_constraints_for_main_model) = load_priors(main_lr=main_lr,
                                                            loss=loss,
-                                                           combined=combined)
+                                                           combined=combined,
+                                                           baseline=baseline)
     condition_datas = get_conditions_data(main_fine_data=main_fine_data,
                                           main_coarse_data=main_coarse_data,
                                           secondary_fine_data=secondary_fine_data)
