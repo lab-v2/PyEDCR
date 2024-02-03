@@ -517,8 +517,8 @@ def load_priors(main_lr,
                                   f'_coarse_individual.npy')
 
     else:
-        main_model_fine_path = f'{figs_folder}{combined_str}_main_fine_{main_model_name}_lr{main_lr}/results.npy'
-        main_model_coarse_path = f'{figs_folder}{combined_str}_main_coarse_{main_model_name}_lr{main_lr}/results.npy'
+        main_model_fine_path = f'{figs_folder}{combined_str}_{loss}_main_fine_{main_model_name}_lr{main_lr}/results.npy'
+        main_model_coarse_path = f'{figs_folder}{combined_str}_{loss}_main_coarse_{main_model_name}_lr{main_lr}/results.npy'
 
     path = vit_pipeline.combined_results_path if combined else vit_pipeline.individual_results_path
 
@@ -599,6 +599,7 @@ def get_conditions_data(main_fine_data: np.array,
 
 
 def run_EDCR_for_granularity(main_lr,
+                             loss: str,
                              combined: bool,
                              main_granularity: str,
                              main_fine_data: np.array,
@@ -707,12 +708,12 @@ def run_EDCR_for_granularity(main_lr,
         # df = pd.read_csv(results_file)
 
         if combined:
-            folder = (f'{figs_folder}/combined_main_{main_granularity}_{main_model_name}_lr{main_lr}'
+            folder = (f'{figs_folder}/combined_{loss}_main_{main_granularity}_{main_model_name}_lr{main_lr}'
                       # f'_secondary_{secondary_model_name}_lr{secondary_lr}'
                       )
 
         else:
-            folder = (f'{figs_folder}/individual_main_{main_granularity}_{main_model_name}_lr{main_lr}'
+            folder = (f'{figs_folder}/individual_{loss}_main_{main_granularity}_{main_model_name}_lr{main_lr}'
                       # f'_secondary_{secondary_model_name}_lr{secondary_lr}'
                       )
 
@@ -763,6 +764,7 @@ def run_EDCR_pipeline(main_lr,
     for main_granularity in data_preprocessing.granularities:
         res = (
             run_EDCR_for_granularity(main_lr=main_lr,
+                                     loss=loss,
                                      combined=combined,
                                      main_granularity=main_granularity,
                                      main_fine_data=main_fine_data,
