@@ -504,14 +504,21 @@ def load_priors(main_lr,
                 combined: bool,
                 baseline: bool = True) -> (np.array, np.array):
     loss_str = f'{loss}_' if (loss == 'soft_marginal' and combined) else ''
-    if combined:
+    combined_str = 'combined' if combined else 'individual'
+
+    if baseline and combined:
         main_model_fine_path = f'{main_model_name}_{loss_str}test_fine_pred_lr{main_lr}_e{epochs_num - 1}.npy'
         main_model_coarse_path = f'{main_model_name}_{loss_str}test_coarse_pred_lr{main_lr}_e{epochs_num - 1}.npy'
-    else:
+
+    elif baseline and not combined:
         main_model_fine_path = (f'{main_model_name}_{loss_str}test_pred_lr{main_lr}_e{epochs_num - 1}'
                                 f'_fine_individual.npy')
         main_model_coarse_path = (f'{main_model_name}_{loss_str}test_pred_lr{main_lr}_e{epochs_num - 1}'
                                   f'_coarse_individual.npy')
+
+    else:
+        main_model_fine_path = f'{figs_folder}/{combined_str}_main_fine_{main_model_name}_lr{main_lr}/results.npy'
+        main_model_coarse_path = f'{figs_folder}/{combined_str}_coarse_fine_{main_model_name}_lr{main_lr}/results.npy'
 
     path = vit_pipeline.combined_results_path if combined else vit_pipeline.individual_results_path
 
