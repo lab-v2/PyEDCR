@@ -23,38 +23,38 @@ cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = 1
 
 
-def print_num_inconsistencies(fine_labels: np.array,
-                              coarse_labels: np.array,
+def print_num_inconsistencies(pred_fine_data: np.array,
+                              pred_coarse_data: np.array,
                               prior: bool = True):
-    inconsistencies = data_preprocessing.get_num_inconsistencies(fine_labels=fine_labels,
-                                                                 coarse_labels=coarse_labels)
+    inconsistencies = data_preprocessing.get_num_inconsistencies(fine_labels=pred_fine_data,
+                                                                 coarse_labels=pred_coarse_data)
 
     print(f"Total {'prior' if prior else 'post'} inconsistencies "
-          f"{utils.red_text(inconsistencies)}/{utils.red_text(len(fine_labels))} "
-          f'({utils.red_text(round(inconsistencies / len(fine_labels) * 100, 2))}%)')
+          f"{utils.red_text(inconsistencies)}/{utils.red_text(len(pred_fine_data))} "
+          f'({utils.red_text(round(inconsistencies / len(pred_fine_data) * 100, 2))}%)')
 
 
-def get_and_print_metrics(fine_predictions: np.array,
-                          coarse_predictions: np.array,
+def get_and_print_metrics(pred_fine_data: np.array,
+                          pred_coarse_data: np.array,
                           loss: str,
-                          true_fine_data: np.array = data_preprocessing.true_fine_data,
-                          true_coarse_data: np.array = data_preprocessing.true_coarse_data,
+                          true_fine_data: np.array,
+                          true_coarse_data: np.array,
                           prior: bool = True,
                           combined: bool = True,
                           model_name: str = '',
                           lr: typing.Union[str, float] = ''):
-    test_fine_accuracy = accuracy_score(y_true=true_fine_data,
-                                        y_pred=fine_predictions)
-    test_coarse_accuracy = accuracy_score(y_true=true_coarse_data,
-                                          y_pred=coarse_predictions)
-    test_fine_f1 = f1_score(y_true=true_fine_data,
-                            y_pred=fine_predictions,
-                            labels=range(len(data_preprocessing.fine_grain_classes)),
-                            average='macro')
-    test_coarse_f1 = f1_score(y_true=true_coarse_data,
-                              y_pred=coarse_predictions,
-                              labels=range(len(data_preprocessing.coarse_grain_classes)),
-                              average='macro')
+    fine_accuracy = accuracy_score(y_true=true_fine_data,
+                                   y_pred=pred_fine_data)
+    coarse_accuracy = accuracy_score(y_true=true_coarse_data,
+                                     y_pred=pred_coarse_data)
+    fine_f1 = f1_score(y_true=true_fine_data,
+                       y_pred=pred_fine_data,
+                       labels=range(len(data_preprocessing.fine_grain_classes)),
+                       average='macro')
+    coarse_f1 = f1_score(y_true=true_coarse_data,
+                         y_pred=pred_coarse_data,
+                         labels=range(len(data_preprocessing.coarse_grain_classes)),
+                         average='macro')
 
     prior_str = 'prior' if prior else 'post'
     combined_str = 'combined' if combined else 'individual'
@@ -62,18 +62,18 @@ def get_and_print_metrics(fine_predictions: np.array,
     print((f'Main model name: {utils.blue_text(model_name)} ' if model_name != '' else '') +
           f'with {utils.blue_text(loss)} loss\n' +
           (f'with lr={utils.blue_text(lr)}\n' if lr != '' else '') +
-          f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(test_fine_accuracy * 100, 2))}%'
-          f', fine-grain {prior_str} {combined_str} average f1: {utils.green_text(round(test_fine_f1 * 100, 2))}%'
+          f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(fine_accuracy * 100, 2))}%'
+          f', fine-grain {prior_str} {combined_str} average f1: {utils.green_text(round(fine_f1 * 100, 2))}%'
           f'\nCoarse-grain {prior_str} {combined_str} accuracy: '
-          f'{utils.green_text(round(test_coarse_accuracy * 100, 2))}%'
+          f'{utils.green_text(round(coarse_accuracy * 100, 2))}%'
           f', coarse-grain {prior_str} {combined_str} average f1: '
-          f'{utils.green_text(round(test_coarse_f1 * 100, 2))}%\n')
+          f'{utils.green_text(round(coarse_f1 * 100, 2))}%\n')
 
-    print_num_inconsistencies(fine_labels=fine_predictions,
-                              coarse_labels=coarse_predictions,
+    print_num_inconsistencies(pred_fine_data=pred_fine_data,
+                              pred_coarse_data=pred_coarse_data,
                               prior=prior)
 
-    return test_fine_accuracy, test_coarse_accuracy
+    return fine_accuracy, coarse_accuracy
 
 
 def save_prediction_files(test: bool,
@@ -117,8 +117,6 @@ def save_prediction_files(test: bool,
         #             fine_ground_truths)
 
 
-
-
 def evaluate_individual_models(fine_tuners: list[models.FineTuner],
                                loaders: dict[str, torch.utils.data.DataLoader],
                                devices: list[torch.device],
@@ -136,44 +134,48 @@ def evaluate_individual_models(fine_tuners: list[models.FineTuner],
     fine_prediction = []
     coarse_prediction = []
 
-    fine_ground_truth = []
-    coarse_ground_truth = []
+    true_fine_data = []
+    true_coarse_data = []
 
     name_list = []
 
     print(f'Started testing...')
 
-    with torch.no_grad():
+    with (torch.no_grad()):
         if utils.is_local():
             from tqdm import tqdm
-            gen = tqdm(enumerate(loader), total=len(loader))
+            gen = tqdm(enumerate(loader),
+                       total=len(loader))
         else:
             gen = enumerate(loader)
 
         for i, data in gen:
-            X, Y_fine_grain, names, Y_coarse_grain = data[0], data[1].to(device_1), data[2], data[3].to(device_2)
+            batch_examples, batch_true_fine_data, batch_names, batch_true_coarse_data = \
+                data[0], data[1].to(device_1), data[2], data[3].to(device_2)
 
-            Y_pred_fine_grain = fine_fine_tuner(X.to(device_1))
-            Y_pred_coarse_grain = coarse_fine_tuner(X.to(device_2))
+            pred_fine_data = fine_fine_tuner(batch_examples.to(device_1))
+            pred_coarse_data = coarse_fine_tuner(batch_examples.to(device_2))
 
-            predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
-            predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
+            predicted_fine = torch.max(pred_fine_data, 1)[1]
+            predicted_coarse = torch.max(pred_coarse_data, 1)[1]
 
-            fine_ground_truth += Y_fine_grain.tolist()
-            coarse_ground_truth += Y_coarse_grain.tolist()
+            true_fine_data += batch_true_fine_data.tolist()
+            true_coarse_data += batch_true_coarse_data.tolist()
 
             fine_prediction += predicted_fine.tolist()
             coarse_prediction += predicted_coarse.tolist()
 
-            name_list += names
+            name_list += batch_names
 
     fine_accuracy, coarse_accuracy = (
-        get_and_print_metrics(fine_predictions=fine_prediction,
-                              coarse_predictions=coarse_prediction,
+        get_and_print_metrics(pred_fine_data=fine_prediction,
+                              pred_coarse_data=coarse_prediction,
                               loss='Cross Entropy',
+                              true_fine_data=true_fine_data,
+                              true_coarse_data=true_coarse_data,
                               combined=False))
 
-    return (fine_ground_truth, coarse_ground_truth, fine_prediction, coarse_prediction,
+    return (true_fine_data, true_coarse_data, fine_prediction, coarse_prediction,
             fine_accuracy, coarse_accuracy)
 
 
@@ -218,8 +220,8 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
             coarse_predictions += predicted_coarse.tolist()
 
     fine_accuracy, coarse_accuracy = (
-        get_and_print_metrics(fine_predictions=fine_predictions,
-                              coarse_predictions=coarse_predictions,
+        get_and_print_metrics(pred_fine_data=fine_predictions,
+                              pred_coarse_data=coarse_predictions,
                               loss=loss,
                               true_fine_data=fine_ground_truths,
                               true_coarse_data=coarse_ground_truths))
@@ -329,13 +331,13 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
     train_fine_losses = []
     train_fine_accuracies = []
 
-    test_fine_ground_truths = []
+    test_true_fine_data = []
     test_fine_accuracies = []
 
     train_coarse_losses = []
     train_coarse_accuracies = []
 
-    test_coarse_ground_truths = []
+    test_true_coarse_data = []
     test_coarse_accuracies = []
 
     print(f'Started fine-tuning individual models with fine_lr={fine_lr} and coarse_lr={coarse_lr}'
@@ -425,22 +427,23 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             fine_scheduler.step()
             coarse_scheduler.step()
 
-            (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
+            (test_true_fine_data, test_true_coarse_data, test_pred_fine_data, test_pred_coarse_data,
              test_fine_accuracy, test_coarse_accuracy) = (
                 evaluate_individual_models(fine_tuners=fine_tuners,
                                            loaders=loaders,
                                            devices=devices,
                                            test=True))
+
             test_fine_accuracies += [test_fine_accuracy]
             test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
 
             np.save(f"{individual_results_path}{fine_fine_tuner}"
                     f"_test_pred_lr{fine_lr}_e{epoch}_fine_individual.npy",
-                    test_fine_predictions)
+                    test_pred_fine_data)
             np.save(f"{individual_results_path}{coarse_fine_tuner}"
                     f"_test_pred_lr{coarse_lr}_e{epoch}_coarse_individual.npy",
-                    test_coarse_predictions)
+                    test_pred_coarse_data)
 
             if save_files:
                 save_prediction_files(test=True,
@@ -450,16 +453,16 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                                       lrs={'fine': fine_lr,
                                            'coarse': coarse_lr},
                                       epoch=epoch,
-                                      test_fine_prediction=test_fine_predictions,
-                                      test_coarse_prediction=test_coarse_predictions)
+                                      test_fine_prediction=test_pred_fine_data,
+                                      test_coarse_prediction=test_pred_coarse_data)
 
     torch.save(fine_fine_tuner.state_dict(), f"{fine_fine_tuner}_lr{fine_lr}_fine_individual.pth")
     torch.save(coarse_fine_tuner.state_dict(), f"{coarse_fine_tuner}_lr{coarse_lr}_coarse_individual.pth")
 
     if not os.path.exists(f"{individual_results_path}test_true_fine_individual.npy"):
-        np.save(f"{individual_results_path}test_true_fine_individual.npy", test_fine_ground_truths)
+        np.save(f"{individual_results_path}test_true_fine_individual.npy", test_true_fine_data)
     if not os.path.exists(f"{individual_results_path}test_true_coarse_individual.npy"):
-        np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_coarse_ground_truths)
+        np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_true_coarse_data)
 
 
 def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
@@ -784,8 +787,6 @@ def run_combined_evaluating_pipeline(test: bool,
                               test_coarse_prediction=coarse_predictions,
                               fine_ground_truths=fine_ground_truths,
                               coarse_ground_truths=coarse_ground_truths)
-
-
 
 
 if __name__ == '__main__':

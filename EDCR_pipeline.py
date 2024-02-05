@@ -527,10 +527,10 @@ def get_possible_test_consistency_constraints(test_fine_data: np.array,
     return possible_test_consistency_constraints
 
 
-def load_priors(test_fine_path,
-                test_coarse_path,
-                train_fine_path,
-                train_coarse_path,
+def load_priors(test_pred_fine_path,
+                test_pred_coarse_path,
+                train_pred_fine_path,
+                train_pred_coarse_path,
                 train_true_fine_path,
                 train_true_coarse_path,
                 main_lr,
@@ -563,18 +563,18 @@ def load_priors(test_fine_path,
     # secondary_prior_fine_acc = accuracy_score(y_true=true_fine_data, y_pred=secondary_fine_data)
     # secondary_prior_coarse_acc = accuracy_score(y_true=true_coarse_data, y_pred=secondary_coarse_data)
 
-    test_fine_data = np.load(test_fine_path)
-    test_coarse_data = np.load(test_coarse_path)
+    test_pred_fine_data = np.load(test_pred_fine_path)
+    test_pred_coarse_data = np.load(test_pred_coarse_path)
 
-    train_fine_data = np.load(train_fine_path)
-    train_coarse_data = np.load(train_coarse_path)
+    train_pred_fine_data = np.load(train_pred_fine_path)
+    train_pred_coarse_data = np.load(train_pred_coarse_path)
 
     train_true_fine_data = np.load(train_true_fine_path)
     train_true_coarse_data = np.load(train_true_coarse_path)
 
     print(utils.blue_text('\n' + '#' * 50 + 'Train metrics' + '#' * 50))
-    vit_pipeline.get_and_print_metrics(fine_predictions=train_fine_data,
-                                       coarse_predictions=train_coarse_data,
+    vit_pipeline.get_and_print_metrics(pred_fine_data=train_pred_fine_data,
+                                       pred_coarse_data=train_pred_coarse_data,
                                        loss=loss,
                                        true_fine_data=train_true_fine_data,
                                        true_coarse_data=train_true_coarse_data,
@@ -583,16 +583,16 @@ def load_priors(test_fine_path,
                                        lr=main_lr)
 
     print(utils.blue_text('\n' + '#' * 50 + 'Test metrics' + '#' * 50))
-    vit_pipeline.get_and_print_metrics(fine_predictions=test_fine_data,
-                                       coarse_predictions=test_coarse_data,
+    vit_pipeline.get_and_print_metrics(pred_fine_data=test_pred_fine_data,
+                                       pred_coarse_data=test_pred_coarse_data,
                                        loss=loss,
                                        combined=combined,
                                        model_name=main_model_name,
                                        lr=main_lr)
 
     possible_test_consistency_constraints = (
-        get_possible_test_consistency_constraints(test_fine_data=test_fine_data,
-                                                  test_coarse_data=test_coarse_data))
+        get_possible_test_consistency_constraints(test_fine_data=test_pred_fine_data,
+                                                  test_coarse_data=test_pred_coarse_data))
 
     # for coarse_prediction, fine_grain_inconsistencies in consistency_constraints_for_main_model.items():
     #     assert len(set(data_preprocessing.coarse_to_fine[coarse_prediction]).
@@ -600,7 +600,7 @@ def load_priors(test_fine_path,
 
     # print([f'{k}: {len(v)}' for k, v in consistency_constraints_for_main_model.items()])
 
-    return (test_fine_data, test_coarse_data, train_fine_data, train_coarse_data,
+    return (test_pred_fine_data, test_pred_coarse_data, train_pred_fine_data, train_pred_coarse_data,
             possible_test_consistency_constraints)
 
 
@@ -636,6 +636,8 @@ def run_EDCR_for_granularity(combined: bool,
                              main_granularity: str,
                              main_fine_data: np.array,
                              main_coarse_data: np.array,
+                             train_fine_data,
+                             train_coarse_data,
                              condition_datas: dict[str, dict[str, np.array]],
                              consistency_constraints: bool,
                              multiprocessing: bool,
@@ -643,11 +645,11 @@ def run_EDCR_for_granularity(combined: bool,
     with ((context_handlers.TimeWrapper())):
         if main_granularity == 'fine':
             classes = data_preprocessing.fine_grain_classes
-            true_data = data_preprocessing.true_fine_data
+            true_data = train_fine_data
             pred_data = main_fine_data
         else:
             classes = data_preprocessing.coarse_grain_classes
-            true_data = data_preprocessing.true_coarse_data
+            true_data = train_coarse_data
             pred_data = main_coarse_data
 
         examples_num = true_data.shape[0]
@@ -763,10 +765,10 @@ def run_EDCR_for_granularity(combined: bool,
     return total_results, error_detections_mean
 
 
-def run_EDCR_pipeline(test_coarse_path: str,
-                      test_fine_path: str,
-                      train_fine_path: str,
-                      train_coarse_path: str,
+def run_EDCR_pipeline(test_pred_fine_path: str,
+                      test_pred_coarse_path: str,
+                      train_pred_fine_path: str,
+                      train_pred_coarse_path: str,
                       train_true_fine_path: str,
                       train_true_coarse_path: str,
                       main_lr: typing.Union[str, float],
@@ -775,18 +777,18 @@ def run_EDCR_pipeline(test_coarse_path: str,
                       consistency_constraints: bool,
                       multiprocessing: bool = True
                       ):
-    (main_fine_data, main_coarse_data, train_fine_data, train_coarse_data,
-     possible_test_consistency_constraints) = load_priors(test_coarse_path=test_coarse_path,
-                                                          test_fine_path=test_fine_path,
-                                                          train_fine_path=train_fine_path,
-                                                          train_coarse_path=train_coarse_path,
+    (main_test_pred_fine_data, main_test_pred_coarse_data, train_pred_fine_data, train_pred_coarse_data,
+     possible_test_consistency_constraints) = load_priors(test_pred_coarse_path=test_pred_coarse_path,
+                                                          test_pred_fine_path=test_pred_fine_path,
+                                                          train_pred_fine_path=train_pred_fine_path,
+                                                          train_pred_coarse_path=train_pred_coarse_path,
                                                           train_true_fine_path=train_true_fine_path,
                                                           train_true_coarse_path=train_true_coarse_path,
                                                           main_lr=main_lr,
                                                           loss=loss,
                                                           combined=combined)
-    condition_datas = get_conditions(train_fine_data=train_fine_data,
-                                     train_coarse_data=train_coarse_data,
+    condition_datas = get_conditions(train_fine_data=train_pred_fine_data,
+                                     train_coarse_data=train_pred_coarse_data,
                                      # secondary_fine_data=secondary_fine_data
                                      )
     pipeline_results = {}
@@ -797,8 +799,8 @@ def run_EDCR_pipeline(test_coarse_path: str,
             run_EDCR_for_granularity(combined=combined,
                                      main_lr=main_lr,
                                      main_granularity=main_granularity,
-                                     main_fine_data=main_fine_data,
-                                     main_coarse_data=main_coarse_data,
+                                     main_fine_data=main_test_pred_fine_data,
+                                     main_coarse_data=main_test_pred_coarse_data,
                                      condition_datas=condition_datas,
                                      consistency_constraints=consistency_constraints,
                                      multiprocessing=multiprocessing,
@@ -811,8 +813,8 @@ def run_EDCR_pipeline(test_coarse_path: str,
         error_detections = np.mean(np.array(error_detections))
         print(utils.green_text(f'Mean error detections found {np.mean(error_detections)}'))
 
-    vit_pipeline.get_and_print_metrics(fine_predictions=pipeline_results['fine'],
-                                       coarse_predictions=pipeline_results['coarse'],
+    vit_pipeline.get_and_print_metrics(pred_fine_data=pipeline_results['fine'],
+                                       pred_coarse_data=pipeline_results['coarse'],
                                        loss=loss,
                                        prior=False,
                                        combined=combined,
@@ -824,19 +826,19 @@ if __name__ == '__main__':
     combined = True
     print(utils.red_text(f'combined={combined}\n' + '#' * 100 + '\n'))
 
-    test_fine_path = 'combined_results/vit_b_16_test_fine_pred_lr0.0001_e19.npy'
-    test_coarse_path = 'combined_results/vit_b_16_test_coarse_pred_lr0.0001_e19.npy'
+    test_pred_fine_path = 'combined_results/vit_b_16_test_fine_pred_lr0.0001_e19.npy'
+    test_pred_coarse_path = 'combined_results/vit_b_16_test_coarse_pred_lr0.0001_e19.npy'
 
-    train_fine_path = 'combined_results/train_vit_b_16_fine_pred_lr0.0001.npy'
-    train_coarse_path = 'combined_results/train_vit_b_16_coarse_pred_lr0.0001.npy'
+    train_pred_fine_path = 'combined_results/train_vit_b_16_fine_pred_lr0.0001.npy'
+    train_pred_coarse_path = 'combined_results/train_vit_b_16_coarse_pred_lr0.0001.npy'
 
     train_true_fine_path = 'combined_results/train_true_fine.npy'
     train_true_coarse_path = 'combined_results/train_true_coarse.npy'
 
-    run_EDCR_pipeline(test_coarse_path=test_coarse_path,
-                      test_fine_path=test_fine_path,
-                      train_fine_path=train_fine_path,
-                      train_coarse_path=train_coarse_path,
+    run_EDCR_pipeline(test_pred_fine_path=test_pred_fine_path,
+                      test_pred_coarse_path=test_pred_coarse_path,
+                      train_pred_fine_path=train_pred_fine_path,
+                      train_pred_coarse_path=train_pred_coarse_path,
                       train_true_fine_path=train_true_fine_path,
                       train_true_coarse_path=train_true_coarse_path,
                       main_lr=0.0001,

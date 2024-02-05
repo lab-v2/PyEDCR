@@ -15,8 +15,8 @@ coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes = sorted(coarse_grain_results_df['Class Name'].to_list())
 granularities = ['fine', 'coarse']
 
-true_fine_data = np.load(r'test_fine/test_true_fine.npy')
-true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
+test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
+test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
 
 
 
