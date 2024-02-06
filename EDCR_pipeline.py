@@ -937,14 +937,14 @@ if __name__ == '__main__':
     combined = True
     print(utils.red_text(f'combined={combined}\n' + '#' * 100 + '\n'))
 
-    test_pred_fine_path = 'combined_results/vit_b_16_test_fine_pred_lr0.0001_e19.npy'
-    test_pred_coarse_path = 'combined_results/vit_b_16_test_coarse_pred_lr0.0001_e19.npy'
+    test_pred_fine_path = 'combined_results/vit_b_16_test_fine_pred_lr3e-06_e19.npy'
+    test_pred_coarse_path = 'combined_results/vit_b_16_test_coarse_pred_lr3e-06_e19.npy'
 
     test_true_fine_path = 'combined_results/test_true_fine.npy'
     test_true_coarse_path = 'combined_results/test_true_coarse.npy'
 
-    train_pred_fine_path = 'combined_results/train_vit_b_16_fine_pred_lr0.0001.npy'
-    train_pred_coarse_path = 'combined_results/train_vit_b_16_coarse_pred_lr0.0001.npy'
+    train_pred_fine_path = 'combined_results/train_vit_b_16_fine_pred_lr3e-06.npy'
+    train_pred_coarse_path = 'combined_results/train_vit_b_16_coarse_pred_lr3e-06.npy'
 
     train_true_fine_path = 'combined_results/train_true_fine.npy'
     train_true_coarse_path = 'combined_results/train_true_coarse.npy'
