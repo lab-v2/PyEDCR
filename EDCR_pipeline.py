@@ -39,75 +39,86 @@ def get_binary_condition_values(example_index: int,
 
 
 def get_assign_values_for_example(example_index: int,
-                                  train_conditions_datas: np.array) -> list[int]:
+                                  conditions_datas: np.array) -> list[int]:
     # train_conditions_datas.shape = (classes, examples)
-    n_classes, n_examples = train_conditions_datas.shape
+    n_classes, n_examples = conditions_datas.shape
 
-    return [int(train_conditions_datas[row_index, example_index]) for row_index in range(n_classes)]
+    return [int(conditions_datas[row_index, example_index]) for row_index in range(n_classes)]
 
 
 def get_scores(y_true: np.array,
                y_pred: np.array):
     # try:
-        y_actual = y_true
-        y_hat = y_pred
-        TP = 0
-        FP = 0
-        TN = 0
-        FN = 0
+    y_actual = y_true
+    y_hat = y_pred
+    TP = 0
+    FP = 0
+    TN = 0
+    FN = 0
 
-        for i in range(len(y_hat)):
-            if y_actual[i] == y_hat[i] == 1:
-                TP += 1
-            if y_hat[i] == 1 and y_actual[i] != y_hat[i]:
-                FP += 1
-            if y_actual[i] == y_hat[i] == 0:
-                TN += 1
-            if y_hat[i] == 0 and y_actual[i] != y_hat[i]:
-                FN += 1
-        # print(f"TP:{TP}, FP:{FP}, TN:{TN}, FN:{FN}")
+    for i in range(len(y_hat)):
+        if y_actual[i] == y_hat[i] == 1:
+            TP += 1
+        if y_hat[i] == 1 and y_actual[i] != y_hat[i]:
+            FP += 1
+        if y_actual[i] == y_hat[i] == 0:
+            TN += 1
+        if y_hat[i] == 0 and y_actual[i] != y_hat[i]:
+            FN += 1
+    # print(f"TP:{TP}, FP:{FP}, TN:{TN}, FN:{FN}")
 
-        # pre = precision_score(y_true, y_pred)
-        # rec = recall_score(y_true, y_pred)
-        # f1 = f1_score(y_true, y_pred)
-        # return [pre, rec, f1]
+    # pre = precision_score(y_true, y_pred)
+    # rec = recall_score(y_true, y_pred)
+    # f1 = f1_score(y_true, y_pred)
+    # return [pre, rec, f1]
     # except:
-        pre = accuracy_score(y_true, y_pred)
-        f1 = f1_score(y_true, y_pred, average='macro')
-        f1micro = f1_score(y_true, y_pred, average='micro')
+    pre = accuracy_score(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred, average='macro')
+    f1micro = f1_score(y_true, y_pred, average='micro')
 
-        return [pre, f1, f1micro]
+    return [pre, f1, f1micro]
 
 
-def rearrange_values(n_classes: int,
-                     pred_assign_condition_values: list[list]) -> list:
+def get_predicate_values(n_classes: int,
+                         pred_assign_condition_values: list[list],
+                         test: bool) -> list:
     all_values = [[] for _ in range(n_classes)]
 
     for value in pred_assign_condition_values:
         for class_index, class_values in enumerate(all_values):
             # pred, corr, tp, fp, cond1, cond2 ... condn
             each_items = []
-            pred, corr = value[:2]
+            if not test:
+                pred, corr = value[:2]
 
-            # pred, corr
-            for pred_or_corr in [pred, corr]:
-                each_items.append(int(pred_or_corr == class_index))
+                # pred, corr
+                for pred_or_corr in [pred, corr]:
+                    each_items.append(int(pred_or_corr == class_index))
 
-            # tp
-            each_items.append(int(each_items[0] == 1 and each_items[1] == 1))
+                # tp
+                each_items.append(int(each_items[0] == 1 and each_items[1] == 1))
 
-            # fp
-            each_items.append(int(each_items[0] == 1 and each_items[1] == 0))
+                # fp
+                each_items.append(int(each_items[0] == 1 and each_items[1] == 0))
 
-            each_items.extend(value[2:])
-            class_values.append(each_items)
+                each_items.extend(value[2:])
+                class_values.append(each_items)
+            else:
+                pred = value[0]
+
+                # pred, corr
+                each_items.append(int(pred == class_index))
+
+                each_items.extend(value[1:])
+                class_values.append(each_items)
 
     return all_values
 
 
+
 def DetUSMPosRuleSelect(i: int,
-                        all_charts: list):
-    chart = all_charts[i]
+                        train_predicare_values: list):
+    chart = train_predicare_values[i]
     chart = np.array(chart)
     rule_indexs = [i for i in range(4, len(chart[0]))]
     each_sum = np.sum(chart, axis=0)
@@ -170,8 +181,8 @@ def DetUSMPosRuleSelect(i: int,
 
 def GreedyNegRuleSelect(i: int,
                         epsilon: float,
-                        all_values: list):
-    class_values = np.array(all_values[i])
+                        train_predicare_values: list):
+    class_values = np.array(train_predicare_values[i])
     num_examples, num_values = class_values.shape
 
     condition_indices = list(range(4, num_values))
@@ -246,44 +257,45 @@ def GreedyNegRuleSelect(i: int,
     return DC_i
 
 
-# def ruleForNPCorrection_worker_EC():
-#     pass
+def get_pred_i(prediction_array: np.array,
+               i: int) -> np.array:
+    return np.array([int(prediction_array[example_index] == i) for example_index in prediction_array])
 
 
 def ruleForNPCorrection_worker(i: int,
-                               class_values: list,
+                               test_class_values: list,
                                epsilon: float,
-                               all_values: list[list],
+                               train_predicate_values: list[list],
                                main_granularity: str,
-                               run_positive_rules: bool,
-                               total_results: multiprocessing.managers.ListProxy,
+                               pred_i_for_test_examples: np.array,
+                               shared_results: multiprocessing.managers.ListProxy,
                                shared_index: multiprocessing.managers.ValueProxy,
                                error_detections: multiprocessing.managers.DictProxy,
                                possible_test_consistency_constraints: dict[str, set]):
     classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' \
         else data_preprocessing.coarse_grain_classes
     curr_class = classes[i]
-    class_values = np.array(class_values)
+    test_class_values = np.array(test_class_values)
 
     DCi = GreedyNegRuleSelect(i=i,
                               epsilon=epsilon,
-                              all_values=all_values)
+                              train_predicare_values=train_predicate_values)
     neg_i = 0
     pos_i = 0
 
-    pred_i_for_all_examples = np.copy(class_values[:, 0])
-    tem_cond = np.zeros_like(pred_i_for_all_examples)
+    tem_cond = np.zeros_like(pred_i_for_test_examples)
 
     for cc in DCi:
-        tem_cond |= class_values[:, cc]
+        # -3 because we removed true, tp and fp
+        tem_cond |= test_class_values[:, cc - 3]
 
     recovered = set()
 
     if np.sum(tem_cond) > 0:
-        for example_index, example_values in enumerate(class_values):
-            if tem_cond[example_index] and pred_i_for_all_examples[example_index]:
+        for example_index, example_values in enumerate(test_class_values):
+            if tem_cond[example_index] and pred_i_for_test_examples[example_index]:
                 neg_i += 1
-                pred_i_for_all_examples[example_index] = 0
+                pred_i_for_test_examples[example_index] = 0
 
                 condition_values = example_values[4:]
 
@@ -311,24 +323,24 @@ def ruleForNPCorrection_worker(i: int,
         error_detections[curr_class] = round(len(recovered) / all_possible_constraints * 100, 2)
 
     CCi = DetUSMPosRuleSelect(i=i,
-                              all_charts=all_values) if run_positive_rules else []
-    tem_cond = np.zeros_like(class_values[:, 0])
+                              train_predicare_values=train_predicate_values)
+    tem_cond = np.zeros_like(test_class_values[:, 0])
 
     for cc in CCi:
-        tem_cond |= class_values[:, cc]
+        tem_cond |= test_class_values[:, cc - 3]
 
     if np.sum(tem_cond) > 0:
-        for example_index, cv in enumerate(class_values):
-            if tem_cond[example_index] and not pred_i_for_all_examples[example_index]:
+        for example_index, cv in enumerate(test_class_values):
+            if tem_cond[example_index] and not pred_i_for_test_examples[example_index]:
                 pos_i += 1
-                pred_i_for_all_examples[example_index] = 1
-                total_results[example_index] = i
+                pred_i_for_test_examples[example_index] = 1
+                shared_results[example_index] = i
 
-    scores_cor = get_scores(class_values[:, 1], pred_i_for_all_examples)
+    scores_cor = get_scores(test_class_values[:, 1], pred_i_for_test_examples)
 
     if not utils.is_local():
         shared_index.value += 1
-        print(f'Completed {shared_index.value}/{len(all_values)}')
+        print(f'Completed {shared_index.value}/{len(train_predicate_values)}')
 
     return scores_cor + [neg_i,
                          pos_i,
@@ -336,32 +348,31 @@ def ruleForNPCorrection_worker(i: int,
                          len(CCi)]
 
 
-def ruleForNPCorrectionMP(all_values: list[list],
+def ruleForNPCorrectionMP(train_predicate_values: list[list],
+                          test_predicate_values: list[list],
                           test_pred_granularity: np.array,
-                          train_true_granularity: np.array,
-                          train_pred_granularity: np.array,
+                          test_true_granularity: np.array,
                           main_granularity: str,
                           epsilon: float,
-                          possible_test_consistency_constraints: dict[str, set],
-                          run_positive_rules: bool = True):
+                          possible_test_consistency_constraints: dict[str, set]):
     manager = mp.Manager()
-    shared_results = manager.list(train_pred_granularity)
+    shared_results = manager.list(test_pred_granularity)
     error_detections = manager.dict({})
     shared_index = manager.Value('i', 0)
 
     args_list = [(i,
-                  class_values,
+                  test_class_values,
                   epsilon,
-                  all_values,
+                  train_predicate_values,
                   main_granularity,
-                  run_positive_rules,
+                  np.where(test_pred_granularity == i, 1, 0),
                   shared_results,
                   shared_index,
                   error_detections,
                   possible_test_consistency_constraints)
-                 for i, class_values in enumerate(all_values)]
+                 for i, test_class_values in enumerate(test_predicate_values)]
 
-    n_classes = len(all_values)
+    n_classes = len(train_predicate_values)
     cpu_count = mp.cpu_count()
 
     # Create a pool of processes and map the function with arguments
@@ -380,9 +391,9 @@ def ruleForNPCorrectionMP(all_values: list[list],
 
     results = [item for sublist in results for item in sublist]
 
-    results.extend(get_scores(y_true=train_true_granularity,
+    results.extend(get_scores(y_true=test_true_granularity,
                               y_pred=shared_results))
-    posterior_acc = accuracy_score(y_true=train_true_granularity,
+    posterior_acc = accuracy_score(y_true=test_true_granularity,
                                    y_pred=shared_results)
 
     # retrieve_error_detection_rule(error_detections)
@@ -404,7 +415,7 @@ def ruleForNPCorrection(all_charts: list,
             chart = np.array(chart)
             NCi = GreedyNegRuleSelect(i=i,
                                       epsilon=epsilon,
-                                      all_values=all_charts)
+                                      train_predicare_values=all_charts)
             neg_i_count = 0
             pos_i_count = 0
 
@@ -421,7 +432,7 @@ def ruleForNPCorrection(all_charts: list,
                         predict_result[ct] = 0
 
             CCi = DetUSMPosRuleSelect(i=i,
-                                      all_charts=all_charts) if run_positive_rules else []
+                                      train_predicare_values=all_charts) if run_positive_rules else []
             tem_cond = np.zeros_like(chart[:, 0])
 
             for cc in CCi:
@@ -643,10 +654,10 @@ def load_priors(test_pred_fine_path: str,
             possible_test_consistency_constraints)
 
 
-def get_conditions_from_train(train_fine_data: np.array,
-                              train_coarse_data: np.array,
-                              # secondary_fine_data: np.array
-                              ) -> dict[str, dict[str, np.array]]:
+def get_conditions(pred_fine_data: np.array,
+                   pred_coarse_data: np.array,
+                   # secondary_fine_data: np.array
+                   ) -> dict[str, dict[str, np.array]]:
     condition_datas = {}
 
     for main_or_secondary in ['main',
@@ -659,8 +670,8 @@ def get_conditions_from_train(train_fine_data: np.array,
 
         one_hot_encodings = {}
         for granularity in data_preprocessing.granularities:
-            train_granularity_data = train_fine_data if granularity == 'fine' else train_coarse_data
-            one_hot_encodings[granularity] = get_one_hot_encoding(train_granularity_data)
+            granularity_data = pred_fine_data if granularity == 'fine' else pred_coarse_data
+            one_hot_encodings[granularity] = get_one_hot_encoding(granularity_data)
 
         # concatenated one-hot encoding with fine first and then coarse
 
@@ -680,57 +691,87 @@ def run_EDCR_for_granularity(combined: bool,
                              main_lr: typing.Union[str, float],
                              main_granularity: str,
                              test_pred_granularity: np.array,
+                             test_true_granularity: np.array,
                              train_pred_granularity: np.array,
                              train_true_granularity: np.array,
                              train_condition_datas: dict[str, dict[str, np.array]],
+                             test_condition_datas: dict[str, dict[str, np.array]],
                              multiprocessing: bool,
                              possible_test_consistency_constraints: dict[str, set]) -> np.array:
     with context_handlers.TimeWrapper():
         classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' else \
             data_preprocessing.coarse_grain_classes
 
-        examples_num = train_true_granularity.shape[0]
+        train_examples_num = train_true_granularity.shape[0]
 
-        pred_assign_condition_values = [[train_pred_granularity[example_index], train_true_granularity[example_index]] +
-                                        ((
+        train_predicate_values = [[train_pred_granularity[example_index], train_true_granularity[example_index]] +
+                                  ((
+                                       get_assign_values_for_example(example_index=example_index,
+                                                                     conditions_datas=train_condition_datas['main'])
+                                   ) if combined else [])
+                                  +
+                                  (
+                                      (
+                                              get_assign_values_for_example(example_index=example_index,
+                                                                            conditions_datas=
+                                                                            train_condition_datas['secondary'][
+                                                                                'fine'])
+                                              +
+                                              get_assign_values_for_example(example_index=example_index,
+                                                                            conditions_datas=
+                                                                            train_condition_datas['secondary'][
+                                                                                'coarse'])
+                                      )
+                                      if not combined else [])
+                                  for example_index in range(train_examples_num)]
+
+        test_examples_num = test_true_granularity.shape[0]
+
+        test_predicate_values = [[test_pred_granularity[example_index]] +
+                                 ((
+                                      get_assign_values_for_example(example_index=example_index,
+                                                                    conditions_datas=test_condition_datas[
+                                                                        'main'])
+                                      # +
+                                      # (get_binary_condition_values(example_index=example_index,
+                                      #                              fine_cla_datas=train_condition_datas['main']['fine'],
+                                      #                              coarse_cla_datas=train_condition_datas['main']['coarse'])
+                                      #  if consistency_constraints else [])
+                                      # +
+                                      # get_unary_condition_values(example_index=example_index,
+                                      #                            cla_datas=condition_datas['main']['fine_to_coarse'])
+                                  ) if combined else [])
+                                 +
+                                 (
+                                     (
                                              get_assign_values_for_example(example_index=example_index,
-                                                                           train_conditions_datas=train_condition_datas[
-                                                                               'main'])
-                                             # +
-                                             # (get_binary_condition_values(example_index=example_index,
-                                             #                              fine_cla_datas=train_condition_datas['main']['fine'],
-                                             #                              coarse_cla_datas=train_condition_datas['main']['coarse'])
-                                             #  if consistency_constraints else [])
-                                             # +
-                                             # get_unary_condition_values(example_index=example_index,
-                                             #                            cla_datas=condition_datas['main']['fine_to_coarse'])
-                                         ) if combined else [])
-                                        +
-                                        (
-                                            (
-                                                    get_assign_values_for_example(example_index=example_index,
-                                                                                  train_conditions_datas=
-                                                                                  train_condition_datas['secondary'][
-                                                                                      'fine'])
-                                                    +
-                                                    get_assign_values_for_example(example_index=example_index,
-                                                                                  train_conditions_datas=
-                                                                                  train_condition_datas['secondary'][
-                                                                                      'coarse'])
-                                                # +
-                                                # (get_binary_condition_values(example_index=example_index,
-                                                #                              fine_cla_datas=condition_datas['secondary']['fine'],
-                                                #                              coarse_cla_datas=condition_datas['secondary']['coarse'])
-                                                #  if consistency_constraints else [])
-                                                # +
-                                                # get_unary_condition_values(example_index=example_index,
-                                                #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
-                                            )
-                                            if not combined else [])
-                                        for example_index in range(examples_num)]
+                                                                           conditions_datas=
+                                                                           test_condition_datas['secondary'][
+                                                                               'fine'])
+                                             +
+                                             get_assign_values_for_example(example_index=example_index,
+                                                                           conditions_datas=
+                                                                           test_condition_datas['secondary'][
+                                                                               'coarse'])
+                                         # +
+                                         # (get_binary_condition_values(example_index=example_index,
+                                         #                              fine_cla_datas=condition_datas['secondary']['fine'],
+                                         #                              coarse_cla_datas=condition_datas['secondary']['coarse'])
+                                         #  if consistency_constraints else [])
+                                         # +
+                                         # get_unary_condition_values(example_index=example_index,
+                                         #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
+                                     )
+                                     if not combined else [])
+                                 for example_index in range(test_examples_num)]
 
-        all_values = rearrange_values(n_classes=len(classes),
-                                      pred_assign_condition_values=pred_assign_condition_values)
+        train_predicate_values = get_predicate_values(n_classes=len(classes),
+                                                      pred_assign_condition_values=train_predicate_values,
+                                                      test=False)
+
+        test_predicate_values = get_predicate_values(n_classes=len(classes),
+                                                     pred_assign_condition_values=test_predicate_values,
+                                                     test=True)
 
         results = []
         result0 = [0]
@@ -739,7 +780,7 @@ def run_EDCR_for_granularity(combined: bool,
               # f', secondary: {secondary_model_name}, lr: {secondary_lr}\n'
               )
 
-        for class_index, class_values in enumerate(all_values):
+        for class_index, class_values in enumerate(train_predicate_values):
             class_values = np.array(class_values)
             result0.extend(get_scores(class_values[:, 1], class_values[:, 0]))
             result0.extend([0, 0, 0, 0])
@@ -754,14 +795,14 @@ def run_EDCR_for_granularity(combined: bool,
 
         for epsilon in epsilons:
             result, posterior_acc, total_results, error_detections_mean = ruleForNPCorrectionMP(
-                all_values=all_values,
+                train_predicate_values=train_predicate_values,
+                test_predicate_values=test_predicate_values,
                 test_pred_granularity=test_pred_granularity,
-                train_true_granularity=train_true_granularity,
-                train_pred_granularity=train_pred_granularity,
+                test_true_granularity=test_true_granularity,
                 main_granularity=main_granularity,
                 epsilon=epsilon,
                 possible_test_consistency_constraints=possible_test_consistency_constraints
-            ) if multiprocessing else ruleForNPCorrection(all_charts=all_values,
+            ) if multiprocessing else ruleForNPCorrection(all_charts=train_predicate_values,
                                                           true_data=train_true_granularity,
                                                           pred_data=train_pred_granularity,
                                                           epsilon=epsilon)
@@ -837,20 +878,27 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
                                                           main_lr=main_lr,
                                                           loss=loss,
                                                           combined=combined)
-    train_condition_datas = get_conditions_from_train(train_fine_data=train_pred_fine_data,
-                                                      train_coarse_data=train_pred_coarse_data,
-                                                      # secondary_fine_data=secondary_fine_data
-                                                      )
+    train_condition_datas = get_conditions(pred_fine_data=train_pred_fine_data,
+                                           pred_coarse_data=train_pred_coarse_data,
+                                           # secondary_fine_data=secondary_fine_data
+                                           )
+    test_condition_datas = get_conditions(pred_fine_data=test_pred_fine_data,
+                                          pred_coarse_data=test_pred_coarse_data,
+                                          )
     pipeline_results = {}
     error_detections = []
 
     for main_granularity in data_preprocessing.granularities:
         if main_granularity == 'fine':
             test_pred_granularity = test_pred_fine_data
+            test_true_granularity = test_true_fine_data
+
             train_pred_granularity = train_pred_fine_data
             train_true_granularity = train_true_fine_data
         else:
             test_pred_granularity = test_pred_coarse_data
+            test_true_granularity = test_true_coarse_data
+
             train_pred_granularity = train_pred_coarse_data
             train_true_granularity = train_true_coarse_data
 
@@ -859,9 +907,11 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
                                      main_lr=main_lr,
                                      main_granularity=main_granularity,
                                      test_pred_granularity=test_pred_granularity,
+                                     test_true_granularity=test_true_granularity,
                                      train_pred_granularity=train_pred_granularity,
                                      train_true_granularity=train_true_granularity,
                                      train_condition_datas=train_condition_datas,
+                                     test_condition_datas=test_condition_datas,
                                      multiprocessing=multiprocessing,
                                      possible_test_consistency_constraints=possible_test_consistency_constraints))
         pipeline_results[main_granularity] = res[0]
@@ -875,8 +925,8 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
     vit_pipeline.get_and_print_metrics(pred_fine_data=pipeline_results['fine'],
                                        pred_coarse_data=pipeline_results['coarse'],
                                        loss=loss,
-                                       true_fine_data=train_true_fine_data,
-                                       true_coarse_data=train_true_coarse_data,
+                                       true_fine_data=test_true_fine_data,
+                                       true_coarse_data=test_true_coarse_data,
                                        prior=False,
                                        combined=combined,
                                        model_name=main_model_name,
