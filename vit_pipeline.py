@@ -798,6 +798,6 @@ if __name__ == '__main__':
     #                               pretrained_path='models/vit_b_16_BCE_lr1e-05.pth')
 
     run_combined_evaluating_pipeline(test=False,
-                                     lrs=[3e-6],
+                                     lrs=[0.0001],
                                      loss='BCE',
-                                     pretrained_path='models/vit_b_16_lr3e-06_BCE.pth')
+                                     pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
