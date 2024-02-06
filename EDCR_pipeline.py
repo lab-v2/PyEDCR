@@ -188,34 +188,43 @@ def GreedyNegRuleSelect(i: int,
     DC_star = []
 
     for condition_index in condition_indices:
-        negi_score = np.sum(class_values[:, 2] * class_values[:, condition_index])
-        if negi_score < q_i:
+        condition_index_values = class_values[:, condition_index]
+        all_class_tps = class_values[:, 2]
+        neg_i = np.sum(all_class_tps * condition_index_values)
+
+        if neg_i < q_i:
             DC_star.append(condition_index)
 
     with context_handlers.WrapTQDM(total=len(DC_star)) as progress_bar:
-        while DC_star:
+        while len(DC_star):
             best_score = -1
             best_index = -1
-            for c in DC_star:
+
+            for condition_index_from_DC_star in DC_star:
                 tem_cond = 0
-                for cc in DC_i:
-                    tem_cond |= class_values[:, cc]
-                tem_cond |= class_values[:, c]
+
+                for condition_index in DC_i:
+                    condition_index_values = class_values[:, condition_index]
+                    tem_cond |= condition_index_values
+
+                tem_cond |= class_values[:, condition_index_from_DC_star]
+
                 posi_score = np.sum(class_values[:, 3] * tem_cond)
                 if best_score < posi_score:
                     best_score = posi_score
-                    best_index = c
+                    best_index = condition_index_from_DC_star
+
             DC_i.append(best_index)
             DC_star.remove(best_index)
             tem_cond = 0
-            for cc in DC_i:
-                tem_cond |= class_values[:, cc]
+            for condition_index in DC_i:
+                tem_cond |= class_values[:, condition_index]
             tmp_NCn = []
-            for c in DC_star:
-                tem = tem_cond | class_values[:, c]
-                negi_score = np.sum(class_values[:, 2] * tem)
-                if negi_score < q_i:
-                    tmp_NCn.append(c)
+            for condition_index_from_DC_star in DC_star:
+                tem = tem_cond | class_values[:, condition_index_from_DC_star]
+                neg_i = np.sum(class_values[:, 2] * tem)
+                if neg_i < q_i:
+                    tmp_NCn.append(condition_index_from_DC_star)
             DC_star = tmp_NCn
 
             if utils.is_local():
