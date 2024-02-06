@@ -80,16 +80,16 @@ def get_and_print_metrics(pred_fine_data: np.array,
           f'with {utils.blue_text(loss)} loss\n' +
           (f'with lr={utils.blue_text(lr)}\n' if lr != '' else '') +
           f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(fine_accuracy * 100, 2))}%'
-          f', fine-grain {prior_str} {combined_str} average f1: {utils.green_text(round(fine_f1 * 100, 2))}%'
-          f'\nFine-grain {prior_str} {combined_str} precision: {utils.green_text(round(fine_precision * 100, 2))}%'
-          f', fine-grain {prior_str} {combined_str} recall: {utils.green_text(round(fine_recall * 100, 2))}%'
+          f', fine-grain {prior_str} {combined_str} macro f1: {utils.green_text(round(fine_f1 * 100, 2))}%'
+          f'\nFine-grain {prior_str} {combined_str} macro precision: {utils.green_text(round(fine_precision * 100, 2))}%'
+          f', fine-grain {prior_str} {combined_str} macro recall: {utils.green_text(round(fine_recall * 100, 2))}%\n'
           f'\nCoarse-grain {prior_str} {combined_str} accuracy: '
           f'{utils.green_text(round(coarse_accuracy * 100, 2))}%'
-          f', coarse-grain {prior_str} {combined_str} average f1: '
-          f'{utils.green_text(round(coarse_f1 * 100, 2))}%\n'
-          f'\nCoarse-grain {prior_str} {combined_str} precision: '
+          f', coarse-grain {prior_str} {combined_str} macro f1: '
+          f'{utils.green_text(round(coarse_f1 * 100, 2))}%'
+          f'\nCoarse-grain {prior_str} {combined_str} macro precision: '
           f'{utils.green_text(round(coarse_precision * 100, 2))}%'
-          f', coarse-grain {prior_str} {combined_str} recall: '
+          f', coarse-grain {prior_str} {combined_str} macro recall: '
           f'{utils.green_text(round(coarse_recall * 100, 2))}%\n'
           )
 
