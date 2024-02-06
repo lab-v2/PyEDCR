@@ -170,59 +170,61 @@ def DetUSMPosRuleSelect(i: int,
 
 def GreedyNegRuleSelect(i: int,
                         epsilon: float,
-                        all_charts: list):
-    chart = all_charts[i]
-    chart = np.array(chart)
-    rule_indexs = [i for i in range(4, len(chart[0]))]
-    each_sum = np.sum(chart, axis=0)
-    tpi = each_sum[2]
-    fpi = each_sum[3]
-    pi = tpi * 1.0 / (tpi + fpi)
-    ri = tpi * 1.0 / each_sum[1]
-    ni = each_sum[0]
-    quantity = epsilon * ni * pi / ri
-    # print(f"class{count}, quantity:{quantity}")
+                        all_values: list):
+    class_values = np.array(all_values[i])
+    num_examples, num_values = class_values.shape
 
-    NCi = []
-    NCn = []
-    for rule in rule_indexs:
-        negi_score = np.sum(chart[:, 2] * chart[:, rule])
-        if negi_score < quantity:
-            NCn.append(rule)
+    condition_indices = list(range(4, num_values))
+    each_sum = np.sum(class_values, axis=0)
+    tp_i = each_sum[2]
+    fp_i = each_sum[3]
+    p_i = tp_i * 1.0 / (tp_i + fp_i)
+    r_i = tp_i * 1.0 / each_sum[1]
+    n_i = each_sum[0]
+    q_i = epsilon * n_i * p_i / r_i
+    # print(f"class{count}, q_i:{q_i}")
 
-    with context_handlers.WrapTQDM(total=len(NCn)) as progress_bar:
-        while NCn:
+    DC_i = []
+    DC_star = []
+
+    for condition_index in condition_indices:
+        negi_score = np.sum(class_values[:, 2] * class_values[:, condition_index])
+        if negi_score < q_i:
+            DC_star.append(condition_index)
+
+    with context_handlers.WrapTQDM(total=len(DC_star)) as progress_bar:
+        while DC_star:
             best_score = -1
             best_index = -1
-            for c in NCn:
+            for c in DC_star:
                 tem_cond = 0
-                for cc in NCi:
-                    tem_cond |= chart[:, cc]
-                tem_cond |= chart[:, c]
-                posi_score = np.sum(chart[:, 3] * tem_cond)
+                for cc in DC_i:
+                    tem_cond |= class_values[:, cc]
+                tem_cond |= class_values[:, c]
+                posi_score = np.sum(class_values[:, 3] * tem_cond)
                 if best_score < posi_score:
                     best_score = posi_score
                     best_index = c
-            NCi.append(best_index)
-            NCn.remove(best_index)
+            DC_i.append(best_index)
+            DC_star.remove(best_index)
             tem_cond = 0
-            for cc in NCi:
-                tem_cond |= chart[:, cc]
+            for cc in DC_i:
+                tem_cond |= class_values[:, cc]
             tmp_NCn = []
-            for c in NCn:
-                tem = tem_cond | chart[:, c]
-                negi_score = np.sum(chart[:, 2] * tem)
-                if negi_score < quantity:
+            for c in DC_star:
+                tem = tem_cond | class_values[:, c]
+                negi_score = np.sum(class_values[:, 2] * tem)
+                if negi_score < q_i:
                     tmp_NCn.append(c)
-            NCn = tmp_NCn
+            DC_star = tmp_NCn
 
             if utils.is_local():
                 time.sleep(0.1)
                 progress_bar.update(1)
 
-        # print(f"class:{i}, NCi:{NCi}")
+        # print(f"class:{i}, DC_i:{DC_i}")
 
-    return NCi
+    return DC_i
 
 
 # def ruleForNPCorrection_worker_EC():
@@ -230,27 +232,27 @@ def GreedyNegRuleSelect(i: int,
 
 
 def ruleForNPCorrection_worker(i: int,
-                               chart: list,
+                               class_values: list,
                                epsilon: float,
-                               all_charts: list[list],
+                               all_values: list[list],
                                main_granularity: str,
                                run_positive_rules: bool,
                                total_results: multiprocessing.managers.ListProxy,
                                shared_index: multiprocessing.managers.ValueProxy,
                                error_detections: multiprocessing.managers.DictProxy,
                                possible_test_consistency_constraints: dict[str, set]):
-    chart = np.array(chart)
+    class_values = np.array(class_values)
     DCi = GreedyNegRuleSelect(i=i,
                               epsilon=epsilon,
-                              all_charts=all_charts)
+                              all_values=all_values)
     neg_i_count = 0
     pos_i_count = 0
 
-    predict_result = np.copy(chart[:, 0])
-    tem_cond = np.zeros_like(chart[:, 0])
+    predict_result = np.copy(class_values[:, 0])
+    tem_cond = np.zeros_like(class_values[:, 0])
 
     for cc in DCi:
-        tem_cond |= chart[:, cc]
+        tem_cond |= class_values[:, cc]
 
     classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' \
         else data_preprocessing.coarse_grain_classes
@@ -259,7 +261,7 @@ def ruleForNPCorrection_worker(i: int,
     recovered = set()
 
     if np.sum(tem_cond) > 0:
-        for example_index, example_values in enumerate(chart):
+        for example_index, example_values in enumerate(class_values):
             if tem_cond[example_index] and predict_result[example_index]:
                 neg_i_count += 1
                 predict_result[example_index] = 0
@@ -290,24 +292,24 @@ def ruleForNPCorrection_worker(i: int,
         error_detections[curr_class] = round(len(recovered) / all_possible_constraints * 100, 2)
 
     CCi = DetUSMPosRuleSelect(i=i,
-                              all_charts=all_charts) if run_positive_rules else []
-    tem_cond = np.zeros_like(chart[:, 0])
+                              all_charts=all_values) if run_positive_rules else []
+    tem_cond = np.zeros_like(class_values[:, 0])
 
     for cc in CCi:
-        tem_cond |= chart[:, cc]
+        tem_cond |= class_values[:, cc]
 
     if np.sum(tem_cond) > 0:
-        for example_index, cv in enumerate(chart):
+        for example_index, cv in enumerate(class_values):
             if tem_cond[example_index] and not predict_result[example_index]:
                 pos_i_count += 1
                 predict_result[example_index] = 1
                 total_results[example_index] = i
 
-    scores_cor = get_scores(chart[:, 1], predict_result)
+    scores_cor = get_scores(class_values[:, 1], predict_result)
 
     if not utils.is_local():
         shared_index.value += 1
-        print(f'Completed {shared_index.value}/{len(all_charts)}')
+        print(f'Completed {shared_index.value}/{len(all_values)}')
 
     return scores_cor + [neg_i_count,
                          pos_i_count,
@@ -315,36 +317,41 @@ def ruleForNPCorrection_worker(i: int,
                          len(CCi)]
 
 
-def ruleForNPCorrectionMP(all_charts: list[list],
-                          true_data: np.array,
-                          pred_data: np.array,
+def ruleForNPCorrectionMP(all_values: list[list],
+                          test_pred_granularity: np.array,
+                          train_true_granularity: np.array,
+                          train_pred_granularity: np.array,
                           main_granularity: str,
                           epsilon: float,
                           possible_test_consistency_constraints: dict[str, set],
                           run_positive_rules: bool = True):
     manager = mp.Manager()
-    shared_results = manager.list(pred_data)
+    shared_results = manager.list(train_pred_granularity)
     error_detections = manager.dict({})
     shared_index = manager.Value('i', 0)
 
     args_list = [(i,
-                  chart,
+                  class_values,
                   epsilon,
-                  all_charts,
+                  all_values,
                   main_granularity,
                   run_positive_rules,
                   shared_results,
                   shared_index,
                   error_detections,
                   possible_test_consistency_constraints)
-                 for i, chart in enumerate(all_charts)]
+                 for i, class_values in enumerate(all_values)]
+
+    n_classes = len(all_values)
+    cpu_count = mp.cpu_count()
 
     # Create a pool of processes and map the function with arguments
-    processes_num = min(len(all_charts), mp.cpu_count())
+    processes_num = min(n_classes, cpu_count)
 
     with mp.Pool(processes_num) as pool:
         print(f'Num of processes: {processes_num}')
-        results = pool.starmap(ruleForNPCorrection_worker, args_list)
+        results = pool.starmap(func=ruleForNPCorrection_worker,
+                               iterable=args_list)
 
     shared_results = np.array(list(shared_results))
     error_detections_values = np.array(list(dict(error_detections).values()))
@@ -354,9 +361,9 @@ def ruleForNPCorrectionMP(all_charts: list[list],
 
     results = [item for sublist in results for item in sublist]
 
-    results.extend(get_scores(y_true=true_data,
+    results.extend(get_scores(y_true=train_true_granularity,
                               y_pred=shared_results))
-    posterior_acc = accuracy_score(y_true=true_data,
+    posterior_acc = accuracy_score(y_true=train_true_granularity,
                                    y_pred=shared_results)
 
     # retrieve_error_detection_rule(error_detections)
@@ -378,7 +385,7 @@ def ruleForNPCorrection(all_charts: list,
             chart = np.array(chart)
             NCi = GreedyNegRuleSelect(i=i,
                                       epsilon=epsilon,
-                                      all_charts=all_charts)
+                                      all_values=all_charts)
             neg_i_count = 0
             pos_i_count = 0
 
@@ -729,9 +736,10 @@ def run_EDCR_for_granularity(combined: bool,
 
         for epsilon in epsilons:
             result, posterior_acc, total_results, error_detections_mean = ruleForNPCorrectionMP(
-                all_charts=all_values,
-                true_data=train_true_granularity,
-                pred_data=train_pred_granularity,
+                all_values=all_values,
+                test_pred_granularity=test_pred_granularity,
+                train_true_granularity=train_true_granularity,
+                train_pred_granularity=train_pred_granularity,
                 main_granularity=main_granularity,
                 epsilon=epsilon,
                 possible_test_consistency_constraints=possible_test_consistency_constraints
