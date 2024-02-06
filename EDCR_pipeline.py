@@ -1,4 +1,3 @@
-import os
 import numpy as np
 import pandas as pd
 import time
@@ -39,14 +38,17 @@ def get_binary_condition_values(example_index: int,
     return res
 
 
-def get_unary_condition_values(example_index: int,
-                               cla_datas: np.array):
-    return [int(cls[example_index]) for cls in cla_datas]
+def get_assign_values_for_example(example_index: int,
+                                  train_conditions_datas: np.array) -> list[int]:
+    # train_conditions_datas.shape = (classes, examples)
+    n_classes, n_examples = train_conditions_datas.shape
+
+    return [int(train_conditions_datas[row_index, example_index]) for row_index in range(n_classes)]
 
 
 def get_scores(y_true: np.array,
                y_pred: np.array):
-    try:
+    # try:
         y_actual = y_true
         y_hat = y_pred
         TP = 0
@@ -65,11 +67,11 @@ def get_scores(y_true: np.array,
                 FN += 1
         # print(f"TP:{TP}, FP:{FP}, TN:{TN}, FN:{FN}")
 
-        pre = precision_score(y_true, y_pred)
-        rec = recall_score(y_true, y_pred)
-        f1 = f1_score(y_true, y_pred)
-        return [pre, rec, f1]
-    except:
+        # pre = precision_score(y_true, y_pred)
+        # rec = recall_score(y_true, y_pred)
+        # f1 = f1_score(y_true, y_pred)
+        # return [pre, rec, f1]
+    # except:
         pre = accuracy_score(y_true, y_pred)
         f1 = f1_score(y_true, y_pred, average='macro')
         f1micro = f1_score(y_true, y_pred, average='micro')
@@ -77,33 +79,30 @@ def get_scores(y_true: np.array,
         return [pre, f1, f1micro]
 
 
-def generate_chart(n_classes: int,
-                   charts: list) -> list:
-    all_charts = [[] for _ in range(n_classes)]
+def rearrange_values(n_classes: int,
+                     pred_assign_condition_values: list[list]) -> list:
+    all_values = [[] for _ in range(n_classes)]
 
-    for data in charts:
-        for count, jj in enumerate(all_charts):
+    for value in pred_assign_condition_values:
+        for class_index, class_values in enumerate(all_values):
             # pred, corr, tp, fp, cond1, cond2 ... condn
             each_items = []
-            for d in data[:2]:
-                if d == count:
-                    each_items.append(1)
-                else:
-                    each_items.append(0)
+            pred, corr = value[:2]
 
-            if each_items[0] == 1 and each_items[1] == 1:
-                each_items.append(1)
-            else:
-                each_items.append(0)
-            if each_items[0] == 1 and each_items[1] == 0:
-                each_items.append(1)
-            else:
-                each_items.append(0)
+            # pred, corr
+            for pred_or_corr in [pred, corr]:
+                each_items.append(int(pred_or_corr == class_index))
 
-            each_items.extend(data[2:])
-            jj.append(each_items)
+            # tp
+            each_items.append(int(each_items[0] == 1 and each_items[1] == 1))
 
-    return all_charts
+            # fp
+            each_items.append(int(each_items[0] == 1 and each_items[1] == 0))
+
+            each_items.extend(value[2:])
+            class_values.append(each_items)
+
+    return all_values
 
 
 def DetUSMPosRuleSelect(i: int,
@@ -499,40 +498,42 @@ def retrieve_error_detection_rule(error_detections):
                   f'and predicted_fine_grain = {fine_grain_label}')
 
 
-def rearrange_for_condition_values(arr: np.array) -> np.array:
+def get_one_hot_encoding(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
 
-def get_possible_test_consistency_constraints(test_fine_data: np.array,
-                                              test_coarse_data: np.array) -> dict[str, dict[str]]:
-    possible_test_consistency_constraints = {}
+def get_possible_consistency_constraints(pred_fine_data: np.array,
+                                         pred_coarse_data: np.array) -> dict[str, dict[str]]:
+    possible_consistency_constraints = {}
 
-    for fine_prediction_index, coarse_prediction_index in zip(test_fine_data, test_coarse_data):
+    for fine_prediction_index, coarse_prediction_index in zip(pred_fine_data, pred_coarse_data):
         fine_prediction = data_preprocessing.fine_grain_classes[fine_prediction_index]
         coarse_prediction = data_preprocessing.coarse_grain_classes[coarse_prediction_index]
 
         if data_preprocessing.fine_to_coarse[fine_prediction] != coarse_prediction:
-            if coarse_prediction not in possible_test_consistency_constraints:
-                possible_test_consistency_constraints[coarse_prediction] = {fine_prediction}
+            if coarse_prediction not in possible_consistency_constraints:
+                possible_consistency_constraints[coarse_prediction] = {fine_prediction}
             else:
-                possible_test_consistency_constraints[coarse_prediction] = (
-                    possible_test_consistency_constraints[coarse_prediction].union({fine_prediction}))
+                possible_consistency_constraints[coarse_prediction] = (
+                    possible_consistency_constraints[coarse_prediction].union({fine_prediction}))
 
-            if fine_prediction not in possible_test_consistency_constraints:
-                possible_test_consistency_constraints[fine_prediction] = {coarse_prediction}
+            if fine_prediction not in possible_consistency_constraints:
+                possible_consistency_constraints[fine_prediction] = {coarse_prediction}
             else:
-                possible_test_consistency_constraints[fine_prediction] = (
-                    possible_test_consistency_constraints[fine_prediction].union({coarse_prediction}))
+                possible_consistency_constraints[fine_prediction] = (
+                    possible_consistency_constraints[fine_prediction].union({coarse_prediction}))
 
-    return possible_test_consistency_constraints
+    return possible_consistency_constraints
 
 
-def load_priors(test_pred_fine_path,
-                test_pred_coarse_path,
-                train_pred_fine_path,
-                train_pred_coarse_path,
-                train_true_fine_path,
-                train_true_coarse_path,
+def load_priors(test_pred_fine_path: str,
+                test_pred_coarse_path: str,
+                test_true_fine_path: str,
+                test_true_coarse_path: str,
+                train_pred_fine_path: str,
+                train_pred_coarse_path: str,
+                train_true_fine_path: str,
+                train_true_coarse_path: str,
                 main_lr,
                 loss: str,
                 combined: bool) -> (np.array, np.array):
@@ -566,6 +567,9 @@ def load_priors(test_pred_fine_path,
     test_pred_fine_data = np.load(test_pred_fine_path)
     test_pred_coarse_data = np.load(test_pred_coarse_path)
 
+    test_true_fine_data = np.load(test_true_fine_path)
+    test_true_coarse_data = np.load(test_true_coarse_path)
+
     train_pred_fine_data = np.load(train_pred_fine_path)
     train_pred_coarse_data = np.load(train_pred_coarse_path)
 
@@ -586,13 +590,15 @@ def load_priors(test_pred_fine_path,
     vit_pipeline.get_and_print_metrics(pred_fine_data=test_pred_fine_data,
                                        pred_coarse_data=test_pred_coarse_data,
                                        loss=loss,
+                                       true_fine_data=test_true_fine_data,
+                                       true_coarse_data=test_true_coarse_data,
                                        combined=combined,
                                        model_name=main_model_name,
                                        lr=main_lr)
 
     possible_test_consistency_constraints = (
-        get_possible_test_consistency_constraints(test_fine_data=test_pred_fine_data,
-                                                  test_coarse_data=test_pred_coarse_data))
+        get_possible_consistency_constraints(pred_fine_data=test_pred_fine_data,
+                                             pred_coarse_data=test_pred_coarse_data))
 
     # for coarse_prediction, fine_grain_inconsistencies in consistency_constraints_for_main_model.items():
     #     assert len(set(data_preprocessing.coarse_to_fine[coarse_prediction]).
@@ -600,33 +606,46 @@ def load_priors(test_pred_fine_path,
 
     # print([f'{k}: {len(v)}' for k, v in consistency_constraints_for_main_model.items()])
 
-    return (test_pred_fine_data, test_pred_coarse_data, train_pred_fine_data, train_pred_coarse_data,
+    return (test_pred_fine_data,
+            test_pred_coarse_data,
+            test_true_fine_data,
+            test_true_coarse_data,
+            train_pred_fine_data,
+            train_pred_coarse_data,
+            train_true_fine_data,
+            train_true_coarse_data,
             possible_test_consistency_constraints)
 
 
-def get_conditions(train_fine_data: np.array,
-                   train_coarse_data: np.array,
-                   # secondary_fine_data: np.array
-                   ) -> dict[str, dict[str, np.array]]:
+def get_conditions_from_train(train_fine_data: np.array,
+                              train_coarse_data: np.array,
+                              # secondary_fine_data: np.array
+                              ) -> dict[str, dict[str, np.array]]:
     condition_datas = {}
 
     for main_or_secondary in ['main',
                               # 'secondary'
                               ]:
+        if main_or_secondary not in condition_datas:
+            condition_datas[main_or_secondary] = {}
 
         # take_conditions_from = main_fine_data if main_or_secondary == 'main' else secondary_fine_data
 
+        one_hot_encodings = {}
         for granularity in data_preprocessing.granularities:
-            if main_or_secondary not in condition_datas:
-                condition_datas[main_or_secondary] = {}
+            train_granularity_data = train_fine_data if granularity == 'fine' else train_coarse_data
+            one_hot_encodings[granularity] = get_one_hot_encoding(train_granularity_data)
 
-            cla_data = train_fine_data if granularity == 'fine' else train_coarse_data
-            condition_datas[main_or_secondary][granularity] = rearrange_for_condition_values(cla_data)
+        # concatenated one-hot encoding with fine first and then coarse
 
-        derived_coarse = np.array([data_preprocessing.fine_to_course_idx[fine_grain_prediction]
-                                   for fine_grain_prediction in train_fine_data])
+        condition_datas[main_or_secondary] = np.concatenate([one_hot_encodings[granularity]
+                                                             for granularity in data_preprocessing.granularities],
+                                                            axis=0)
 
-        condition_datas[main_or_secondary]['fine_to_coarse'] = rearrange_for_condition_values(derived_coarse)
+        # derived_coarse = np.array([data_preprocessing.fine_to_course_idx[fine_grain_prediction]
+        #                            for fine_grain_prediction in train_fine_data])
+
+        # condition_datas[main_or_secondary]['fine_to_coarse'] = get_one_hot_encoding(derived_coarse)
 
     return condition_datas
 
@@ -634,64 +653,59 @@ def get_conditions(train_fine_data: np.array,
 def run_EDCR_for_granularity(combined: bool,
                              main_lr: typing.Union[str, float],
                              main_granularity: str,
-                             main_fine_data: np.array,
-                             main_coarse_data: np.array,
-                             train_fine_data,
-                             train_coarse_data,
-                             condition_datas: dict[str, dict[str, np.array]],
+                             test_pred_granularity: np.array,
+                             train_pred_granularity: np.array,
+                             train_true_granularity: np.array,
+                             train_condition_datas: dict[str, dict[str, np.array]],
                              consistency_constraints: bool,
                              multiprocessing: bool,
                              possible_test_consistency_constraints: dict[str, set]) -> np.array:
-    with ((context_handlers.TimeWrapper())):
-        if main_granularity == 'fine':
-            classes = data_preprocessing.fine_grain_classes
-            true_data = train_fine_data
-            pred_data = main_fine_data
-        else:
-            classes = data_preprocessing.coarse_grain_classes
-            true_data = train_coarse_data
-            pred_data = main_coarse_data
+    with context_handlers.TimeWrapper():
+        classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' else \
+            data_preprocessing.coarse_grain_classes
 
-        examples_num = true_data.shape[0]
+        examples_num = train_true_granularity.shape[0]
 
-        charts = [[pred_data[example_index], true_data[example_index]] +
-                  ((
-                           get_unary_condition_values(example_index=example_index,
-                                                      cla_datas=condition_datas['main']['fine'])
-                           +
-                           get_unary_condition_values(example_index=example_index,
-                                                      cla_datas=condition_datas['main']['coarse'])
-                           +
-                           (get_binary_condition_values(example_index=example_index,
-                                                        fine_cla_datas=condition_datas['main']['fine'],
-                                                        coarse_cla_datas=condition_datas['main']['coarse'])
-                            if consistency_constraints else [])
-                       # +
-                       # get_unary_condition_values(example_index=example_index,
-                       #                            cla_datas=condition_datas['main']['fine_to_coarse'])
-                   ) if combined else [])
-                  +
-                  (
-                      (
-                              get_unary_condition_values(example_index=example_index,
-                                                         cla_datas=condition_datas['secondary']['fine'])
-                              +
-                              get_unary_condition_values(example_index=example_index,
-                                                         cla_datas=condition_datas['secondary']['coarse'])
-                          # +
-                          # (get_binary_condition_values(example_index=example_index,
-                          #                              fine_cla_datas=condition_datas['secondary']['fine'],
-                          #                              coarse_cla_datas=condition_datas['secondary']['coarse'])
-                          #  if consistency_constraints else [])
-                          # +
-                          # get_unary_condition_values(example_index=example_index,
-                          #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
-                      )
-                      if not combined else [])
-                  for example_index in range(examples_num)]
+        pred_assign_condition_values = [[train_pred_granularity[example_index], train_true_granularity[example_index]] +
+                                        ((
+                                             get_assign_values_for_example(example_index=example_index,
+                                                                           train_conditions_datas=train_condition_datas[
+                                                                               'main'])
+                                             # +
+                                             # (get_binary_condition_values(example_index=example_index,
+                                             #                              fine_cla_datas=train_condition_datas['main']['fine'],
+                                             #                              coarse_cla_datas=train_condition_datas['main']['coarse'])
+                                             #  if consistency_constraints else [])
+                                             # +
+                                             # get_unary_condition_values(example_index=example_index,
+                                             #                            cla_datas=condition_datas['main']['fine_to_coarse'])
+                                         ) if combined else [])
+                                        +
+                                        (
+                                            (
+                                                    get_assign_values_for_example(example_index=example_index,
+                                                                                  train_conditions_datas=
+                                                                                  train_condition_datas['secondary'][
+                                                                                      'fine'])
+                                                    +
+                                                    get_assign_values_for_example(example_index=example_index,
+                                                                                  train_conditions_datas=
+                                                                                  train_condition_datas['secondary'][
+                                                                                      'coarse'])
+                                                # +
+                                                # (get_binary_condition_values(example_index=example_index,
+                                                #                              fine_cla_datas=condition_datas['secondary']['fine'],
+                                                #                              coarse_cla_datas=condition_datas['secondary']['coarse'])
+                                                #  if consistency_constraints else [])
+                                                # +
+                                                # get_unary_condition_values(example_index=example_index,
+                                                #                            cla_datas=condition_datas['secondary']['fine_to_coarse'])
+                                            )
+                                            if not combined else [])
+                                        for example_index in range(examples_num)]
 
-        all_charts = generate_chart(n_classes=len(classes),
-                                    charts=charts)
+        all_values = rearrange_values(n_classes=len(classes),
+                                      pred_assign_condition_values=pred_assign_condition_values)
 
         results = []
         result0 = [0]
@@ -700,30 +714,30 @@ def run_EDCR_for_granularity(combined: bool,
               # f', secondary: {secondary_model_name}, lr: {secondary_lr}\n'
               )
 
-        for count, chart in enumerate(all_charts):
-            chart = np.array(chart)
-            result0.extend(get_scores(chart[:, 1], chart[:, 0]))
+        for class_index, class_values in enumerate(all_values):
+            class_values = np.array(class_values)
+            result0.extend(get_scores(class_values[:, 1], class_values[:, 0]))
             result0.extend([0, 0, 0, 0])
 
-        result0.extend(get_scores(true_data, pred_data))
+        result0.extend(get_scores(train_true_granularity, train_pred_granularity))
         results.append(result0)
 
         # posterior_acc = 0
-        total_results = np.zeros_like(pred_data)
+        total_results = np.zeros_like(train_pred_granularity)
 
         epsilons = [0.002 * i for i in range(1, 2, 1)]
 
         for epsilon in epsilons:
             result, posterior_acc, total_results, error_detections_mean = ruleForNPCorrectionMP(
-                all_charts=all_charts,
-                true_data=true_data,
-                pred_data=pred_data,
+                all_charts=all_values,
+                true_data=train_true_granularity,
+                pred_data=train_pred_granularity,
                 main_granularity=main_granularity,
                 epsilon=epsilon,
                 possible_test_consistency_constraints=possible_test_consistency_constraints
-            ) if multiprocessing else ruleForNPCorrection(all_charts=all_charts,
-                                                          true_data=true_data,
-                                                          pred_data=pred_data,
+            ) if multiprocessing else ruleForNPCorrection(all_charts=all_values,
+                                                          true_data=train_true_granularity,
+                                                          pred_data=train_pred_granularity,
                                                           epsilon=epsilon)
 
             results.append([epsilon] + result)
@@ -767,6 +781,8 @@ def run_EDCR_for_granularity(combined: bool,
 
 def run_EDCR_pipeline(test_pred_fine_path: str,
                       test_pred_coarse_path: str,
+                      test_true_fine_path: str,
+                      test_true_coarse_path: str,
                       train_pred_fine_path: str,
                       train_pred_coarse_path: str,
                       train_true_fine_path: str,
@@ -775,11 +791,19 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
                       combined: bool,
                       loss: str,
                       consistency_constraints: bool,
-                      multiprocessing: bool = True
-                      ):
-    (main_test_pred_fine_data, main_test_pred_coarse_data, train_pred_fine_data, train_pred_coarse_data,
+                      multiprocessing: bool = True):
+    (test_pred_fine_data,
+     test_pred_coarse_data,
+     test_true_fine_data,
+     test_true_coarse_data,
+     train_pred_fine_data,
+     train_pred_coarse_data,
+     train_true_fine_data,
+     train_true_coarse_data,
      possible_test_consistency_constraints) = load_priors(test_pred_coarse_path=test_pred_coarse_path,
                                                           test_pred_fine_path=test_pred_fine_path,
+                                                          test_true_fine_path=test_true_fine_path,
+                                                          test_true_coarse_path=test_true_coarse_path,
                                                           train_pred_fine_path=train_pred_fine_path,
                                                           train_pred_coarse_path=train_pred_coarse_path,
                                                           train_true_fine_path=train_true_fine_path,
@@ -787,21 +811,31 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
                                                           main_lr=main_lr,
                                                           loss=loss,
                                                           combined=combined)
-    condition_datas = get_conditions(train_fine_data=train_pred_fine_data,
-                                     train_coarse_data=train_pred_coarse_data,
-                                     # secondary_fine_data=secondary_fine_data
-                                     )
+    train_condition_datas = get_conditions_from_train(train_fine_data=train_pred_fine_data,
+                                                      train_coarse_data=train_pred_coarse_data,
+                                                      # secondary_fine_data=secondary_fine_data
+                                                      )
     pipeline_results = {}
     error_detections = []
 
     for main_granularity in data_preprocessing.granularities:
+        if main_granularity == 'fine':
+            test_pred_granularity = test_pred_fine_data
+            train_pred_granularity = train_pred_fine_data
+            train_true_granularity = train_true_fine_data
+        else:
+            test_pred_granularity = test_pred_coarse_data
+            train_pred_granularity = train_pred_coarse_data
+            train_true_granularity = train_true_coarse_data
+
         res = (
             run_EDCR_for_granularity(combined=combined,
                                      main_lr=main_lr,
                                      main_granularity=main_granularity,
-                                     main_fine_data=main_test_pred_fine_data,
-                                     main_coarse_data=main_test_pred_coarse_data,
-                                     condition_datas=condition_datas,
+                                     test_pred_granularity=test_pred_granularity,
+                                     train_pred_granularity=train_pred_granularity,
+                                     train_true_granularity=train_true_granularity,
+                                     train_condition_datas=train_condition_datas,
                                      consistency_constraints=consistency_constraints,
                                      multiprocessing=multiprocessing,
                                      possible_test_consistency_constraints=possible_test_consistency_constraints))
@@ -829,6 +863,9 @@ if __name__ == '__main__':
     test_pred_fine_path = 'combined_results/vit_b_16_test_fine_pred_lr0.0001_e19.npy'
     test_pred_coarse_path = 'combined_results/vit_b_16_test_coarse_pred_lr0.0001_e19.npy'
 
+    test_true_fine_path = 'combined_results/test_true_fine.npy'
+    test_true_coarse_path = 'combined_results/test_true_coarse.npy'
+
     train_pred_fine_path = 'combined_results/train_vit_b_16_fine_pred_lr0.0001.npy'
     train_pred_coarse_path = 'combined_results/train_vit_b_16_coarse_pred_lr0.0001.npy'
 
@@ -837,6 +874,8 @@ if __name__ == '__main__':
 
     run_EDCR_pipeline(test_pred_fine_path=test_pred_fine_path,
                       test_pred_coarse_path=test_pred_coarse_path,
+                      test_true_fine_path=test_true_fine_path,
+                      test_true_coarse_path=test_true_coarse_path,
                       train_pred_fine_path=train_pred_fine_path,
                       train_pred_coarse_path=train_pred_coarse_path,
                       train_true_fine_path=train_true_fine_path,
