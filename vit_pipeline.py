@@ -1,7 +1,7 @@
 import os
 import torch.utils.data
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 import pathlib
 import typing
 
@@ -45,16 +45,30 @@ def get_and_print_metrics(pred_fine_data: np.array,
                           lr: typing.Union[str, float] = ''):
     fine_accuracy = accuracy_score(y_true=true_fine_data,
                                    y_pred=pred_fine_data)
-    coarse_accuracy = accuracy_score(y_true=true_coarse_data,
-                                     y_pred=pred_coarse_data)
     fine_f1 = f1_score(y_true=true_fine_data,
                        y_pred=pred_fine_data,
                        labels=range(len(data_preprocessing.fine_grain_classes)),
                        average='macro')
+    fine_precision = precision_score(y_true=true_fine_data,
+                                     y_pred=pred_fine_data,
+                                     labels=range(len(data_preprocessing.fine_grain_classes)),
+                                     average='macro')
+    fine_recall = recall_score(y_true=true_fine_data,
+                               y_pred=pred_fine_data,
+                               labels=range(len(data_preprocessing.fine_grain_classes)),
+                               average='macro')
+    coarse_accuracy = accuracy_score(y_true=true_coarse_data,
+                                     y_pred=pred_coarse_data)
     coarse_f1 = f1_score(y_true=true_coarse_data,
                          y_pred=pred_coarse_data,
                          labels=range(len(data_preprocessing.coarse_grain_classes)),
                          average='macro')
+    coarse_precision = precision_score(y_true=true_coarse_data,
+                                       y_pred=pred_coarse_data)
+    coarse_recall = recall_score(y_true=true_coarse_data,
+                                 y_pred=pred_coarse_data,
+                                 labels=range(len(data_preprocessing.coarse_grain_classes)),
+                                 average='macro')
 
     prior_str = 'prior' if prior else 'post'
     combined_str = 'combined' if combined else 'individual'
@@ -64,10 +78,17 @@ def get_and_print_metrics(pred_fine_data: np.array,
           (f'with lr={utils.blue_text(lr)}\n' if lr != '' else '') +
           f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(fine_accuracy * 100, 2))}%'
           f', fine-grain {prior_str} {combined_str} average f1: {utils.green_text(round(fine_f1 * 100, 2))}%'
+          f'\nFine-grain {prior_str} {combined_str} precision: {utils.green_text(round(fine_precision * 100, 2))}%'
+          f', fine-grain {prior_str} {combined_str} recall: {utils.green_text(round(fine_recall * 100, 2))}%'
           f'\nCoarse-grain {prior_str} {combined_str} accuracy: '
           f'{utils.green_text(round(coarse_accuracy * 100, 2))}%'
           f', coarse-grain {prior_str} {combined_str} average f1: '
-          f'{utils.green_text(round(coarse_f1 * 100, 2))}%\n')
+          f'{utils.green_text(round(coarse_f1 * 100, 2))}%\n'
+          f'\nCoarse-grain {prior_str} {combined_str} precision: '
+          f'{utils.green_text(round(coarse_precision * 100, 2))}%'
+          f', coarse-grain {prior_str} {combined_str} recall: '
+          f'{utils.green_text(round(coarse_recall * 100, 2))}%\n'
+          )
 
     print_num_inconsistencies(pred_fine_data=pred_fine_data,
                               pred_coarse_data=pred_coarse_data,

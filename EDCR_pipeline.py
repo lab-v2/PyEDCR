@@ -721,12 +721,13 @@ def run_EDCR_for_granularity(combined: bool,
                                       get_assign_values_for_example(example_index=example_index,
                                                                     conditions_datas=np.concatenate(
                                                                         [test_condition_datas['main']['fine'],
-                                                                         test_condition_datas['main']['fine']], axis=0))
+                                                                         test_condition_datas['main']['fine']],
+                                                                        axis=0))
                                       +
                                       (get_binary_condition_values(example_index=example_index,
                                                                    fine_cla_datas=test_condition_datas['main']['fine'],
-                                                                   coarse_cla_datas=test_condition_datas['main'][
-                                                                       'coarse'])
+                                                                   coarse_cla_datas=
+                                                                   test_condition_datas['main']['coarse'])
                                        if consistency_constraints else [])
                                       # +
                                       # (get_binary_condition_values(example_index=example_index,
