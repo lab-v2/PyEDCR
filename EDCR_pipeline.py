@@ -260,30 +260,30 @@ def ruleForNPCorrection_worker(i: int,
                                shared_index: multiprocessing.managers.ValueProxy,
                                error_detections: multiprocessing.managers.DictProxy,
                                possible_test_consistency_constraints: dict[str, set]):
-    class_values = np.array(class_values)
-    DCi = GreedyNegRuleSelect(i=i,
-                              epsilon=epsilon,
-                              all_values=all_values)
-    neg_i_count = 0
-    pos_i_count = 0
-
-    predict_result = np.copy(class_values[:, 0])
-    tem_cond = np.zeros_like(class_values[:, 0])
-
-    for cc in DCi:
-        tem_cond |= class_values[:, cc]
-
     classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' \
         else data_preprocessing.coarse_grain_classes
     curr_class = classes[i]
+    class_values = np.array(class_values)
+
+    DCi = GreedyNegRuleSelect(i=i,
+                              epsilon=epsilon,
+                              all_values=all_values)
+    neg_i = 0
+    pos_i = 0
+
+    pred_i_for_all_examples = np.copy(class_values[:, 0])
+    tem_cond = np.zeros_like(pred_i_for_all_examples)
+
+    for cc in DCi:
+        tem_cond |= class_values[:, cc]
 
     recovered = set()
 
     if np.sum(tem_cond) > 0:
         for example_index, example_values in enumerate(class_values):
-            if tem_cond[example_index] and predict_result[example_index]:
-                neg_i_count += 1
-                predict_result[example_index] = 0
+            if tem_cond[example_index] and pred_i_for_all_examples[example_index]:
+                neg_i += 1
+                pred_i_for_all_examples[example_index] = 0
 
                 condition_values = example_values[4:]
 
@@ -319,19 +319,19 @@ def ruleForNPCorrection_worker(i: int,
 
     if np.sum(tem_cond) > 0:
         for example_index, cv in enumerate(class_values):
-            if tem_cond[example_index] and not predict_result[example_index]:
-                pos_i_count += 1
-                predict_result[example_index] = 1
+            if tem_cond[example_index] and not pred_i_for_all_examples[example_index]:
+                pos_i += 1
+                pred_i_for_all_examples[example_index] = 1
                 total_results[example_index] = i
 
-    scores_cor = get_scores(class_values[:, 1], predict_result)
+    scores_cor = get_scores(class_values[:, 1], pred_i_for_all_examples)
 
     if not utils.is_local():
         shared_index.value += 1
         print(f'Completed {shared_index.value}/{len(all_values)}')
 
-    return scores_cor + [neg_i_count,
-                         pos_i_count,
+    return scores_cor + [neg_i,
+                         pos_i,
                          len(DCi),
                          len(CCi)]
 
@@ -683,7 +683,6 @@ def run_EDCR_for_granularity(combined: bool,
                              train_pred_granularity: np.array,
                              train_true_granularity: np.array,
                              train_condition_datas: dict[str, dict[str, np.array]],
-                             consistency_constraints: bool,
                              multiprocessing: bool,
                              possible_test_consistency_constraints: dict[str, set]) -> np.array:
     with context_handlers.TimeWrapper():
@@ -863,7 +862,6 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
                                      train_pred_granularity=train_pred_granularity,
                                      train_true_granularity=train_true_granularity,
                                      train_condition_datas=train_condition_datas,
-                                     consistency_constraints=consistency_constraints,
                                      multiprocessing=multiprocessing,
                                      possible_test_consistency_constraints=possible_test_consistency_constraints))
         pipeline_results[main_granularity] = res[0]
