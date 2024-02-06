@@ -57,6 +57,7 @@ def get_and_print_metrics(pred_fine_data: np.array,
                                y_pred=pred_fine_data,
                                labels=range(len(data_preprocessing.fine_grain_classes)),
                                average='macro')
+
     coarse_accuracy = accuracy_score(y_true=true_coarse_data,
                                      y_pred=pred_coarse_data)
     coarse_f1 = f1_score(y_true=true_coarse_data,
@@ -64,7 +65,9 @@ def get_and_print_metrics(pred_fine_data: np.array,
                          labels=range(len(data_preprocessing.coarse_grain_classes)),
                          average='macro')
     coarse_precision = precision_score(y_true=true_coarse_data,
-                                       y_pred=pred_coarse_data)
+                                       y_pred=pred_coarse_data,
+                                       labels=range(len(data_preprocessing.coarse_grain_classes)),
+                                       average='macro')
     coarse_recall = recall_score(y_true=true_coarse_data,
                                  y_pred=pred_coarse_data,
                                  labels=range(len(data_preprocessing.coarse_grain_classes)),
