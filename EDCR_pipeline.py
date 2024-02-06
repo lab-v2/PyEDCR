@@ -257,11 +257,6 @@ def GreedyNegRuleSelect(i: int,
     return DC_i
 
 
-def get_pred_i(prediction_array: np.array,
-               i: int) -> np.array:
-    return np.array([int(prediction_array[example_index] == i) for example_index in prediction_array])
-
-
 def ruleForNPCorrection_worker(i: int,
                                test_class_values: list,
                                epsilon: float,
@@ -526,13 +521,6 @@ def plot(df: pd.DataFrame,
     plt.savefig(f'{folder}/average.png')
     plt.clf()
     plt.cla()
-
-
-def retrieve_error_detection_rule(error_detections):
-    for coarse_grain_label, coarse_grain_label_data in error_detections.items():
-        for fine_grain_label in coarse_grain_label_data.keys():
-            print(f'error <- predicted_coarse_grain = {coarse_grain_label} '
-                  f'and predicted_fine_grain = {fine_grain_label}')
 
 
 def get_one_hot_encoding(arr: np.array) -> np.array:
