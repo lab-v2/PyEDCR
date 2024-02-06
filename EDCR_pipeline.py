@@ -184,12 +184,15 @@ def GreedyNegRuleSelect(i: int,
     q_i = epsilon * n_i * p_i / r_i
     # print(f"class{count}, q_i:{q_i}")
 
+    all_class_tps = class_values[:, 2]
+    all_class_fps = class_values[:, 3]
+
     DC_i = []
     DC_star = []
 
     for condition_index in condition_indices:
         condition_index_values = class_values[:, condition_index]
-        all_class_tps = class_values[:, 2]
+
         neg_i = np.sum(all_class_tps * condition_index_values)
 
         if neg_i < q_i:
@@ -201,31 +204,38 @@ def GreedyNegRuleSelect(i: int,
             best_index = -1
 
             for condition_index_from_DC_star in DC_star:
-                tem_cond = 0
+                tem_cond = 1
 
+                # maximizing pos for c_best
                 for condition_index in DC_i:
                     condition_index_values = class_values[:, condition_index]
-                    tem_cond |= condition_index_values
+                    tem_cond &= condition_index_values
 
-                tem_cond |= class_values[:, condition_index_from_DC_star]
+                tem_cond &= class_values[:, condition_index_from_DC_star]
 
-                posi_score = np.sum(class_values[:, 3] * tem_cond)
-                if best_score < posi_score:
-                    best_score = posi_score
+                pos_i_score = np.sum(all_class_fps * tem_cond)
+
+                if best_score < pos_i_score:
+                    best_score = pos_i_score
                     best_index = condition_index_from_DC_star
 
             DC_i.append(best_index)
             DC_star.remove(best_index)
-            tem_cond = 0
+
+            tem_cond = 1
             for condition_index in DC_i:
-                tem_cond |= class_values[:, condition_index]
-            tmp_NCn = []
+                tem_cond &= class_values[:, condition_index]
+
+            tmp_DC_star = []
+
             for condition_index_from_DC_star in DC_star:
-                tem = tem_cond | class_values[:, condition_index_from_DC_star]
-                neg_i = np.sum(class_values[:, 2] * tem)
+                tem = tem_cond & class_values[:, condition_index_from_DC_star]
+                neg_i = np.sum(all_class_tps * tem)
+
                 if neg_i < q_i:
-                    tmp_NCn.append(condition_index_from_DC_star)
-            DC_star = tmp_NCn
+                    tmp_DC_star.append(condition_index_from_DC_star)
+
+            DC_star = tmp_DC_star
 
             if utils.is_local():
                 time.sleep(0.1)
@@ -867,6 +877,8 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
     vit_pipeline.get_and_print_metrics(pred_fine_data=pipeline_results['fine'],
                                        pred_coarse_data=pipeline_results['coarse'],
                                        loss=loss,
+                                       true_fine_data=train_true_fine_data,
+                                       true_coarse_data=train_true_coarse_data,
                                        prior=False,
                                        combined=combined,
                                        model_name=main_model_name,
