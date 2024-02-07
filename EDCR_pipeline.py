@@ -278,8 +278,8 @@ def ruleForNPCorrection_worker(i: int,
                                shared_index: multiprocessing.managers.ValueProxy,
                                error_detections: multiprocessing.managers.DictProxy,
                                possible_test_consistency_constraints: dict[str, set]):
-    classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' \
-        else data_preprocessing.coarse_grain_classes
+    classes = data_preprocessing.fine_grain_classes_str if main_granularity == 'fine' \
+        else data_preprocessing.coarse_grain_classes_str
     curr_class = classes[i]
     test_class_values = np.array(test_class_values)
 
@@ -542,8 +542,8 @@ def get_possible_consistency_constraints(pred_fine_data: np.array,
     possible_consistency_constraints = {}
 
     for fine_prediction_index, coarse_prediction_index in zip(pred_fine_data, pred_coarse_data):
-        fine_prediction = data_preprocessing.fine_grain_classes[fine_prediction_index]
-        coarse_prediction = data_preprocessing.coarse_grain_classes[coarse_prediction_index]
+        fine_prediction = data_preprocessing.fine_grain_classes_str[fine_prediction_index]
+        coarse_prediction = data_preprocessing.coarse_grain_classes_str[coarse_prediction_index]
 
         if data_preprocessing.fine_to_coarse[fine_prediction] != coarse_prediction:
             if coarse_prediction not in possible_consistency_constraints:
@@ -664,7 +664,7 @@ def get_conditions(pred_fine_data: np.array,
 
         # take_conditions_from = main_fine_data if main_or_secondary == 'main' else secondary_fine_data
 
-        for granularity in data_preprocessing.granularities:
+        for granularity in data_preprocessing.granularities_str:
             if main_or_secondary not in condition_datas:
                 condition_datas[main_or_secondary] = {}
 
@@ -693,8 +693,8 @@ def run_EDCR_for_granularity(combined: bool,
                              epsilon: float,
                              consistency_constraints: bool) -> np.array:
     with context_handlers.TimeWrapper():
-        classes = data_preprocessing.fine_grain_classes if main_granularity == 'fine' else \
-            data_preprocessing.coarse_grain_classes
+        classes = data_preprocessing.fine_grain_classes_str if main_granularity == 'fine' else \
+            data_preprocessing.coarse_grain_classes_str
 
         train_examples_num = train_true_granularity.shape[0]
 
@@ -898,7 +898,7 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
     pipeline_results = {}
     error_detections = []
 
-    for main_granularity in data_preprocessing.granularities:
+    for main_granularity in data_preprocessing.granularities_str:
         if main_granularity == 'fine':
             test_pred_granularity = test_pred_fine_data
             test_true_granularity = test_true_fine_data

@@ -49,7 +49,7 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
     pipeline_results = {}
     error_detections = []
 
-    for main_granularity in data_preprocessing.granularities:
+    for main_granularity in data_preprocessing.granularities_str:
         if main_granularity == 'fine':
             test_pred_granularity = test_pred_fine_data
             test_true_granularity = test_true_fine_data
@@ -96,6 +96,31 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
                                        lr=main_lr)
 
 
+class Condition:
+    def __init__(self,
+                 data: np.array):
+        self.__data = data_preprocessing.get_one_hot_encoding(arr=data)
+
+    def get_condition_value(self,
+                            x: data_preprocessing.Example) -> int:
+        return self.__data[x.index]
+
+
+class PredCondition:
+    def __init__(self,
+                 pred_data: np.array,
+                 l: data_preprocessing.Label):
+        super().__init__(data=np.where(pred_data == l.index, 1, 0))
+        self.__l = l
+
+    def get_label(self) -> data_preprocessing.Label:
+        return self.__l
+
+
+class Rule:
+    pass
+
+
 class EDCR:
     def __init__(self,
                  main_model_name: str,
@@ -116,29 +141,28 @@ class EDCR:
         test_pred_coarse_path = (f'{combined_str}_results/{main_model_name}_test_coarse_pred_{loss}_lr{lr}'
                                  f'_e{num_epochs - 1}.npy')
 
-        test_true_fine_path = f'{combined_str}_results/test_true_fine.npy'
-        test_true_coarse_path = f'{combined_str}_results/test_true_coarse.npy'
-
         train_pred_fine_path = f'{combined_str}_results/{main_model_name}_train_fine_pred_{loss}_lr{lr}.npy'
         train_pred_coarse_path = f'{combined_str}_results/{main_model_name}_train_coarse_pred_{loss}_lr{lr}.npy'
-
-        train_true_fine_path = f'{combined_str}_results/train_true_fine.npy'
-        train_true_coarse_path = f'{combined_str}_results/train_true_coarse.npy'
-
-        self.__test_pred_fine_data = np.load(test_pred_fine_path)
-        self.__test_pred_coarse_data = np.load(test_pred_coarse_path)
-
-        self.__test_true_fine_data = np.load(test_true_fine_path)
-        self.__test_true_coarse_data = np.load(test_true_coarse_path)
 
         self.__train_pred_fine_data = np.load(train_pred_fine_path)
         self.__train_pred_coarse_data = np.load(train_pred_coarse_path)
 
-        self.__train_true_fine_data = np.load(train_true_fine_path)
-        self.__train_true_coarse_data = np.load(train_true_coarse_path)
+        self.__test_pred_fine_data = np.load(test_pred_fine_path)
+        self.__test_pred_coarse_data = np.load(test_pred_coarse_path)
 
-        self.__train_condition_datas = self.__get_conditions(test=True)
-        self.__test_condition_datas = self.__get_conditions(test=False)
+        self.__train_fine_condition_datas = [PredCondition(pred_data=self.__train_pred_fine_data, l=l)
+                                             for l in data_preprocessing.fine_grain_labels]
+        self.__train_coarse_condition_datas = [PredCondition(pred_data=self.__train_pred_coarse_data, l=l)
+                                               for l in data_preprocessing.coarse_grain_labels]
+
+        self.__test_fine_condition_datas = [PredCondition(pred_data=self.__test_pred_fine_data, l=l)
+                                            for l in data_preprocessing.fine_grain_labels]
+        self.__test_coarse_condition_datas = [PredCondition(pred_data=self.__test_pred_coarse_data, l=l)
+                                              for l in data_preprocessing.coarse_grain_labels]
+
+        self.__rules: dict[str, dict[data_preprocessing.Label, set[Rule]]] = \
+            {'error_detections': {l: set() for l in data_preprocessing.all_labels},
+             'error_corrections': {l: set() for l in data_preprocessing.all_labels}}
 
     def __get_predictions(self,
                           test: bool):
@@ -151,22 +175,11 @@ class EDCR:
 
         return pred_fine_data, pred_coarse_data
 
-    def __get_ground_truths(self,
-                            test: bool):
-        if test:
-            true_fine_data = self.__test_true_fine_data
-            true_coarse_data = self.__test_true_coarse_data
-        else:
-            true_fine_data = self.__train_true_fine_data
-            true_coarse_data = self.__train_true_coarse_data
-
-        return true_fine_data, true_coarse_data
-
     def get_and_print_metrics(self,
                               test: bool):
 
         pred_fine_data, pred_coarse_data = self.__get_predictions(test=test)
-        true_fine_data, true_coarse_data = self.__get_ground_truths(test=test)
+        true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test)
 
         vit_pipeline.get_and_print_metrics(pred_fine_data=pred_fine_data,
                                            pred_coarse_data=pred_coarse_data,
@@ -177,25 +190,35 @@ class EDCR:
                                            model_name=self.__main_model_name,
                                            lr=self.__lr)
 
-    def __get_conditions(self,
-                         test: bool) -> dict[str, dict[str, np.array]]:
-        condition_datas = {}
-        pred_fine_data, pred_coarse_data = self.__get_predictions(test=test)
-
-        for granularity in data_preprocessing.granularities:
-            cla_data = self.__train_pred_fine_data if granularity == 'fine' else pred_coarse_data
-            condition_datas[granularity] = data_preprocessing.get_one_hot_encoding(cla_data)
-
-        return condition_datas
-
-    def DetRuleLearn(self):
+    def __DetRuleLearn(self,
+                       l: data_preprocessing.Label) -> set[Condition]:
         pass
 
-    def CorrRuleLearn(self):
+    def __CorrRuleLearn(self,
+                        l: data_preprocessing.Label,
+                        CC_all: set[tuple[Condition, data_preprocessing.Label]]) -> \
+            set[tuple[Condition, data_preprocessing.Label]]:
         pass
 
-    def DetCorrRuleLearn(self):
-        pass
+    def DetCorrRuleLearn(self,
+                         g: data_preprocessing.Granularity):
+        CC_all = {}
+
+        granularity_labels = data_preprocessing.get_labels(g)
+
+        for l in granularity_labels:
+            DC_l = self.__DetRuleLearn(l=l)
+            if len(DC_l):
+                self.__rules['error_detections'][l] = self.__rules['error_detections'][l].union(DC_l)
+
+            for cond_l in DC_l:
+                CC_all = CC_all.union({(cond_l, l)})
+
+        for l in granularity_labels:
+            CC_l = self.__CorrRuleLearn(l=l,
+                                        CC_all=CC_all)
+            if len(CC_l):
+                self.__rules['error_corrections'][l] = self.__rules['error_corrections'][l].union(CC_l)
 
 
 if __name__ == '__main__':

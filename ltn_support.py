@@ -46,15 +46,15 @@ def compute_sat_normally(logits_to_predicate,
         ltn.fuzzy_ops.AggregPMeanError(p=4), quantifier="f")
     SatAgg = ltn.fuzzy_ops.SatAgg()
 
-    fine_label_dict = {name: label for label, name in enumerate(data_preprocessing.fine_grain_classes)}
-    coarse_label_dict = {name: label + len(data_preprocessing.fine_grain_classes) for label, name in
-                         enumerate(data_preprocessing.coarse_grain_classes)}
+    fine_label_dict = {name: label for label, name in enumerate(data_preprocessing.fine_grain_classes_str)}
+    coarse_label_dict = {name: label + len(data_preprocessing.fine_grain_classes_str) for label, name in
+                         enumerate(data_preprocessing.coarse_grain_classes_str)}
     labels_fine = labels_fine.detach().to('cpu')
-    labels_coarse = labels_coarse.detach().to('cpu') + len(data_preprocessing.fine_grain_classes)
+    labels_coarse = labels_coarse.detach().to('cpu') + len(data_preprocessing.fine_grain_classes_str)
 
     # Define constant
     l = {}
-    num_labels = len(data_preprocessing.fine_grain_classes) + len(data_preprocessing.coarse_grain_classes)
+    num_labels = len(data_preprocessing.fine_grain_classes_str) + len(data_preprocessing.coarse_grain_classes_str)
     for label in range(num_labels):
         one_hot = torch.zeros(num_labels)
         one_hot[label] = 1.0
@@ -143,14 +143,14 @@ def compute_sat_testing_value(logits_to_predicate,
         ltn.fuzzy_ops.AggregPMeanError(p=4), quantifier="f")
     SatAgg = ltn.fuzzy_ops.SatAgg()
 
-    fine_label_dict = {name: label for label, name in enumerate(data_preprocessing.fine_grain_classes)}
-    coarse_label_dict = {name: label + len(data_preprocessing.fine_grain_classes) for label, name in enumerate(data_preprocessing.coarse_grain_classes)}
+    fine_label_dict = {name: label for label, name in enumerate(data_preprocessing.fine_grain_classes_str)}
+    coarse_label_dict = {name: label + len(data_preprocessing.fine_grain_classes_str) for label, name in enumerate(data_preprocessing.coarse_grain_classes_str)}
     labels_fine = labels_fine.detach().to('cpu')
-    labels_coarse = labels_coarse.detach().to('cpu') + len(data_preprocessing.fine_grain_classes)
+    labels_coarse = labels_coarse.detach().to('cpu') + len(data_preprocessing.fine_grain_classes_str)
         
     # Define constant
     l = {}
-    num_labels = len(data_preprocessing.fine_grain_classes) + len(data_preprocessing.coarse_grain_classes)
+    num_labels = len(data_preprocessing.fine_grain_classes_str) + len(data_preprocessing.coarse_grain_classes_str)
     for label in range(num_labels):
         one_hot = torch.zeros(num_labels)
         one_hot[label] = 1.0

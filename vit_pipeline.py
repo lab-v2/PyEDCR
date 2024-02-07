@@ -48,30 +48,30 @@ def get_and_print_metrics(pred_fine_data: np.array,
                                    y_pred=pred_fine_data)
     fine_f1 = f1_score(y_true=true_fine_data,
                        y_pred=pred_fine_data,
-                       labels=range(len(data_preprocessing.fine_grain_classes)),
+                       labels=range(len(data_preprocessing.fine_grain_classes_str)),
                        average='macro')
     fine_precision = precision_score(y_true=true_fine_data,
                                      y_pred=pred_fine_data,
-                                     labels=range(len(data_preprocessing.fine_grain_classes)),
+                                     labels=range(len(data_preprocessing.fine_grain_classes_str)),
                                      average='macro')
     fine_recall = recall_score(y_true=true_fine_data,
                                y_pred=pred_fine_data,
-                               labels=range(len(data_preprocessing.fine_grain_classes)),
+                               labels=range(len(data_preprocessing.fine_grain_classes_str)),
                                average='macro')
 
     coarse_accuracy = accuracy_score(y_true=true_coarse_data,
                                      y_pred=pred_coarse_data)
     coarse_f1 = f1_score(y_true=true_coarse_data,
                          y_pred=pred_coarse_data,
-                         labels=range(len(data_preprocessing.coarse_grain_classes)),
+                         labels=range(len(data_preprocessing.coarse_grain_classes_str)),
                          average='macro')
     coarse_precision = precision_score(y_true=true_coarse_data,
                                        y_pred=pred_coarse_data,
-                                       labels=range(len(data_preprocessing.coarse_grain_classes)),
+                                       labels=range(len(data_preprocessing.coarse_grain_classes_str)),
                                        average='macro')
     coarse_recall = recall_score(y_true=true_coarse_data,
                                  y_pred=pred_coarse_data,
-                                 labels=range(len(data_preprocessing.coarse_grain_classes)),
+                                 labels=range(len(data_preprocessing.coarse_grain_classes_str)),
                                  average='macro')
 
     prior_str = 'prior' if prior else 'post'
@@ -210,7 +210,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                             loss: str,
                             device: torch.device,
                             test: bool) -> (list[int], list[int], list[int], list[int], float, float):
-    loader = loaders['test' if test else f'train']
+    loader = loaders['test' if test else f'train_eval']
     fine_tuner.to(device)
     fine_tuner.eval()
 
@@ -233,8 +233,8 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
 
             Y_pred = fine_tuner(X)
-            Y_pred_fine = Y_pred[:, :len(data_preprocessing.fine_grain_classes)]
-            Y_pred_coarse = Y_pred[:, len(data_preprocessing.fine_grain_classes):]
+            Y_pred_fine = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
+            Y_pred_coarse = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
 
             predicted_fine = torch.max(Y_pred_fine, 1)[1]
             predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
@@ -565,9 +565,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                     with context_handlers.ClearCache(device=device):
                         X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
                         Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
-                            data_preprocessing.fine_grain_classes))
+                            data_preprocessing.fine_grain_classes_str))
                         Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
-                            data_preprocessing.coarse_grain_classes))
+                            data_preprocessing.coarse_grain_classes_str))
 
                         Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
                         optimizer.zero_grad()
