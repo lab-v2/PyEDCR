@@ -188,7 +188,13 @@ class EDCR:
 
         return condition_datas
 
-    def learn_EDCR_rules(self):
+    def DetRuleLearn(self):
+        pass
+
+    def CorrRuleLearn(self):
+        pass
+
+    def DetCorrRuleLearn(self):
         pass
 
 
@@ -200,3 +206,4 @@ if __name__ == '__main__':
                 num_epochs=20,
                 epsilon=0.1)
     edcr.get_and_print_metrics(test=False)
+    edcr.get_and_print_metrics(test=True)
