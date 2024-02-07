@@ -116,58 +116,70 @@ def get_predicate_values(n_classes: int,
 
 
 def DetUSMPosRuleSelect(i: int,
-                        train_predicare_values: list):
-    chart = train_predicare_values[i]
-    chart = np.array(chart)
-    rule_indexs = [i for i in range(4, len(chart[0]))]
-    each_sum = np.sum(chart, axis=0)
+                        train_predicate_values: list):
+    class_values = np.array(train_predicate_values[i])
+    num_examples, num_values = class_values.shape
+    condition_indices = list(range(4, num_values))
+    each_sum = np.sum(class_values, axis=0)
+
     tpi = each_sum[2]
     fpi = each_sum[3]
     pi = tpi * 1.0 / (tpi + fpi)
 
+    all_class_true = class_values[:, 1]
+    # all_class_tps = class_values[:, 2]
+    # all_class_fps = class_values[:, 3]
+
     pb_scores = []
-    for ri in rule_indexs:
-        posi = np.sum(chart[:, 1] * chart[:, ri], axis=0)
-        bodyi = np.sum(chart[:, ri], axis=0)
-        score = posi * 1.0 / bodyi
-        if score > pi:
-            pb_scores.append((score, ri))
+
+    for condition_index in condition_indices:
+        class_condition_values = class_values[:, condition_index]
+
+        pos_i = np.sum(all_class_true * class_condition_values, axis=0)
+        body_i = np.sum(class_condition_values, axis=0)
+        con_i = pos_i * 1.0 / body_i
+
+        if con_i > pi:
+            pb_scores.append((con_i, condition_index))
+
     pb_scores = sorted(pb_scores)
     cci = []
     ccn = pb_scores
-    for (score, ri) in pb_scores:
+
+    for (con_i, condition_index) in pb_scores:
 
         cii = 0
         for (cs, ci) in cci:
-            cii = cii | chart[:, ci]
-        POScci = np.sum(cii * chart[:, 1], axis=0)
+            cii = cii | class_values[:, ci]
+        POScci = np.sum(cii * all_class_true, axis=0)
         BODcci = np.sum(cii, axis=0)
-        POSccij = np.sum((cii | chart[:, ri]) * chart[:, 1], axis=0)
-        BODccij = np.sum((cii | chart[:, ri]), axis=0)
+        POSccij = np.sum((cii | class_values[:, condition_index]) * all_class_true, axis=0)
+        BODccij = np.sum((cii | class_values[:, condition_index]), axis=0)
 
         cni = 0
         cnij = 0
         for (cs, ci) in ccn:
-            cni = (cni | chart[:, ci])
-            if ci == ri:
+            cni = (cni | class_values[:, ci])
+            if ci == condition_index:
                 continue
-            cnij = (cnij | chart[:, ci])
-        POScni = np.sum(cni * chart[:, 1], axis=0)
+            cnij = (cnij | class_values[:, ci])
+        POScni = np.sum(cni * all_class_true, axis=0)
         BODcni = np.sum(cni, axis=0)
-        POScnij = np.sum(cnij * chart[:, 1], axis=0)
+        POScnij = np.sum(cnij * all_class_true, axis=0)
         BODcnij = np.sum(cnij, axis=0)
 
         a = POSccij * 1.0 / (BODccij + 0.001) - POScci * 1.0 / (BODcci + 0.001)
         b = POScnij * 1.0 / (BODcnij + 0.001) - POScni * 1.0 / (BODcni + 0.001)
         if a >= b:
-            cci.append((score, ri))
+            cci.append((con_i, condition_index))
         else:
-            ccn.remove((score, ri))
+            ccn.remove((con_i, condition_index))
 
     cii = 0
     for (cs, ci) in cci:
-        cii = cii | chart[:, ci]
-    POScci = np.sum(cii * chart[:, 1], axis=0)
+        cii = cii | class_values[:, ci]
+
+    POScci = np.sum(cii * all_class_true, axis=0)
     BODcci = np.sum(cii, axis=0)
     new_pre = POScci * 1.0 / (BODcci + 0.001)
     if new_pre < pi:
@@ -180,8 +192,8 @@ def DetUSMPosRuleSelect(i: int,
 
 def GreedyNegRuleSelect(i: int,
                         epsilon: float,
-                        train_predicare_values: list):
-    class_values = np.array(train_predicare_values[i])
+                        train_predicate_values: list):
+    class_values = np.array(train_predicate_values[i])
     num_examples, num_values = class_values.shape
 
     condition_indices = list(range(4, num_values))
@@ -273,7 +285,7 @@ def ruleForNPCorrection_worker(i: int,
 
     DCi = GreedyNegRuleSelect(i=i,
                               epsilon=epsilon,
-                              train_predicare_values=train_predicate_values)
+                              train_predicate_values=train_predicate_values)
     neg_i = 0
     pos_i = 0
 
@@ -283,7 +295,7 @@ def ruleForNPCorrection_worker(i: int,
         # -3 because we removed true, tp and fp
         tem_cond |= test_class_values[:, cc - 3]
 
-    recovered = set()
+    # recovered = set()
 
     if np.sum(tem_cond) > 0:
         for example_index, example_values in enumerate(test_class_values):
@@ -291,33 +303,33 @@ def ruleForNPCorrection_worker(i: int,
                 neg_i += 1
                 pred_i_for_test_examples[example_index] = 0
 
-                condition_values = example_values[4:]
+                # condition_values = example_values[4:]
+                #
+                # if main_granularity == 'coarse':
+                #     fine_grain_condition_values = condition_values[:len(data_preprocessing.fine_grain_classes)]
+                #     fine_grain_prediction = data_preprocessing.fine_grain_classes[
+                #         np.argmax(fine_grain_condition_values)]
+                #     derived_coarse_grain_prediction = data_preprocessing.fine_to_coarse[fine_grain_prediction]
+                #
+                #     if derived_coarse_grain_prediction != curr_class:
+                #         recovered = recovered.union({fine_grain_prediction})
+                # else:
+                #     coarse_grain_condition_values = condition_values[len(data_preprocessing.fine_grain_classes):
+                #                                                      len(data_preprocessing.fine_grain_classes) +
+                #                                                      len(data_preprocessing.coarse_grain_classes)]
+                #     coarse_grain_prediction = data_preprocessing.coarse_grain_classes[
+                #         np.argmax(coarse_grain_condition_values)]
+                #     derived_coarse_grain_prediction = data_preprocessing.fine_to_coarse[curr_class]
+                #
+                #     if coarse_grain_prediction != derived_coarse_grain_prediction:
+                #         recovered = recovered.union({coarse_grain_prediction})
 
-                if main_granularity == 'coarse':
-                    fine_grain_condition_values = condition_values[:len(data_preprocessing.fine_grain_classes)]
-                    fine_grain_prediction = data_preprocessing.fine_grain_classes[
-                        np.argmax(fine_grain_condition_values)]
-                    derived_coarse_grain_prediction = data_preprocessing.fine_to_coarse[fine_grain_prediction]
-
-                    if derived_coarse_grain_prediction != curr_class:
-                        recovered = recovered.union({fine_grain_prediction})
-                else:
-                    coarse_grain_condition_values = condition_values[len(data_preprocessing.fine_grain_classes):
-                                                                     len(data_preprocessing.fine_grain_classes) +
-                                                                     len(data_preprocessing.coarse_grain_classes)]
-                    coarse_grain_prediction = data_preprocessing.coarse_grain_classes[
-                        np.argmax(coarse_grain_condition_values)]
-                    derived_coarse_grain_prediction = data_preprocessing.fine_to_coarse[curr_class]
-
-                    if coarse_grain_prediction != derived_coarse_grain_prediction:
-                        recovered = recovered.union({coarse_grain_prediction})
-
-    if curr_class in possible_test_consistency_constraints:
-        all_possible_constraints = len(possible_test_consistency_constraints[curr_class])
-        error_detections[curr_class] = round(len(recovered) / all_possible_constraints * 100, 2)
+    # if curr_class in possible_test_consistency_constraints:
+    #     all_possible_constraints = len(possible_test_consistency_constraints[curr_class])
+    #     error_detections[curr_class] = round(len(recovered) / all_possible_constraints * 100, 2)
 
     CCi = DetUSMPosRuleSelect(i=i,
-                              train_predicare_values=train_predicate_values)
+                              train_predicate_values=train_predicate_values)
     tem_cond = np.zeros_like(test_class_values[:, 0])
 
     for cc in CCi:
@@ -409,7 +421,7 @@ def ruleForNPCorrection(all_charts: list,
             chart = np.array(chart)
             NCi = GreedyNegRuleSelect(i=i,
                                       epsilon=epsilon,
-                                      train_predicare_values=all_charts)
+                                      train_predicate_values=all_charts)
             neg_i_count = 0
             pos_i_count = 0
 
@@ -426,7 +438,7 @@ def ruleForNPCorrection(all_charts: list,
                         predict_result[ct] = 0
 
             CCi = DetUSMPosRuleSelect(i=i,
-                                      train_predicare_values=all_charts) if run_positive_rules else []
+                                      train_predicate_values=all_charts) if run_positive_rules else []
             tem_cond = np.zeros_like(chart[:, 0])
 
             for cc in CCi:
@@ -522,8 +534,7 @@ def plot(df: pd.DataFrame,
     plt.cla()
 
 
-def get_one_hot_encoding(arr: np.array) -> np.array:
-    return np.eye(np.max(arr) + 1)[arr].T
+
 
 
 def get_possible_consistency_constraints(pred_fine_data: np.array,
@@ -658,12 +669,12 @@ def get_conditions(pred_fine_data: np.array,
                 condition_datas[main_or_secondary] = {}
 
             cla_data = pred_fine_data if granularity == 'fine' else pred_coarse_data
-            condition_datas[main_or_secondary][granularity] = get_one_hot_encoding(cla_data)
+            condition_datas[main_or_secondary][granularity] = data_preprocessing.get_one_hot_encoding(cla_data)
 
         derived_coarse = np.array([data_preprocessing.fine_to_course_idx[fine_grain_prediction]
                                    for fine_grain_prediction in pred_fine_data])
 
-        condition_datas[main_or_secondary]['fine_to_coarse'] = get_one_hot_encoding(derived_coarse)
+        condition_datas[main_or_secondary]['fine_to_coarse'] = data_preprocessing.get_one_hot_encoding(derived_coarse)
 
     return condition_datas
 
@@ -690,12 +701,17 @@ def run_EDCR_for_granularity(combined: bool,
         train_predicate_values = [[train_pred_granularity[example_index], train_true_granularity[example_index]] +
                                   ((
                                            get_assign_values_for_example(example_index=example_index,
-                                                                         conditions_datas=np.concatenate([train_condition_datas['main']['fine'],
-                                                                                                          train_condition_datas['main']['fine']], axis=0))
+                                                                         conditions_datas=
+                                                                         np.concatenate(
+                                                                             [train_condition_datas['main']['fine'],
+                                                                              train_condition_datas['main']['fine']],
+                                                                             axis=0))
                                            +
                                            (get_binary_condition_values(example_index=example_index,
-                                                                        fine_cla_datas=train_condition_datas['main']['fine'],
-                                                                        coarse_cla_datas=train_condition_datas['main']['coarse'])
+                                                                        fine_cla_datas=
+                                                                        train_condition_datas['main']['fine'],
+                                                                        coarse_cla_datas=
+                                                                        train_condition_datas['main']['coarse'])
                                             if consistency_constraints else [])
                                    ) if combined else [])
                                   +
@@ -703,13 +719,12 @@ def run_EDCR_for_granularity(combined: bool,
                                       (
                                               get_assign_values_for_example(example_index=example_index,
                                                                             conditions_datas=
-                                                                            train_condition_datas['secondary'][
-                                                                                'fine'])
+                                                                            train_condition_datas['secondary']['fine'])
                                               +
                                               get_assign_values_for_example(example_index=example_index,
                                                                             conditions_datas=
-                                                                            train_condition_datas['secondary'][
-                                                                                'coarse'])
+                                                                            train_condition_datas['secondary']
+                                                                            ['coarse'])
                                       )
                                       if not combined else [])
                                   for example_index in range(train_examples_num)]

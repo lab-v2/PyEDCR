@@ -205,3 +205,7 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
         batch_size=batch_size,
         shuffle=train_or_test == 'train')
         for train_or_test in ['train', 'test']}
+
+
+def get_one_hot_encoding(arr: np.array) -> np.array:
+    return np.eye(np.max(arr) + 1)[arr].T
