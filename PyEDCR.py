@@ -12,7 +12,7 @@ import context_handlers
 class Condition:
     def __init__(self,
                  data: np.array):
-        self.__data = data_preprocessing.get_one_hot_encoding(arr=data)
+        self.__data = data
 
     def get_value(self,
                   x: data_preprocessing.Example) -> int:
@@ -108,6 +108,7 @@ class EDCR:
                                            loss=self.__loss,
                                            true_fine_data=true_fine_data,
                                            true_coarse_data=true_coarse_data,
+                                           test=test,
                                            combined=self.__combined,
                                            model_name=self.__main_model_name,
                                            lr=self.__lr)
@@ -120,8 +121,8 @@ class EDCR:
     def __get_tp_l(self,
                    g: data_preprocessing.Granularity,
                    l: data_preprocessing.Label):
-        return np.where(self.__train_pred_data[g] == data_preprocessing.get_ground_truths(test=False, g=g)
-                        == l.index, 1, 0)
+        return np.where(self.__train_pred_data[g] == data_preprocessing.get_ground_truths(test=False, g=g) &
+                        (self.__train_pred_data[g] == l.index), 1, 0)
 
     def __get_fp_l(self,
                    g: data_preprocessing.Granularity,
@@ -129,9 +130,9 @@ class EDCR:
         return np.where((self.__train_pred_data[g] == l.index) &
                         (data_preprocessing.get_ground_truths(test=False, g=g) != l.index), 1, 0)
 
-    @staticmethod
-    def __are_all_conditions_satisfied(C: set[Condition]):
-        all_conditions_satisfied = 1
+    def __are_all_conditions_satisfied(self, C: set[Condition]):
+        all_conditions_satisfied = np.ones_like(self.__train_pred_data[data_preprocessing.granularities[0]])
+
         for cond in C:
             all_conditions_satisfied &= cond.data
 
