@@ -266,3 +266,10 @@ if __name__ == '__main__':
     edcr.print_metrics(test=False)
     edcr.print_metrics(test=True)
 
+    for g in data_preprocessing.granularities:
+        edcr.DetCorrRuleLearn(g=g)
+
+
+
+
+

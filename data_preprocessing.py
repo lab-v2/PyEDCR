@@ -8,11 +8,23 @@ import pathlib
 import typing
 
 
+data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
+coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
+coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
+granularities_str = ['fine', 'coarse']
+
+test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
+test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
+
+train_true_fine_data = np.load(r'train_fine/train_true_fine.npy')
+train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
+
+
 def is_monotonic(arr: np.array):
     return np.all(arr[:-1] <= arr[1:])
-
-
-
 
 
 def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
@@ -40,6 +52,9 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
         fine_to_course_idx[fine_grain_class_idx] = coarse_grain_class_idx
 
     return fine_to_coarse, fine_to_course_idx
+
+
+fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
 
 
 class Granularity:
@@ -298,26 +313,16 @@ def get_one_hot_encoding(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
 
-data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
-fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
-coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
-granularities_str = ['fine', 'coarse']
+
 
 granularities = [Granularity(g) for g in granularities_str]
 
-train_true_fine_data = np.load(r'train_fine/train_true_fine.npy')
-train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
 
-test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
-test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
 
 for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
     assert is_monotonic(arr)
 
-fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
+
 coarse_to_fine = {
     'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
     'BMP': ['BMP-1', 'BMP-2', 'BMP-T15'],
