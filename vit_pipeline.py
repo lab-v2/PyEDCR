@@ -34,16 +34,10 @@ def print_num_inconsistencies(pred_fine_data: np.array,
           f'({utils.red_text(round(inconsistencies / len(pred_fine_data) * 100, 2))}%)\n')
 
 
-def get_and_print_metrics(pred_fine_data: np.array,
-                          pred_coarse_data: np.array,
-                          loss: str,
-                          true_fine_data: np.array,
-                          true_coarse_data: np.array,
-                          test: bool = True,
-                          prior: bool = True,
-                          combined: bool = True,
-                          model_name: str = '',
-                          lr: typing.Union[str, float] = ''):
+def get_metrics(pred_fine_data: np.array,
+                pred_coarse_data: np.array,
+                true_fine_data: np.array,
+                true_coarse_data: np.array):
     fine_accuracy = accuracy_score(y_true=true_fine_data,
                                    y_pred=pred_fine_data)
     fine_f1 = f1_score(y_true=true_fine_data,
@@ -74,6 +68,25 @@ def get_and_print_metrics(pred_fine_data: np.array,
                                  labels=range(len(data_preprocessing.coarse_grain_classes_str)),
                                  average='macro')
 
+    return (fine_accuracy, fine_f1, fine_precision, fine_recall,
+            coarse_accuracy, coarse_f1, coarse_precision, coarse_recall)
+
+
+def get_and_print_metrics(pred_fine_data: np.array,
+                          pred_coarse_data: np.array,
+                          loss: str,
+                          true_fine_data: np.array,
+                          true_coarse_data: np.array,
+                          test: bool = True,
+                          prior: bool = True,
+                          combined: bool = True,
+                          model_name: str = '',
+                          lr: typing.Union[str, float] = ''):
+    (fine_accuracy, fine_f1, fine_precision, fine_recall,
+     coarse_accuracy, coarse_f1, coarse_precision, coarse_recall) = get_metrics(pred_fine_data=pred_fine_data,
+                                                                                pred_coarse_data=pred_coarse_data,
+                                                                                true_fine_data=true_fine_data,
+                                                                                true_coarse_data=true_coarse_data)
     prior_str = 'prior' if prior else 'post'
     combined_str = 'combined' if combined else 'individual'
 

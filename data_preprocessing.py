@@ -7,38 +7,12 @@ import torch.utils.data
 import pathlib
 import typing
 
-data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
-fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
-coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
-granularities_str = ['fine', 'coarse']
-
 
 def is_monotonic(arr: np.array):
     return np.all(arr[:-1] <= arr[1:])
 
 
-train_true_fine_data = np.load(r'train_fine/train_true_fine.npy')
-train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
 
-test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
-test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
-
-for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
-    assert is_monotonic(arr)
-
-
-def get_ground_truths(test: bool):
-    if test:
-        true_fine_data = test_true_fine_data
-        true_coarse_data = test_true_coarse_data
-    else:
-        true_fine_data = train_true_fine_data
-        true_coarse_data = train_true_coarse_data
-
-    return true_fine_data, true_coarse_data
 
 
 def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
@@ -68,18 +42,6 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
     return fine_to_coarse, fine_to_course_idx
 
 
-fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
-coarse_to_fine = {
-    'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
-    'BMP': ['BMP-1', 'BMP-2', 'BMP-T15'],
-    'BTR': ['BRDM', 'BTR-60', 'BTR-70', 'BTR-80'],
-    'Tank': ['T-14', 'T-62', 'T-64', 'T-72', 'T-80', 'T-90'],
-    'Self Propelled Artillery': ['2S19_MSTA', 'BM-30', 'D-30', 'Tornado', 'TOS-1'],
-    'BMD': ['BMD'],
-    'MT_LB': ['MT_LB']
-}
-
-
 class Granularity:
     def __init__(self,
                  g: str):
@@ -87,6 +49,27 @@ class Granularity:
 
     def __str__(self):
         return self.__granularity
+
+    def __hash__(self):
+        return hash(self.__granularity)
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+
+def get_ground_truths(test: bool,
+                      g: Granularity = None):
+    if test:
+        true_fine_data = test_true_fine_data
+        true_coarse_data = test_true_coarse_data
+    else:
+        true_fine_data = train_true_fine_data
+        true_coarse_data = train_true_coarse_data
+
+    if g is None:
+        return true_fine_data, true_coarse_data
+    else:
+        return true_fine_data if str(g) == 'fine' else true_coarse_data
 
 
 class Label:
@@ -152,18 +135,8 @@ class Example:
         return self.__index
 
 
-fine_grain_labels = [FineGrainLabel(l) for l in fine_grain_classes_str]
-coarse_grain_labels = [CoarseGrainLabel(l) for l in coarse_grain_classes_str]
-granularities = [Granularity(g) for g in granularities_str]
-train_examples = [Example(i) for i in range(train_true_fine_data.shape[0])]
-test_examples = [Example(i) for i in range(test_true_fine_data.shape[0])]
-
-
 def get_labels(g: Granularity):
     return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels
-
-
-all_labels = [get_labels(g) for g in granularities]
 
 
 def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
@@ -323,3 +296,42 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
 
 def get_one_hot_encoding(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
+
+
+data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
+coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
+coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
+granularities_str = ['fine', 'coarse']
+
+granularities = [Granularity(g) for g in granularities_str]
+
+train_true_fine_data = np.load(r'train_fine/train_true_fine.npy')
+train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
+
+test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
+test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
+
+for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
+    assert is_monotonic(arr)
+
+fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
+coarse_to_fine = {
+    'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
+    'BMP': ['BMP-1', 'BMP-2', 'BMP-T15'],
+    'BTR': ['BRDM', 'BTR-60', 'BTR-70', 'BTR-80'],
+    'Tank': ['T-14', 'T-62', 'T-64', 'T-72', 'T-80', 'T-90'],
+    'Self Propelled Artillery': ['2S19_MSTA', 'BM-30', 'D-30', 'Tornado', 'TOS-1'],
+    'BMD': ['BMD'],
+    'MT_LB': ['MT_LB']
+}
+
+fine_grain_labels = [FineGrainLabel(l) for l in fine_grain_classes_str]
+coarse_grain_labels = [CoarseGrainLabel(l) for l in coarse_grain_classes_str]
+
+train_examples = [Example(i) for i in range(train_true_fine_data.shape[0])]
+test_examples = [Example(i) for i in range(test_true_fine_data.shape[0])]
+
+all_labels = [label for granularity in granularities for label in get_labels(granularity)]
