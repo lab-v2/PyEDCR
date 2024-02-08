@@ -165,15 +165,16 @@ class EDCR:
         corr_l = self.__get_corr_l(g=g, l=l)
 
         any_pairs_satisfied = 0
-        for (cond, l_prime) in CC:
-            pred_indices = np.where((self.__train_pred_data[g] == l_prime.index))
+        for cc in CC:
+            cond, l_prime = cc
+            pred_indices = np.where((self.__train_pred_data[g] == l_prime.index), 1, 0)
             cond_data = cond.data
             any_pairs_satisfied |= pred_indices * cond_data
 
         BOD = np.sum(any_pairs_satisfied)
         POS = np.sum(any_pairs_satisfied * corr_l)
 
-        CON_l = POS / BOD
+        CON_l = POS / BOD if BOD else 0
 
         return CON_l
 
@@ -218,26 +219,27 @@ class EDCR:
         CC_l = set()
         CC_l_prime = CC_all
 
-        CC_sorted = sorted(CC_all, key=lambda cc: self.__get_CON_l(g=g, l=cc[1], CC={cc[0]}))
+        CC_sorted = sorted(CC_all, key=lambda cc: self.__get_CON_l(g=g, l=cc[1], CC={(cc[0], cc[1])}))
 
         for (cond, l) in CC_sorted:
-            a = self.__get_CON_l(g=g, l=l, CC=CC_l.union({cond})) - self.__get_CON_l(g=g, l=l, CC=CC_l)
-            b = self.__get_CON_l(g=g, l=l, CC=CC_l_prime.difference({cond})) - self.__get_CON_l(g=g, l=l, CC=CC_l_prime)
+            a = self.__get_CON_l(g=g, l=l, CC=CC_l.union({(cond, l)})) - self.__get_CON_l(g=g, l=l, CC=CC_l)
+            b = (self.__get_CON_l(g=g, l=l, CC=CC_l_prime.difference({(cond, l)})) -
+                 self.__get_CON_l(g=g, l=l, CC=CC_l_prime))
 
             if a >= b:
                 CC_l = CC_l.union({(cond, l)})
             else:
                 CC_l_prime = CC_l_prime.difference({(cond, l)})
 
-        if self.__get_CON_l(g=g, l=l, CC=CC_l) <= self.__train_precisions[g][l]:
-            CC_l = set()
+        # if self.__get_CON_l(g=g, l=l, CC=CC_l) <= self.__train_precisions[g][l]:
+        #     CC_l = set()
 
         return CC_l
 
 
     def DetCorrRuleLearn(self,
                          g: data_preprocessing.Granularity):
-        CC_all = {}
+        CC_all = set()
         granularity_labels = data_preprocessing.get_labels(g)
 
         for l in granularity_labels:
