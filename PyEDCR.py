@@ -483,7 +483,7 @@ class EDCR:
 
         # with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
 
-        processes_num = min(len(granularity_labels), mp.cpu_count())
+        # processes_num = min(len(granularity_labels), mp.cpu_count())
 
         # with mp.Pool(processes_num) as pool:
         #     CC_ls = pool.starmap(func=self._CorrRuleLearn,
