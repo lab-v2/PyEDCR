@@ -111,7 +111,7 @@ class EDCR:
             altered_pred_data = np.where(where_predicted_l_and_any_conditions_satisfied == 1, -1,
                                          test_pred_granularity_data)
 
-            print(np.sum(np.where(altered_pred_data == -1, 1, 0)))
+            # print(np.sum(np.where(altered_pred_data == -1, 1, 0)))
 
             return altered_pred_data
 
@@ -504,6 +504,7 @@ class EDCR:
             rule_l: EDCR.ErrorDetectionRule
 
             if l.g == g:
+                # print(rule_l)
                 altered_pred_datas[l] = rule_l(test_pred_fine_data=test_pred_fine_data,
                                                test_pred_coarse_data=test_pred_coarse_data)
 

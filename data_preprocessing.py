@@ -121,7 +121,7 @@ class FineGrainLabel(Label):
         super().__init__(l_str=l_str, index=fine_grain_classes_str.index(l_str))
         assert l_str in fine_grain_classes_str
         self.__correct_coarse = fine_to_coarse[l_str]
-        self._g = granularities[1]
+        self._g = granularities[0]
 
     @classmethod
     def with_index(cls,
