@@ -72,6 +72,10 @@ class EDCR:
         def __str__(self) -> str:
             return f'pred_{self.__l}'
 
+        @property
+        def l(self):
+            return self.__l
+
     class Rule(abc.ABC):
         pass
 
@@ -81,6 +85,8 @@ class EDCR:
                      DC_l: set[EDCR.Condition]):
             self.__l = l
             self.__DC_l = DC_l
+
+            assert all(l != self.__l for l in self.__DC_l)
 
         def __str__(self) -> str:
             return '\n'.join(f'error_{self.__l}(x) <- pred_{self.__l}(x) ^ {cond}(x)' for cond in self.__DC_l)
@@ -184,19 +190,21 @@ class EDCR:
 
         return pred_fine_data, pred_coarse_data
 
-    def __get_where_predicted_l(self,
-                                test: bool,
-                                g: data_preprocessing.Granularity,
-                                l: data_preprocessing.Label) -> np.array:
-        pred_granularity_data = self.__get_predictions(test=test,
-                                                       g=g)
-        return np.where(pred_granularity_data == l.index, 1, 0)
+    def __get_where_label_is_l(self,
+                               pred: bool,
+                               test: bool,
+                               g: data_preprocessing.Granularity,
+                               l: data_preprocessing.Label) -> np.array:
+        granularity_data = self.__get_predictions(test=test,
+                                                  g=g) if pred else \
+            (data_preprocessing.get_ground_truths(test=test, g=g))
+        return np.where(granularity_data == l.index, 1, 0)
 
     def __get_how_many_predicted_l(self,
                                    test: bool,
                                    g: data_preprocessing.Granularity,
                                    l: data_preprocessing.Label) -> int:
-        return np.sum(self.__get_where_predicted_l(test=test, g=g, l=l))
+        return np.sum(self.__get_where_label_is_l(pred=True, test=test, g=g, l=l))
 
     def print_metrics(self,
                       test: bool):
@@ -222,17 +230,6 @@ class EDCR:
                                            model_name=self.__main_model_name,
                                            lr=self.__lr)
 
-    @staticmethod
-    def __get_where_train_ground_truths_is_l(g: data_preprocessing.Granularity,
-                                             l: data_preprocessing.Label) -> np.array:
-        """Calculates correct label mask for given granularity and label.
-
-        :param g: The granularity level 
-        :param l: The label of interest.
-        :return: A mask with 1s for correct labels, 0s otherwise.
-        """
-        return np.where(data_preprocessing.get_ground_truths(test=False, g=g) == l.index, 1, 0)
-
     def __get_where_predicted_correct(self,
                                       test: bool,
                                       g: data_preprocessing.Granularity) -> np.array:
@@ -257,34 +254,35 @@ class EDCR:
     def __get_where_train_tp_l(self,
                                g: data_preprocessing.Granularity,
                                l: data_preprocessing.Label) -> np.array:
-        return self.__get_where_predicted_l(test=False, g=g, l=l) * self.__get_where_predicted_correct(test=False, g=g)
+        return (self.__get_where_label_is_l(pred=True, test=False, g=g, l=l) *
+                self.__get_where_predicted_correct(test=False, g=g))
 
     def __get_where_train_fp_l(self,
                                g: data_preprocessing.Granularity,
                                l: data_preprocessing.Label) -> np.array:
-        return (self.__get_where_predicted_l(test=False, g=g, l=l) *
+        return (self.__get_where_label_is_l(pred=True, test=False, g=g, l=l) *
                 self.__get_where_predicted_incorrect(test=False, g=g))
 
     @staticmethod
     def __get_where_any_conditions_satisfied(C: set[Condition],
-                                             data: np.array) -> bool:
+                                             data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
         """Checks if all given conditions are satisfied for each example.
 
         :param C: A set of `Condition` objects.
         :return: A NumPy array with True values if the example satisfy all conditions and False otherwise.
         """
-        all_conditions_satisfied = np.zeros_like(data)
+        any_condition_satisfied = np.zeros_like(data)
 
         for cond in C:
-            all_conditions_satisfied |= cond(data=data)
+            any_condition_satisfied |= cond(data=data)
 
-        return all_conditions_satisfied
+        return any_condition_satisfied
 
     def get_NEG_l(self,
                   g: data_preprocessing.Granularity,
                   l: data_preprocessing.Label,
                   C: set[Condition]) -> int:
-        """Calculate the number of samples that satisfy the conditions for some set of condition and have true positive.
+        """Calculate the number of samples that satisfy any of the conditions and are true positive.
 
         :param C: A set of `Condition` objects.
         :param g: The granularity level
@@ -329,12 +327,12 @@ class EDCR:
         :param l: The label of interest.
         :return: ratio as defined above
         """
-        where_train_ground_truths_is_l = self.__get_where_train_ground_truths_is_l(g=g, l=l)
+        where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, g=g, l=l)
         train_granularity_pred_data = self.__get_predictions(test=False, g=g)
 
         where_any_pair_is_satisfied_in_train_pred = 0
         for (cond, l_prime) in CC:
-            where_predicted_l_prime_in_train = self.__get_where_predicted_l(test=False, g=g, l=l_prime)
+            where_predicted_l_prime_in_train = self.__get_where_label_is_l(pred=True, test=False, g=g, l=l_prime)
             where_any_pair_is_satisfied_in_train_pred |= (where_predicted_l_prime_in_train *
                                                           cond(train_granularity_pred_data))
 
@@ -378,7 +376,6 @@ class EDCR:
 
             DC_star = {cond for cond in self.condition_datas.difference(DC_l)
                        if self.get_NEG_l(g=g, l=l, C=DC_l.union({cond})) <= q_l}
-            # print('hi')
 
         return DC_l
 
@@ -434,7 +431,9 @@ class EDCR:
                                            l=l)
                 error_correction_rule_l = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
                 self.__rules['error_detections'][l] = error_correction_rule_l
-                print(f'{l}: {len(error_correction_rule_l)}')
+
+                print(f'\n{l}: {len(error_correction_rule_l)}')
+                print(error_correction_rule_l)
 
                 for cond_l in DC_l:
                     CC_all = CC_all.union({(cond_l, l)})

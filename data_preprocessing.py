@@ -68,7 +68,7 @@ class Granularity:
         return hash(self.__granularity)
 
     def __eq__(self, other):
-        return hash(self) == hash(other)
+        return self.__hash__() == other.__hash__()
 
 
 def get_ground_truths(test: bool,
@@ -104,7 +104,7 @@ class Label:
         return hash(self._l_str)
 
     def __eq__(self, other):
-        return hash(self) == hash(other)
+        return self.__hash__() == other.__hash__()
 
 
 class FineGrainLabel(Label):
@@ -112,7 +112,7 @@ class FineGrainLabel(Label):
                  l_str: str):
         super().__init__(l_str=l_str)
         assert l_str in fine_grain_classes_str
-        self.correct_coarse = fine_to_coarse[l_str]
+        self.__correct_coarse = fine_to_coarse[l_str]
 
     @classmethod
     def with_index(cls,
