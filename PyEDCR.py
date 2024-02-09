@@ -65,7 +65,8 @@ class EDCR:
                      data: np.array,
                      x_index: int = None) -> typing.Union[bool, np.array]:
             if x_index is not None:
-                return data[x_index] == self.__l
+                return data[x_index] == self.__l.index
+
             return np.where(data == self.__l.index, 1, 0)
 
         def __str__(self) -> str:
@@ -253,6 +254,7 @@ class EDCR:
     def __get_where_train_tp_l(self,
                                g: data_preprocessing.Granularity,
                                l: data_preprocessing.Label) -> np.array:
+        print(self.__get_where_predicted_l(test=False, g=g, l=l))
         return self.__get_where_predicted_l(test=False, g=g, l=l) * self.__get_where_predicted_correct(test=False, g=g)
 
     def __get_where_train_fp_l(self,
@@ -289,10 +291,8 @@ class EDCR:
         """
         where_train_tp_l = self.__get_where_train_tp_l(g=g, l=l)
         granularity_pred_data = self.__get_predictions(test=False, g=g)
-        boolean_array_with_conditions_satisfied_flag = (
-            self.__get_where_all_conditions_satisfied(C=C,
-                                                      data=granularity_pred_data))
-        NEG_l = int(np.sum(where_train_tp_l * boolean_array_with_conditions_satisfied_flag))
+        where_all_conditions_satisfied = self.__get_where_all_conditions_satisfied(C=C, data=granularity_pred_data)
+        NEG_l = int(np.sum(where_train_tp_l * where_all_conditions_satisfied))
 
         return NEG_l
 
@@ -376,7 +376,7 @@ class EDCR:
 
             DC_star = {cond for cond in self.condition_datas.difference(DC_l)
                        if self.get_NEG_l(g=g, l=l, C=DC_l.union({cond})) <= q_l}
-            print('hi')
+            # print('hi')
 
         return DC_l
 
@@ -458,7 +458,7 @@ if __name__ == '__main__':
                 loss='BCE',
                 lr=0.0001,
                 num_epochs=20,
-                epsilon=0.1)
+                epsilon=0.01)
     edcr.print_metrics(test=False)
     edcr.print_metrics(test=True)
 
