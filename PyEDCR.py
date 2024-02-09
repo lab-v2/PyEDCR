@@ -218,10 +218,10 @@ class EDCR:
                                 for g in data_preprocessing.granularities
                                 for l in data_preprocessing.get_labels(g)}
 
-        self.__train_precisions = {g: precision_score(y_true=data_preprocessing.get_ground_truths(test=False, g=g),
-                                                      y_pred=self.__train_pred_data[g],
-                                                      average=None)
-                                   for g in data_preprocessing.granularities}
+        self.train_precisions = {g: precision_score(y_true=data_preprocessing.get_ground_truths(test=False, g=g),
+                                                    y_pred=self.__train_pred_data[g],
+                                                    average=None)
+                                 for g in data_preprocessing.granularities}
 
         self.__train_recalls = {g: recall_score(y_true=data_preprocessing.get_ground_truths(test=False, g=g),
                                                 y_pred=self.__train_pred_data[g],
@@ -386,12 +386,12 @@ class EDCR:
 
         return POS_l
 
-    def __get_CON_l(self,
-                    g: data_preprocessing.Granularity,
-                    l: data_preprocessing.Label,
-                    CC: set[(Condition, data_preprocessing.Label)]) -> float:
-        """Calculate the ratio of number of samples that satisfy the rule body and head with the ones that only satisfy 
-        the body, given a condition class pair.
+    def get_CON_l(self,
+                  g: data_preprocessing.Granularity,
+                  l: data_preprocessing.Label,
+                  CC: set[(Condition, data_preprocessing.Label)]) -> float:
+        """Calculate the ratio of number of samples that satisfy the rule body and head with the ones
+        that only satisfy the body, given a condition class pair.
 
         :param CC: A set of `Condition` - `Label` pairs.
         :param g: The granularity level
@@ -401,16 +401,18 @@ class EDCR:
         where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, g=g, l=l)
         train_granularity_pred_data = self.__get_predictions(test=False, g=g)
 
-        where_any_pair_is_satisfied_in_train_pred = 0
-        for (cond, l_prime) in CC:
+        where_any_pair_is_satisfied_in_train_pred = np.zeros_like(train_granularity_pred_data)
+
+        for cond, l_prime in CC:
             where_predicted_l_prime_in_train = self.__get_where_label_is_l(pred=True, test=False, g=g, l=l_prime)
+            where_condition_is_satisfied_in_train_pred = cond(train_granularity_pred_data)
             where_any_pair_is_satisfied_in_train_pred |= (where_predicted_l_prime_in_train *
-                                                          cond(train_granularity_pred_data))
+                                                          where_condition_is_satisfied_in_train_pred)
 
-        BOD = np.sum(where_any_pair_is_satisfied_in_train_pred)
-        POS = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
+        BOD_l = np.sum(where_any_pair_is_satisfied_in_train_pred)
+        POS_l = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
 
-        CON_l = POS / BOD if BOD else 0
+        CON_l = POS_l / BOD_l if BOD_l else 0
 
         return CON_l
 
@@ -427,7 +429,7 @@ class EDCR:
         DC_l = set()
 
         N_l = self.__get_how_many_predicted_l(test=False, g=g, l=l)
-        P_l = self.__train_precisions[g][l.index]
+        P_l = self.train_precisions[g][l.index]
         R_l = self.__train_recalls[g][l.index]
         q_l = self.__epsilon * N_l * P_l / R_l
 
@@ -466,13 +468,13 @@ class EDCR:
         CC_l = set()
         CC_l_prime = CC_all
 
-        CC_sorted = sorted(CC_all, key=lambda cc: self.__get_CON_l(g=g, l=cc[1], CC={cc}))
+        CC_sorted = sorted(CC_all, key=lambda cc: self.get_CON_l(g=g, l=cc[1], CC={cc}))
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
             for (cond, l) in CC_sorted:
-                a = self.__get_CON_l(g=g, l=l, CC=CC_l.union({(cond, l)})) - self.__get_CON_l(g=g, l=l, CC=CC_l)
-                b = (self.__get_CON_l(g=g, l=l, CC=CC_l_prime.difference({(cond, l)})) -
-                     self.__get_CON_l(g=g, l=l, CC=CC_l_prime))
+                a = self.get_CON_l(g=g, l=l, CC=CC_l.union({(cond, l)})) - self.get_CON_l(g=g, l=l, CC=CC_l)
+                b = (self.get_CON_l(g=g, l=l, CC=CC_l_prime.difference({(cond, l)})) -
+                     self.get_CON_l(g=g, l=l, CC=CC_l_prime))
 
                 if a >= b:
                     CC_l = CC_l.union({(cond, l)})
@@ -482,7 +484,7 @@ class EDCR:
                 if utils.is_local():
                     progress_bar.update(1)
 
-        if self.__get_CON_l(g=g, l=l, CC=CC_l) <= self.__train_precisions[g][l.index]:
+        if self.get_CON_l(g=g, l=l, CC=CC_l) <= self.train_precisions[g][l.index]:
             CC_l = set()
 
         return CC_l
@@ -522,7 +524,8 @@ class EDCR:
                                      iterable=[(g, l, CC_all) for l in granularity_labels])
 
             for CC_l in CC_ls:
-                self.rules['error_corrections'][l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
+                if len(CC_l):
+                    self.rules['error_corrections'][l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
 
         if utils.is_local():
             progress_bar.update(1)
