@@ -253,18 +253,15 @@ class EDCR:
     def __get_where_label_is_l(self,
                                pred: bool,
                                test: bool,
-                               g: data_preprocessing.Granularity,
                                l: data_preprocessing.Label) -> np.array:
-        granularity_data = self.__get_predictions(test=test,
-                                                  g=g) if pred else \
-            (data_preprocessing.get_ground_truths(test=test, g=g))
+        granularity_data = self.__get_predictions(test=test, g=l.g) if pred else \
+            (data_preprocessing.get_ground_truths(test=test, g=l.g))
         return np.where(granularity_data == l.index, 1, 0)
 
     def __get_how_many_predicted_l(self,
                                    test: bool,
-                                   g: data_preprocessing.Granularity,
                                    l: data_preprocessing.Label) -> int:
-        return np.sum(self.__get_where_label_is_l(pred=True, test=test, g=g, l=l))
+        return np.sum(self.__get_where_label_is_l(pred=True, test=test, l=l))
 
     def print_metrics(self,
                       test: bool,
@@ -315,16 +312,14 @@ class EDCR:
         return 1 - self.__get_where_predicted_correct(test=test, g=g)
 
     def __get_where_train_tp_l(self,
-                               g: data_preprocessing.Granularity,
                                l: data_preprocessing.Label) -> np.array:
-        return (self.__get_where_label_is_l(pred=True, test=False, g=g, l=l) *
+        return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
                 self.__get_where_predicted_correct(test=False, g=g))
 
     def __get_where_train_fp_l(self,
-                               g: data_preprocessing.Granularity,
                                l: data_preprocessing.Label) -> np.array:
-        return (self.__get_where_label_is_l(pred=True, test=False, g=g, l=l) *
-                self.__get_where_predicted_incorrect(test=False, g=g))
+        return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
+                self.__get_where_predicted_incorrect(test=False, g=l.g))
 
     @staticmethod
     def _get_where_any_conditions_satisfied(C: set[PredCondition],
@@ -346,17 +341,15 @@ class EDCR:
         return any_condition_satisfied
 
     def get_NEG_l(self,
-                  g: data_preprocessing.Granularity,
                   l: data_preprocessing.Label,
                   C: set[PredCondition]) -> int:
         """Calculate the number of samples that satisfy any of the conditions and are true positive.
 
         :param C: A set of `Condition` objects.
-        :param g: The granularity level
         :param l: The label of interest.
         :return: The number of instances that is true negative and satisfying all conditions.
         """
-        where_train_tp_l = self.__get_where_train_tp_l(g=g, l=l)
+        where_train_tp_l = self.__get_where_train_tp_l(l=l)
         train_pred_fine_data, train_pred_coarse_data = self.__get_predictions(test=False)
         where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C,
                                                                                   fine_data=train_pred_fine_data,
@@ -366,18 +359,16 @@ class EDCR:
         return NEG_l
 
     def __get_POS_l(self,
-                    g: data_preprocessing.Granularity,
                     l: data_preprocessing.Label,
                     C: set[PredCondition]) -> int:
         """Calculate the number of samples that satisfy the conditions for some set of condition 
         and have false positive.
 
         :param C: A set of `Condition` objects.
-        :param g: The granularity level
         :param l: The label of interest.
         :return: The number of instances that is false negative and satisfying all conditions.
         """
-        where_train_fp_l = self.__get_where_train_fp_l(g=g, l=l)
+        where_train_fp_l = self.__get_where_train_fp_l(l=l)
         train_pred_fine_data, train_pred_coarse_data = self.__get_predictions(test=False)
         where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C,
                                                                                   fine_data=train_pred_fine_data,
@@ -387,24 +378,22 @@ class EDCR:
         return POS_l
 
     def get_CON_l(self,
-                  g: data_preprocessing.Granularity,
                   l: data_preprocessing.Label,
                   CC: set[(Condition, data_preprocessing.Label)]) -> float:
         """Calculate the ratio of number of samples that satisfy the rule body and head with the ones
         that only satisfy the body, given a condition class pair.
 
         :param CC: A set of `Condition` - `Label` pairs.
-        :param g: The granularity level
         :param l: The label of interest.
         :return: ratio as defined above
         """
-        where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, g=g, l=l)
-        train_granularity_pred_data = self.__get_predictions(test=False, g=g)
+        where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, l=l)
+        train_granularity_pred_data = self.__get_predictions(test=False, g=l.g)
 
         where_any_pair_is_satisfied_in_train_pred = np.zeros_like(train_granularity_pred_data)
 
         for cond, l_prime in CC:
-            where_predicted_l_prime_in_train = self.__get_where_label_is_l(pred=True, test=False, g=g, l=l_prime)
+            where_predicted_l_prime_in_train = self.__get_where_label_is_l(pred=True, test=False, l=l_prime)
             where_condition_is_satisfied_in_train_pred = cond(train_granularity_pred_data)
             where_any_pair_is_satisfied_in_train_pred |= (where_predicted_l_prime_in_train *
                                                           where_condition_is_satisfied_in_train_pred)
@@ -417,30 +406,28 @@ class EDCR:
         return CON_l
 
     def __DetRuleLearn(self,
-                       g: data_preprocessing.Granularity,
                        l: data_preprocessing.Label) -> set[PredCondition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
         that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
 
-        :param g: The granularity level.
         :param l: The label of interest.
         :return: A set of `Condition` representing the learned error detection rules.
         """
         DC_l = set()
 
-        N_l = self.__get_how_many_predicted_l(test=False, g=g, l=l)
+        N_l = self.__get_how_many_predicted_l(test=False, l=l)
         P_l = self.train_precisions[g][l.index]
         R_l = self.__train_recalls[g][l.index]
         q_l = self.__epsilon * N_l * P_l / R_l
 
-        DC_star = {cond for cond in self.condition_datas if self.get_NEG_l(g=g, l=l, C={cond}) <= q_l}
+        DC_star = {cond for cond in self.condition_datas if self.get_NEG_l(l=l, C={cond}) <= q_l}
 
         while len(DC_star) > 0:
             best_score = -1
             best_cond = None
 
             for cond in DC_star:
-                POS_l_c = self.__get_POS_l(g=g, l=l, C=DC_l.union({cond}))
+                POS_l_c = self.__get_POS_l(l=l, C=DC_l.union({cond}))
                 if POS_l_c > best_score:
                     best_score = POS_l_c
                     best_cond = cond
@@ -448,19 +435,17 @@ class EDCR:
             DC_l = DC_l.union({best_cond})
 
             DC_star = {cond for cond in self.condition_datas.difference(DC_l)
-                       if self.get_NEG_l(g=g, l=l, C=DC_l.union({cond})) <= q_l}
+                       if self.get_NEG_l(l=l, C=DC_l.union({cond})) <= q_l}
 
         return DC_l
 
     def _CorrRuleLearn(self,
-                       g: data_preprocessing.Granularity,
                        l: data_preprocessing.Label,
                        CC_all: set[(Condition, data_preprocessing.Label)]) -> \
             set[tuple[Condition, data_preprocessing.Label]]:
         """Learns error correction rules for a specific label and granularity. These rules associate conditions 
         with alternative labels that are more likely to be correct when those conditions are met.
 
-        :param g: The granularity level (e.g., 'fine', 'coarse').
         :param l: The label of interest.
         :param CC_all: A set of all condition-label pairs to consider for rule learning.
         :return: A set of condition-label pairs.
@@ -468,13 +453,13 @@ class EDCR:
         CC_l = set()
         CC_l_prime = CC_all
 
-        CC_sorted = sorted(CC_all, key=lambda cc: self.get_CON_l(g=g, l=cc[1], CC={cc}))
+        CC_sorted = sorted(CC_all, key=lambda cc: self.get_CON_l(l=cc[1], CC={cc}))
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
             for (cond, l) in CC_sorted:
-                a = self.get_CON_l(g=g, l=l, CC=CC_l.union({(cond, l)})) - self.get_CON_l(g=g, l=l, CC=CC_l)
-                b = (self.get_CON_l(g=g, l=l, CC=CC_l_prime.difference({(cond, l)})) -
-                     self.get_CON_l(g=g, l=l, CC=CC_l_prime))
+                a = self.get_CON_l(l=l, CC=CC_l.union({(cond, l)})) - self.get_CON_l(l=l, CC=CC_l)
+                b = (self.get_CON_l(l=l, CC=CC_l_prime.difference({(cond, l)})) -
+                     self.get_CON_l(l=l, CC=CC_l_prime))
 
                 if a >= b:
                     CC_l = CC_l.union({(cond, l)})
@@ -484,7 +469,7 @@ class EDCR:
                 if utils.is_local():
                     progress_bar.update(1)
 
-        if self.get_CON_l(g=g, l=l, CC=CC_l) <= self.train_precisions[g][l.index]:
+        if self.get_CON_l(l=l, CC=CC_l) <= self.train_precisions[l.g][l.index]:
             CC_l = set()
 
         return CC_l
@@ -501,8 +486,7 @@ class EDCR:
         print(f'\nLearning {g}-grain error detection rules...')
         with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
             for l in granularity_labels:
-                DC_l = self.__DetRuleLearn(g=g,
-                                           l=l)
+                DC_l = self.__DetRuleLearn(l=l)
                 error_correction_rule_l = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
                 self.rules['error_detections'][l] = error_correction_rule_l
 
@@ -521,7 +505,7 @@ class EDCR:
 
             with mp.Pool(processes_num) as pool:
                 CC_ls = pool.starmap(func=self._CorrRuleLearn,
-                                     iterable=[(g, l, CC_all) for l in granularity_labels])
+                                     iterable=[(l, CC_all) for l in granularity_labels])
 
             for CC_l in CC_ls:
                 if len(CC_l):
@@ -567,6 +551,12 @@ class EDCR:
             altered_test_pred_data = np.where(altered_pred_data_l == l.index, l.index, altered_test_pred_data)
 
         self.__post_correction_rules_test_predictions[g] = altered_test_pred_data
+
+
+    def get_support_l(self,
+                      l: data_preprocessing.Label) -> float:
+        pass
+
 
 
 if __name__ == '__main__':
