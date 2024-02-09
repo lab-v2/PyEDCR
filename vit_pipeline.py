@@ -30,6 +30,19 @@ def get_filepath(model_name: typing.Union[str, models.FineTuner],
                  lr: typing.Union[str, float],
                  pred: bool,
                  epoch: int = None) -> str:
+    """
+    Constructs the file path to the model output / ground truth data.
+
+    :param model_name: The name of the model or `FineTuner` object.
+    :param combined: Whether the model are individual or combine one.
+    :param test: Whether the data is getting from testing or training set.
+    :param granularity: The granularity level.
+    :param loss: The loss function used during training.
+    :param lr: The learning rate used during training.
+    :param pred: Whether the data is a prediction from neural or ground truth
+    :param epoch: The epoch number (optional, only for training data).
+    :return: The generated file path.
+    """
     epoch_str = f'_e{epoch - 1}' if epoch is not None else ''
     test_str = 'test' if test else 'train'
     pred_str = 'pred' if pred else 'true'
@@ -41,6 +54,13 @@ def get_filepath(model_name: typing.Union[str, models.FineTuner],
 def print_num_inconsistencies(pred_fine_data: np.array,
                               pred_coarse_data: np.array,
                               prior: bool = True):
+    """
+    Prints the number of inconsistencies between fine and coarse predictions.
+
+    :param pred_fine_data: NumPy array of predictions at the fine granularity.
+    :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
+    :param prior: 
+    """
     inconsistencies = data_preprocessing.get_num_inconsistencies(fine_labels=pred_fine_data,
                                                                  coarse_labels=pred_coarse_data)
 
@@ -53,6 +73,15 @@ def get_metrics(pred_fine_data: np.array,
                 pred_coarse_data: np.array,
                 true_fine_data: np.array,
                 true_coarse_data: np.array):
+    """
+    Calculates and returns performance metrics for fine and coarse granularities.
+    :param pred_fine_data: NumPy array of predictions at the fine granularity.
+    :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
+    :param true_fine_data: NumPy array of true labels at the fine granularity.
+    :param true_coarse_data: NumPy array of true labels at the coarse granularity.
+    :return: A tuple containing the accuracy, F1, precision, and recall metrics
+             for both fine and coarse granularities.
+    """
     fine_accuracy = accuracy_score(y_true=true_fine_data,
                                    y_pred=pred_fine_data)
     fine_f1 = f1_score(y_true=true_fine_data,
@@ -97,6 +126,21 @@ def get_and_print_metrics(pred_fine_data: np.array,
                           combined: bool = True,
                           model_name: str = '',
                           lr: typing.Union[str, float] = ''):
+    """
+    Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
+
+    :param pred_fine_data: NumPy array of predictions at the fine granularity.
+    :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
+    :param loss: The loss function used during training.
+    :param true_fine_data: NumPy array of true labels at the fine granularity.
+    :param true_coarse_data: NumPy array of true labels at the coarse granularity.
+    :param test: True for test data, False for training data.
+    :param prior: 
+    :param combined: Whether the model are individual or combine one.
+    :param model_name: The name of the model (optional).
+    :param lr: The learning rate used during training (optional).
+    :return: fine_accuracy, coarse_accuracy
+    """
     (fine_accuracy, fine_f1, fine_precision, fine_recall,
      coarse_accuracy, coarse_f1, coarse_precision, coarse_recall) = get_metrics(pred_fine_data=pred_fine_data,
                                                                                 pred_coarse_data=pred_coarse_data,
@@ -140,6 +184,21 @@ def save_prediction_files(test: bool,
                           loss: str = 'BCE',
                           fine_ground_truths: np.array = None,
                           coarse_ground_truths: np.array = None):
+    """
+    Saves prediction files and optional ground truth files.
+
+    :param test: True for test data, False for training data.
+    :param fine_tuners: A single FineTuner object (for combined models) or a
+                       dictionary of FineTuner objects (for individual models).
+    :param combined: Whether the model are individual or combine one.
+    :param lrs: The learning rate(s) used during training.
+    :param test_fine_prediction: NumPy array of fine-grained predictions.
+    :param test_coarse_prediction: NumPy array of coarse-grained predictions.
+    :param epoch: The epoch number (optional).
+    :param loss: The loss function used during training (optional).
+    :param fine_ground_truths: NumPy array of true fine-grained labels (optional).
+    :param coarse_ground_truths: NumPy array of true coarse-grained labels (optional).
+    """
     epoch_str = f'_e{epoch}' if epoch is not None else ''
     test_str = 'test' if test else 'train'
 
@@ -734,6 +793,20 @@ def initiate(lrs: list[typing.Union[str, float]],
              combined: bool,
              pretrained_path: str = None,
              debug: bool = False):
+    """
+    Initializes models, datasets, and devices for training.
+
+    :param lrs: List of learning rates for the models.
+    :param combined: Whether the model are individual or combine one.
+    :param pretrained_path: Path to a pretrained model (optional).
+    :param debug: True to force CPU usage for debugging.
+    :return: A tuple containing:
+             - fine_tuners: A list of VITFineTuner model objects.
+             - loaders: A dictionary of data loaders for train, val, and test.
+             - devices: A list of torch.device objects for model placement.
+             - num_fine_grain_classes: The number of fine-grained classes.
+             - num_coarse_grain_classes: The number of coarse-grained classes.
+    """
     print(f'Models: {vit_model_names}\n'
           f'Epochs num: {num_epochs}\n'
           f'Learning rates: {lrs}')
@@ -833,6 +906,24 @@ def run_combined_evaluating_pipeline(test: bool,
                                      pretrained_path: str = None,
                                      save_files: bool = True,
                                      debug: bool = utils.is_debug_mode()):
+    """
+    Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
+
+    :param test: True for test data, False for train data.
+    :param lrs: List of learning rates used during training.
+    :param loss: The loss function used during training.
+    :param pretrained_path: Path to a pre-trained model (optional).
+    :param save_files: Whether to save predictions and ground truth labels
+    :param debug: True to force CPU usage for debugging.
+
+    :return: A tuple containing:
+             - fine_ground_truths: NumPy array of fine-grained ground truth labels.
+             - coarse_ground_truths: NumPy array of coarse-grained ground truth labels.
+             - fine_predictions: NumPy array of fine-grained predictions.
+             - coarse_predictions: NumPy array of coarse-grained predictions.
+             - fine_accuracy: Fine-grained accuracy score.
+             - coarse_accuracy: Coarse-grained accuracy score.
+    """
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
         initiate(lrs=lrs,
                  combined=True,
