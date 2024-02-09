@@ -27,7 +27,6 @@ class EDCR:
         __num_epochs (int): Number of training epochs.
         __epsilon: Value using for constraint in getting rules
         __rules: ...
-
     """
 
     class Condition(typing.Callable, abc.ABC):
@@ -77,8 +76,14 @@ class EDCR:
         def l(self):
             return self.__l
 
-    class Rule(abc.ABC):
-        pass
+    class Rule(typing.Callable, abc.ABC):
+        @abc.abstractmethod
+        def __init__(self, *args, **kwargs):
+            pass
+
+        # @abc.abstractmethod
+        def __call__(self, *args, **kwargs) -> typing.Union[bool, np.array]:
+            pass
 
     class ErrorDetectionRule(Rule):
         def __init__(self,
@@ -88,6 +93,16 @@ class EDCR:
             self.__DC_l = DC_l
 
             assert all(l != self.__l for l in self.__DC_l)
+
+        def __call__(self,
+                     pred_data: np.array) -> typing.Union[bool, np.array]:
+            where_predicted_l = np.where(pred_data == self.__l.index)
+            where_any_conditions_satisfied = EDCR._get_where_any_conditions_satisfied(C=self.__DC_l,
+                                                                                      data=pred_data)
+            where_predicted_l_and_conditions_satisfied = where_predicted_l * where_any_conditions_satisfied
+            altered_pred_data = np.where(where_predicted_l_and_conditions_satisfied == 1, -1, pred_data)
+
+            return altered_pred_data
 
         def __str__(self) -> str:
             return '\n'.join(f'error_{self.__l}(x) <- pred_{self.__l}(x) ^ {cond}(x)' for cond in self.__DC_l)
@@ -101,6 +116,9 @@ class EDCR:
                      CC_l: set[(EDCR.Condition, data_preprocessing.Label)]):
             self.__l = l
             self.__CC_l = CC_l
+
+        def __call__(self, *args, **kwargs) -> typing.Union[bool, np.array]:
+            pass
 
         def __str__(self) -> str:
             return '\n'.join(f'corr_{self.__l}(x) <- {cond}(x) ^ pred_{l_prime}(x)' for (cond, l_prime) in self.__CC_l)
@@ -265,8 +283,8 @@ class EDCR:
                 self.__get_where_predicted_incorrect(test=False, g=g))
 
     @staticmethod
-    def __get_where_any_conditions_satisfied(C: set[Condition],
-                                             data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
+    def _get_where_any_conditions_satisfied(C: set[Condition],
+                                            data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
         """Checks if all given conditions are satisfied for each example.
 
         :param C: A set of `Condition` objects.
@@ -292,7 +310,7 @@ class EDCR:
         """
         where_train_tp_l = self.__get_where_train_tp_l(g=g, l=l)
         granularity_pred_data = self.__get_predictions(test=False, g=g)
-        where_any_conditions_satisfied = self.__get_where_any_conditions_satisfied(C=C, data=granularity_pred_data)
+        where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C, data=granularity_pred_data)
         NEG_l = int(np.sum(where_train_tp_l * where_any_conditions_satisfied))
 
         # assert NEG_l == np.sum(where_train_tp_l)
@@ -313,7 +331,7 @@ class EDCR:
         """
         where_train_fp_l = self.__get_where_train_fp_l(g=g, l=l)
         granularity_pred_data = self.__get_predictions(test=False, g=g)
-        where_any_conditions_satisfied = self.__get_where_any_conditions_satisfied(C=C, data=granularity_pred_data)
+        where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C, data=granularity_pred_data)
         POS_l = int(np.sum(where_train_fp_l * where_any_conditions_satisfied))
 
         return POS_l
@@ -458,6 +476,21 @@ class EDCR:
             # if utils.is_local():
             #     progress_bar.update(1)
 
+    def apply_detection_rules(self,
+                              g: data_preprocessing.Granularity):
+        test_granularity_data = self.__get_predictions(test=True,
+                                                       g=g)
+        altered_pred_datas = {}
+
+        for l, rule_l in self.__rules['error_detections'].items():
+            rule_l: EDCR.ErrorDetectionRule
+            altered_pred_datas[l] = rule_l(pred_data=test_granularity_data)
+
+        for altered_pred_data_l in altered_pred_datas.values():
+            test_granularity_data = np.where(altered_pred_data_l == -1, -1, test_granularity_data)
+
+        return test_granularity_data
+
 
 if __name__ == '__main__':
     edcr = EDCR(main_model_name='vit_b_16',
@@ -469,5 +502,8 @@ if __name__ == '__main__':
     edcr.print_metrics(test=False)
     edcr.print_metrics(test=True)
 
-    for g in [data_preprocessing.granularities[1]]:
+    for g in data_preprocessing.granularities:
         edcr.DetCorrRuleLearn(g=g)
+
+    for g in data_preprocessing.granularities:
+        test_granularity_data = edcr.apply_detection_rules(g=g)

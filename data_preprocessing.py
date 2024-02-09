@@ -88,10 +88,10 @@ def get_ground_truths(test: bool,
 
 class Label:
     def __init__(self,
-                 l_str: str):
+                 l_str: str,
+                 index: int):
         self._l_str = l_str
-        self._index = fine_grain_classes_str.index(l_str) if l_str in fine_grain_classes_str else (
-            coarse_grain_classes_str.index(l_str))
+        self._index = index
 
     def __str__(self):
         return self._l_str
@@ -110,7 +110,7 @@ class Label:
 class FineGrainLabel(Label):
     def __init__(self,
                  l_str: str):
-        super().__init__(l_str=l_str)
+        super().__init__(l_str=l_str, index=fine_grain_classes_str.index(l_str))
         assert l_str in fine_grain_classes_str
         self.__correct_coarse = fine_to_coarse[l_str]
 
@@ -126,7 +126,7 @@ class FineGrainLabel(Label):
 class CoarseGrainLabel(Label):
     def __init__(self,
                  l_str: str):
-        super().__init__(l_str=l_str)
+        super().__init__(l_str=l_str, index=coarse_grain_classes_str.index(l_str))
         assert l_str in coarse_grain_classes_str
         self.correct_fine = coarse_to_fine[l_str]
 
