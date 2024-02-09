@@ -31,7 +31,6 @@ class PredCondition(Condition):
     It evaluates to 1 if the model predicts the specified class for a given example,
     and 0 otherwise.
     """
-
     def __init__(self,
                  l: data_preprocessing.Label):
         """Initializes a PredCondition instance.
@@ -299,7 +298,7 @@ class EDCR:
         """Calculate the ratio of number of samples that satisfy the rule body and head with the ones that only satisfy 
         the body, given a condition class pair.
 
-        :param C: A set of `Condition` objects.
+        :param CC: A set of `Condition` - `Label` pairs.
         :param g: The granularity level
         :param l: The label of interest.
         :return: ratio as defined above
