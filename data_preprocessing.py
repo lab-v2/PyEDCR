@@ -7,7 +7,6 @@ import torch.utils.data
 import pathlib
 import typing
 
-
 data_file_path = rf'data/WEO_Data_Sheet.xlsx'
 dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
@@ -313,15 +312,10 @@ def get_one_hot_encoding(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
 
-
-
 granularities = [Granularity(g) for g in granularities_str]
-
-
 
 for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
     assert is_monotonic(arr)
-
 
 coarse_to_fine = {
     'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
