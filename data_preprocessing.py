@@ -58,14 +58,14 @@ fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
 
 class Granularity:
     def __init__(self,
-                 g: str):
-        self.__granularity = g
+                 g_str: str):
+        self.g_str = g_str
 
     def __str__(self):
-        return self.__granularity
+        return self.g_str
 
     def __hash__(self):
-        return hash(self.__granularity)
+        return hash(self.g_str)
 
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()

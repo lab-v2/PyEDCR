@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from sklearn.metrics import precision_score, recall_score
-import numpy as np
-import typing
 import abc
+import typing
+import numpy as np
+from sklearn.metrics import precision_score, recall_score
+import multiprocessing as mp
 
 import utils
 import data_preprocessing
@@ -281,7 +282,7 @@ class EDCR:
     def get_NEG_l(self,
                   g: data_preprocessing.Granularity,
                   l: data_preprocessing.Label,
-                  C: set[Condition]) -> int:
+                  C: set[PredCondition]) -> int:
         """Calculate the number of samples that satisfy any of the conditions and are true positive.
 
         :param C: A set of `Condition` objects.
@@ -293,6 +294,8 @@ class EDCR:
         granularity_pred_data = self.__get_predictions(test=False, g=g)
         where_any_conditions_satisfied = self.__get_where_any_conditions_satisfied(C=C, data=granularity_pred_data)
         NEG_l = int(np.sum(where_train_tp_l * where_any_conditions_satisfied))
+
+        # assert NEG_l == np.sum(where_train_tp_l)
 
         return NEG_l
 
@@ -379,10 +382,10 @@ class EDCR:
 
         return DC_l
 
-    def __CorrRuleLearn(self,
-                        g: data_preprocessing.Granularity,
-                        l: data_preprocessing.Label,
-                        CC_all: set[(Condition, data_preprocessing.Label)]) -> \
+    def _CorrRuleLearn(self,
+                       g: data_preprocessing.Granularity,
+                       l: data_preprocessing.Label,
+                       CC_all: set[(Condition, data_preprocessing.Label)]) -> \
             set[tuple[Condition, data_preprocessing.Label]]:
         """Learns error correction rules for a specific label and granularity. These rules associate conditions 
         with alternative labels that are more likely to be correct when those conditions are met.
@@ -442,10 +445,14 @@ class EDCR:
                     progress_bar.update(1)
 
         # with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
-        for l in granularity_labels:
-            CC_l = self.__CorrRuleLearn(g=g,
-                                        l=l,
-                                        CC_all=CC_all)
+
+        processes_num = min(len(granularity_labels), mp.cpu_count())
+
+        with mp.Pool(processes_num) as pool:
+            CC_ls = pool.starmap(func=self._CorrRuleLearn,
+                                 iterable=[(g, l, CC_all) for l in granularity_labels])
+
+        for CC_l in CC_ls:
             self.__rules['error_corrections'][l] = EDCR.CorrectionRule(l=l, CC_l=CC_l)
 
             # if utils.is_local():
@@ -462,5 +469,5 @@ if __name__ == '__main__':
     edcr.print_metrics(test=False)
     edcr.print_metrics(test=True)
 
-    for g in data_preprocessing.granularities:
+    for g in [data_preprocessing.granularities[1]]:
         edcr.DetCorrRuleLearn(g=g)
