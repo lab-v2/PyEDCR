@@ -5,8 +5,16 @@ import torchvision
 
 
 class FineTuner(torch.nn.Module, abc.ABC):
+    """
+    Base class for fine-tuning transformers for image classification tasks.
+    """
     def __init__(self,
                  num_classes: int):
+        """
+        Initializes the FineTuner with the number of classes.
+
+        :param num_classes: The number of output classes for classification.
+        """
         super().__init__()
         self.num_classes = num_classes
 
@@ -20,9 +28,19 @@ class FineTuner(torch.nn.Module, abc.ABC):
 
 
 class VITFineTuner(FineTuner):
+    """
+    This class inherits from `FineTuner` to provide specific functionalities for
+    fine-tuning vision transformer (ViT) models.
+    """
     def __init__(self,
                  vit_model_name: str,
                  num_classes: int):
+        """
+        Initializes the VITFineTuner with a pre-trained ViT model and number of classes.
+
+        :param vit_model_name: The name of the pre-trained ViT model to use (e.g., 'vit_base_patch16').
+        :param num_classes: The number of output classes for classification.
+        """
         super().__init__(num_classes=num_classes)
         self.vit_model_name = vit_model_name
 
@@ -40,6 +58,16 @@ class VITFineTuner(FineTuner):
                         classes_num: int,
                         pretrained_path: str,
                         device: torch.device):
+        """
+        Loads a pre-trained VITFineTuner model from a specified path.
+
+        :param vit_model_name: The name of the pre-trained ViT model used during training.
+        :param classes_num: The number of output classes for the loaded model.
+        :param pretrained_path: The path to the saved pre-trained model checkpoint.
+        :param device: The device (CPU or GPU) to load the model onto.
+
+        :return: An instance of VITFineTuner loaded with pre-trained weights.
+        """
         instance = cls(vit_model_name, classes_num)
         predefined_weights = torch.load(pretrained_path,
                                         map_location=device)
@@ -57,8 +85,13 @@ class VITFineTuner(FineTuner):
         return instance
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
-        # X_dim = [batches_num, channels_num, pixels_num, pixels_num]
-        # Y_dim = [batch_num, classes_num]
+        """
+        Performs a forward pass through the fine-tuned ViT model for prediction.
+
+        :param X: Input tensor of image data (batch_num, channels_num, height, width).
+
+        :return: Predicted class probabilities for each input image (batch_num, classes_num).
+        """
 
         Y_pred = self.vit(X)
 
