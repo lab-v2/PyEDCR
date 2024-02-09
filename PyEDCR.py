@@ -14,10 +14,6 @@ class Condition:
                  data: np.array):
         self.__data = data
 
-    def get_value(self,
-                  x: data_preprocessing.Example) -> int:
-        return self.__data[x.index]
-
     @property
     def data(self):
         return self.__data
@@ -28,11 +24,7 @@ class PredCondition(Condition):
                  pred_data: np.array,
                  l: data_preprocessing.Label):
         super().__init__(data=np.where(pred_data == l.index, 1, 0))
-
         self.__l = l
-
-    def get_label(self) -> data_preprocessing.Label:
-        return self.__l
 
 
 class Rule:
@@ -53,14 +45,39 @@ class EDCR:
         self.__lr = lr
         self.__epsilon = epsilon
 
-        combined_str = 'combined' if combined else 'individual'
-        test_pred_fine_path = (f'{combined_str}_results/{main_model_name}_test_fine_pred_{loss}_lr{lr}'
-                               f'_e{num_epochs - 1}.npy')
-        test_pred_coarse_path = (f'{combined_str}_results/{main_model_name}_test_coarse_pred_{loss}_lr{lr}'
-                                 f'_e{num_epochs - 1}.npy')
+        test_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
+                                                        combined=True,
+                                                        test=True,
+                                                        granularity='fine',
+                                                        loss=loss,
+                                                        lr=lr,
+                                                        pred=True,
+                                                        epoch=num_epochs)
+        test_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
+                                                          combined=True,
+                                                          test=True,
+                                                          granularity='coarse',
+                                                          loss=loss,
+                                                          lr=lr,
+                                                          pred=True,
+                                                          epoch=num_epochs)
 
-        train_pred_fine_path = f'{combined_str}_results/{main_model_name}_train_fine_pred_{loss}_lr{lr}.npy'
-        train_pred_coarse_path = f'{combined_str}_results/{main_model_name}_train_coarse_pred_{loss}_lr{lr}.npy'
+        train_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
+                                                         combined=True,
+                                                         test=False,
+                                                         granularity='fine',
+                                                         loss=loss,
+                                                         lr=lr,
+                                                         pred=True,
+                                                         epoch=num_epochs)
+        train_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
+                                                           combined=True,
+                                                           test=False,
+                                                           granularity='coarse',
+                                                           loss=loss,
+                                                           lr=lr,
+                                                           pred=True,
+                                                           epoch=num_epochs)
 
         self.__train_pred_data = {g: np.load(train_pred_fine_path if str(g) == 'fine' else train_pred_coarse_path)
                                   for g in data_preprocessing.granularities}
@@ -178,7 +195,6 @@ class EDCR:
 
         return CON_l
 
-
     def __DetRuleLearn(self,
                        g: data_preprocessing.Granularity,
                        l: data_preprocessing.Label) -> set[Condition]:
@@ -236,7 +252,6 @@ class EDCR:
 
         return CC_l
 
-
     def DetCorrRuleLearn(self,
                          g: data_preprocessing.Granularity):
         CC_all = set()
@@ -267,12 +282,7 @@ if __name__ == '__main__':
                 num_epochs=20,
                 epsilon=0.1)
     edcr.print_metrics(test=False)
-    edcr.print_metrics(test=True)
+    # edcr.print_metrics(test=True)
 
-    for g in data_preprocessing.granularities:
-        edcr.DetCorrRuleLearn(g=g)
-
-
-
-
-
+    # for g in data_preprocessing.granularities:
+    #     edcr.DetCorrRuleLearn(g=g)

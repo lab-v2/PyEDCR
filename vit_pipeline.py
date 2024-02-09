@@ -16,11 +16,26 @@ num_epochs = 20
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
-files_path = '/content/drive/My Drive/' if utils.is_running_in_colab() else ''
-combined_results_path = fr'{files_path}combined_results/'
-individual_results_path = fr'{files_path}individual_results/'
+combined_results_path = fr'combined_results'
+individual_results_path = fr'individual_results'
 cwd = pathlib.Path(__file__).parent.resolve()
 scheduler_step_size = 1
+
+
+def get_filepath(model_name: typing.Union[str, models.FineTuner],
+                 combined: bool,
+                 test: bool,
+                 granularity: str,
+                 loss: str,
+                 lr: typing.Union[str, float],
+                 pred: bool,
+                 epoch: int = None) -> str:
+    epoch_str = f'_e{epoch - 1}' if epoch is not None else ''
+    test_str = 'test' if test else 'train'
+    pred_str = 'pred' if pred else 'true'
+    combined_str = 'combined' if combined else 'individual'
+
+    return f"{combined_str}_results/{model_name}_{test_str}_{granularity}_{pred_str}_{loss}_lr{lr}{epoch_str}.npy"
 
 
 def print_num_inconsistencies(pred_fine_data: np.array,
@@ -77,7 +92,7 @@ def get_and_print_metrics(pred_fine_data: np.array,
                           loss: str,
                           true_fine_data: np.array,
                           true_coarse_data: np.array,
-                          test: bool = True,
+                          test: bool,
                           prior: bool = True,
                           combined: bool = True,
                           model_name: str = '',
@@ -124,29 +139,41 @@ def save_prediction_files(test: bool,
                           epoch: int = None,
                           loss: str = 'BCE',
                           fine_ground_truths: np.array = None,
-                          coarse_ground_truths: np.array = None
-                          ):
-    loss_str = f'{loss}_' if loss != 'BCE' else ''
+                          coarse_ground_truths: np.array = None):
     epoch_str = f'_e{epoch}' if epoch is not None else ''
-    test_str = '_' + 'test' if test else 'train'
+    test_str = 'test' if test else 'train'
 
     if combined:
-        np.save(f"{combined_results_path}{test_str}_{fine_tuners}_{loss_str}fine_pred_lr{lrs}{epoch_str}.npy",
+        np.save(get_filepath(model_name=fine_tuners,
+                             combined=True,
+                             test=test,
+                             granularity='fine',
+                             loss=loss,
+                             lr=lrs,
+                             pred=True,
+                             epoch=epoch),
                 test_fine_prediction)
-        np.save(f"{combined_results_path}{test_str}_{fine_tuners}_{loss_str}coarse_pred_lr{lrs}{epoch_str}.npy",
+        np.save(get_filepath(model_name=fine_tuners,
+                             combined=True,
+                             test=test,
+                             granularity='coarse',
+                             loss=loss,
+                             lr=lrs,
+                             pred=True,
+                             epoch=epoch),
                 test_coarse_prediction)
 
         if fine_ground_truths is not None:
-            np.save(f"{combined_results_path}{test_str}_true_fine.npy",
+            np.save(f"{test_str}_fine/{test_str}_true_fine.npy",
                     fine_ground_truths)
-            np.save(f"{combined_results_path}{test_str}_true_coarse.npy",
+            np.save(f"{test_str}_coarse/{test_str}_true_coarse.npy",
                     coarse_ground_truths)
     else:
-        np.save(f"{individual_results_path}{test_str}_{fine_tuners['fine']}"
-                f"_pred_lr{lrs['fine']}{epoch_str}_fine_individual.npy",
+        np.save(f"{individual_results_path}_{test_str}_{fine_tuners['fine']}"
+                f"_pred_lr{lrs['fine']}_{epoch_str}_fine_individual.npy",
                 test_fine_prediction)
-        np.save(f"{individual_results_path}{test_str}_{fine_tuners['coarse']}"
-                f"_pred_lr{lrs['coarse']}{epoch_str}_coarse_individual.npy",
+        np.save(f"{individual_results_path}_{test_str}_{fine_tuners['coarse']}"
+                f"_pred_lr{lrs['coarse']}_{epoch_str}_coarse_individual.npy",
                 test_coarse_prediction)
 
         # if fine_ground_truths is not None:
@@ -212,7 +239,8 @@ def evaluate_individual_models(fine_tuners: list[models.FineTuner],
                               loss='Cross Entropy',
                               true_fine_data=true_fine_data,
                               true_coarse_data=true_coarse_data,
-                              combined=False))
+                              combined=False,
+                              test=test))
 
     return (true_fine_data, true_coarse_data, fine_prediction, coarse_prediction,
             fine_accuracy, coarse_accuracy)
@@ -263,7 +291,8 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                               pred_coarse_data=coarse_predictions,
                               loss=loss,
                               true_fine_data=fine_ground_truths,
-                              true_coarse_data=coarse_ground_truths))
+                              true_coarse_data=coarse_ground_truths,
+                              test=test))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
             fine_accuracy, coarse_accuracy)
@@ -825,7 +854,8 @@ def run_combined_evaluating_pipeline(test: bool,
                               test_fine_prediction=fine_predictions,
                               test_coarse_prediction=coarse_predictions,
                               fine_ground_truths=fine_ground_truths,
-                              coarse_ground_truths=coarse_ground_truths)
+                              coarse_ground_truths=coarse_ground_truths,
+                              epoch=num_epochs)
 
 
 if __name__ == '__main__':
