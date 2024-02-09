@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from sklearn.metrics import precision_score, recall_score
 import numpy as np
 import typing
@@ -7,49 +9,6 @@ import utils
 import data_preprocessing
 import vit_pipeline
 import context_handlers
-
-
-class Condition(typing.Callable, abc.ABC):
-    """Represents a condition that can be evaluated on examples.
-
-    When treated as a function, it takes an example (e.g., image, data) as input
-    and returns a value between 0 and 1 indicating whether the condition is satisfied.
-    A value of 0 means the condition is not met, while a value of 1 means it is fully met.
-    """
-    @abc.abstractmethod
-    def __init__(self, *args, **kwargs):
-        pass
-
-    @abc.abstractmethod
-    def __call__(self, *args, **kwargs) -> typing.Union[bool, np.array]:
-        pass
-
-
-class PredCondition(Condition):
-    """Represents a condition based on a model's prediction of a specific class.
-
-    It evaluates to 1 if the model predicts the specified class for a given example,
-    and 0 otherwise.
-    """
-    def __init__(self,
-                 l: data_preprocessing.Label):
-        """Initializes a PredCondition instance.
-
-        Args:
-            l: The target Label for which the condition is evaluated.
-        """
-        self.__l = l
-
-    def __call__(self,
-                 data: np.array,
-                 x_index: int = None) -> typing.Union[bool, np.array]:
-        if x_index is not None:
-            return data[x_index] == self.__l
-        return np.where(data == self.__l.index, 1, 0)
-
-
-class Rule:
-    pass
 
 
 class EDCR:
@@ -69,6 +28,72 @@ class EDCR:
         __rules: ...
 
     """
+
+    class Condition(typing.Callable, abc.ABC):
+        """Represents a condition that can be evaluated on examples.
+
+        When treated as a function, it takes an example (e.g., image, data) as input
+        and returns a value between 0 and 1 indicating whether the condition is satisfied.
+        A value of 0 means the condition is not met, while a value of 1 means it is fully met.
+        """
+
+        @abc.abstractmethod
+        def __init__(self, *args, **kwargs):
+            pass
+
+        @abc.abstractmethod
+        def __call__(self, *args, **kwargs) -> typing.Union[bool, np.array]:
+            pass
+
+    class PredCondition(Condition):
+        """Represents a condition based on a model's prediction of a specific class.
+
+        It evaluates to 1 if the model predicts the specified class for a given example,
+        and 0 otherwise.
+        """
+
+        def __init__(self,
+                     l: data_preprocessing.Label):
+            """Initializes a PredCondition instance.
+
+            Args:
+                l: The target Label for which the condition is evaluated.
+            """
+            self.__l = l
+
+        def __call__(self,
+                     data: np.array,
+                     x_index: int = None) -> typing.Union[bool, np.array]:
+            if x_index is not None:
+                return data[x_index] == self.__l
+            return np.where(data == self.__l.index, 1, 0)
+
+        def __str__(self) -> str:
+            return f'pred_{self.__l}'
+
+    class Rule(abc.ABC):
+        pass
+
+    class ErrorDetectionRule(Rule):
+        def __init__(self,
+                     l: data_preprocessing.Label,
+                     DC_l: set[EDCR.Condition]):
+            self.__l = l
+            self.__DC_l = DC_l
+
+        def __str__(self) -> str:
+            return '\n'.join(f'error_{self.__l}(x) <- pred_{self.__l}(x) ^ {cond}(x)' for cond in self.__DC_l)
+
+    class CorrectionRule(Rule):
+        def __init__(self,
+                     l: data_preprocessing.Label,
+                     CC_l: set[(EDCR.Condition, data_preprocessing.Label)]):
+            self.__l = l
+            self.__CC_l = CC_l
+
+        def __str__(self) -> str:
+            return '\n'.join(f'corr_{self.__l}(x) <- {cond}(x) ^ pred_{l_prime}(x)' for (cond, l_prime) in self.__CC_l)
+
     def __init__(self,
                  main_model_name: str,
                  combined: bool,
@@ -122,9 +147,9 @@ class EDCR:
         self.__test_pred_data = {g: np.load(test_pred_fine_path if str(g) == 'fine' else test_pred_coarse_path)
                                  for g in data_preprocessing.granularities}
 
-        self.__condition_datas = {PredCondition(l=l)
-                                  for g in data_preprocessing.granularities
-                                  for l in data_preprocessing.get_labels(g)}
+        self.condition_datas = {EDCR.PredCondition(l=l)
+                                for g in data_preprocessing.granularities
+                                for l in data_preprocessing.get_labels(g)}
 
         self.__train_precisions = {g: precision_score(y_true=data_preprocessing.get_ground_truths(test=False, g=g),
                                                       y_pred=self.__train_pred_data[g],
@@ -136,9 +161,8 @@ class EDCR:
                                                 average=None)
                                 for g in data_preprocessing.granularities}
 
-        self.__rules: dict[str, dict[data_preprocessing.Label, set[Rule]]] = \
-            {'error_detections': {l: set() for l in data_preprocessing.all_labels},
-             'error_corrections': {l: set() for l in data_preprocessing.all_labels}}
+        self.__rules: dict[str, dict[data_preprocessing.Label, EDCR.Rule]] = {'error_detections': {},
+                                                                              'error_corrections': {}}
 
     def __get_predictions(self,
                           test: bool,
@@ -172,7 +196,7 @@ class EDCR:
 
     def print_metrics(self,
                       test: bool):
-        
+
         """Prints performance metrics for given test/train data.
 
         Calculates and prints various metrics (accuracy, precision, recall, etc.)
@@ -252,10 +276,10 @@ class EDCR:
 
         return all_conditions_satisfied
 
-    def __get_NEG_l(self,
-                    g: data_preprocessing.Granularity,
-                    l: data_preprocessing.Label,
-                    C: set[Condition]) -> int:
+    def get_NEG_l(self,
+                  g: data_preprocessing.Granularity,
+                  l: data_preprocessing.Label,
+                  C: set[Condition]) -> int:
         """Calculate the number of samples that satisfy the conditions for some set of condition and have true positive.
 
         :param C: A set of `Condition` objects.
@@ -336,9 +360,8 @@ class EDCR:
         R_l = self.__train_recalls[g][l.index]
         q_l = self.__epsilon * N_l * P_l / R_l
 
-        DC_star = {cond for cond in self.__condition_datas if self.__get_NEG_l(g=g, l=l, C={cond}) <= q_l}
+        DC_star = {cond for cond in self.condition_datas if self.get_NEG_l(g=g, l=l, C={cond}) <= q_l}
 
-        # with context_handlers.WrapTQDM(total=len(DC_star)) as progress_bar:
         while len(DC_star) > 0:
             best_score = -1
             best_cond = None
@@ -351,13 +374,9 @@ class EDCR:
 
             DC_l = DC_l.union({best_cond})
 
-            DC_star = {cond for cond in self.__condition_datas.difference(DC_l)
-                       if self.__get_NEG_l(g=g, l=l, C=DC_l.union({cond})) <= q_l}
-
-            # if utils.is_local():
-            #
-            #     time.sleep(0.1)
-            #     progress_bar.update(1)
+            DC_star = {cond for cond in self.condition_datas.difference(DC_l)
+                       if self.get_NEG_l(g=g, l=l, C=DC_l.union({cond})) <= q_l}
+            print('hi')
 
         return DC_l
 
@@ -390,8 +409,8 @@ class EDCR:
                 else:
                     CC_l_prime = CC_l_prime.difference({(cond, l)})
 
-            if utils.is_local():
-                progress_bar.update(1)
+                if utils.is_local():
+                    progress_bar.update(1)
 
         # if self.__get_CON_l(g=g, l=l, CC=CC_l) <= self.__train_precisions[g][l]:
         #     CC_l = set()
@@ -409,11 +428,12 @@ class EDCR:
 
         with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
             for l in granularity_labels:
-
                 DC_l = self.__DetRuleLearn(g=g,
                                            l=l)
-                if len(DC_l):
-                    self.__rules['error_detections'][l] = self.__rules['error_detections'][l].union(DC_l)
+                error_correction_rule_l = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
+                self.__rules['error_detections'][l] = error_correction_rule_l
+                print(f'{l}: {len(DC_l)}')
+                # print(error_correction_rule_l)
 
                 for cond_l in DC_l:
                     CC_all = CC_all.union({(cond_l, l)})
@@ -421,12 +441,15 @@ class EDCR:
                 if utils.is_local():
                     progress_bar.update(1)
 
+        # with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
         for l in granularity_labels:
             CC_l = self.__CorrRuleLearn(g=g,
                                         l=l,
                                         CC_all=CC_all)
-            if len(CC_l):
-                self.__rules['error_corrections'][l] = self.__rules['error_corrections'][l].union(CC_l)
+            self.__rules['error_corrections'][l] = EDCR.CorrectionRule(l=l, CC_l=CC_l)
+
+            # if utils.is_local():
+            #     progress_bar.update(1)
 
 
 if __name__ == '__main__':
