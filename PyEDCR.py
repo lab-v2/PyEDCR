@@ -31,6 +31,7 @@ class PredCondition(Condition):
     It evaluates to 1 if the model predicts the specified class for a given example,
     and 0 otherwise.
     """
+
     def __init__(self,
                  l: data_preprocessing.Label):
         """Initializes a PredCondition instance.
