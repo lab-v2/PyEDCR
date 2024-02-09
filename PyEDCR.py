@@ -85,6 +85,9 @@ class EDCR:
         def __str__(self) -> str:
             return '\n'.join(f'error_{self.__l}(x) <- pred_{self.__l}(x) ^ {cond}(x)' for cond in self.__DC_l)
 
+        def __len__(self):
+            return len(self.__DC_l)
+
     class CorrectionRule(Rule):
         def __init__(self,
                      l: data_preprocessing.Label,
@@ -192,7 +195,7 @@ class EDCR:
     def __get_how_many_predicted_l(self,
                                    test: bool,
                                    g: data_preprocessing.Granularity,
-                                   l: data_preprocessing.Label):
+                                   l: data_preprocessing.Label) -> int:
         return np.sum(self.__get_where_predicted_l(test=test, g=g, l=l))
 
     def print_metrics(self,
@@ -254,7 +257,6 @@ class EDCR:
     def __get_where_train_tp_l(self,
                                g: data_preprocessing.Granularity,
                                l: data_preprocessing.Label) -> np.array:
-        print(self.__get_where_predicted_l(test=False, g=g, l=l))
         return self.__get_where_predicted_l(test=False, g=g, l=l) * self.__get_where_predicted_correct(test=False, g=g)
 
     def __get_where_train_fp_l(self,
@@ -264,17 +266,17 @@ class EDCR:
                 self.__get_where_predicted_incorrect(test=False, g=g))
 
     @staticmethod
-    def __get_where_all_conditions_satisfied(C: set[Condition],
+    def __get_where_any_conditions_satisfied(C: set[Condition],
                                              data: np.array) -> bool:
         """Checks if all given conditions are satisfied for each example.
 
         :param C: A set of `Condition` objects.
         :return: A NumPy array with True values if the example satisfy all conditions and False otherwise.
         """
-        all_conditions_satisfied = np.ones_like(data)
+        all_conditions_satisfied = np.zeros_like(data)
 
         for cond in C:
-            all_conditions_satisfied &= cond(data=data)
+            all_conditions_satisfied |= cond(data=data)
 
         return all_conditions_satisfied
 
@@ -291,8 +293,8 @@ class EDCR:
         """
         where_train_tp_l = self.__get_where_train_tp_l(g=g, l=l)
         granularity_pred_data = self.__get_predictions(test=False, g=g)
-        where_all_conditions_satisfied = self.__get_where_all_conditions_satisfied(C=C, data=granularity_pred_data)
-        NEG_l = int(np.sum(where_train_tp_l * where_all_conditions_satisfied))
+        where_any_conditions_satisfied = self.__get_where_any_conditions_satisfied(C=C, data=granularity_pred_data)
+        NEG_l = int(np.sum(where_train_tp_l * where_any_conditions_satisfied))
 
         return NEG_l
 
@@ -310,8 +312,8 @@ class EDCR:
         """
         where_train_fp_l = self.__get_where_train_fp_l(g=g, l=l)
         granularity_pred_data = self.__get_predictions(test=False, g=g)
-        where_all_conditions_satisfied = self.__get_where_all_conditions_satisfied(C=C, data=granularity_pred_data)
-        POS_l = int(np.sum(where_train_fp_l * where_all_conditions_satisfied))
+        where_any_conditions_satisfied = self.__get_where_any_conditions_satisfied(C=C, data=granularity_pred_data)
+        POS_l = int(np.sum(where_train_fp_l * where_any_conditions_satisfied))
 
         return POS_l
 
@@ -432,8 +434,7 @@ class EDCR:
                                            l=l)
                 error_correction_rule_l = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
                 self.__rules['error_detections'][l] = error_correction_rule_l
-                print(f'{l}: {len(DC_l)}')
-                # print(error_correction_rule_l)
+                print(f'{l}: {len(error_correction_rule_l)}')
 
                 for cond_l in DC_l:
                     CC_all = CC_all.union({(cond_l, l)})
@@ -458,7 +459,7 @@ if __name__ == '__main__':
                 loss='BCE',
                 lr=0.0001,
                 num_epochs=20,
-                epsilon=0.01)
+                epsilon=0.1)
     edcr.print_metrics(test=False)
     edcr.print_metrics(test=True)
 

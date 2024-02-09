@@ -88,20 +88,20 @@ def get_ground_truths(test: bool,
 
 class Label:
     def __init__(self,
-                 l: str):
-        self._l = l
-        self._index = fine_grain_classes_str.index(l) if l in fine_grain_classes_str else (
-            coarse_grain_classes_str.index(l))
+                 l_str: str):
+        self._l_str = l_str
+        self._index = fine_grain_classes_str.index(l_str) if l_str in fine_grain_classes_str else (
+            coarse_grain_classes_str.index(l_str))
 
     def __str__(self):
-        return self._l
+        return self._l_str
 
     @property
     def index(self):
         return self._index
 
     def __hash__(self):
-        return hash(self._l)
+        return hash(self._l_str)
 
     def __eq__(self, other):
         return hash(self) == hash(other)
@@ -109,44 +109,44 @@ class Label:
 
 class FineGrainLabel(Label):
     def __init__(self,
-                 l: str):
-        super().__init__(l=l)
-        assert l in fine_grain_classes_str
-        self.correct_coarse = fine_to_coarse[l]
+                 l_str: str):
+        super().__init__(l_str=l_str)
+        assert l_str in fine_grain_classes_str
+        self.correct_coarse = fine_to_coarse[l_str]
 
     @classmethod
     def with_index(cls,
                    l_index: int):
         l = fine_grain_classes_str[l_index]
-        instance = cls(l=l)
+        instance = cls(l_str=l)
 
         return instance
 
 
 class CoarseGrainLabel(Label):
     def __init__(self,
-                 l: str):
-        super().__init__(l=l)
-        assert l in coarse_grain_classes_str
-        self.correct_fine = coarse_to_fine[l]
+                 l_str: str):
+        super().__init__(l_str=l_str)
+        assert l_str in coarse_grain_classes_str
+        self.correct_fine = coarse_to_fine[l_str]
 
     @classmethod
     def with_index(cls,
                    i_l: int):
         l = coarse_grain_classes_str[i_l]
-        instance = cls(l=l)
+        instance = cls(l_str=l)
 
         return instance
 
 
-class Example:
-    def __init__(self,
-                 i: int):
-        self.__index = i
-
-    @property
-    def index(self):
-        return self.__index
+# class Example:
+#     def __init__(self,
+#                  i: int):
+#         self.__index = i
+#
+#     @property
+#     def index(self):
+#         return self.__index
 
 
 def get_labels(g: Granularity):
@@ -330,7 +330,7 @@ coarse_to_fine = {
 fine_grain_labels = [FineGrainLabel(l) for l in fine_grain_classes_str]
 coarse_grain_labels = [CoarseGrainLabel(l) for l in coarse_grain_classes_str]
 
-train_examples = [Example(i) for i in range(train_true_fine_data.shape[0])]
-test_examples = [Example(i) for i in range(test_true_fine_data.shape[0])]
+# train_examples = [Example(i) for i in range(train_true_fine_data.shape[0])]
+# test_examples = [Example(i) for i in range(test_true_fine_data.shape[0])]
 
 all_labels = [label for granularity in granularities for label in get_labels(granularity)]
