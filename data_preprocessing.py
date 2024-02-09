@@ -86,12 +86,16 @@ def get_ground_truths(test: bool,
         return true_fine_data if str(g) == 'fine' else true_coarse_data
 
 
+granularities = [Granularity(g) for g in granularities_str]
+
+
 class Label:
     def __init__(self,
                  l_str: str,
                  index: int):
         self._l_str = l_str
         self._index = index
+        self._g = None
 
     def __str__(self):
         return self._l_str
@@ -99,6 +103,10 @@ class Label:
     @property
     def index(self):
         return self._index
+
+    @property
+    def g(self):
+        return self._g
 
     def __hash__(self):
         return hash(self._l_str)
@@ -113,6 +121,7 @@ class FineGrainLabel(Label):
         super().__init__(l_str=l_str, index=fine_grain_classes_str.index(l_str))
         assert l_str in fine_grain_classes_str
         self.__correct_coarse = fine_to_coarse[l_str]
+        self._g = granularities[1]
 
     @classmethod
     def with_index(cls,
@@ -129,6 +138,7 @@ class CoarseGrainLabel(Label):
         super().__init__(l_str=l_str, index=coarse_grain_classes_str.index(l_str))
         assert l_str in coarse_grain_classes_str
         self.correct_fine = coarse_to_fine[l_str]
+        self._g = granularities[1]
 
     @classmethod
     def with_index(cls,
@@ -311,8 +321,6 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
 def get_one_hot_encoding(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
-
-granularities = [Granularity(g) for g in granularities_str]
 
 for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
     assert is_monotonic(arr)

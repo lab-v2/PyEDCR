@@ -26,7 +26,7 @@ class EDCR:
         __lr: Learning rate used during training.
         __num_epochs (int): Number of training epochs.
         __epsilon: Value using for constraint in getting rules
-        __rules: ...
+        rules: ...
     """
 
     class Condition(typing.Callable, abc.ABC):
@@ -88,27 +88,38 @@ class EDCR:
     class ErrorDetectionRule(Rule):
         def __init__(self,
                      l: data_preprocessing.Label,
-                     DC_l: set[EDCR.Condition]):
+                     DC_l: set[EDCR.PredCondition]):
             self.__l = l
-            self.__DC_l = DC_l
+            self.DC_l = DC_l
 
-            assert all(l != self.__l for l in self.__DC_l)
+            assert all(l != self.__l for l in self.DC_l)
 
         def __call__(self,
-                     pred_data: np.array) -> typing.Union[bool, np.array]:
-            where_predicted_l = np.where(pred_data == self.__l.index)
-            where_any_conditions_satisfied = EDCR._get_where_any_conditions_satisfied(C=self.__DC_l,
-                                                                                      data=pred_data)
-            where_predicted_l_and_conditions_satisfied = where_predicted_l * where_any_conditions_satisfied
-            altered_pred_data = np.where(where_predicted_l_and_conditions_satisfied == 1, -1, pred_data)
+                     test_pred_fine_data: np.array,
+                     test_pred_coarse_data: np.array) -> typing.Union[bool, np.array]:
+            if isinstance(self.__l, data_preprocessing.FineGrainLabel):
+                test_pred_granularity_data = test_pred_fine_data
+                where_predicted_l = np.where(test_pred_fine_data == self.__l.index, 1, 0)
+            else:
+                test_pred_granularity_data = test_pred_coarse_data
+                where_predicted_l = np.where(test_pred_coarse_data == self.__l.index, 1, 0)
+
+            where_any_conditions_satisfied = EDCR._get_where_any_conditions_satisfied(C=self.DC_l,
+                                                                                      fine_data=test_pred_fine_data,
+                                                                                      coarse_data=test_pred_coarse_data)
+            where_predicted_l_and_any_conditions_satisfied = where_predicted_l * where_any_conditions_satisfied
+            altered_pred_data = np.where(where_predicted_l_and_any_conditions_satisfied == 1, -1,
+                                         test_pred_granularity_data)
+
+            print(np.sum(np.where(altered_pred_data == -1, 1, 0)))
 
             return altered_pred_data
 
         def __str__(self) -> str:
-            return '\n'.join(f'error_{self.__l}(x) <- pred_{self.__l}(x) ^ {cond}(x)' for cond in self.__DC_l)
+            return '\n'.join(f'error_{self.__l}(x) <- pred_{self.__l}(x) ^ {cond}(x)' for cond in self.DC_l)
 
         def __len__(self):
-            return len(self.__DC_l)
+            return len(self.DC_l)
 
     class CorrectionRule(Rule):
         def __init__(self,
@@ -190,8 +201,8 @@ class EDCR:
                                                 average=None)
                                 for g in data_preprocessing.granularities}
 
-        self.__rules: dict[str, dict[data_preprocessing.Label, EDCR.Rule]] = {'error_detections': {},
-                                                                              'error_corrections': {}}
+        self.rules: dict[str, dict[data_preprocessing.Label, EDCR.Rule]] = {'error_detections': {},
+                                                                            'error_corrections': {}}
 
     def __get_predictions(self,
                           test: bool,
@@ -283,17 +294,21 @@ class EDCR:
                 self.__get_where_predicted_incorrect(test=False, g=g))
 
     @staticmethod
-    def _get_where_any_conditions_satisfied(C: set[Condition],
-                                            data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
+    def _get_where_any_conditions_satisfied(C: set[PredCondition],
+                                            fine_data: typing.Union[np.array, typing.Iterable[np.array]],
+                                            coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
         """Checks if all given conditions are satisfied for each example.
 
         :param C: A set of `Condition` objects.
         :return: A NumPy array with True values if the example satisfy all conditions and False otherwise.
         """
-        any_condition_satisfied = np.zeros_like(data)
+        any_condition_satisfied = np.zeros_like(fine_data)
 
         for cond in C:
-            any_condition_satisfied |= cond(data=data)
+            if isinstance(cond.l, data_preprocessing.FineGrainLabel):
+                any_condition_satisfied |= cond(data=fine_data)
+            else:
+                any_condition_satisfied |= cond(data=coarse_data)
 
         return any_condition_satisfied
 
@@ -309,8 +324,10 @@ class EDCR:
         :return: The number of instances that is true negative and satisfying all conditions.
         """
         where_train_tp_l = self.__get_where_train_tp_l(g=g, l=l)
-        granularity_pred_data = self.__get_predictions(test=False, g=g)
-        where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C, data=granularity_pred_data)
+        train_pred_fine_data, train_pred_coarse_data = self.__get_predictions(test=False)
+        where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C,
+                                                                                  fine_data=train_pred_fine_data,
+                                                                                  coarse_data=train_pred_coarse_data)
         NEG_l = int(np.sum(where_train_tp_l * where_any_conditions_satisfied))
 
         # assert NEG_l == np.sum(where_train_tp_l)
@@ -320,7 +337,7 @@ class EDCR:
     def __get_POS_l(self,
                     g: data_preprocessing.Granularity,
                     l: data_preprocessing.Label,
-                    C: set[Condition]) -> int:
+                    C: set[PredCondition]) -> int:
         """Calculate the number of samples that satisfy the conditions for some set of condition 
         and have false positive.
 
@@ -330,8 +347,10 @@ class EDCR:
         :return: The number of instances that is false negative and satisfying all conditions.
         """
         where_train_fp_l = self.__get_where_train_fp_l(g=g, l=l)
-        granularity_pred_data = self.__get_predictions(test=False, g=g)
-        where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C, data=granularity_pred_data)
+        train_pred_fine_data, train_pred_coarse_data = self.__get_predictions(test=False)
+        where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C,
+                                                                                  fine_data=train_pred_fine_data,
+                                                                                  coarse_data=train_pred_coarse_data)
         POS_l = int(np.sum(where_train_fp_l * where_any_conditions_satisfied))
 
         return POS_l
@@ -366,7 +385,7 @@ class EDCR:
 
     def __DetRuleLearn(self,
                        g: data_preprocessing.Granularity,
-                       l: data_preprocessing.Label) -> set[Condition]:
+                       l: data_preprocessing.Label) -> set[PredCondition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
         that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
 
@@ -451,10 +470,10 @@ class EDCR:
                 DC_l = self.__DetRuleLearn(g=g,
                                            l=l)
                 error_correction_rule_l = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
-                self.__rules['error_detections'][l] = error_correction_rule_l
+                self.rules['error_detections'][l] = error_correction_rule_l
 
                 print(f'\n{l}: {len(error_correction_rule_l)}')
-                print(error_correction_rule_l)
+                # print(error_correction_rule_l)
 
                 for cond_l in DC_l:
                     CC_all = CC_all.union({(cond_l, l)})
@@ -466,30 +485,34 @@ class EDCR:
 
         processes_num = min(len(granularity_labels), mp.cpu_count())
 
-        with mp.Pool(processes_num) as pool:
-            CC_ls = pool.starmap(func=self._CorrRuleLearn,
-                                 iterable=[(g, l, CC_all) for l in granularity_labels])
+        # with mp.Pool(processes_num) as pool:
+        #     CC_ls = pool.starmap(func=self._CorrRuleLearn,
+        #                          iterable=[(g, l, CC_all) for l in granularity_labels])
+        #
+        # for CC_l in CC_ls:
+        #     self.__rules['error_corrections'][l] = EDCR.CorrectionRule(l=l, CC_l=CC_l)
 
-        for CC_l in CC_ls:
-            self.__rules['error_corrections'][l] = EDCR.CorrectionRule(l=l, CC_l=CC_l)
-
-            # if utils.is_local():
-            #     progress_bar.update(1)
+        # if utils.is_local():
+        #     progress_bar.update(1)
 
     def apply_detection_rules(self,
-                              g: data_preprocessing.Granularity):
-        test_granularity_data = self.__get_predictions(test=True,
-                                                       g=g)
+                              g: data_preprocessing.Granularity) -> np.array:
+        test_pred_fine_data, test_pred_coarse_data = self.__get_predictions(test=True)
         altered_pred_datas = {}
 
-        for l, rule_l in self.__rules['error_detections'].items():
+        for l, rule_l in self.rules['error_detections'].items():
             rule_l: EDCR.ErrorDetectionRule
-            altered_pred_datas[l] = rule_l(pred_data=test_granularity_data)
+
+            if l.g == g:
+                altered_pred_datas[l] = rule_l(test_pred_fine_data=test_pred_fine_data,
+                                               test_pred_coarse_data=test_pred_coarse_data)
+
+        altered_pred_data = self.__get_predictions(test=True, g=g)
 
         for altered_pred_data_l in altered_pred_datas.values():
-            test_granularity_data = np.where(altered_pred_data_l == -1, -1, test_granularity_data)
+            altered_pred_data = np.where(altered_pred_data_l == -1, -1, altered_pred_data)
 
-        return test_granularity_data
+        return altered_pred_data
 
 
 if __name__ == '__main__':
@@ -507,3 +530,4 @@ if __name__ == '__main__':
 
     for g in data_preprocessing.granularities:
         test_granularity_data = edcr.apply_detection_rules(g=g)
+        print(f'{g}: {np.sum(np.where(test_granularity_data == -1, 1, 0))}')
