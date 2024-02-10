@@ -960,5 +960,10 @@ if __name__ == '__main__':
 
     run_combined_evaluating_pipeline(test=False,
                                      lrs=[0.0001],
-                                     loss='soft_marginal',
-                                     pretrained_path='models/vit_b_16_softmarginal_1e-4.pth')
+                                     loss='BCE',
+                                     pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
+
+    run_combined_evaluating_pipeline(test=True,
+                                     lrs=[0.0001],
+                                     loss='BCE',
+                                     pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
