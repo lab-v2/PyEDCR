@@ -195,51 +195,59 @@ class EDCR:
             return '\n'.join(f'corr_{self._l}(x) <- {cond}(x) ^ pred_{l_prime}(x)' for (cond, l_prime) in self._C_l)
 
     def __init__(self,
-                 main_model_name: str,
-                 combined: bool,
-                 loss: str,
-                 lr: typing.Union[str, float],
-                 num_epochs: int,
-                 epsilon: typing.Union[str, float]):
+                 epsilon: typing.Union[str, float],
+                 main_model_name: str = False,
+                 combined: bool = False,
+                 loss: str = False,
+                 lr: typing.Union[str, float] = False,
+                 num_epochs: int = False,
+                 test: bool = False):
         self.__main_model_name = main_model_name
         self.__combined = combined
         self.__loss = loss
         self.__lr = lr
         self.__epsilon = epsilon
 
-        test_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                        combined=True,
-                                                        test=True,
-                                                        granularity='fine',
-                                                        loss=loss,
-                                                        lr=lr,
-                                                        pred=True,
-                                                        epoch=num_epochs)
-        test_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                          combined=True,
-                                                          test=True,
-                                                          granularity='coarse',
-                                                          loss=loss,
-                                                          lr=lr,
-                                                          pred=True,
-                                                          epoch=num_epochs)
+        if not test:
+            test_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
+                                                            combined=True,
+                                                            test=True,
+                                                            granularity='fine',
+                                                            loss=loss,
+                                                            lr=lr,
+                                                            pred=True,
+                                                            epoch=num_epochs)
+            test_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
+                                                              combined=True,
+                                                              test=True,
+                                                              granularity='coarse',
+                                                              loss=loss,
+                                                              lr=lr,
+                                                              pred=True,
+                                                              epoch=num_epochs)
 
-        train_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                         combined=True,
-                                                         test=False,
-                                                         granularity='fine',
-                                                         loss=loss,
-                                                         lr=lr,
-                                                         pred=True,
-                                                         epoch=num_epochs)
-        train_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                           combined=True,
-                                                           test=False,
-                                                           granularity='coarse',
-                                                           loss=loss,
-                                                           lr=lr,
-                                                           pred=True,
-                                                           epoch=num_epochs)
+            train_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
+                                                             combined=True,
+                                                             test=False,
+                                                             granularity='fine',
+                                                             loss=loss,
+                                                             lr=lr,
+                                                             pred=True,
+                                                             epoch=num_epochs)
+            train_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
+                                                               combined=True,
+                                                               test=False,
+                                                               granularity='coarse',
+                                                               loss=loss,
+                                                               lr=lr,
+                                                               pred=True,
+                                                               epoch=num_epochs)
+        else:
+            test_pred_fine_path = 'test/test_pred_fine.npy'
+            test_pred_coarse_path = 'test/test_pred_coarse.npy'
+            train_pred_fine_path = 'test/train_pred_fine.npy'
+            train_pred_coarse_path = 'test/train_pred_coarse.npy'
+
 
         self.__train_pred_data = {g: np.load(train_pred_fine_path if str(g) == 'fine' else train_pred_coarse_path)
                                   for g in data_preprocessing.granularities}
@@ -247,17 +255,25 @@ class EDCR:
         self.__test_pred_data = {g: np.load(test_pred_fine_path if str(g) == 'fine' else test_pred_coarse_path)
                                  for g in data_preprocessing.granularities}
 
+        self.__K = self.__test_pred_data[data_preprocessing.granularities[0]].shape[0] if test else None
+
         self.condition_datas = {EDCR.PredCondition(l=l)
                                 for g in data_preprocessing.granularities
                                 for l in data_preprocessing.get_labels(g)}
 
-        self.train_precisions = {g: precision_score(y_true=data_preprocessing.get_ground_truths(test=False, g=g),
+        self.train_precisions = {g: precision_score(y_true=data_preprocessing.get_ground_truths(test=False,
+                                                                                                g=g,
+                                                                                                K=self.__K),
                                                     y_pred=self.__train_pred_data[g],
+                                                    labels=data_preprocessing.get_classes(g=g),
                                                     average=None)
                                  for g in data_preprocessing.granularities}
 
-        self.__train_recalls = {g: recall_score(y_true=data_preprocessing.get_ground_truths(test=False, g=g),
+        self.__train_recalls = {g: recall_score(y_true=data_preprocessing.get_ground_truths(test=False,
+                                                                                            g=g,
+                                                                                            K=self.__K),
                                                 y_pred=self.__train_pred_data[g],
+                                                labels=data_preprocessing.get_classes(g=g),
                                                 average=None)
                                 for g in data_preprocessing.granularities}
 
@@ -266,6 +282,8 @@ class EDCR:
 
         self.__post_detection_rules_test_predictions = {}
         self.__post_correction_rules_test_predictions = {}
+
+
 
     def __get_predictions(self,
                           test: bool,
@@ -283,19 +301,26 @@ class EDCR:
 
         return pred_fine_data, pred_coarse_data
 
+    def test_get_predictions(self):
+        assert np.all(self.__get_predictions(test=True, g=data_preprocessing.granularities[0]) ==
+                      np.load('test/test_pred_fine.npy'))
+
+        # for test in [True, False]:
+        #     for g in data_preprocessing.granularities:
+
+
     def __get_where_label_is_l(self,
                                pred: bool,
                                test: bool,
                                l: data_preprocessing.Label) -> np.array:
         """ Retrieves indices of instances where the specified label is present.
 
-        :param predicted: Whether to use prediction or ground truth.
         :param test: Whether to use test data (True) or training data (False).
         :param l: The label to search for.
         :return: A boolean array indicating which instances have the given label.
         """
         granularity_data = self.__get_predictions(test=test, g=l.g) if pred else \
-            (data_preprocessing.get_ground_truths(test=test, g=l.g))
+            (data_preprocessing.get_ground_truths(test=test, g=l.g, K=self.__K))
         return np.where(granularity_data == l.index, 1, 0)
 
     def __get_how_many_predicted_l(self,
@@ -303,7 +328,6 @@ class EDCR:
                                    l: data_preprocessing.Label) -> int:
         """ Retrieves number of instances where the specified label is present.
 
-        :param predicted: Whether to use prediction or ground truth.
         :param test: Whether to use test data (True) or training data (False).
         :param l: The label to search for.
         :return: A boolean array indicating which instances have the given label.
@@ -324,7 +348,7 @@ class EDCR:
         """
         pred_fine_data, pred_coarse_data = self.__get_predictions(test=test) if (not test) or prior else \
             [self.__post_correction_rules_test_predictions[g] for g in data_preprocessing.granularities]
-        true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test)
+        true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.__K)
 
         vit_pipeline.get_and_print_metrics(pred_fine_data=pred_fine_data,
                                            pred_coarse_data=pred_coarse_data,
@@ -346,7 +370,7 @@ class EDCR:
         :return: A mask with 1s for true positive instances, 0s otherwise.
         """
         return np.where(self.__get_predictions(test=test, g=g) ==
-                        data_preprocessing.get_ground_truths(test=False, g=g), 1, 0)
+                        data_preprocessing.get_ground_truths(test=False, g=g, K=self.__K), 1, 0)
 
     def __get_where_predicted_incorrect(self,
                                         test: bool,
@@ -366,7 +390,7 @@ class EDCR:
         :return: A boolean array indicating which training instances satisfy the criteria.
         """
         return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
-                self.__get_where_predicted_correct(test=False, g=g))
+                self.__get_where_predicted_correct(test=False, g=l.g))
 
     def __get_where_train_fp_l(self,
                                l: data_preprocessing.Label) -> np.array:
@@ -475,26 +499,28 @@ class EDCR:
         DC_l = set()
 
         N_l = self.__get_how_many_predicted_l(test=False, l=l)
-        P_l = self.train_precisions[g][l.index]
-        R_l = self.__train_recalls[g][l.index]
-        q_l = self.__epsilon * N_l * P_l / R_l
 
-        DC_star = {cond for cond in self.condition_datas if self.get_NEG_l(l=l, C={cond}) <= q_l}
+        if N_l:
+            P_l = self.train_precisions[l.g][l.index]
+            R_l = self.__train_recalls[l.g][l.index]
+            q_l = self.__epsilon * N_l * P_l / R_l
 
-        while len(DC_star) > 0:
-            best_score = -1
-            best_cond = None
+            DC_star = {cond for cond in self.condition_datas if self.get_NEG_l(l=l, C={cond}) <= q_l}
 
-            for cond in DC_star:
-                POS_l_c = self.__get_POS_l(l=l, C=DC_l.union({cond}))
-                if POS_l_c > best_score:
-                    best_score = POS_l_c
-                    best_cond = cond
+            while len(DC_star) > 0:
+                best_score = -1
+                best_cond = None
 
-            DC_l = DC_l.union({best_cond})
+                for cond in DC_star:
+                    POS_l_c = self.__get_POS_l(l=l, C=DC_l.union({cond}))
+                    if POS_l_c > best_score:
+                        best_score = POS_l_c
+                        best_cond = cond
 
-            DC_star = {cond for cond in self.condition_datas.difference(DC_l)
-                       if self.get_NEG_l(l=l, C=DC_l.union({cond})) <= q_l}
+                DC_l = DC_l.union({best_cond})
+
+                DC_star = {cond for cond in self.condition_datas.difference(DC_l)
+                           if self.get_NEG_l(l=l, C=DC_l.union({cond})) <= q_l}
 
         return DC_l
 
@@ -575,8 +601,9 @@ class EDCR:
 
     def apply_detection_rules(self,
                               g: data_preprocessing.Granularity):
-        """Applies error detection rules to test predictions for a given granularity. If a rule is satisfied for a particular label, 
-        the prediction data for that label is modified with a value of -1, indicating a potential error.
+        """Applies error detection rules to test predictions for a given granularity. If a rule is satisfied for
+        a particular label, the prediction data for that label is modified with a value of -1,
+        indicating a potential error.
 
         :params g: The granularity of the predictions to be processed.
         """
@@ -619,12 +646,12 @@ class EDCR:
 
         collision_array = np.zeros_like(altered_pred_granularity_data)
 
-        for ((l_1, altered_pred_data_l_1), (l_2, altered_pred_data_l_2)) in (
-                zip([altered_pred_granularity_datas.items()]*2)):
-            if l_1 != l_2:
-                where_supposed_to_correct_to_l1 = np.where(altered_pred_data_l_1 == l_1, 1, 0)
-                where_supposed_to_correct_to_l2 = np.where(altered_pred_data_l_2 == l_2, 1, 0)
-                collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
+        for (l_1, altered_pred_data_l_1), in altered_pred_granularity_datas.items():
+            for (l_2, altered_pred_data_l_2) in altered_pred_granularity_datas.items():
+                if l_1 != l_2:
+                    where_supposed_to_correct_to_l1 = np.where(altered_pred_data_l_1 == l_1, 1, 0)
+                    where_supposed_to_correct_to_l2 = np.where(altered_pred_data_l_2 == l_2, 1, 0)
+                    collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
 
         for l, altered_pred_data_l in altered_pred_granularity_datas.items():
             altered_pred_granularity_data = np.where(collision_array != 1 & altered_pred_data_l == l.index, l.index,
@@ -638,20 +665,39 @@ class EDCR:
 
 
 if __name__ == '__main__':
-    edcr = EDCR(main_model_name='vit_b_16',
-                combined=True,
-                loss='BCE',
-                lr=0.0001,
-                num_epochs=20,
-                epsilon=0.1)
+    # edcr = EDCR(epsilon=0.1,
+    #             main_model_name='vit_b_16',
+    #             combined=True,
+    #             loss='BCE',
+    #             lr=0.0001,
+    #             num_epochs=20,
+    #             )
+    # # edcr.print_metrics(test=False, prior=True)
+    # edcr.print_metrics(test=True, prior=True)
+    #
+    # for g in data_preprocessing.granularities:
+    #     edcr.DetCorrRuleLearn(g=g)
+    #
+    # for g in data_preprocessing.granularities:
+    #     edcr.apply_detection_rules(g=g)
+    #     edcr.apply_correction_rules(g=g)
+    #
+    # edcr.print_metrics(test=True, prior=False)
+
+    edcr = EDCR(epsilon=0.1,
+                test=True)
+
+    edcr.test_get_predictions()
+
     # edcr.print_metrics(test=False, prior=True)
-    edcr.print_metrics(test=True, prior=True)
+    # edcr.print_metrics(test=True, prior=True)
 
-    for g in data_preprocessing.granularities:
-        edcr.DetCorrRuleLearn(g=g)
 
-    for g in data_preprocessing.granularities:
-        edcr.apply_detection_rules(g=g)
-        edcr.apply_correction_rules(g=g)
-
-    edcr.print_metrics(test=True, prior=False)
+    # for g in data_preprocessing.granularities:
+    #     edcr.DetCorrRuleLearn(g=g)
+    #
+    # for g in data_preprocessing.granularities:
+    #     edcr.apply_detection_rules(g=g)
+    #     edcr.apply_correction_rules(g=g)
+    #
+    # edcr.print_metrics(test=True, prior=False)

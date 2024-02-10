@@ -71,8 +71,10 @@ class Granularity:
         return self.__hash__() == other.__hash__()
 
 
+
 def get_ground_truths(test: bool,
-                      g: Granularity = None):
+                      g: Granularity = None,
+                      K: int = None):
     if test:
         true_fine_data = test_true_fine_data
         true_coarse_data = test_true_coarse_data
@@ -81,12 +83,17 @@ def get_ground_truths(test: bool,
         true_coarse_data = train_true_coarse_data
 
     if g is None:
-        return true_fine_data, true_coarse_data
+        return (true_fine_data[:K], true_coarse_data[:K]) if K is not None else (true_fine_data, true_coarse_data)
     else:
-        return true_fine_data if str(g) == 'fine' else true_coarse_data
+        return (true_fine_data[:K] if str(g) == 'fine' else true_coarse_data[:K]) if K is not None else \
+            (true_fine_data if str(g) == 'fine' else true_coarse_data)
 
 
 granularities = [Granularity(g) for g in granularities_str]
+
+
+def get_classes(g: Granularity) -> list:
+    return fine_grain_classes_str if g == granularities[0] else coarse_grain_classes_str
 
 
 class Label:
@@ -179,7 +186,7 @@ def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
 
 
 for test in [True, False]:
-    true_fine_data, true_coarse_data = get_ground_truths(test)
+    true_fine_data, true_coarse_data = get_ground_truths(test=test)
     assert get_num_inconsistencies(fine_labels=true_fine_data,
                                    coarse_labels=true_coarse_data) == 0
 
