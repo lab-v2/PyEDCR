@@ -942,6 +942,7 @@ def run_combined_evaluating_pipeline(test: bool,
                               fine_tuners=fine_tuners[0],
                               combined=True,
                               lrs=lrs[0],
+                              loss=loss,
                               test_fine_prediction=fine_predictions,
                               test_coarse_prediction=coarse_predictions,
                               fine_ground_truths=fine_ground_truths,
@@ -960,4 +961,4 @@ if __name__ == '__main__':
     run_combined_evaluating_pipeline(test=False,
                                      lrs=[0.0001],
                                      loss='soft_marginal',
-                                     pretrained_path='models/vit_b_16_softmarginal_1e-4.pth.0001.pth')
+                                     pretrained_path='models/vit_b_16_softmarginal_1e-4.pth')

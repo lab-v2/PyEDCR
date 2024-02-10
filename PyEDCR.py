@@ -665,39 +665,21 @@ class EDCR:
 
 
 if __name__ == '__main__':
-    # edcr = EDCR(epsilon=0.1,
-    #             main_model_name='vit_b_16',
-    #             combined=True,
-    #             loss='BCE',
-    #             lr=0.0001,
-    #             num_epochs=20,
-    #             )
-    # # edcr.print_metrics(test=False, prior=True)
-    # edcr.print_metrics(test=True, prior=True)
-    #
-    # for g in data_preprocessing.granularities:
-    #     edcr.DetCorrRuleLearn(g=g)
-    #
-    # for g in data_preprocessing.granularities:
-    #     edcr.apply_detection_rules(g=g)
-    #     edcr.apply_correction_rules(g=g)
-    #
-    # edcr.print_metrics(test=True, prior=False)
-
     edcr = EDCR(epsilon=0.1,
-                test=True)
+                main_model_name='vit_b_16',
+                combined=True,
+                loss='soft_marginal',
+                lr=0.0001,
+                num_epochs=20,
+                )
+    edcr.print_metrics(test=False, prior=True)
+    edcr.print_metrics(test=True, prior=True)
 
-    edcr.test_get_predictions()
+    for g in data_preprocessing.granularities:
+        edcr.DetCorrRuleLearn(g=g)
 
-    # edcr.print_metrics(test=False, prior=True)
-    # edcr.print_metrics(test=True, prior=True)
+    for g in data_preprocessing.granularities:
+        edcr.apply_detection_rules(g=g)
+        edcr.apply_correction_rules(g=g)
 
-
-    # for g in data_preprocessing.granularities:
-    #     edcr.DetCorrRuleLearn(g=g)
-    #
-    # for g in data_preprocessing.granularities:
-    #     edcr.apply_detection_rules(g=g)
-    #     edcr.apply_correction_rules(g=g)
-    #
-    # edcr.print_metrics(test=True, prior=False)
+    edcr.print_metrics(test=True, prior=False)
