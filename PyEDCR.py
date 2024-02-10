@@ -287,6 +287,13 @@ class EDCR:
                                pred: bool,
                                test: bool,
                                l: data_preprocessing.Label) -> np.array:
+        """ Retrieves indices of instances where the specified label is present.
+
+        :param predicted: Whether to use prediction or ground truth.
+        :param test: Whether to use test data (True) or training data (False).
+        :param l: The label to search for.
+        :return: A boolean array indicating which instances have the given label.
+        """
         granularity_data = self.__get_predictions(test=test, g=l.g) if pred else \
             (data_preprocessing.get_ground_truths(test=test, g=l.g))
         return np.where(granularity_data == l.index, 1, 0)
@@ -294,6 +301,13 @@ class EDCR:
     def __get_how_many_predicted_l(self,
                                    test: bool,
                                    l: data_preprocessing.Label) -> int:
+        """ Retrieves number of instances where the specified label is present.
+
+        :param predicted: Whether to use prediction or ground truth.
+        :param test: Whether to use test data (True) or training data (False).
+        :param l: The label to search for.
+        :return: A boolean array indicating which instances have the given label.
+        """
         return np.sum(self.__get_where_label_is_l(pred=True, test=test, l=l))
 
     def print_metrics(self,
@@ -346,11 +360,21 @@ class EDCR:
 
     def __get_where_train_tp_l(self,
                                l: data_preprocessing.Label) -> np.array:
+        """ Retrieves indices of training instances where the true label is l and the model correctly predicted l.
+        
+        :param l: The label to query.
+        :return: A boolean array indicating which training instances satisfy the criteria.
+        """
         return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
                 self.__get_where_predicted_correct(test=False, g=g))
 
     def __get_where_train_fp_l(self,
                                l: data_preprocessing.Label) -> np.array:
+        """ Retrieves indices of training instances where the true label is l and the model incorrectly predicted l.
+        
+        :param l: The label to query.
+        :return: A boolean array indicating which training instances satisfy the criteria.
+        """
         return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
                 self.__get_where_predicted_incorrect(test=False, g=l.g))
 
@@ -361,6 +385,8 @@ class EDCR:
         """Checks if all given conditions are satisfied for each example.
 
         :param C: A set of `Condition` objects.
+        :fine_data: Data that used for Condition having FineGrainLabel l 
+        :coarse_data: Data that used for Condition having CoarseGrainLabel l 
         :return: A NumPy array with True values if the example satisfy all conditions and False otherwise.
         """
         any_condition_satisfied = np.zeros_like(fine_data)
@@ -549,6 +575,11 @@ class EDCR:
 
     def apply_detection_rules(self,
                               g: data_preprocessing.Granularity):
+        """Applies error detection rules to test predictions for a given granularity. If a rule is satisfied for a particular label, 
+        the prediction data for that label is modified with a value of -1, indicating a potential error.
+
+        :params g: The granularity of the predictions to be processed.
+        """
         test_pred_fine_data, test_pred_coarse_data = self.__get_predictions(test=True)
 
         altered_pred_datas = {}
@@ -568,6 +599,12 @@ class EDCR:
 
     def apply_correction_rules(self,
                                g: data_preprocessing.Granularity):
+        """Applies error correction rules to test predictions for a given granularity. If a rule is satisfied for a 
+        particular label, the prediction data for that label is corrected using the rule's logic. 
+
+        :param g: The granularity of the predictions to be processed.
+        """
+
         test_pred_fine_data, test_pred_coarse_data = self.__get_predictions(test=True)
 
         altered_pred_datas = {}
