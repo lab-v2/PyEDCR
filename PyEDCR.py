@@ -457,26 +457,24 @@ class EDCR:
                   l: data_preprocessing.Label,
                   CC: set[(Condition, data_preprocessing.Label)]) -> float:
         """Calculate the ratio of number of samples that satisfy the rule body and head with the ones
-        that only satisfy the body, given a condition class pair.
+        that only satisfy the body, given a set of condition class pairs.
 
         :param CC: A set of `Condition` - `Label` pairs.
         :param l: The label of interest.
         :return: ratio as defined above
         """
-        where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, l=l)
         train_granularity_pred_data = self.__get_predictions(test=False, g=l.g)
-
         train_fine_pred_data, train_coarse_pred_data = self.__get_predictions(test=False)
 
-
+        where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, l=l)
         where_any_pair_is_satisfied_in_train_pred = np.zeros_like(train_granularity_pred_data)
 
         for cond, l_prime in CC:
-            where_predicted_l_prime_in_train = self.__get_where_label_is_l(pred=True, test=False, l=l_prime)
+            where_predicted_l_prime_in_train_pred = self.__get_where_label_is_l(pred=True, test=False, l=l_prime)
             where_condition_is_satisfied_in_train_pred = cond(train_granularity_pred_data) \
                 if isinstance(cond, EDCR.PredCondition) else cond(train_fine_pred_data, train_coarse_pred_data)
-            where_any_pair_is_satisfied_in_train_pred |= (where_predicted_l_prime_in_train *
-                                                          where_condition_is_satisfied_in_train_pred)
+            where_pair_is_satisfied = where_predicted_l_prime_in_train_pred * where_condition_is_satisfied_in_train_pred
+            where_any_pair_is_satisfied_in_train_pred |= where_pair_is_satisfied
 
         BOD_l = np.sum(where_any_pair_is_satisfied_in_train_pred)
         POS_l = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
