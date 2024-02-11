@@ -474,9 +474,9 @@ class EDCR:
 
         return POS_l
 
-    def get_CON_l(self,
-                  l: data_preprocessing.Label,
-                  CC: set[(_Condition, data_preprocessing.Label)]) -> float:
+    def __get_CON_l(self,
+                    l: data_preprocessing.Label,
+                    CC: set[(_Condition, data_preprocessing.Label)]) -> float:
         """Calculate the ratio of number of samples that satisfy the rule body and head with the ones
         that only satisfy the body, given a set of condition class pairs.
 
@@ -508,7 +508,7 @@ class EDCR:
                    l: data_preprocessing.Label,
                    CC: set[(_Condition, data_preprocessing.Label)],
                    expected_result):
-        assert self.get_CON_l(l=l, CC=CC) == expected_result
+        assert self.__get_CON_l(l=l, CC=CC) == expected_result
 
     def __DetRuleLearn(self,
                        l: data_preprocessing.Label) -> set[_Condition]:
@@ -560,13 +560,13 @@ class EDCR:
         CC_l = set()
         CC_l_prime = CC_all
 
-        CC_sorted = sorted(CC_all, key=lambda cc: self.get_CON_l(l=cc[1], CC={cc}))
+        CC_sorted = sorted(CC_all, key=lambda cc: self.__get_CON_l(l=cc[1], CC={cc}))
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
             for cond, l_prime in CC_sorted:
-                a = self.get_CON_l(l=l_prime, CC=CC_l.union({(cond, l_prime)})) - self.get_CON_l(l=l_prime, CC=CC_l)
-                b = (self.get_CON_l(l=l_prime, CC=CC_l_prime.difference({(cond, l_prime)})) -
-                     self.get_CON_l(l=l_prime, CC=CC_l_prime))
+                a = self.__get_CON_l(l=l_prime, CC=CC_l.union({(cond, l_prime)})) - self.__get_CON_l(l=l_prime, CC=CC_l)
+                b = (self.__get_CON_l(l=l_prime, CC=CC_l_prime.difference({(cond, l_prime)})) -
+                     self.__get_CON_l(l=l_prime, CC=CC_l_prime))
 
                 if a >= b:
                     CC_l = CC_l.union({(cond, l_prime)})
@@ -576,8 +576,8 @@ class EDCR:
                 if utils.is_local():
                     progress_bar.update(1)
 
-        if self.get_CON_l(l=l, CC=CC_l) <= self.train_precisions[l.g][l.index]:
-            print(f'\n{l}: len(CC_l)={len(CC_l)}, CON_l={self.get_CON_l(l=l, CC=CC_l)}, '
+        if self.__get_CON_l(l=l, CC=CC_l) <= self.train_precisions[l.g][l.index]:
+            print(f'\n{l}: len(CC_l)={len(CC_l)}, CON_l={self.__get_CON_l(l=l, CC=CC_l)}, '
                   f'P_l={self.train_precisions[l.g][l.index]}\n')
             CC_l = set()
 
