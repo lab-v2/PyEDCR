@@ -19,4 +19,4 @@ pred_2S19_MSTA = EDCR.PredCondition(l=l_2S19_MSTA)
 CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_2S19_MSTA, l_SPA)}
 
 edcr = EDCR.test(epsilon=0.1, K=5)
-print(edcr.test_CON_l(l=l_SPA, CC=CC_l, expected_result=1))
+edcr.test_CON_l(l=l_SPA, CC=CC_l, expected_result=1)

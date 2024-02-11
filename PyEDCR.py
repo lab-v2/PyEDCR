@@ -62,8 +62,10 @@ class EDCR:
             self.__l = l
 
         def __call__(self,
-                     data: np.array) -> np.array:
-            return np.where(data == self.__l.index, 1, 0)
+                     fine_data: np.array,
+                     coarse_data: np.array) -> np.array:
+            return np.where((fine_data if self.__l.g == data_preprocessing.granularities[0] else coarse_data)
+                            == self.__l.index, 1, 0)
 
         def __str__(self) -> str:
             return f'pred_{self.__l}'
@@ -429,11 +431,7 @@ class EDCR:
         any_condition_satisfied = np.zeros_like(fine_data)
 
         for cond in C:
-            if isinstance(cond, EDCR.PredCondition):
-                any_condition_satisfied |= (
-                    cond(data=fine_data if isinstance(cond.l, data_preprocessing.FineGrainLabel) else coarse_data))
-            elif isinstance(cond, EDCR.ConsistencyCondition):
-                any_condition_satisfied |= cond(fine_data=fine_data, coarse_data=coarse_data)
+            any_condition_satisfied |= cond(fine_data=fine_data, coarse_data=coarse_data)
 
         return any_condition_satisfied
 
@@ -492,8 +490,7 @@ class EDCR:
 
         for cond, l_prime in CC:
             where_predicted_l_prime_in_train_pred = self.__get_where_label_is_l(pred=True, test=False, l=l_prime)
-            where_condition_is_satisfied_in_train_pred = cond(train_granularity_pred_data) \
-                if isinstance(cond, EDCR.PredCondition) else cond(train_fine_pred_data, train_coarse_pred_data)
+            where_condition_is_satisfied_in_train_pred = cond(train_fine_pred_data, train_coarse_pred_data)
             where_pair_is_satisfied = where_predicted_l_prime_in_train_pred * where_condition_is_satisfied_in_train_pred
             where_any_pair_is_satisfied_in_train_pred |= where_pair_is_satisfied
 
@@ -507,7 +504,7 @@ class EDCR:
     def test_CON_l(self,
                    l: data_preprocessing.Label,
                    CC: set[(_Condition, data_preprocessing.Label)],
-                   expected_result):
+                   expected_result: float):
         assert self.__get_CON_l(l=l, CC=CC) == expected_result
 
     def __DetRuleLearn(self,
@@ -686,25 +683,21 @@ class EDCR:
         pass
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
+    edcr = EDCR(epsilon=0.1,
+                main_model_name='vit_b_16',
+                combined=True,
+                loss='BCE',
+                lr=0.0001,
+                num_epochs=20)
+    edcr.print_metrics(test=False, prior=True)
+    edcr.print_metrics(test=True, prior=True)
 
+    for g in data_preprocessing.granularities:
+        edcr.DetCorrRuleLearn(g=g)
 
-    # edcr.print_metrics(test=False, prior=True)
+    for g in data_preprocessing.granularities:
+        edcr.apply_detection_rules(g=g)
+        edcr.apply_correction_rules(g=g)
 
-    # edcr = EDCR(epsilon=0.1,
-    #             main_model_name='vit_b_16',
-    #             combined=True,
-    #             loss='BCE',
-    #             lr=0.0001,
-    #             num_epochs=20)
-    # edcr.print_metrics(test=False, prior=True)
-    # edcr.print_metrics(test=True, prior=True)
-    #
-    # for g in data_preprocessing.granularities:
-    #     edcr.DetCorrRuleLearn(g=g)
-    #
-    # for g in data_preprocessing.granularities:
-    #     edcr.apply_detection_rules(g=g)
-    #     edcr.apply_correction_rules(g=g)
-    #
-    # edcr.print_metrics(test=True, prior=False)
+    edcr.print_metrics(test=True, prior=False)
