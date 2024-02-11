@@ -25,11 +25,11 @@ train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
 
 # Data for checking mode
 
-check_test_true_fine_data = np.load(r'test_data/check_test_true_fine_data.npy')
-check_test_true_coarse_data = np.load(r'test_data/check_test_true_coarse_data.npy')
+# check_test_true_fine_data = np.load(r'test_data/check_test_true_fine_data.npy')
+# check_test_true_coarse_data = np.load(r'test_data/check_test_true_coarse_data.npy')
 
-check_train_true_fine_data = np.load(r'test_data/check_train_true_fine_data.npy')
-check_train_true_coarse_data = np.load(r'test_data/check_train_true_coarse_data.npy')
+# check_train_true_fine_data = np.load(r'test_data/check_train_true_fine_data.npy')
+# check_train_true_coarse_data = np.load(r'test_data/check_train_true_coarse_data.npy')
 
 
 def is_monotonic(arr: np.array):
