@@ -244,10 +244,10 @@ class EDCR:
                                                            epoch=num_epochs)
         
         if self.__check_mode:
-            test_pred_fine_path = 'test_data/check_test_pred_fine_data.npy'
-            test_pred_coarse_path = 'test_data/check_test_pred_coarse_data.npy'
-            train_pred_fine_path = 'test_data/check_train_pred_fine_data.npy'
-            train_pred_coarse_path = 'test_data/check_train_pred_coarse_data.npy'
+            test_pred_fine_path = 'test_data/check_test_fine_pred.npy'
+            test_pred_coarse_path = 'test_data/check_test_coarse_pred.npy'
+            train_pred_fine_path = 'test_data/check_train_fine_pred.npy'
+            train_pred_coarse_path = 'test_data/check_train_coarse_pred.npy'
 
 
         self.__train_pred_data = {g: np.load(train_pred_fine_path if str(g) == 'fine' else train_pred_coarse_path)
@@ -304,7 +304,7 @@ class EDCR:
                              g: data_preprocessing.Granularity = data_preprocessing.granularities[0]):
         test_str = 'test' if test else 'train'
         assert np.all(self.__get_predictions(test=test, g=g) ==
-                      np.load(f'test_data/check_{test_str}_pred_{g.g_str}_data.npy'))
+                      np.load(f'test_data/check_{test_str}_{g.g_str}_pred.npy'))
         print("test_get_predictions method passed!")
 
     def __get_where_label_is_l(self,
