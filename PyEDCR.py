@@ -473,6 +473,7 @@ class EDCR:
         BOD_l = np.sum(where_any_pair_is_satisfied_in_train_pred)
         POS_l = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
 
+
         CON_l = POS_l / BOD_l if BOD_l else 0
 
         return CON_l
@@ -530,21 +531,24 @@ class EDCR:
         CC_sorted = sorted(CC_all, key=lambda cc: self.get_CON_l(l=cc[1], CC={cc}))
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
-            for (cond, l) in CC_sorted:
-                a = self.get_CON_l(l=l, CC=CC_l.union({(cond, l)})) - self.get_CON_l(l=l, CC=CC_l)
-                b = (self.get_CON_l(l=l, CC=CC_l_prime.difference({(cond, l)})) -
-                     self.get_CON_l(l=l, CC=CC_l_prime))
+            for (cond, l_prime) in CC_sorted:
+                a = self.get_CON_l(l=l_prime, CC=CC_l.union({(cond, l_prime)})) - self.get_CON_l(l=l_prime, CC=CC_l)
+                b = (self.get_CON_l(l=l_prime, CC=CC_l_prime.difference({(cond, l_prime)})) -
+                     self.get_CON_l(l=l_prime, CC=CC_l_prime))
 
                 if a >= b:
-                    CC_l = CC_l.union({(cond, l)})
+                    CC_l = CC_l.union({(cond, l_prime)})
                 else:
-                    CC_l_prime = CC_l_prime.difference({(cond, l)})
+                    CC_l_prime = CC_l_prime.difference({(cond, l_prime)})
 
                 if utils.is_local():
                     progress_bar.update(1)
 
         if self.get_CON_l(l=l, CC=CC_l) <= self.train_precisions[l.g][l.index]:
+            print(f'\n{l}: CON_l={self.get_CON_l(l=l, CC=CC_l)}, P_l={self.train_precisions[l.g][l.index]}\n')
             CC_l = set()
+
+
 
         return CC_l
 
@@ -577,9 +581,11 @@ class EDCR:
         with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
             processes_num = min(len(granularity_labels), mp.cpu_count())
 
+            iterable = [(l, CC_all) for l in granularity_labels]
+
             with mp.Pool(processes_num) as pool:
                 CC_ls = pool.starmap(func=self._CorrRuleLearn,
-                                     iterable=[(l, CC_all) for l in granularity_labels])
+                                     iterable=iterable)
 
             for CC_l in CC_ls:
                 if len(CC_l):
@@ -659,11 +665,10 @@ if __name__ == '__main__':
                 combined=True,
                 loss='BCE',
                 lr=0.0001,
-                num_epochs=20,
-                )
+                num_epochs=20)
     edcr.print_metrics(test=False, prior=True)
     edcr.print_metrics(test=True, prior=True)
-    #
+
     for g in data_preprocessing.granularities:
         edcr.DetCorrRuleLearn(g=g)
 
