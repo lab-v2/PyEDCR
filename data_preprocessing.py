@@ -15,11 +15,21 @@ coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
 granularities_str = ['fine', 'coarse']
 
+# Data for our use case
+
 test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
 test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
 
 train_true_fine_data = np.load(r'train_fine/train_true_fine.npy')
 train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
+
+# Data for checking mode
+
+check_test_true_fine_data = np.load(r'test_data/check_test_true_fine_data.npy')
+check_test_true_coarse_data = np.load(r'test_data/check_test_true_coarse_data.npy')
+
+check_train_true_fine_data = np.load(r'test_data/check_train_true_fine_data.npy')
+check_train_true_coarse_data = np.load(r'test_data/check_train_true_coarse_data.npy')
 
 
 def is_monotonic(arr: np.array):
@@ -71,14 +81,26 @@ class Granularity:
         return self.__hash__() == other.__hash__()
 
 
+
 def get_ground_truths(test: bool,
-                      g: Granularity = None):
-    if test:
-        true_fine_data = test_true_fine_data
-        true_coarse_data = test_true_coarse_data
+                      g: Granularity = None,
+                      check_mode: bool = False):
+    
+    # if check mode, data is taken from test_data:
+    if check_mode:
+        if test:
+            true_fine_data = check_test_true_fine_data
+            true_coarse_data = check_test_true_coarse_data
+        else:
+            true_fine_data = check_train_true_fine_data
+            true_coarse_data = check_train_true_coarse_data
     else:
-        true_fine_data = train_true_fine_data
-        true_coarse_data = train_true_coarse_data
+        if test:
+            true_fine_data = test_true_fine_data
+            true_coarse_data = test_true_coarse_data
+        else:
+            true_fine_data = train_true_fine_data
+            true_coarse_data = train_true_coarse_data
 
     if g is None:
         return true_fine_data, true_coarse_data
@@ -87,6 +109,10 @@ def get_ground_truths(test: bool,
 
 
 granularities = [Granularity(g) for g in granularities_str]
+
+
+def get_classes(g: Granularity) -> list:
+    return fine_grain_classes_str if g == granularities[0] else coarse_grain_classes_str
 
 
 class Label:
@@ -179,7 +205,7 @@ def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
 
 
 for test in [True, False]:
-    true_fine_data, true_coarse_data = get_ground_truths(test)
+    true_fine_data, true_coarse_data = get_ground_truths(test=test)
     assert get_num_inconsistencies(fine_labels=true_fine_data,
                                    coarse_labels=true_coarse_data) == 0
 
