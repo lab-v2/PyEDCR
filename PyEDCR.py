@@ -62,11 +62,7 @@ class EDCR:
             self.__l = l
 
         def __call__(self,
-                     data: np.array,
-                     x_index: int = None) -> typing.Union[bool, np.array]:
-            if x_index is not None:
-                return data[x_index] == self.__l.index
-
+                     data: np.array) -> np.array:
             return np.where(data == self.__l.index, 1, 0)
 
         def __str__(self) -> str:
@@ -75,6 +71,20 @@ class EDCR:
         @property
         def l(self):
             return self.__l
+
+    class ConsistencyCondition(Condition):
+        def __init__(self):
+            pass
+
+        def __call__(self,
+                     fine_data: np.array,
+                     coarse_data: np.array) -> np.array:
+
+            values = []
+            for fine_prediction_index, coarse_prediction_index in zip(fine_data, coarse_data):
+                values += [data_preprocessing.fine_to_course_idx[fine_prediction_index] == coarse_prediction_index]
+
+            return np.array(values)
 
     class Rule(typing.Callable, abc.ABC):
         """Represents a rule for evaluating predictions based on conditions and labels.
@@ -98,11 +108,8 @@ class EDCR:
             :param test_pred_coarse_data: The coarse-grained prediction data.
             :return: A tuple containing the relevant prediction data and a mask indicating where the label is predicted.
             """
-            if isinstance(self._l, data_preprocessing.FineGrainLabel):
-                test_pred_granularity_data = test_pred_fine_data
-            else:
-                test_pred_granularity_data = test_pred_coarse_data
-
+            test_pred_granularity_data = test_pred_fine_data if isinstance(self._l, data_preprocessing.FineGrainLabel) \
+                else test_pred_coarse_data
             where_predicted_l = np.where(test_pred_granularity_data == self._l.index, 1, 0)
 
             return test_pred_granularity_data, where_predicted_l
@@ -123,7 +130,8 @@ class EDCR:
             :param DC_l: The set of conditions that define the rule.
             """
             super().__init__(l=l, C_l=DC_l)
-            assert all(l != self._l for l in self._C_l)
+            assert all(cond.l != self._l for cond in {cond_prime for cond_prime in self._C_l
+                                                      if isinstance(cond_prime, EDCR.PredCondition)})
 
         def __call__(self,
                      test_pred_fine_data: np.array,
@@ -242,17 +250,15 @@ class EDCR:
                                                            pred=True,
                                                            epoch=num_epochs)
 
-
         self.__train_pred_data = {g: np.load(train_pred_fine_path if str(g) == 'fine' else train_pred_coarse_path)
                                   for g in data_preprocessing.granularities}
 
         self.__test_pred_data = {g: np.load(test_pred_fine_path if str(g) == 'fine' else test_pred_coarse_path)
                                  for g in data_preprocessing.granularities}
 
-
         self.condition_datas = {EDCR.PredCondition(l=l)
                                 for g in data_preprocessing.granularities
-                                for l in data_preprocessing.get_labels(g)}
+                                for l in data_preprocessing.get_labels(g)}.union({EDCR.ConsistencyCondition()})
 
         self.train_precisions = {g: precision_score(y_true=data_preprocessing.get_ground_truths(test=False,
                                                                                                 g=g),
@@ -271,8 +277,6 @@ class EDCR:
 
         self.__post_detection_rules_test_predictions = {}
         self.__post_correction_rules_test_predictions = {}
-
-
 
     def __get_predictions(self,
                           test: bool,
@@ -296,7 +300,6 @@ class EDCR:
 
         # for test in [True, False]:
         #     for g in data_preprocessing.granularities:
-
 
     def __get_where_label_is_l(self,
                                pred: bool,
@@ -405,10 +408,11 @@ class EDCR:
         any_condition_satisfied = np.zeros_like(fine_data)
 
         for cond in C:
-            if isinstance(cond.l, data_preprocessing.FineGrainLabel):
-                any_condition_satisfied |= cond(data=fine_data)
-            else:
-                any_condition_satisfied |= cond(data=coarse_data)
+            if isinstance(cond, EDCR.PredCondition):
+                any_condition_satisfied |= (
+                    cond(data=fine_data if isinstance(cond.l, data_preprocessing.FineGrainLabel) else coarse_data))
+            elif isinstance(cond, EDCR.ConsistencyCondition):
+                any_condition_satisfied |= cond(fine_data=fine_data, coarse_data=coarse_data)
 
         return any_condition_satisfied
 
@@ -462,17 +466,20 @@ class EDCR:
         where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, l=l)
         train_granularity_pred_data = self.__get_predictions(test=False, g=l.g)
 
+        train_fine_pred_data, train_coarse_pred_data = self.__get_predictions(test=False)
+
+
         where_any_pair_is_satisfied_in_train_pred = np.zeros_like(train_granularity_pred_data)
 
         for cond, l_prime in CC:
             where_predicted_l_prime_in_train = self.__get_where_label_is_l(pred=True, test=False, l=l_prime)
-            where_condition_is_satisfied_in_train_pred = cond(train_granularity_pred_data)
+            where_condition_is_satisfied_in_train_pred = cond(train_granularity_pred_data) \
+                if isinstance(cond, EDCR.PredCondition) else cond(train_fine_pred_data, train_coarse_pred_data)
             where_any_pair_is_satisfied_in_train_pred |= (where_predicted_l_prime_in_train *
                                                           where_condition_is_satisfied_in_train_pred)
 
         BOD_l = np.sum(where_any_pair_is_satisfied_in_train_pred)
         POS_l = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
-
 
         CON_l = POS_l / BOD_l if BOD_l else 0
 
@@ -547,8 +554,6 @@ class EDCR:
         if self.get_CON_l(l=l, CC=CC_l) <= self.train_precisions[l.g][l.index]:
             print(f'\n{l}: CON_l={self.get_CON_l(l=l, CC=CC_l)}, P_l={self.train_precisions[l.g][l.index]}\n')
             CC_l = set()
-
-
 
         return CC_l
 
