@@ -216,7 +216,7 @@ class EDCR:
         self.__epsilon = epsilon
 
         test_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                        combined=True,
+                                                        combined=combined,
                                                         test=True,
                                                         granularity='fine',
                                                         loss=loss,
@@ -224,7 +224,7 @@ class EDCR:
                                                         pred=True,
                                                         epoch=num_epochs)
         test_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                          combined=True,
+                                                          combined=combined,
                                                           test=True,
                                                           granularity='coarse',
                                                           loss=loss,
@@ -233,7 +233,7 @@ class EDCR:
                                                           epoch=num_epochs)
 
         train_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                         combined=True,
+                                                         combined=combined,
                                                          test=False,
                                                          granularity='fine',
                                                          loss=loss,
@@ -241,7 +241,7 @@ class EDCR:
                                                          pred=True,
                                                          epoch=num_epochs)
         train_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                           combined=True,
+                                                           combined=combined,
                                                            test=False,
                                                            granularity='coarse',
                                                            loss=loss,
@@ -249,13 +249,22 @@ class EDCR:
                                                            pred=True,
                                                            epoch=num_epochs)
 
-        self.__train_pred_data = {g: np.load(train_pred_fine_path if str(g) == 'fine' else train_pred_coarse_path)
+        self.__K = K if K is not None else np.load(train_pred_fine_path).shape[0]
+
+        self.__train_pred_data = {g: np.load(train_pred_fine_path
+                                             if str(g) == 'fine' else train_pred_coarse_path)[:self.__K]
                                   for g in data_preprocessing.granularities}
 
-        self.__test_pred_data = {g: np.load(test_pred_fine_path if str(g) == 'fine' else test_pred_coarse_path)
+        self.__test_pred_data = {g: np.load(test_pred_fine_path
+                                            if str(g) == 'fine' else test_pred_coarse_path)[:self.__K]
                                  for g in data_preprocessing.granularities}
 
-        self.__K = K if K is not None else self.__test_pred_data[data_preprocessing.granularities[0]].shape[0]
+        print('\n'.join([(
+            f'pred: {(data_preprocessing.fine_grain_classes_str[fine_prediction_index], data_preprocessing.coarse_grain_classes_str[coarse_prediction__index])}, '
+            f'true: {(data_preprocessing.fine_grain_classes_str[fine_gt__index], data_preprocessing.coarse_grain_classes_str[coarse_gt__index])}')
+            for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index in
+            zip(*list(self.__train_pred_data.values()),
+                *data_preprocessing.get_ground_truths(test=False, K=self.__K))]))
 
         self.condition_datas = {EDCR.PredCondition(l=l)
                                 for g in data_preprocessing.granularities
@@ -264,14 +273,14 @@ class EDCR:
         self.train_precisions = {g: precision_score(y_true=data_preprocessing.get_ground_truths(test=False,
                                                                                                 K=self.__K,
                                                                                                 g=g),
-                                                    y_pred=self.__train_pred_data[g][:self.__K],
+                                                    y_pred=self.__train_pred_data[g],
                                                     average=None)
                                  for g in data_preprocessing.granularities}
 
         self.__train_recalls = {g: recall_score(y_true=data_preprocessing.get_ground_truths(test=False,
                                                                                             K=self.__K,
                                                                                             g=g),
-                                                y_pred=self.__train_pred_data[g][:self.__K],
+                                                y_pred=self.__train_pred_data[g],
                                                 average=None)
                                 for g in data_preprocessing.granularities}
 
@@ -495,8 +504,11 @@ class EDCR:
 
         return CON_l
 
-    def test_CON_l(self):
-        pass
+    def test_CON_l(self,
+                   l: data_preprocessing.Label,
+                   CC: set[(_Condition, data_preprocessing.Label)],
+                   expected_result):
+        assert self.get_CON_l(l=l, CC=CC) == expected_result
 
     def __DetRuleLearn(self,
                        l: data_preprocessing.Label) -> set[_Condition]:
@@ -675,7 +687,26 @@ class EDCR:
 
 
 if __name__ == '__main__':
-    edcr = EDCR.test(epsilon=0.1, K=20)
+    g_fine, g_coarse = data_preprocessing.granularities
+
+    l_tank = data_preprocessing.get_labels(g_coarse)[data_preprocessing.coarse_grain_classes_str.index('Tank')]
+    l_SPA = data_preprocessing.get_labels(g_coarse)[
+        data_preprocessing.coarse_grain_classes_str.index('Self Propelled Artillery')]
+    l_BMP = data_preprocessing.get_labels(g_coarse)[data_preprocessing.coarse_grain_classes_str.index('BMP')]
+
+    l_Tornado = data_preprocessing.get_labels(g_fine)[data_preprocessing.fine_grain_classes_str.index('Tornado')]
+    l_BMP_1 = data_preprocessing.get_labels(g_fine)[data_preprocessing.fine_grain_classes_str.index('BMP-1')]
+    l_2S19_MSTA = data_preprocessing.get_labels(g_fine)[data_preprocessing.fine_grain_classes_str.index('2S19_MSTA')]
+
+    pred_Tornado = EDCR.PredCondition(l=l_Tornado)
+    pred_BMP_1 = EDCR.PredCondition(l=l_BMP_1)
+    pred_2S19_MSTA = EDCR.PredCondition(l=l_2S19_MSTA)
+
+    CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_2S19_MSTA, l_SPA)}
+
+    edcr = EDCR.test(epsilon=0.1, K=5)
+    print(edcr.get_CON_l(l=l_SPA, CC=CC_l))
+    # edcr.print_metrics(test=False, prior=True)
 
     # edcr = EDCR(epsilon=0.1,
     #             main_model_name='vit_b_16',
