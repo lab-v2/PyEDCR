@@ -71,8 +71,8 @@ class Granularity:
         return self.__hash__() == other.__hash__()
 
 
-
 def get_ground_truths(test: bool,
+                      K: int,
                       g: Granularity = None):
     if test:
         true_fine_data = test_true_fine_data
@@ -82,9 +82,9 @@ def get_ground_truths(test: bool,
         true_coarse_data = train_true_coarse_data
 
     if g is None:
-        return true_fine_data, true_coarse_data
+        return true_fine_data[:K], true_coarse_data[:K]
     else:
-        return true_fine_data if str(g) == 'fine' else true_coarse_data
+        return true_fine_data[:K] if str(g) == 'fine' else true_coarse_data[:K]
 
 
 granularities = [Granularity(g) for g in granularities_str]
@@ -164,10 +164,6 @@ class CoarseGrainLabel(Label):
 #         return self.__index
 
 
-def get_labels(g: Granularity):
-    return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels
-
-
 def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
                             coarse_labels: typing.Union[np.array, torch.Tensor]) -> int:
     inconsistencies = 0
@@ -181,12 +177,6 @@ def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
             inconsistencies += 1
 
     return inconsistencies
-
-
-for test in [True, False]:
-    true_fine_data, true_coarse_data = get_ground_truths(test=test)
-    assert get_num_inconsistencies(fine_labels=true_fine_data,
-                                   coarse_labels=true_coarse_data) == 0
 
 
 def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose:
@@ -343,7 +333,9 @@ coarse_to_fine = {
 fine_grain_labels = [FineGrainLabel(l) for l in fine_grain_classes_str]
 coarse_grain_labels = [CoarseGrainLabel(l) for l in coarse_grain_classes_str]
 
-# train_examples = [Example(i) for i in range(train_true_fine_data.shape[0])]
-# test_examples = [Example(i) for i in range(test_true_fine_data.shape[0])]
+
+def get_labels(g: Granularity):
+    return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels
+
 
 all_labels = [label for granularity in granularities for label in get_labels(granularity)]
