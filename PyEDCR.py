@@ -386,7 +386,7 @@ class EDCR:
         :return: A mask with 1s for true positive instances, 0s otherwise.
         """
         return np.where(self.__get_predictions(test=test, g=g) ==
-                        data_preprocessing.get_ground_truths(test=False, g=g, check_mode=self.__check_mode), 1, 0)
+                        data_preprocessing.get_ground_truths(test=test, g=g, check_mode=self.__check_mode), 1, 0)
     
     def test_get_where_predicted_correct(self,
                                          test: bool,
@@ -405,6 +405,13 @@ class EDCR:
         :return: A mask with 1s for false positive instances, 0s otherwise.
         """
         return 1 - self.__get_where_predicted_correct(test=test, g=g)
+    
+    def test_get_where_predicted_incorrect(self,
+                                         test: bool,
+                                         g: data_preprocessing.Granularity,
+                                         expected_result: np.array):
+        data = self.__get_where_predicted_incorrect(test=test, g=g)
+        assert(np.all(data == expected_result))
 
     def __get_where_train_tp_l(self,
                                l: data_preprocessing.Label) -> np.array:
@@ -415,6 +422,13 @@ class EDCR:
         """
         return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
                 self.__get_where_predicted_correct(test=False, g=l.g))
+    
+    def test_get_where_train_tp_l(self,
+                                  l: data_preprocessing.Label,
+                                  expected_result: np.array):
+        data = self.__get_where_train_tp_l(l=l)
+        assert(np.all(data == expected_result))
+
 
     def __get_where_train_fp_l(self,
                                l: data_preprocessing.Label) -> np.array:
