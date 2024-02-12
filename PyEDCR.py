@@ -682,16 +682,20 @@ class EDCR:
 
         self.__post_correction_rules_test_predictions[g] = altered_pred_granularity_data
 
-    def get_l_detection_rule_support_on_test(self,
-                                             l: data_preprocessing.Label) -> float:
+    def get_l_correction_rule_support_on_test(self,
+                                              l: data_preprocessing.Label) -> float:
         if l not in self.error_correction_rules:
             return 0
 
         r_l = self.error_correction_rules[l]
-        return np.sum(r_l.get_where_any_pair_satisfied(test_pred_fine_data=
-                                                       self.__test_pred_data[data_preprocessing.granularities[0]],
-                                                       test_pred_coarse_data=
-                                                       self.__test_pred_data[data_preprocessing.granularities[1]]))
+        N_l = self.__get_how_many_predicted_l(test=True, l=l)
+        how_many_satisfies_any_pair = (
+            np.sum(r_l.get_where_any_pair_satisfied(test_pred_fine_data=
+                                                    self.__test_pred_data[data_preprocessing.granularities[0]],
+                                                    test_pred_coarse_data=
+                                                    self.__test_pred_data[data_preprocessing.granularities[1]])))
+        s_l = how_many_satisfies_any_pair / N_l
+        return s_l
 
 
 if __name__ == '__main__':
@@ -707,7 +711,7 @@ if __name__ == '__main__':
     for g in data_preprocessing.granularities:
         edcr.DetCorrRuleLearn(g=g)
 
-    print([edcr.get_l_detection_rule_support_on_test(l=l) for l in data_preprocessing.fine_grain_labels +
+    print([edcr.get_l_correction_rule_support_on_test(l=l) for l in data_preprocessing.fine_grain_labels +
            data_preprocessing.coarse_grain_labels])
 
     # for g in data_preprocessing.granularities:
