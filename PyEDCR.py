@@ -269,12 +269,12 @@ class EDCR:
                                             if str(g) == 'fine' else test_pred_coarse_path)[:self.__K]
                                  for g in data_preprocessing.granularities}
 
-        print('\n'.join([(
-            f'pred: {(data_preprocessing.fine_grain_classes_str[fine_prediction_index], data_preprocessing.coarse_grain_classes_str[coarse_prediction__index])}, '
-            f'true: {(data_preprocessing.fine_grain_classes_str[fine_gt__index], data_preprocessing.coarse_grain_classes_str[coarse_gt__index])}')
-            for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index in
-            zip(*list(self.__train_pred_data.values()),
-                *data_preprocessing.get_ground_truths(test=False, K=self.__K))]))
+        # print('\n'.join([(
+        #     f'pred: {(data_preprocessing.fine_grain_classes_str[fine_prediction_index], data_preprocessing.coarse_grain_classes_str[coarse_prediction__index])}, '
+        #     f'true: {(data_preprocessing.fine_grain_classes_str[fine_gt__index], data_preprocessing.coarse_grain_classes_str[coarse_gt__index])}')
+        #     for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index in
+        #     zip(*list(self.__train_pred_data.values()),
+        #         *data_preprocessing.get_ground_truths(test=False, K=self.__K))]))
 
         self.__condition_datas = {EDCR.PredCondition(l=l)
                                   for g in data_preprocessing.granularities
@@ -551,9 +551,9 @@ class EDCR:
 
         return DC_l
 
-    def __CorrRuleLearn(self,
-                        l: data_preprocessing.Label,
-                        CC_all: set[(_Condition, data_preprocessing.Label)]) -> \
+    def _CorrRuleLearn(self,
+                       l: data_preprocessing.Label,
+                       CC_all: set[(_Condition, data_preprocessing.Label)]) -> \
             set[tuple[_Condition, data_preprocessing.Label]]:
         """Learns error correction rules for a specific label and granularity. These rules associate conditions 
         with alternative labels that are more likely to be correct when those conditions are met.
@@ -582,8 +582,8 @@ class EDCR:
                     progress_bar.update(1)
 
         if self.__get_CON_l(l=l, CC=CC_l) <= self.__train_precisions[l.g][l.index]:
-            print(f'\n{l}: len(CC_l)={len(CC_l)}, CON_l={self.__get_CON_l(l=l, CC=CC_l)}, '
-                  f'P_l={self.__train_precisions[l.g][l.index]}\n')
+            # print(f'\n{l}: len(CC_l)={len(CC_l)}, CON_l={self.__get_CON_l(l=l, CC=CC_l)}, '
+            #       f'P_l={self.__train_precisions[l.g][l.index]}\n')
             CC_l = set()
 
         return CC_l
@@ -601,8 +601,8 @@ class EDCR:
         with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
             for l in granularity_labels:
                 DC_l = self.__DetRuleLearn(l=l)
-                error_correction_rule_l = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
-                self.error_detection_rules[l] = error_correction_rule_l
+                if len(DC_l):
+                    self.error_detection_rules[l] = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
 
                 for cond_l in DC_l:
                     CC_all = CC_all.union({(cond_l, l)})
@@ -616,7 +616,7 @@ class EDCR:
             iterable = [(l, CC_all) for l in granularity_labels]
 
             with mp.Pool(processes_num) as pool:
-                CC_ls = pool.starmap(func=self.__CorrRuleLearn,
+                CC_ls = pool.starmap(func=self._CorrRuleLearn,
                                      iterable=iterable)
 
             for CC_l in CC_ls:
@@ -684,6 +684,9 @@ class EDCR:
 
     def get_l_detection_rule_support_on_test(self,
                                              l: data_preprocessing.Label) -> float:
+        if l not in self.error_correction_rules:
+            return 0
+
         r_l = self.error_correction_rules[l]
         return np.sum(r_l.get_where_any_pair_satisfied(test_pred_fine_data=
                                                        self.__test_pred_data[data_preprocessing.granularities[0]],
