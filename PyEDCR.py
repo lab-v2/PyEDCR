@@ -318,8 +318,16 @@ class EDCR:
         :return: A boolean array indicating which instances have the given label.
         """
         granularity_data = self.__get_predictions(test=test, g=l.g) if pred else \
-            (data_preprocessing.get_ground_truths(test=test, g=l.g))
+            (data_preprocessing.get_ground_truths(test=test, g=l.g, check_mode=self.__check_mode))
         return np.where(granularity_data == l.index, 1, 0)
+    
+    def test_get_where_label_is_l(self,
+                                pred: bool,
+                                test: bool,
+                                l: data_preprocessing.Label):
+        return self.__get_where_label_is_l(pred=pred,
+                                            test=test,
+                                            l=l)
 
     def __get_how_many_predicted_l(self,
                                    test: bool,
