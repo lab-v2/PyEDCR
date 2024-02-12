@@ -154,16 +154,6 @@ class CoarseGrainLabel(Label):
         return instance
 
 
-# class Example:
-#     def __init__(self,
-#                  i: int):
-#         self.__index = i
-#
-#     @property
-#     def index(self):
-#         return self.__index
-
-
 def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
                             coarse_labels: typing.Union[np.array, torch.Tensor]) -> int:
     inconsistencies = 0
