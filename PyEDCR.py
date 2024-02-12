@@ -522,6 +522,7 @@ class EDCR:
                    l: data_preprocessing.Label,
                    CC: set[(_Condition, data_preprocessing.Label)],
                    expected_result: float):
+        print(self.__get_CON_l(l=l, CC=CC))
         assert self.__get_CON_l(l=l, CC=CC) == expected_result
 
     def __DetRuleLearn(self,
