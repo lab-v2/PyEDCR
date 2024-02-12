@@ -324,10 +324,12 @@ class EDCR:
     def test_get_where_label_is_l(self,
                                 pred: bool,
                                 test: bool,
-                                l: data_preprocessing.Label):
-        return self.__get_where_label_is_l(pred=pred,
+                                l: data_preprocessing.Label,
+                                expected_result: np.array):
+        data = self.__get_where_label_is_l(pred=pred,
                                             test=test,
                                             l=l)
+        assert(np.all(data == expected_result))
 
     def __get_how_many_predicted_l(self,
                                    test: bool,
@@ -339,6 +341,13 @@ class EDCR:
         :return: A boolean array indicating which instances have the given label.
         """
         return np.sum(self.__get_where_label_is_l(pred=True, test=test, l=l))
+    
+    def test_how_many_predicted_l(self,
+                                test: bool,
+                                l: data_preprocessing.Label,
+                                expected_result: int):
+        data = self.__get_how_many_predicted_l(test=test, l=l)
+        assert(np.all(data == expected_result))
 
     def print_metrics(self,
                       test: bool,
@@ -372,12 +381,21 @@ class EDCR:
                                       g: data_preprocessing.Granularity) -> np.array:
         """Calculates true positive mask for given granularity and label.
 
+        :param test: Whether to use test data (True) or training data (False).
         :param g: The granularity level.
         :return: A mask with 1s for true positive instances, 0s otherwise.
         """
         return np.where(self.__get_predictions(test=test, g=g) ==
                         data_preprocessing.get_ground_truths(test=False, g=g, check_mode=self.__check_mode), 1, 0)
-
+    
+    def test_get_where_predicted_correct(self,
+                                         test: bool,
+                                         g: data_preprocessing.Granularity,
+                                         expected_result: np.array):
+        data = self.__get_where_predicted_correct(test=test, g=g)
+        assert(np.all(data == expected_result))
+        
+    
     def __get_where_predicted_incorrect(self,
                                         test: bool,
                                         g: data_preprocessing.Granularity) -> np.array:
