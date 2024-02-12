@@ -3,6 +3,7 @@ from PyEDCR import EDCR
 
 g_fine, g_coarse = data_preprocessing.granularities
 
+# test case 1
 l_tank = data_preprocessing.get_labels(g_coarse)[data_preprocessing.coarse_grain_classes_str.index('Tank')]
 l_SPA = data_preprocessing.get_labels(g_coarse)[
     data_preprocessing.coarse_grain_classes_str.index('Self Propelled Artillery')]
@@ -18,5 +19,7 @@ pred_2S19_MSTA = EDCR.PredCondition(l=l_2S19_MSTA)
 
 CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_2S19_MSTA, l_SPA)}
 
-edcr = EDCR.test(epsilon=0.1, K=5)
+edcr = EDCR.test(epsilon=0.1, K=400, print_pred_and_true=False)
 edcr.test_CON_l(l=l_SPA, CC=CC_l, expected_result=1)
+
+

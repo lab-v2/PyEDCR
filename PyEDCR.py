@@ -269,12 +269,7 @@ class EDCR:
                                             if str(g) == 'fine' else test_pred_coarse_path)[:self.__K]
                                  for g in data_preprocessing.granularities}
 
-        # print('\n'.join([(
-        #     f'pred: {(data_preprocessing.fine_grain_classes_str[fine_prediction_index], data_preprocessing.coarse_grain_classes_str[coarse_prediction__index])}, '
-        #     f'true: {(data_preprocessing.fine_grain_classes_str[fine_gt__index], data_preprocessing.coarse_grain_classes_str[coarse_gt__index])}')
-        #     for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index in
-        #     zip(*list(self.__train_pred_data.values()),
-        #         *data_preprocessing.get_ground_truths(test=False, K=self.__K))]))
+
 
         self.__condition_datas = {EDCR.PredCondition(l=l)
                                   for g in data_preprocessing.granularities
@@ -303,14 +298,28 @@ class EDCR:
     @classmethod
     def test(cls,
              epsilon: float,
-             K: int):
-        return cls(main_model_name='vit_b_16',
-                   combined=True,
-                   loss='BCE',
-                   lr=0.0001,
-                   num_epochs=20,
-                   epsilon=epsilon,
-                   K=K)
+             K: int,
+             print_pred_and_true: bool = False):
+        instance = cls(main_model_name='vit_b_16',
+                       combined=True,
+                       loss='BCE',
+                       lr=0.0001,
+                       num_epochs=20,
+                       epsilon=epsilon,
+                       K=K)
+
+        if print_pred_and_true:
+            fg = data_preprocessing.fine_grain_classes_str
+            cg = data_preprocessing.coarse_grain_classes_str
+
+            print('\n'.join([(
+                f'pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
+                f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
+                for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index
+                in zip(*list(instance.__train_pred_data.values()),
+                       *data_preprocessing.get_ground_truths(test=False, K=instance.__K))]))
+
+        return instance
 
     def __get_predictions(self,
                           test: bool,
@@ -393,7 +402,7 @@ class EDCR:
         :return: A mask with 1s for true positive instances, 0s otherwise.
         """
         return np.where(self.__get_predictions(test=test, g=g) ==
-                        data_preprocessing.get_ground_truths(test=False, K=self.__K, g=g), 1, 0)
+                        data_preprocessing.get_ground_truths(test=test, K=self.__K, g=g), 1, 0)
 
     def __get_where_predicted_incorrect(self,
                                         test: bool,
