@@ -276,8 +276,8 @@ def ruleForNPCorrection_worker(i: int,
                                shared_index: multiprocessing.managers.ValueProxy,
                                error_detections: multiprocessing.managers.DictProxy,
                                possible_test_consistency_constraints: dict[str, set]):
-    classes = data_preprocessing._fine_grain_classes_str if main_granularity == 'fine' \
-        else data_preprocessing._coarse_grain_classes_str
+    classes = data_preprocessing.fine_grain_classes_str if main_granularity == 'fine' \
+        else data_preprocessing.coarse_grain_classes_str
     curr_class = classes[i]
     test_class_values = np.array(test_class_values)
 
@@ -540,8 +540,8 @@ def get_possible_consistency_constraints(pred_fine_data: np.array,
     possible_consistency_constraints = {}
 
     for fine_prediction_index, coarse_prediction_index in zip(pred_fine_data, pred_coarse_data):
-        fine_prediction = data_preprocessing._fine_grain_classes_str[fine_prediction_index]
-        coarse_prediction = data_preprocessing._coarse_grain_classes_str[coarse_prediction_index]
+        fine_prediction = data_preprocessing.fine_grain_classes_str[fine_prediction_index]
+        coarse_prediction = data_preprocessing.coarse_grain_classes_str[coarse_prediction_index]
 
         if data_preprocessing.fine_to_coarse[fine_prediction] != coarse_prediction:
             if coarse_prediction not in possible_consistency_constraints:
@@ -691,8 +691,8 @@ def run_EDCR_for_granularity(combined: bool,
                              epsilon: float,
                              consistency_constraints: bool) -> np.array:
     with context_handlers.TimeWrapper():
-        classes = data_preprocessing._fine_grain_classes_str if main_granularity == 'fine' else \
-            data_preprocessing._coarse_grain_classes_str
+        classes = data_preprocessing.fine_grain_classes_str if main_granularity == 'fine' else \
+            data_preprocessing.coarse_grain_classes_str
 
         train_examples_num = train_true_granularity.shape[0]
 
