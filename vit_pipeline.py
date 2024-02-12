@@ -333,8 +333,8 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
 
             Y_pred = fine_tuner(X)
-            Y_pred_fine = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
-            Y_pred_coarse = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
+            Y_pred_fine = Y_pred[:, :len(data_preprocessing._fine_grain_classes_str)]
+            Y_pred_coarse = Y_pred[:, len(data_preprocessing._fine_grain_classes_str):]
 
             predicted_fine = torch.max(Y_pred_fine, 1)[1]
             predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
@@ -666,9 +666,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                     with context_handlers.ClearCache(device=device):
                         X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
                         Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
-                            data_preprocessing.fine_grain_classes_str))
+                            data_preprocessing._fine_grain_classes_str))
                         Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
-                            data_preprocessing.coarse_grain_classes_str))
+                            data_preprocessing._coarse_grain_classes_str))
 
                         Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
                         optimizer.zero_grad()
