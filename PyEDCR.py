@@ -439,6 +439,12 @@ class EDCR:
         """
         return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
                 self.__get_where_predicted_incorrect(test=False, g=l.g))
+    
+    def test_get_where_train_fp_l(self,
+                                  l: data_preprocessing.Label,
+                                  expected_result: np.array):
+        data = self.__get_where_train_fp_l(l=l)
+        assert(np.all(data == expected_result))
 
     @staticmethod
     def _get_where_any_conditions_satisfied(C: set[PredCondition],
