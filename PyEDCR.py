@@ -305,7 +305,7 @@ class EDCR:
     def test(cls,
              epsilon: float,
              K: int,
-             print_pred_and_true: bool = False):
+             print_pred_and_true: bool = False) -> EDCR:
         instance = cls(main_model_name='vit_b_16',
                        combined=True,
                        loss='BCE',
@@ -627,11 +627,11 @@ class EDCR:
         :param g: The granularity level (e.g., 'fine', 'coarse').
         """
         CC_all = set()  # in this use case where the conditions are fine and coarse predictions
-        granularity_labels = data_preprocessing.get_labels(g)
+        granularity_labels = data_preprocessing.get_labels(g).values()
 
         print(f'\nLearning {g}-grain error detection rules...')
         with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
-            for l in granularity_labels.values():
+            for l in granularity_labels:
                 DC_l = self.__DetRuleLearn(l=l)
                 if len(DC_l):
                     self.error_detection_rules[l] = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
