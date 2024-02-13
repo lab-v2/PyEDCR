@@ -661,8 +661,8 @@ class EDCR:
                 if len(CC_l):
                     self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
 
-        if utils.is_local():
-            progress_bar.update(1)
+            if utils.is_local():
+                progress_bar.update(1)
 
     def apply_detection_rules(self,
                               g: data_preprocessing.Granularity):
@@ -745,6 +745,7 @@ if __name__ == '__main__':
                 num_epochs=20)
     edcr.print_metrics(test=False, prior=True)
     edcr.print_metrics(test=True, prior=True)
+
 
     for g in data_preprocessing.granularities.values():
         edcr.DetCorrRuleLearn(g=g)
