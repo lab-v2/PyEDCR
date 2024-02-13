@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import math
 import typing
 import numpy as np
 from sklearn.metrics import precision_score, recall_score
@@ -308,8 +309,8 @@ class EDCR:
         return pred_fine_data, pred_coarse_data
 
     def test_get_predictions(self,
-                             test: bool = False,
-                             g: data_preprocessing.Granularity = data_preprocessing.granularities[0]):
+                             g: data_preprocessing.Granularity,
+                             test: bool = False):
         test_str = 'test' if test else 'train'
         assert np.all(self.__get_predictions(test=test, g=g) ==
                       np.load(f'test_data/check_{test_str}_{g.g_str}_pred.npy'))
@@ -429,7 +430,7 @@ class EDCR:
         :return: A boolean array indicating which training instances satisfy the criteria.
         """
         return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
-                self.__get_where_predicted_correct(test=False, g=g))
+                self.__get_where_predicted_correct(test=False, g=l.g))
 
     def __get_where_train_fp_l(self,
                                l: data_preprocessing.Label) -> np.array:
@@ -486,6 +487,14 @@ class EDCR:
         NEG_l = int(np.sum(where_train_tp_l * where_any_conditions_satisfied))
 
         return NEG_l
+    
+    def test_get_NEG_l(self,
+                        l: data_preprocessing.Label,
+                        C: set[Condition],
+                        expected_result: float,
+                        error_threshold: float = 1e-07):
+        data = self.__get_NEG_l(l=l, C=C)
+        assert(math.fabs(data - expected_result) < error_threshold)
 
     def __get_POS_l(self,
                     l: data_preprocessing.Label,
@@ -505,6 +514,14 @@ class EDCR:
         POS_l = int(np.sum(where_train_fp_l * where_any_conditions_satisfied))
 
         return POS_l
+    
+    def test_get_POS_l(self,
+                        l: data_preprocessing.Label,
+                        C: set[Condition],
+                        expected_result: float,
+                        error_threshold: float = 1e-07):
+        data = self.__get_POS_l(l=l, C=C)
+        assert(math.fabs(data - expected_result) < error_threshold)
 
     def get_CON_l(self,
                   l: data_preprocessing.Label,
@@ -524,7 +541,7 @@ class EDCR:
 
         for cond, l_prime in CC:
             where_predicted_l_prime_in_train_pred = self.__get_where_label_is_l(pred=True, test=False, l=l_prime)
-            where_condition_is_satisfied_in_train_pred = cond(train_granularity_pred_data) \
+            where_condition_is_satisfied_in_train_pred = cond(train_fine_pred_data) \
                 if isinstance(cond, EDCR.PredCondition) else cond(train_fine_pred_data, train_coarse_pred_data)
             where_pair_is_satisfied = where_predicted_l_prime_in_train_pred * where_condition_is_satisfied_in_train_pred
             where_any_pair_is_satisfied_in_train_pred |= where_pair_is_satisfied
@@ -535,6 +552,15 @@ class EDCR:
         CON_l = POS_l / BOD_l if BOD_l else 0
 
         return CON_l
+    
+    def test_get_CON_l(self,
+                        l: data_preprocessing.Label,
+                        CC: set[(Condition, data_preprocessing.Label)],
+                        expected_result: float,
+                        error_threshold: float = 1e-07):
+        data = self.get_CON_l(l=l, CC=CC)
+        print(f"expected data: {data}")
+        assert(math.fabs(data - expected_result) < error_threshold)
 
     def __DetRuleLearn(self,
                        l: data_preprocessing.Label) -> set[Condition]:
