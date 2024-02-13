@@ -18,11 +18,11 @@ granularities_str = ['fine', 'coarse']
 
 # Data for our use case
 
-test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
-test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
+test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
+test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
 
-train_true_fine_data = np.load(r'train_fine/train_true_fine.npy')
-train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
+train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
+train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
 
 
 def is_monotonic(arr: np.array) -> bool:
