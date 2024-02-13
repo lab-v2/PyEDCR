@@ -5,7 +5,7 @@ from test import *
 
 def run_test_1():
     K = 10
-    edcr = EDCR.test(epsilon=0.1, K=K, print_pred_and_true=True)
+    edcr = EDCR.test(epsilon=0.1, K=K, print_pred_and_true=False)
     train_pred_fine_data, train_pred_coarse_data = edcr.get_predictions(test=False)
 
     edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1},
@@ -19,6 +19,11 @@ def run_test_1():
                                                  expected_result=np.ones_like(train_pred_fine_data))
 
     edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_SPA},
+                                                 fine_data=train_pred_fine_data,
+                                                 coarse_data=train_pred_coarse_data,
+                                                 expected_result=np.ones_like(train_pred_fine_data))
+
+    edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_SPA, pred_2S19_MSTA},
                                                  fine_data=train_pred_fine_data,
                                                  coarse_data=train_pred_coarse_data,
                                                  expected_result=np.ones_like(train_pred_fine_data))

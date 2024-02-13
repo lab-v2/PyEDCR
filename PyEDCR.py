@@ -506,7 +506,7 @@ class EDCR:
                                                 fine_data: typing.Union[np.array, typing.Iterable[np.array]],
                                                 coarse_data: typing.Union[np.array, typing.Iterable[np.array]],
                                                 expected_result: np.array,
-                                                print_result: bool = False ):
+                                                print_result: bool = False):
         result = self._get_where_any_conditions_satisfied(C=C,
                                                           fine_data=fine_data,
                                                           coarse_data=coarse_data)
