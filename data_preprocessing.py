@@ -6,6 +6,7 @@ import pandas as pd
 import torch.utils.data
 import pathlib
 import typing
+import abc
 
 data_file_path = rf'data/WEO_Data_Sheet.xlsx'
 dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
@@ -22,14 +23,6 @@ test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
 
 train_true_fine_data = np.load(r'train_fine/train_true_fine.npy')
 train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
-
-# Data for checking mode
-
-check_test_true_fine_data = np.load(r'test_data/check_test_fine_true.npy')
-check_test_true_coarse_data = np.load(r'test_data/check_test_coarse_true.npy')
-
-check_train_true_fine_data = np.load(r'test_data/check_train_fine_true.npy')
-check_train_true_coarse_data = np.load(r'test_data/check_train_coarse_true.npy')
 
 
 def is_monotonic(arr: np.array) -> bool:
@@ -66,7 +59,7 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
 fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
 
 
-class Granularity:
+class Granularity(typing.Hashable):
     def __init__(self,
                  g_str: str):
         self.g_str = g_str
@@ -82,24 +75,14 @@ class Granularity:
 
 
 def get_ground_truths(test: bool,
-                      g: Granularity = None,
-                      check_mode: bool = False):
-    
-    # if check mode, data is taken from test_data:
-    if check_mode:
-        if test:
-            true_fine_data = check_test_true_fine_data
-            true_coarse_data = check_test_true_coarse_data
-        else:
-            true_fine_data = check_train_true_fine_data
-            true_coarse_data = check_train_true_coarse_data
+                      K: int,
+                      g: Granularity = None) -> np.array:
+    if test:
+        true_fine_data = test_true_fine_data
+        true_coarse_data = test_true_coarse_data
     else:
-        if test:
-            true_fine_data = test_true_fine_data
-            true_coarse_data = test_true_coarse_data
-        else:
-            true_fine_data = train_true_fine_data
-            true_coarse_data = train_true_coarse_data
+        true_fine_data = train_true_fine_data
+        true_coarse_data = train_true_coarse_data
 
     if g is None:
         return true_fine_data, true_coarse_data
@@ -110,7 +93,7 @@ def get_ground_truths(test: bool,
 granularities = {g_str: Granularity(g_str=g_str) for g_str in granularities_str}
 
 
-class Label:
+class Label(typing.Hashable, abc.ABC):
     def __init__(self,
                  l_str: str,
                  index: int):

@@ -143,7 +143,7 @@ class EDCR:
                      test_pred_coarse_data: np.array) -> typing.Union[bool, np.array]:
             pass
 
-    class ErrorDetectionRule(Rule):
+    class ErrorDetectionRule(_Rule):
         def __init__(self,
                      l: data_preprocessing.Label,
                      DC_l: set[EDCR.Condition]):
@@ -183,7 +183,7 @@ class EDCR:
         def __len__(self):
             return len(self._C_l)
 
-    class ErrorCorrectionRule(Rule):
+    class ErrorCorrectionRule(_Rule):
         def __init__(self,
                      l: data_preprocessing.Label,
                      CC_l: set[(EDCR.Condition, data_preprocessing.Label)]):
@@ -477,7 +477,7 @@ class EDCR:
         return self.__get_where_predicted_l(test=False, l=l) * self.__get_where_predicted_incorrect(test=False, g=l.g)
 
     @staticmethod
-    def _get_where_any_conditions_satisfied(C: set[Condition],
+    def _get_where_any_conditions_satisfied(C: set[_Condition],
                                             fine_data: typing.Union[np.array, typing.Iterable[np.array]],
                                             coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
         """Checks where any given conditions are satisfied.
@@ -519,7 +519,7 @@ class EDCR:
     
     def test_get_NEG_l(self,
                         l: data_preprocessing.Label,
-                        C: set[Condition],
+                        C: set[_Condition],
                         expected_result: float,
                         error_threshold: float = 1e-07):
         data = self.__get_NEG_l(l=l, C=C)
@@ -547,7 +547,7 @@ class EDCR:
     
     def test_get_POS_l(self,
                         l: data_preprocessing.Label,
-                        C: set[Condition],
+                        C: set[_Condition],
                         expected_result: float,
                         error_threshold: float = 1e-07):
         data = self.__get_POS_l(l=l, C=C)
@@ -612,7 +612,7 @@ class EDCR:
         assert self.__get_CON_l_CC(l=l, CC=CC) == expected_result
 
     def __DetRuleLearn(self,
-                       l: data_preprocessing.Label) -> set[Condition]:
+                       l: data_preprocessing.Label) -> set[_Condition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
         that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
 
