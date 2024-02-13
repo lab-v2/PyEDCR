@@ -30,8 +30,8 @@ class EDCR:
         rules: ...
     """
 
-    class _Condition(typing.Callable, abc.ABC):
-        """Represents a condition that can be evaluated on examples.
+    class _Condition(typing.Hashable, typing.Callable, abc.ABC):
+        """Represents a condition that can be evaluated on an example.
 
         When treated as a function, it takes an example (e.g., image, data) as input
         and returns a value between 0 and 1 indicating whether the condition is satisfied.
@@ -44,6 +44,14 @@ class EDCR:
 
         @abc.abstractmethod
         def __call__(self, *args, **kwargs) -> typing.Union[bool, np.array]:
+            pass
+
+        @abc.abstractmethod
+        def __hash__(self):
+            pass
+
+        @abc.abstractmethod
+        def __eq__(self, other):
             pass
 
     class PredCondition(_Condition):
@@ -64,8 +72,8 @@ class EDCR:
         def __call__(self,
                      fine_data: np.array,
                      coarse_data: np.array) -> np.array:
-            return np.where((fine_data if self.__l.g == data_preprocessing.granularities['fine'] else coarse_data)
-                            == self.__l.index, 1, 0)
+            granularity_data = fine_data if self.__l.g == data_preprocessing.granularities['fine'] else coarse_data
+            return np.equal(granularity_data, self.__l.index)
 
         def __str__(self) -> str:
             return f'pred_{self.__l}'
@@ -75,7 +83,7 @@ class EDCR:
             return self.__l
 
         def __hash__(self):
-            return hash(self.__l)
+            return self.__l.__hash__()
 
         def __eq__(self, other):
             return self.__hash__() == other.__hash__()
@@ -93,6 +101,12 @@ class EDCR:
 
             return np.array(values)
 
+        def __hash__(self):
+            return hash('ConsistencyCondition')
+
+        def __eq__(self, other):
+            return self.__hash__() == other.__hash__()
+
     class _Rule(typing.Callable, abc.ABC):
         """Represents a rule for evaluating predictions based on conditions and labels.
 
@@ -102,7 +116,7 @@ class EDCR:
 
         def __init__(self,
                      l: data_preprocessing.Label,
-                     C_l: typing.Union[set[EDCR._Condition], set[(EDCR._Condition, data_preprocessing.Label)]]):
+                     C_l: set[typing.Union[EDCR._Condition, tuple[EDCR._Condition, data_preprocessing.Label]]]):
             self._l = l
             self._C_l = C_l
 
@@ -464,9 +478,9 @@ class EDCR:
 
         return any_condition_satisfied
 
-    def __get_NEG_l(self,
-                    l: data_preprocessing.Label,
-                    C: set[_Condition]) -> int:
+    def __get_NEG_l_C(self,
+                      l: data_preprocessing.Label,
+                      C: set[_Condition]) -> int:
         """Calculate the number of train samples that satisfy any of the conditions and are true positive.
 
         :param C: A set of `Condition` objects.
@@ -483,9 +497,9 @@ class EDCR:
 
         return NEG_l
 
-    def __get_POS_l(self,
-                    l: data_preprocessing.Label,
-                    C: set[_Condition]) -> int:
+    def __get_POS_l_C(self,
+                      l: data_preprocessing.Label,
+                      C: set[_Condition]) -> int:
         """Calculate the number of train samples that satisfy any conditions for some set of condition
         and are false positive.
 
@@ -503,34 +517,39 @@ class EDCR:
 
         return POS_l
 
-    def __get_BOD_l(self,
-                    l: data_preprocessing.Label,
-                    CC: set[(_Condition, data_preprocessing.Label)]) -> (int, np.array):
-        train_granularity_pred_data = self.__get_predictions(test=False, g=l.g)
+    def __get_BOD_CC(self,
+                     CC: set[(_Condition, data_preprocessing.Label)]) -> (int, np.array):
         train_fine_pred_data, train_coarse_pred_data = self.__get_predictions(test=False)
-        where_any_pair_is_satisfied_in_train_pred = np.zeros_like(train_granularity_pred_data)
+        where_any_pair_is_satisfied_in_train_pred = np.zeros_like(train_fine_pred_data)
 
         for cond, l_prime in CC:
-            where_predicted_l_prime_in_train_pred = self.__get_where_predicted_l(test=False, l=l_prime)
+            where_predicted_l_prime_in_train = self.__get_where_predicted_l(test=False, l=l_prime)
             where_condition_is_satisfied_in_train_pred = cond(train_fine_pred_data, train_coarse_pred_data)
-            where_pair_is_satisfied = where_predicted_l_prime_in_train_pred * where_condition_is_satisfied_in_train_pred
+            where_pair_is_satisfied = where_predicted_l_prime_in_train * where_condition_is_satisfied_in_train_pred
             where_any_pair_is_satisfied_in_train_pred |= where_pair_is_satisfied
 
         BOD_l = np.sum(where_any_pair_is_satisfied_in_train_pred)
 
         return BOD_l, where_any_pair_is_satisfied_in_train_pred
 
-    def test_BOD_l(self,
-                   l: data_preprocessing.Label,
-                   CC: set[(_Condition, data_preprocessing.Label)],
-                   expected_result: float):
-        res = self.__get_BOD_l(l=l, CC=CC)[0]
+    def test_BOD_CC(self,
+                    CC: set[(_Condition, data_preprocessing.Label)],
+                    expected_result: float):
+        res = self.__get_BOD_CC(CC=CC)[0]
         print(res)
         assert res == expected_result
 
-    def __get_CON_l(self,
-                    l: data_preprocessing.Label,
-                    CC: set[(_Condition, data_preprocessing.Label)]) -> float:
+    def __get_POS_l_CC(self,
+                       l: data_preprocessing.Label,
+                       where_any_pair_is_satisfied_in_train_pred: np.array) -> int:
+        where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, l=l)
+        POS_l_CC = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
+
+        return POS_l_CC
+
+    def __get_CON_l_CC(self,
+                       l: data_preprocessing.Label,
+                       CC: set[(_Condition, data_preprocessing.Label)]) -> float:
         """Calculate the ratio of number of samples that satisfy the rule body and head with the ones
         that only satisfy the body, given a set of condition class pairs.
 
@@ -539,19 +558,20 @@ class EDCR:
         :return: ratio as defined above
         """
 
-        where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, l=l)
-        BOD_l, where_any_pair_is_satisfied_in_train_pred = self.__get_BOD_l(l=l, CC=CC)
-        POS_l = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
-        CON_l = POS_l / BOD_l if BOD_l else 0
+        BOD_CC, where_any_pair_is_satisfied_in_train_pred = self.__get_BOD_CC(CC=CC)
+        POS_l_CC = self.__get_POS_l_CC(l=l,
+                                       where_any_pair_is_satisfied_in_train_pred=
+                                       where_any_pair_is_satisfied_in_train_pred)
+        CON_l_CC = POS_l_CC / BOD_CC if BOD_CC else 0
 
-        return CON_l
+        return CON_l_CC
 
-    def test_CON_l(self,
-                   l: data_preprocessing.Label,
-                   CC: set[(_Condition, data_preprocessing.Label)],
-                   expected_result: float):
+    def test_CON_l_CC(self,
+                      l: data_preprocessing.Label,
+                      CC: set[(_Condition, data_preprocessing.Label)],
+                      expected_result: float):
         # print(self.__get_CON_l(l=l, CC=CC))
-        assert self.__get_CON_l(l=l, CC=CC) == expected_result
+        assert self.__get_CON_l_CC(l=l, CC=CC) == expected_result
 
     def __DetRuleLearn(self,
                        l: data_preprocessing.Label) -> set[_Condition]:
@@ -569,21 +589,21 @@ class EDCR:
             R_l = self.__train_recalls[l.g][l.index]
             q_l = self.__epsilon * N_l * P_l / R_l
 
-            DC_star = {cond for cond in self.__condition_datas if self.__get_NEG_l(l=l, C={cond}) <= q_l}
+            DC_star = {cond for cond in self.__condition_datas if self.__get_NEG_l_C(l=l, C={cond}) <= q_l}
 
             while DC_star != set():
                 best_score = -1
                 best_cond = None
 
                 for cond in DC_star:
-                    POS_l_c = self.__get_POS_l(l=l, C=DC_l.union({cond}))
+                    POS_l_c = self.__get_POS_l_C(l=l, C=DC_l.union({cond}))
                     if POS_l_c > best_score:
                         best_score = POS_l_c
                         best_cond = cond
 
                 DC_l = DC_l.union({best_cond})
                 DC_star = {cond for cond in self.__condition_datas.difference(DC_l)
-                           if self.__get_NEG_l(l=l, C=DC_l.union({cond})) <= q_l}
+                           if self.__get_NEG_l_C(l=l, C=DC_l.union({cond})) <= q_l}
 
         return DC_l
 
@@ -600,24 +620,24 @@ class EDCR:
         """
         CC_l = set()
         CC_l_prime = CC_all.copy()
-        CC_sorted = sorted(CC_all, key=lambda cc: self.__get_CON_l(l=l, CC={cc}), reverse=True)
+        CC_sorted = sorted(CC_all, key=lambda cond_l: self.__get_CON_l_CC(l=l, CC={cond_l}), reverse=True)
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
-            for cond, l_prime in CC_sorted:
-                a = self.__get_CON_l(l=l, CC=CC_l.union({(cond, l_prime)})) - self.__get_CON_l(l=l, CC=CC_l)
-                b = (self.__get_CON_l(l=l, CC=CC_l_prime.difference({(cond, l_prime)})) -
-                     self.__get_CON_l(l=l, CC=CC_l_prime))
+            for cond_l in CC_sorted:
+                a = self.__get_CON_l_CC(l=l, CC=CC_l.union({cond_l})) - self.__get_CON_l_CC(l=l, CC=CC_l)
+                b = (self.__get_CON_l_CC(l=l, CC=CC_l_prime.difference({cond_l})) -
+                     self.__get_CON_l_CC(l=l, CC=CC_l_prime))
 
                 if a >= b:
-                    CC_l = CC_l.union({(cond, l_prime)})
+                    CC_l = CC_l.union({cond_l})
                 else:
-                    CC_l_prime = CC_l_prime.difference({(cond, l_prime)})
+                    CC_l_prime = CC_l_prime.difference({cond_l})
 
                 if utils.is_local():
                     progress_bar.update(1)
 
-        if self.__get_CON_l(l=l, CC=CC_l) <= self.__train_precisions[l.g][l.index]:
-            print(f'\n{l}: len(CC_l)={len(CC_l)}, CON_l={self.__get_CON_l(l=l, CC=CC_l)}, '
+        if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.__train_precisions[l.g][l.index]:
+            print(f'\n{l}: len(CC_l)={len(CC_l)}, CON_l_CC={self.__get_CON_l_CC(l=l, CC=CC_l)}, '
                   f'P_l={self.__train_precisions[l.g][l.index]}\n')
             CC_l = set()
 

@@ -56,7 +56,7 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
 fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
 
 
-class Granularity:
+class Granularity(typing.Hashable):
     def __init__(self,
                  g_str: str):
         self.g_str = g_str
@@ -90,7 +90,7 @@ def get_ground_truths(test: bool,
 granularities = {g_str: Granularity(g_str=g_str) for g_str in _granularities_str}
 
 
-class Label:
+class Label(typing.Hashable):
     def __init__(self,
                  l_str: str,
                  index: int):
