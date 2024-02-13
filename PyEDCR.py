@@ -486,7 +486,7 @@ class EDCR:
     @staticmethod
     def _get_where_any_conditions_satisfied(C: set[_Condition],
                                             fine_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                            coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
+                                            coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> np.array:
         """Checks where any given conditions are satisfied.
 
         :param C: A set of `Condition` objects.
