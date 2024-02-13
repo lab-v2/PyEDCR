@@ -597,13 +597,13 @@ class EDCR:
         CC_l = set()
         CC_l_prime = CC_all
 
-        CC_sorted = sorted(CC_all, key=lambda cc: self.__get_CON_l(l=cc[1], CC={cc}))
+        CC_sorted = sorted(CC_all, key=lambda cc: self.__get_CON_l(l=l, CC={cc}), reverse=True)
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
             for cond, l_prime in CC_sorted:
-                a = self.__get_CON_l(l=l_prime, CC=CC_l.union({(cond, l_prime)})) - self.__get_CON_l(l=l_prime, CC=CC_l)
-                b = (self.__get_CON_l(l=l_prime, CC=CC_l_prime.difference({(cond, l_prime)})) -
-                     self.__get_CON_l(l=l_prime, CC=CC_l_prime))
+                a = self.__get_CON_l(l=l, CC=CC_l.union({(cond, l_prime)})) - self.__get_CON_l(l=l, CC=CC_l)
+                b = (self.__get_CON_l(l=l, CC=CC_l_prime.difference({(cond, l_prime)})) -
+                     self.__get_CON_l(l=l, CC=CC_l_prime))
 
                 if a >= b:
                     CC_l = CC_l.union({(cond, l_prime)})
@@ -617,6 +617,7 @@ class EDCR:
             print(f'\n{l}: len(CC_l)={len(CC_l)}, CON_l={self.__get_CON_l(l=l, CC=CC_l)}, '
                   f'P_l={self.__train_precisions[l.g][l.index]}\n')
             CC_l = set()
+
 
         return CC_l
 
@@ -649,20 +650,18 @@ class EDCR:
                     progress_bar.update(1)
 
         print(f'\nLearning {g}-grain error correction rules...')
-        with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
-            processes_num = min(len(granularity_labels), mp.cpu_count())
-            iterable = [(l, CC_all) for l in granularity_labels]
+        processes_num = min(len(granularity_labels), mp.cpu_count())
+        iterable = [(l, CC_all) for l in granularity_labels]
 
-            with mp.Pool(processes_num) as pool:
-                CC_ls = pool.starmap(func=self._CorrRuleLearn,
-                                     iterable=iterable)
+        with mp.Pool(processes_num) as pool:
+            CC_ls = pool.starmap(func=self._CorrRuleLearn,
+                                 iterable=iterable)
 
-            for CC_l in CC_ls:
-                if len(CC_l):
-                    self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
+        for CC_l in CC_ls:
+            if len(CC_l):
+                self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
 
-            if utils.is_local():
-                progress_bar.update(1)
+
 
     def apply_detection_rules(self,
                               g: data_preprocessing.Granularity):
@@ -751,7 +750,7 @@ if __name__ == '__main__':
         edcr.DetCorrRuleLearn(g=g)
 
     print([edcr.get_l_correction_rule_support_on_test(l=l)
-           for l in data_preprocessing.fine_grain_labels + data_preprocessing.coarse_grain_labels])
+           for l in data_preprocessing.fine_grain_labels.values() + data_preprocessing.coarse_grain_labels.values()])
 
     # for g in data_preprocessing.granularities:
     #     edcr.apply_detection_rules(g=g)
