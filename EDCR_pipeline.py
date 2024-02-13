@@ -662,7 +662,7 @@ def get_conditions(pred_fine_data: np.array,
 
         # take_conditions_from = main_fine_data if main_or_secondary == 'main' else secondary_fine_data
 
-        for granularity in data_preprocessing.granularities_str:
+        for granularity in data_preprocessing._granularities_str:
             if main_or_secondary not in condition_datas:
                 condition_datas[main_or_secondary] = {}
 
@@ -896,7 +896,7 @@ def run_EDCR_pipeline(test_pred_fine_path: str,
     pipeline_results = {}
     error_detections = []
 
-    for main_granularity in data_preprocessing.granularities_str:
+    for main_granularity in data_preprocessing._granularities_str:
         if main_granularity == 'fine':
             test_pred_granularity = test_pred_fine_data
             test_true_granularity = test_true_fine_data

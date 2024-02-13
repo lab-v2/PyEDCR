@@ -429,14 +429,7 @@ class EDCR:
         :return: A boolean array indicating which training instances satisfy the criteria.
         """
         return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
-                self.__get_where_predicted_correct(test=False, g=l.g))
-    
-    def test_get_where_train_tp_l(self,
-                                  l: data_preprocessing.Label,
-                                  expected_result: np.array):
-        data = self.__get_where_train_tp_l(l=l)
-        assert(np.all(data == expected_result))
-
+                self.__get_where_predicted_correct(test=False, g=g))
 
     def __get_where_train_fp_l(self,
                                l: data_preprocessing.Label) -> np.array:
@@ -720,10 +713,13 @@ class EDCR:
 
 
 if __name__ == '__main__':
-    edcr = EDCR(epsilon=0.1,
-                check_mode=True
-                )
-    edcr.print_metrics(test=False, prior=True)
+    edcr = EDCR(main_model_name='vit_b_16',
+                combined=True,
+                loss='BCE',
+                lr=0.0001,
+                num_epochs=20,
+                epsilon=0.1)
+    # edcr.print_metrics(test=False, prior=True)
     edcr.print_metrics(test=True, prior=True)
     
     # for g in data_preprocessing.granularities:

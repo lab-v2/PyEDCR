@@ -7,13 +7,13 @@ import torch.utils.data
 import pathlib
 import typing
 
-data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
-fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
-coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
-granularities_str = ['fine', 'coarse']
+__data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+__dataframes_by_sheet = pd.read_excel(__data_file_path, sheet_name=None)
+__fine_grain_results_df = __dataframes_by_sheet['Fine-Grain Results']
+fine_grain_classes_str = sorted(__fine_grain_results_df['Class Name'].to_list())
+__coarse_grain_results_df = __dataframes_by_sheet['Coarse-Grain Results']
+coarse_grain_classes_str = sorted(__coarse_grain_results_df['Class Name'].to_list())
+_granularities_str = ['fine', 'coarse']
 
 # Data for our use case
 
@@ -32,7 +32,7 @@ check_train_true_fine_data = np.load(r'test_data/check_train_fine_true.npy')
 check_train_true_coarse_data = np.load(r'test_data/check_train_coarse_true.npy')
 
 
-def is_monotonic(arr: np.array):
+def is_monotonic(arr: np.array) -> bool:
     return np.all(arr[:-1] <= arr[1:])
 
 
@@ -45,7 +45,7 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
 
     fine_to_coarse = {}
     fine_to_course_idx = {}
-    training_df = dataframes_by_sheet['Training']
+    training_df = __dataframes_by_sheet['Training']
 
     assert (set(training_df['Fine-Grain Ground Truth'].unique().tolist()).intersection(fine_grain_classes_str)
             == set(fine_grain_classes_str))
@@ -81,7 +81,6 @@ class Granularity:
         return self.__hash__() == other.__hash__()
 
 
-
 def get_ground_truths(test: bool,
                       g: Granularity = None,
                       check_mode: bool = False):
@@ -103,16 +102,12 @@ def get_ground_truths(test: bool,
             true_coarse_data = train_true_coarse_data
 
     if g is None:
-        return true_fine_data, true_coarse_data
+        return true_fine_data[:K], true_coarse_data[:K]
     else:
-        return true_fine_data if str(g) == 'fine' else true_coarse_data
+        return true_fine_data[:K] if str(g) == 'fine' else true_coarse_data[:K]
 
 
-granularities = [Granularity(g) for g in granularities_str]
-
-
-def get_classes(g: Granularity) -> list:
-    return fine_grain_classes_str if g == granularities[0] else coarse_grain_classes_str
+granularities = {g_str: Granularity(g_str=g_str) for g_str in _granularities_str}
 
 
 class Label:
@@ -135,7 +130,7 @@ class Label:
         return self._g
 
     def __hash__(self):
-        return hash(self._l_str)
+        return hash(f'{self.g}_{self._l_str}')
 
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
@@ -144,10 +139,11 @@ class Label:
 class FineGrainLabel(Label):
     def __init__(self,
                  l_str: str):
-        super().__init__(l_str=l_str, index=fine_grain_classes_str.index(l_str))
+        super().__init__(l_str=l_str,
+                         index=fine_grain_classes_str.index(l_str))
         assert l_str in fine_grain_classes_str
         self.__correct_coarse = fine_to_coarse[l_str]
-        self._g = granularities[0]
+        self._g = granularities['fine']
 
     @classmethod
     def with_index(cls,
@@ -161,10 +157,11 @@ class FineGrainLabel(Label):
 class CoarseGrainLabel(Label):
     def __init__(self,
                  l_str: str):
-        super().__init__(l_str=l_str, index=coarse_grain_classes_str.index(l_str))
+        super().__init__(l_str=l_str,
+                         index=coarse_grain_classes_str.index(l_str))
         assert l_str in coarse_grain_classes_str
         self.correct_fine = coarse_to_fine[l_str]
-        self._g = granularities[1]
+        self._g = granularities['coarse']
 
     @classmethod
     def with_index(cls,
@@ -173,20 +170,6 @@ class CoarseGrainLabel(Label):
         instance = cls(l_str=l)
 
         return instance
-
-
-# class Example:
-#     def __init__(self,
-#                  i: int):
-#         self.__index = i
-#
-#     @property
-#     def index(self):
-#         return self.__index
-
-
-def get_labels(g: Granularity):
-    return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels
 
 
 def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
@@ -202,12 +185,6 @@ def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
             inconsistencies += 1
 
     return inconsistencies
-
-
-for test in [True, False]:
-    true_fine_data, true_coarse_data = get_ground_truths(test=test)
-    assert get_num_inconsistencies(fine_labels=true_fine_data,
-                                   coarse_labels=true_coarse_data) == 0
 
 
 def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose:
@@ -310,8 +287,9 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path],
     datasets = {f'{train_or_test}': CombinedImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
                                                                 transform=get_dataset_transforms(
                                                                     train_or_test=train_or_test))
-    if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                   transform=get_dataset_transforms(train_or_test=train_or_test))
+                if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
+                                                               transform=
+                                                               get_dataset_transforms(train_or_test=train_or_test))
                 for train_or_test in ['train', 'test']}
 
     print(f"Total number of train images: {len(datasets['train'])}\n"
@@ -361,10 +339,9 @@ coarse_to_fine = {
     'MT_LB': ['MT_LB']
 }
 
-fine_grain_labels = [FineGrainLabel(l) for l in fine_grain_classes_str]
-coarse_grain_labels = [CoarseGrainLabel(l) for l in coarse_grain_classes_str]
+fine_grain_labels = {l: FineGrainLabel(l) for l in fine_grain_classes_str}
+coarse_grain_labels = {l: CoarseGrainLabel(l) for l in coarse_grain_classes_str}
 
-# train_examples = [Example(i) for i in range(train_true_fine_data.shape[0])]
-# test_examples = [Example(i) for i in range(test_true_fine_data.shape[0])]
 
-all_labels = [label for granularity in granularities for label in get_labels(granularity)]
+def get_labels(g: Granularity) -> dict[str, Label]:
+    return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels
