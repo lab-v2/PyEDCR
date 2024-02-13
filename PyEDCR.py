@@ -361,7 +361,13 @@ class EDCR:
         """
         granularity_data = self.__get_predictions(test=test, g=l.g) if pred else \
             (data_preprocessing.get_ground_truths(test=test, K=self.__K, g=l.g))
-        return np.where(granularity_data == l.index, 1, 0)
+        where_label_is_l = np.equal(granularity_data, l.index)
+        return where_label_is_l
+
+    def __get_where_predicted_l(self,
+                                test: bool,
+                                l: data_preprocessing.Label) -> np.array:
+        return self.__get_where_label_is_l(pred=True, test=test, l=l)
 
     def __get_how_many_predicted_l(self,
                                    test: bool,
@@ -372,7 +378,7 @@ class EDCR:
         :param l: The label to search for.
         :return: A boolean array indicating which instances have the given label.
         """
-        return np.sum(self.__get_where_label_is_l(pred=True, test=test, l=l))
+        return np.sum(self.__get_where_predicted_l(test=test, l=l))
 
     def print_metrics(self,
                       test: bool,
@@ -409,8 +415,8 @@ class EDCR:
         :param g: The granularity level.
         :return: A mask with 1s for true positive instances, 0s otherwise.
         """
-        return np.where(self.__get_predictions(test=test, g=g) ==
-                        data_preprocessing.get_ground_truths(test=test, K=self.__K, g=g), 1, 0)
+        return np.equal(self.__get_predictions(test=test, g=g),
+                        data_preprocessing.get_ground_truths(test=test, K=self.__K, g=g))
 
     def __get_where_predicted_incorrect(self,
                                         test: bool,
@@ -429,8 +435,7 @@ class EDCR:
         :param l: The label to query.
         :return: A boolean array indicating which training instances satisfy the criteria.
         """
-        return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
-                self.__get_where_predicted_correct(test=False, g=l.g))
+        return self.__get_where_predicted_l(test=False, l=l) * self.__get_where_predicted_correct(test=False, g=l.g)
 
     def __get_where_train_fp_l(self,
                                l: data_preprocessing.Label) -> np.array:
@@ -439,19 +444,18 @@ class EDCR:
         :param l: The label to query.
         :return: A boolean array indicating which training instances satisfy the criteria.
         """
-        return (self.__get_where_label_is_l(pred=True, test=False, l=l) *
-                self.__get_where_predicted_incorrect(test=False, g=l.g))
+        return self.__get_where_predicted_l(test=False, l=l) * self.__get_where_predicted_incorrect(test=False, g=l.g)
 
     @staticmethod
     def _get_where_any_conditions_satisfied(C: set[_Condition],
                                             fine_data: typing.Union[np.array, typing.Iterable[np.array]],
                                             coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
-        """Checks if all given conditions are satisfied for each example.
+        """Checks where any given conditions are satisfied.
 
         :param C: A set of `Condition` objects.
         :fine_data: Data that used for Condition having FineGrainLabel l 
         :coarse_data: Data that used for Condition having CoarseGrainLabel l 
-        :return: A NumPy array with True values if the example satisfy all conditions and False otherwise.
+        :return: A NumPy array with True values if the example satisfy any conditions and False otherwise.
         """
         any_condition_satisfied = np.zeros_like(fine_data)
 
@@ -463,7 +467,7 @@ class EDCR:
     def __get_NEG_l(self,
                     l: data_preprocessing.Label,
                     C: set[_Condition]) -> int:
-        """Calculate the number of samples that satisfy any of the conditions and are true positive.
+        """Calculate the number of train samples that satisfy any of the conditions and are true positive.
 
         :param C: A set of `Condition` objects.
         :param l: The label of interest.
@@ -471,29 +475,31 @@ class EDCR:
         """
         where_train_tp_l = self.__get_where_train_tp_l(l=l)
         train_pred_fine_data, train_pred_coarse_data = self.__get_predictions(test=False)
-        where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C,
-                                                                                  fine_data=train_pred_fine_data,
-                                                                                  coarse_data=train_pred_coarse_data)
-        NEG_l = int(np.sum(where_train_tp_l * where_any_conditions_satisfied))
+        where_any_conditions_satisfied_on_train = (
+            self._get_where_any_conditions_satisfied(C=C,
+                                                     fine_data=train_pred_fine_data,
+                                                     coarse_data=train_pred_coarse_data))
+        NEG_l = np.sum(where_train_tp_l * where_any_conditions_satisfied_on_train)
 
         return NEG_l
 
     def __get_POS_l(self,
                     l: data_preprocessing.Label,
                     C: set[_Condition]) -> int:
-        """Calculate the number of samples that satisfy the conditions for some set of condition 
-        and have false positive.
+        """Calculate the number of train samples that satisfy any conditions for some set of condition
+        and are false positive.
 
         :param C: A set of `Condition` objects.
         :param l: The label of interest.
-        :return: The number of instances that is false negative and satisfying all conditions.
+        :return: The number of instances that are false negative and satisfying some conditions.
         """
         where_train_fp_l = self.__get_where_train_fp_l(l=l)
         train_pred_fine_data, train_pred_coarse_data = self.__get_predictions(test=False)
-        where_any_conditions_satisfied = self._get_where_any_conditions_satisfied(C=C,
-                                                                                  fine_data=train_pred_fine_data,
-                                                                                  coarse_data=train_pred_coarse_data)
-        POS_l = int(np.sum(where_train_fp_l * where_any_conditions_satisfied))
+        where_any_conditions_satisfied_on_train = (
+            self._get_where_any_conditions_satisfied(C=C,
+                                                     fine_data=train_pred_fine_data,
+                                                     coarse_data=train_pred_coarse_data))
+        POS_l = np.sum(where_train_fp_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
 
@@ -505,7 +511,7 @@ class EDCR:
         where_any_pair_is_satisfied_in_train_pred = np.zeros_like(train_granularity_pred_data)
 
         for cond, l_prime in CC:
-            where_predicted_l_prime_in_train_pred = self.__get_where_label_is_l(pred=True, test=False, l=l_prime)
+            where_predicted_l_prime_in_train_pred = self.__get_where_predicted_l(test=False, l=l_prime)
             where_condition_is_satisfied_in_train_pred = cond(train_fine_pred_data, train_coarse_pred_data)
             where_pair_is_satisfied = where_predicted_l_prime_in_train_pred * where_condition_is_satisfied_in_train_pred
             where_any_pair_is_satisfied_in_train_pred |= where_pair_is_satisfied
@@ -556,7 +562,6 @@ class EDCR:
         :return: A set of `Condition` representing the learned error detection rules.
         """
         DC_l = set()
-
         N_l = self.__get_how_many_predicted_l(test=False, l=l)
 
         if N_l:
@@ -566,7 +571,7 @@ class EDCR:
 
             DC_star = {cond for cond in self.__condition_datas if self.__get_NEG_l(l=l, C={cond}) <= q_l}
 
-            while len(DC_star) > 0:
+            while DC_star != set():
                 best_score = -1
                 best_cond = None
 
@@ -577,7 +582,6 @@ class EDCR:
                         best_cond = cond
 
                 DC_l = DC_l.union({best_cond})
-
                 DC_star = {cond for cond in self.__condition_datas.difference(DC_l)
                            if self.__get_NEG_l(l=l, C=DC_l.union({cond})) <= q_l}
 
@@ -595,8 +599,7 @@ class EDCR:
         :return: A set of condition-label pairs.
         """
         CC_l = set()
-        CC_l_prime = CC_all
-
+        CC_l_prime = CC_all.copy()
         CC_sorted = sorted(CC_all, key=lambda cc: self.__get_CON_l(l=l, CC={cc}), reverse=True)
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
@@ -617,7 +620,6 @@ class EDCR:
             print(f'\n{l}: len(CC_l)={len(CC_l)}, CON_l={self.__get_CON_l(l=l, CC=CC_l)}, '
                   f'P_l={self.__train_precisions[l.g][l.index]}\n')
             CC_l = set()
-
 
         return CC_l
 
@@ -644,7 +646,8 @@ class EDCR:
                     self.error_detection_rules[l] = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
 
                 for cond_l in DC_l:
-                    CC_all = CC_all.union({(cond_l, l)})
+                    if not (isinstance(cond_l, EDCR.PredCondition) and cond_l.l == l):
+                        CC_all = CC_all.union({(cond_l, l)})
 
                 if utils.is_local():
                     progress_bar.update(1)
@@ -660,8 +663,6 @@ class EDCR:
         for CC_l in CC_ls:
             if len(CC_l):
                 self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
-
-
 
     def apply_detection_rules(self,
                               g: data_preprocessing.Granularity):
@@ -725,13 +726,19 @@ class EDCR:
             return 0
 
         r_l = self.error_correction_rules[l]
+        where_predicted_l = self.__get_where_predicted_l(test=True, l=l)
+
+        where_any_pair_satisfied = r_l.get_where_any_pair_satisfied(test_pred_fine_data=
+                                                                    self.__test_pred_data[
+                                                                        data_preprocessing.granularities['fine']],
+                                                                    test_pred_coarse_data=
+                                                                    self.__test_pred_data[
+                                                                        data_preprocessing.granularities['coarse']])
+        where_predicted_l_and_any_pair_satisfied = where_predicted_l * where_any_pair_satisfied
+        num_predicted_l_and_any_pair_satisfied = np.sum(where_predicted_l_and_any_pair_satisfied)
         N_l = self.__get_how_many_predicted_l(test=True, l=l)
-        how_many_satisfies_any_pair = (
-            np.sum(r_l.get_where_any_pair_satisfied(test_pred_fine_data=
-                                                    self.__test_pred_data[data_preprocessing.granularities['fine']],
-                                                    test_pred_coarse_data=
-                                                    self.__test_pred_data[data_preprocessing.granularities['coarse']])))
-        s_l = how_many_satisfies_any_pair / N_l
+        s_l = num_predicted_l_and_any_pair_satisfied / N_l
+
         return s_l
 
 
@@ -745,12 +752,11 @@ if __name__ == '__main__':
     edcr.print_metrics(test=False, prior=True)
     edcr.print_metrics(test=True, prior=True)
 
-
     for g in data_preprocessing.granularities.values():
         edcr.DetCorrRuleLearn(g=g)
 
-    print([edcr.get_l_correction_rule_support_on_test(l=l)
-           for l in data_preprocessing.fine_grain_labels.values() + data_preprocessing.coarse_grain_labels.values()])
+    print([edcr.get_l_correction_rule_support_on_test(l=l) for l in list(data_preprocessing.fine_grain_labels.values())
+           + list(data_preprocessing.coarse_grain_labels.values())])
 
     # for g in data_preprocessing.granularities:
     #     edcr.apply_detection_rules(g=g)
