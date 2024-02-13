@@ -245,49 +245,26 @@ class EDCR:
         self.__lr = lr
         self.__epsilon = epsilon
 
-        test_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                        combined=combined,
-                                                        test=True,
-                                                        granularity='fine',
-                                                        loss=loss,
-                                                        lr=lr,
-                                                        pred=True,
-                                                        epoch=num_epochs)
-        test_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                          combined=combined,
-                                                          test=True,
-                                                          granularity='coarse',
-                                                          loss=loss,
-                                                          lr=lr,
-                                                          pred=True,
-                                                          epoch=num_epochs)
+        pred_paths = {'test' if test else 'train': {g_str: vit_pipeline.get_filepath(model_name=main_model_name,
+                                                                                     combined=combined,
+                                                                                     test=test,
+                                                                                     granularity=g_str,
+                                                                                     loss=loss,
+                                                                                     lr=lr,
+                                                                                     pred=True,
+                                                                                     epoch=num_epochs)
+                                                    for g_str in data_preprocessing.granularities_str}
+                      for test in [True, False]}
 
-        train_pred_fine_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                         combined=combined,
-                                                         test=False,
-                                                         granularity='fine',
-                                                         loss=loss,
-                                                         lr=lr,
-                                                         pred=True,
-                                                         epoch=num_epochs)
-        train_pred_coarse_path = vit_pipeline.get_filepath(model_name=main_model_name,
-                                                           combined=combined,
-                                                           test=False,
-                                                           granularity='coarse',
-                                                           loss=loss,
-                                                           lr=lr,
-                                                           pred=True,
-                                                           epoch=num_epochs)
+        self.__K = K if K is not None else np.load(pred_paths['train']['fine']).shape[0]
+        self.__T = np.load(pred_paths['train']['fine']).shape[0]
 
-        self.__K = K if K is not None else np.load(train_pred_fine_path).shape[0]
-        self.__T = np.load(train_pred_fine_path).shape[0]
-
-        self.__train_pred_data = {g: np.load(train_pred_fine_path
-                                             if str(g) == 'fine' else train_pred_coarse_path)[:self.__K]
+        self.__train_pred_data = {g: np.load(pred_paths['train']['fine']
+                                             if str(g) == 'fine' else pred_paths['train']['coarse'])[:self.__K]
                                   for g in data_preprocessing.granularities.values()}
 
-        self.__test_pred_data = {g: np.load(test_pred_fine_path
-                                            if str(g) == 'fine' else test_pred_coarse_path)[:self.__K]
+        self.__test_pred_data = {g: np.load(pred_paths['test']['fine']
+                                            if str(g) == 'fine' else pred_paths['test']['coarse'])[:self.__K]
                                  for g in data_preprocessing.granularities.values()}
 
         self.__condition_datas = ({EDCR.PredCondition(l=l)

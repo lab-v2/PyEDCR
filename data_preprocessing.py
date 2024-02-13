@@ -6,6 +6,7 @@ import pandas as pd
 import torch.utils.data
 import pathlib
 import typing
+import abc
 
 __data_file_path = rf'data/WEO_Data_Sheet.xlsx'
 __dataframes_by_sheet = pd.read_excel(__data_file_path, sheet_name=None)
@@ -13,7 +14,7 @@ __fine_grain_results_df = __dataframes_by_sheet['Fine-Grain Results']
 fine_grain_classes_str = sorted(__fine_grain_results_df['Class Name'].to_list())
 __coarse_grain_results_df = __dataframes_by_sheet['Coarse-Grain Results']
 coarse_grain_classes_str = sorted(__coarse_grain_results_df['Class Name'].to_list())
-_granularities_str = ['fine', 'coarse']
+granularities_str = ['fine', 'coarse']
 
 test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
 test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
@@ -87,10 +88,10 @@ def get_ground_truths(test: bool,
         return true_fine_data[:K] if str(g) == 'fine' else true_coarse_data[:K]
 
 
-granularities = {g_str: Granularity(g_str=g_str) for g_str in _granularities_str}
+granularities = {g_str: Granularity(g_str=g_str) for g_str in granularities_str}
 
 
-class Label(typing.Hashable):
+class Label(typing.Hashable, abc.ABC):
     def __init__(self,
                  l_str: str,
                  index: int):
