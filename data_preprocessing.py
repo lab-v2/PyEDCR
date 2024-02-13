@@ -8,13 +8,15 @@ import pathlib
 import typing
 import abc
 
-__data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-__dataframes_by_sheet = pd.read_excel(__data_file_path, sheet_name=None)
-__fine_grain_results_df = __dataframes_by_sheet['Fine-Grain Results']
-fine_grain_classes_str = sorted(__fine_grain_results_df['Class Name'].to_list())
-__coarse_grain_results_df = __dataframes_by_sheet['Coarse-Grain Results']
-coarse_grain_classes_str = sorted(__coarse_grain_results_df['Class Name'].to_list())
+data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
+coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
+coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
 granularities_str = ['fine', 'coarse']
+
+# Data for our use case
 
 test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
 test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
@@ -36,7 +38,7 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
 
     fine_to_coarse = {}
     fine_to_course_idx = {}
-    training_df = __dataframes_by_sheet['Training']
+    training_df = dataframes_by_sheet['Training']
 
     assert (set(training_df['Fine-Grain Ground Truth'].unique().tolist()).intersection(fine_grain_classes_str)
             == set(fine_grain_classes_str))
