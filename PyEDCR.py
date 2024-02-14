@@ -570,8 +570,9 @@ class EDCR:
                          l: data_preprocessing.Label,
                          C: set[_Condition],
                          expected_result: int):
+        print(f'expected_result: {expected_result}')
         result = self.__get_NEG_l_C(l=l, C=C)
-        print(result)
+        print(f'actual result: {result}')
 
         assert result == expected_result
 
@@ -594,6 +595,16 @@ class EDCR:
         POS_l = np.sum(where_train_fp_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
+
+    def test_get_POS_l_C(self,
+                         l: data_preprocessing.Label,
+                         C: set[_Condition],
+                         expected_result: int):
+        print(f'expected_result: {expected_result}')
+        result = self.__get_POS_l_C(l=l, C=C)
+        print(f'actual result: {result}')
+
+        assert result == expected_result
 
     def __get_BOD_CC(self,
                      CC: set[(_Condition, data_preprocessing.Label)]) -> (int, np.array):
