@@ -29,7 +29,7 @@ def run_tests():
                                                  expected_result=1)
 
     K = 12
-    edcr = EDCR.test(epsilon=0.1, K=K, print_pred_and_true=False)
+    edcr = EDCR.test(epsilon=0.1, K=K)
     train_pred_fine_data, train_pred_coarse_data = edcr.get_predictions(test=False)
     expected_result = np.array([1] * 11 + [0])
     edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1},

@@ -474,7 +474,6 @@ class EDCR:
         """
         return self.__get_where_predicted_l(test=False, l=l) * self.__get_where_predicted_correct(test=False, g=l.g)
 
-
     def test_get_where_train_tp_l(self,
                                   l: data_preprocessing.Label,
                                   expected_result: np.array,
@@ -852,11 +851,12 @@ class EDCR:
     def get_l_test_precision_score(self,
                                    l: data_preprocessing):
         return precision_score(y_true=data_preprocessing.get_ground_truths(test=True,
-                                                                          K=self.__K,
-                                                                          g=l.g),
-                              y_pred=self.__test_pred_data[l.g],
-                              labels=range(len(data_preprocessing.get_labels(l.g))),
-                              average=None)[l.index]
+                                                                           K=self.__K,
+                                                                           g=l.g),
+                               y_pred=self.__test_pred_data[l.g],
+                               labels=range(len(data_preprocessing.get_labels(l.g))),
+                               average=None)[l.index]
+
     def get_l_theoretical_precision_increase(self,
                                              l: data_preprocessing.Label) -> float:
         s_l = self.get_l_correction_rule_support_on_test(l=l)
@@ -873,7 +873,6 @@ class EDCR:
     def get_theorem_1_condition_for_l(self,
                                       l: data_preprocessing.Label):
         return self.get_l_correction_rule_support_on_test(l=l) + self.get_l_test_precision_score(l=l) <= 1
-
 
     def get_theorem_1_condition_for_g(self,
                                       g: data_preprocessing.Granularity):
