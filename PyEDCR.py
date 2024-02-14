@@ -498,7 +498,7 @@ class EDCR:
 
     def __get_where_train_fp_l(self,
                                l: data_preprocessing.Label) -> np.array:
-        """ Retrieves indices of training instances where the true label is l and the model incorrectly predicted l.
+        """ Retrieves indices of training instances where the predicted label is l and the ground truth is not l.
         
         :param l: The label to query.
         :return: A boolean array indicating which training instances satisfy the criteria.
