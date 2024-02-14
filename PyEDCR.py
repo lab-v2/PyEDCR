@@ -5,6 +5,7 @@ import typing
 import numpy as np
 from sklearn.metrics import precision_score, recall_score
 import multiprocessing as mp
+import multiprocessing.managers
 
 import utils
 import data_preprocessing
@@ -407,6 +408,13 @@ class EDCR:
                                 l: data_preprocessing.Label) -> np.array:
         return self.__get_where_label_is_l(pred=True, test=test, l=l)
 
+    def test_get_where_predicted_l(self,
+                                   test: bool,
+                                   l: data_preprocessing.Label,
+                                   expected_result: np.array):
+        result = self.__get_where_predicted_l(test=test, l=l)
+        assert np.all(result == expected_result)
+
     def __get_how_many_predicted_l(self,
                                    test: bool,
                                    l: data_preprocessing.Label) -> int:
@@ -577,9 +585,8 @@ class EDCR:
                          l: data_preprocessing.Label,
                          C: set[_Condition],
                          expected_result: int):
-        print(f'expected_result: {expected_result}')
         result = self.__get_NEG_l_C(l=l, C=C)
-        print(f'actual result: {result}')
+        print(result)
 
         assert result == expected_result
 
@@ -732,7 +739,8 @@ class EDCR:
 
     def _CorrRuleLearn(self,
                        l: data_preprocessing.Label,
-                       CC_all: set[(_Condition, data_preprocessing.Label)]) -> \
+                       CC_all: set[(_Condition, data_preprocessing.Label)],
+                       shared_index: mp.managers.ValueProxy) -> \
             (data_preprocessing.Label, [tuple[_Condition, data_preprocessing.Label]]):
         """Learns error correction rules for a specific label and granularity. These rules associate conditions 
         with alternative labels that are more likely to be correct when those conditions are met.
@@ -764,6 +772,10 @@ class EDCR:
 
         # if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
         #     CC_l = set()
+
+        if not utils.is_local():
+            shared_index.value += 1
+            print(f'Completed {shared_index.value}/{len(data_preprocessing.get_labels(l.g).values())}')
 
         return l, CC_l
 
@@ -799,7 +811,11 @@ class EDCR:
 
         print(f'\nLearning {g}-grain error correction rules...')
         processes_num = min(len(granularity_labels), mp.cpu_count())
-        iterable = [(l, CC_all) for l in granularity_labels]
+
+        manager = mp.Manager()
+        shared_index = manager.Value('i', 0)
+
+        iterable = [(l, CC_all, shared_index) for l in granularity_labels]
 
         with mp.Pool(processes_num) as pool:
             CC_ls = pool.starmap(func=self._CorrRuleLearn,
@@ -807,9 +823,9 @@ class EDCR:
 
         for l, CC_l in CC_ls:
             if len(CC_l):
-                self.error_correction_rules[l] = EDCR.ErrorCorDetrectionRule(l=l, CC_l=CC_l)
+                self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
             else:
-                print(utils.red_text('\n' + '#' * 10 + f' {l} has not error correction rule!\n'))
+                print(utils.red_text('\n' + '#' * 10 + f' {l} does not have an error correction rule!\n'))
 
     def apply_detection_rules(self,
                               g: data_preprocessing.Granularity):
