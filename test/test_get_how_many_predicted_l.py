@@ -40,16 +40,16 @@ K_test_slice = [(1, 10), (50, 60)]
 
 edcr = EDCR.test(epsilon=0.1,
                  K_train=K_train_slice,
-                 K_test=K_test_slice,
-                 print_pred_and_true=True)
-edcr.print_metrics(test=False, prior=True)
-edcr.print_metrics(test=True, prior=True)
+                 K_test=K_test_slice)
 
 # get label 
 label_fine = data_preprocessing.get_labels(data_preprocessing.granularities['fine'])
 label_coarse = data_preprocessing.get_labels(data_preprocessing.granularities['coarse'])
 
-print(utils.blue_text("=" * 50 + "test get_where_label_is_l" + "=" * 50))
+# method name
+method_str = "Get_how_many_predicted_l"
+
+print(utils.blue_text("=" * 50 + "test " + method_str + "=" * 50))
 
 # Test 1
 
@@ -75,4 +75,4 @@ edcr.test_how_many_predicted_l(test=False,
                                l=label_30N6E,
                                expected_result=except_result_2)
 
-print("Get_how_many_predicted_l method passed!")
+print(f"{method_str} method passed!")
