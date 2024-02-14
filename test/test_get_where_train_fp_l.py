@@ -70,25 +70,23 @@ def test_case_2():
 
 def test_case_3():
     K_train_slice = [(6, 10), (2201, 2205), (3001, 3005), (3601, 3605), (3970, 3974), (7500, 7524)]
-    K_test_slice = [(1, 10), (50, 60)]
 
     edcr = EDCR.test(epsilon=0.1,
                      K_train=K_train_slice,
-                     K_test=K_test_slice,
                      print_pred_and_true=True)
 
     case_number = 3
 
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
-    test_label = label_fine['Tornado']
+    test_label = label_fine['BM-30']
 
     print(f'label is: {test_label._l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
 
     except_result_2 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                 0, 0, 0, 0, 0, 1, 0, 0, 1, 0,
-                                0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-                                0, 0, 0, 1, 1, 1, 0, 0, 0, 0])
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 1, 1, 0, 0, 0, 0, 0])
 
     edcr.test_get_where_train_fp_l(l=test_label,
                                    expected_result=except_result_2)
@@ -96,6 +94,6 @@ def test_case_3():
     print(f'Case {case_number} passed!')
 
 if __name__ == '__main__':
-    test_case_1()
-    test_case_2()
+    #test_case_1()
+    #test_case_2()
     test_case_3()

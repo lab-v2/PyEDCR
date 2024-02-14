@@ -329,19 +329,21 @@ class EDCR:
             fg = data_preprocessing.fine_grain_classes_str
             cg = data_preprocessing.coarse_grain_classes_str
 
-            print('\nTrain samples:\n' + '\n'.join([(
-                f'pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
-                f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
-                for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index
-                in zip(*list(instance.__train_pred_data.values()),
-                       *data_preprocessing.get_ground_truths(test=False, K=instance.__K_train))]))
+            if K_train is not None:
+                print('\nTrain samples:\n' + '\n'.join([(
+                    f'pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
+                    f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
+                    for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index
+                    in zip(*list(instance.__train_pred_data.values()),
+                           *data_preprocessing.get_ground_truths(test=False, K=instance.__K_train))]))
 
-            print('\nTest samples:\n' + '\n'.join([(
-                f'pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
-                f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
-                for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index
-                in zip(*list(instance.__test_pred_data.values()),
-                       *data_preprocessing.get_ground_truths(test=True, K=instance.__K_train))]))
+            if K_test is not None:
+                print('\nTest samples:\n' + '\n'.join([(
+                    f'pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
+                    f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
+                    for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index
+                    in zip(*list(instance.__test_pred_data.values()),
+                           *data_preprocessing.get_ground_truths(test=True, K=instance.__K_train))]))
 
         return instance
 
