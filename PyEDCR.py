@@ -768,7 +768,7 @@ class EDCR:
 
         for l, CC_l in CC_ls:
             if len(CC_l):
-                self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
+                self.error_correction_rules[l] = EDCR.ErrorCorDetrectionRule(l=l, CC_l=CC_l)
             else:
                 print(utils.red_text('\n' + '#' * 10 + f' {l} has not error correction rule!\n'))
 

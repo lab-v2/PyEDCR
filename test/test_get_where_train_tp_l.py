@@ -8,43 +8,93 @@ import utils
 # Use this approach with caution!
 warnings.filterwarnings('ignore')
 
-edcr = EDCR(epsilon=0.1,
-            check_mode=True
-            )
-edcr.print_metrics(test=False, prior=True)
-edcr.print_metrics(test=True, prior=True)
-
-# get label 
-label_fine = data_preprocessing.get_labels(data_preprocessing.granularities[0])
-label_coarse = data_preprocessing.get_labels(data_preprocessing.granularities[1])
+# get label
+label_fine = data_preprocessing.get_labels(data_preprocessing.granularities['fine'])
+label_coarse = data_preprocessing.get_labels(data_preprocessing.granularities['coarse'])
 
 # method name
-method_str = "Get_where_train_tp_l"
+method_str = "get_where_train_tp_l"
 
-print(utils.blue_text("=" * 50 + "test " + method_str + "=" * 50))
 
 # Test 1
+def test_case_1():
+    K_train_slice = [(1, 5), (401, 405)]
+    K_test_slice = [(1, 10), (50, 60)]
 
-label_30N6E = label_fine[1]
+    edcr = EDCR.test(epsilon=0.1,
+                     K_train=K_train_slice,
+                     K_test=K_test_slice,
+                     print_pred_and_true=True)
 
-print(f'label is: {label_30N6E._l_str}, granularity: {label_30N6E.g}, label_index: {label_30N6E.index}')
 
-except_result_1 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0,
-       0, 0, 0, 0, 0, 0, 0, 0])
+    case_number = 1
 
-edcr.test_get_where_train_tp_l(l=label_30N6E,
-                                expected_result=except_result_1)
+    print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
+    test_label = label_fine['30N6E']
 
-# Test 2
+    print(f'label is: {test_label._l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
 
-label_air_defence = label_coarse[0]
+    except_result_1 = np.array([0, 0, 0, 0, 0, 1, 1, 1, 0, 1])
 
-print(f'label is: {label_air_defence._l_str}, granularity: {label_air_defence.g}, label_index: {label_air_defence.index}')
+    edcr.test_get_where_train_tp_l(l=test_label,
+                                    expected_result=except_result_1)
 
-except_result_2 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0,
-       0, 0, 0, 0, 0, 0, 0, 0])
+    print(f'Case {case_number} passed!')
 
-edcr.test_get_where_train_tp_l(l=label_air_defence,
-                                expected_result=except_result_2)
 
-print(f"{method_str} method passed!")
+def test_case_2():
+    K_train_slice = [(351, 355), (471, 475), (4001, 4005), (4601, 4605), (6001, 6005)]
+    K_test_slice = [(1, 10), (50, 60)]
+
+    edcr = EDCR.test(epsilon=0.1,
+                     K_train=K_train_slice,
+                     K_test=K_test_slice,
+                     print_pred_and_true=True)
+
+    case_number = 2
+
+    print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
+    test_label = label_coarse['Air Defense']
+
+    print(f'label is: {test_label._l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
+
+    except_result_2 = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+                                1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                0, 0, 0, 0, 0])
+
+    edcr.test_get_where_train_tp_l(l=test_label,
+                                   expected_result=except_result_2)
+
+    print(f'Case {case_number} passed!')
+
+def test_case_3():
+    K_train_slice = [(6, 10), (2201, 2205), (3001, 3005), (3601, 3605), (3970, 3974), (7500, 7524)]
+    K_test_slice = [(1, 10), (50, 60)]
+
+    edcr = EDCR.test(epsilon=0.1,
+                     K_train=K_train_slice,
+                     K_test=K_test_slice,
+                     print_pred_and_true=True)
+
+    case_number = 3
+
+    print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
+    test_label = label_fine['Tornado']
+
+    print(f'label is: {test_label._l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
+
+    except_result_2 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 1, 1, 0, 1,
+                                1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+                                1, 1, 1, 0, 0, 0, 1, 1, 1, 1])
+
+    edcr.test_get_where_train_tp_l(l=test_label,
+                                   expected_result=except_result_2)
+
+    print(f'Case {case_number} passed!')
+
+if __name__ == '__main__':
+    test_case_1()
+    test_case_2()
+    test_case_3()
