@@ -6,7 +6,6 @@ from typing import Union
 from math import floor
 
 
-
 def format_seconds(seconds: int):
     # Create a timedelta object with the given seconds
     time_delta = datetime.timedelta(seconds=seconds)

@@ -312,6 +312,7 @@ def get_one_hot_encoding(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
 
 
+
 for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
     assert is_monotonic(arr)
 
