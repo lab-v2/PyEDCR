@@ -8,6 +8,9 @@ import pathlib
 import typing
 import abc
 
+current_file_location = pathlib.Path(__file__).parent.resolve()
+os.chdir(current_file_location)
+
 data_file_path = rf'data/WEO_Data_Sheet.xlsx'
 dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
