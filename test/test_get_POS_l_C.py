@@ -1,10 +1,11 @@
 from PyEDCR import EDCR
 import data_preprocessing
 import warnings
+import numpy as np
 import utils
 
 # This will silence all warnings, including ones unrelated to your evaluation.
-# Use this approach with caution
+# Use this approach with caution!
 warnings.filterwarnings('ignore')
 
 # This is index for train fine true data:
@@ -34,45 +35,56 @@ warnings.filterwarnings('ignore')
 # 'BMD': ['BMD'],
 # 'MT_LB': ['MT_LB']
 
-K_train_slice = [(1, 10), (400, 410)]
+K_train_slice = [(5200, 5210), (5530, 5540)]
 K_test_slice = [(1, 10), (50, 60)]
 
 edcr = EDCR.test(epsilon=0.1,
                  K_train=K_train_slice,
-                 K_test=K_test_slice)
+                 K_test=K_test_slice,
+                 print_pred_and_true=True)
 
-# get label 
+# get label
 label_fine = data_preprocessing.get_labels(data_preprocessing.granularities['fine'])
 label_coarse = data_preprocessing.get_labels(data_preprocessing.granularities['coarse'])
 
 # method name
-method_str = "Get_how_many_predicted_l"
+method_str = "Get_POS_l_C"
 
 print(utils.blue_text("=" * 50 + "test " + method_str + "=" * 50))
 
-# Test 1
+g_fine, g_coarse = data_preprocessing.granularities.values()
+fg_l, cg_l = list(data_preprocessing.fine_grain_labels.values()), list(data_preprocessing.coarse_grain_labels.values())
+pred_conditions = {l: EDCR.PredCondition(l=l) for l in fg_l + cg_l}
 
-label_30N6E = label_fine['2S19_MSTA']
+l_Air_Defense, l_BMD, l_BMP, l_BTR, l_MT_LB, l_SPA, l_Tank = cg_l
 
-print(f'label is: {label_30N6E}, granularity: {label_30N6E.g}, label_index: {label_30N6E.index}')
 
-except_result_1 = 9
+(pred_2S19_MSTA, pred_30N6E, pred_BM_30, pred_BMD, pred_BMP_1, pred_BMP_2, pred_BMP_T15, pred_BRDM, pred_BTR_60,
+ pred_BTR_70, pred_BTR_80, pred_D_30, pred_Iskander, pred_MT_LB, pred_Pantsir_S1, pred_RS_24, pred_T_14, pred_T_62,
+ pred_T_64, pred_T_72, pred_T_80, pred_T_90, pred_TOS_1, pred_Tornado) = [pred_conditions[l] for l in fg_l]
 
-edcr.test_how_many_predicted_l(test=False,
-                               l=label_30N6E,
-                               expected_result=except_result_1)
 
-# Test 2
+# Test 1: No condition is satisfied
 
-label_30N6E = label_fine['30N6E']
+label = l_Tank
+C = {pred_BM_30, pred_30N6E}
 
-print(f'label is: {label_30N6E}, granularity: {label_30N6E.g}, label_index: {label_30N6E.index}')
+except_result_1 = 0
 
-except_result_2 = 8
+edcr.test_get_POS_l_C(l=label,
+                      C=C,
+                      expected_result=except_result_1)
 
-edcr.test_how_many_predicted_l(test=False,
-                               l=label_30N6E,
-                               expected_result=except_result_2)
+# Test 2: all example satisfy 2 condition and false
+
+label = l_BMD
+C = {pred_T_62, pred_T_14}
+
+except_result_2 = 1
+
+edcr.test_get_POS_l_C(l=label,
+                      C=C,
+                      expected_result=except_result_2)
+
 
 print(f"{method_str} method passed!")
-
