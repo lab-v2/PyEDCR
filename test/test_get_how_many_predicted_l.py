@@ -8,24 +8,28 @@ import utils
 # Use this approach with caution!
 warnings.filterwarnings('ignore')
 
-edcr = EDCR(epsilon=0.1,
-            check_mode=True
-            )
+K_train_slice = [(1, 10), (1000, 1010)]
+K_test_slice = [(1, 10), (1000, 1010)]
+
+edcr = EDCR.test(epsilon=0.1,
+                 K_train=K_train_slice,
+                 K_test=K_test_slice,
+                 print_pred_and_true=True)
 edcr.print_metrics(test=False, prior=True)
 edcr.print_metrics(test=True, prior=True)
 
 # get label 
-label_fine = data_preprocessing.get_labels(data_preprocessing.granularities[0])
-label_coarse = data_preprocessing.get_labels(data_preprocessing.granularities[1])
+label_fine = data_preprocessing.get_labels(data_preprocessing.granularities['fine'])
+label_coarse = data_preprocessing.get_labels(data_preprocessing.granularities['coarse'])
 
 
 print(utils.blue_text("=" * 50 + "test get_where_label_is_l" + "=" * 50))
 
 # Test 1
 
-label_Tornado = label_fine[23]
+label_Tornado = label_fine['Tornado']
 
-print(f'label is: {label_Tornado._l_str}, granularity: {label_Tornado.g}, label_index: {label_Tornado.index}')
+print(f'label is: {label_Tornado}, granularity: {label_Tornado.g}, label_index: {label_Tornado.index}')
 
 except_result_1 = 3
 
