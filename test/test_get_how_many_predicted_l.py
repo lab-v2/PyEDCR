@@ -1,11 +1,10 @@
 from PyEDCR import EDCR
 import data_preprocessing
 import warnings
-import numpy as np
 import utils
 
 # This will silence all warnings, including ones unrelated to your evaluation.
-# Use this approach with caution!
+# Use this approach with caution
 warnings.filterwarnings('ignore')
 
 # This is index for train fine true data:

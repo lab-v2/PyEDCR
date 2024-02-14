@@ -329,12 +329,19 @@ class EDCR:
             fg = data_preprocessing.fine_grain_classes_str
             cg = data_preprocessing.coarse_grain_classes_str
 
-            print('\n'.join([(
+            print('\nTrain samples:\n' + '\n'.join([(
                 f'pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
                 f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
                 for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index
                 in zip(*list(instance.__train_pred_data.values()),
                        *data_preprocessing.get_ground_truths(test=False, K=instance.__K_train))]))
+
+            print('\nTest samples:\n' + '\n'.join([(
+                f'pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
+                f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
+                for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index
+                in zip(*list(instance.__test_pred_data.values()),
+                       *data_preprocessing.get_ground_truths(test=True, K=instance.__K_train))]))
 
         return instance
 
@@ -734,8 +741,8 @@ class EDCR:
         print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.__get_CON_l_CC(l=l, CC=CC_l)}, '
               f'P_l={self.train_precisions[l.g][l]}\n')
 
-        if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
-            CC_l = set()
+        # if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
+        #     CC_l = set()
 
         return l, CC_l
 
@@ -804,7 +811,7 @@ class EDCR:
         for altered_pred_data_l in altered_pred_granularity_datas.values():
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
-        self.__post_detection_rules_test_predictions[g] = altered_pred_granularity_data
+        self.__test_pred_data[g] = altered_pred_granularity_data
 
     def apply_correction_rules(self,
                                g: data_preprocessing.Granularity):
@@ -838,14 +845,14 @@ class EDCR:
                                                      l.index,
                                                      altered_pred_granularity_data)
 
-        self.__post_correction_rules_test_predictions[g] = altered_pred_granularity_data
+        self.__test_pred_data[g] = altered_pred_granularity_data
 
     def get_l_correction_rule_support_on_test(self,
                                               l: data_preprocessing.Label) -> float:
-        if l not in self.error_correction_rules:
+        if l not in self.error_detection_rules:
             return 0
 
-        r_l = self.error_correction_rules[l]
+        r_l = self.error_detection_rules[l]
         where_predicted_l = self.__get_where_predicted_l(test=True, l=l)
 
         where_any_pair_satisfied = r_l.get_where_any_pair_satisfied(test_pred_fine_data=
@@ -907,22 +914,27 @@ if __name__ == '__main__':
                 loss='BCE',
                 lr=0.0001,
                 num_epochs=20)
-    edcr.print_metrics(test=False, prior=True)
+    # edcr.print_metrics(test=False, prior=True)
     edcr.print_metrics(test=True, prior=True)
 
     for g in data_preprocessing.granularities.values():
         edcr.DetCorrRuleLearn(g=g)
 
-    print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
-           list(data_preprocessing.fine_grain_labels.values()) +
-           list(data_preprocessing.coarse_grain_labels.values())])
+    # print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
+    #        list(data_preprocessing.fine_grain_labels.values()) +
+    #        list(data_preprocessing.coarse_grain_labels.values())])
 
     for g in data_preprocessing.granularities:
         edcr.apply_detection_rules(g=g)
+
+        # edcr.print_metrics(test=True, prior=False)
+        # print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
+        # print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
+        # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
+        # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
+
         edcr.apply_correction_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)
-    print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
-    print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
-    print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
-    print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
+
+
