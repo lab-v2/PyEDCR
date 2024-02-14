@@ -777,7 +777,7 @@ class EDCR:
             if len(CC_l):
                 self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
             else:
-                print(utils.red_text('\n' + '#' * 10 + f' {l} has not error correction rule!\n'))
+                print(utils.red_text('\n' + '#' * 10 + f' {l} does not have an error correction rule!\n'))
 
     def apply_detection_rules(self,
                               g: data_preprocessing.Granularity):
@@ -909,16 +909,20 @@ if __name__ == '__main__':
     for g in data_preprocessing.granularities.values():
         edcr.DetCorrRuleLearn(g=g)
 
-    print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
-           list(data_preprocessing.fine_grain_labels.values()) +
-           list(data_preprocessing.coarse_grain_labels.values())])
+    support_values = [edcr.get_l_correction_rule_support_on_test(l=l) for l in
+                      list(data_preprocessing.fine_grain_labels.values()) +
+                      list(data_preprocessing.coarse_grain_labels.values())]
+    print(f'\nSupport values:\n{support_values}\n')
 
     for g in data_preprocessing.granularities:
         edcr.apply_detection_rules(g=g)
         edcr.apply_correction_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)
-    print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
+
+    fine_theoretical_precision_increases = (edcr.get_g_theoretical_precision_increase
+                                            (g=data_preprocessing.granularities['fine']))
+    print(f'Fine-grain theoretical precision increases:')
     print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
     print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
     print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
