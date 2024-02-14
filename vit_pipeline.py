@@ -18,7 +18,7 @@ vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 combined_results_path = fr'combined_results'
 individual_results_path = fr'individual_results'
-cwd = pathlib.Path(__file__).parent.resolve()
+
 scheduler_step_size = 1
 
 

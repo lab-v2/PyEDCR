@@ -8,7 +8,10 @@ import pathlib
 import typing
 import abc
 
-data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+current_file_location = pathlib.Path(__file__).parent.resolve()
+os.chdir(current_file_location)
+
+data_file_path = r'data/WEO_Data_Sheet.xlsx'
 dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
 fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
@@ -18,11 +21,11 @@ granularities_str = ['fine', 'coarse']
 
 # Data for our use case
 
-test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
-test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
+test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
+test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
 
-train_true_fine_data = np.load(r'train_fine/train_true_fine.npy')
-train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
+train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
+train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
 
 
 def is_monotonic(arr: np.array) -> bool:

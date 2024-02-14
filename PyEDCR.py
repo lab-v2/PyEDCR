@@ -109,7 +109,7 @@ class EDCR:
         def __eq__(self, other):
             return self.__hash__() == other.__hash__()
 
-    class _Rule(typing.Callable, abc.ABC):
+    class _Rule(typing.Callable, typing.Sized, abc.ABC):
         """Represents a rule for evaluating predictions based on conditions and labels.
 
         :param l: The label associated with the rule.
@@ -140,8 +140,15 @@ class EDCR:
         @abc.abstractmethod
         def __call__(self,
                      test_pred_fine_data: np.array,
-                     test_pred_coarse_data: np.array) -> typing.Union[bool, np.array]:
+                     test_pred_coarse_data: np.array) -> np.array:
             pass
+
+        @property
+        def C_l(self):
+            return self._C_l
+
+        def __len__(self):
+            return len(self._C_l)
 
     class ErrorDetectionRule(_Rule):
         def __init__(self,
@@ -158,7 +165,7 @@ class EDCR:
 
         def __call__(self,
                      test_pred_fine_data: np.array,
-                     test_pred_coarse_data: np.array) -> typing.Union[bool, np.array]:
+                     test_pred_coarse_data: np.array) -> np.array:
             """Infer the detection rule based on the provided prediction data.
 
             :param test_pred_fine_data: The fine-grained prediction data.
@@ -179,9 +186,6 @@ class EDCR:
 
         def __str__(self) -> str:
             return '\n'.join(f'error_{self._l}(x) <- pred_{self._l}(x) ^ {cond}(x)' for cond in self._C_l)
-
-        def __len__(self):
-            return len(self._C_l)
 
     class ErrorCorrectionRule(_Rule):
         def __init__(self,
@@ -285,19 +289,25 @@ class EDCR:
                                    for l in data_preprocessing.get_labels(g).values()}.
                                   union({EDCR.ConsistencyCondition()}))
 
-        self.__train_precisions = {g: precision_score(y_true=data_preprocessing.get_ground_truths(test=False,
-                                                                                                  K=self.__K_train,
-                                                                                                  g=g),
-                                                      y_pred=self.__train_pred_data[g],
-                                                      average=None)
-                                   for g in data_preprocessing.granularities.values()}
+        self.train_precisions = {}
+        self.train_recalls = {}
 
-        self.__train_recalls = {g: recall_score(y_true=data_preprocessing.get_ground_truths(test=False,
-                                                                                            K=self.__K_train,
-                                                                                            g=g),
-                                                y_pred=self.__train_pred_data[g],
-                                                average=None)
-                                for g in data_preprocessing.granularities}
+        for g in data_preprocessing.granularities.values():
+            p_g = precision_score(y_true=data_preprocessing.get_ground_truths(test=False,
+                                                                              K=self.__K_train,
+                                                                              g=g),
+                                  y_pred=self.__train_pred_data[g],
+                                  average=None,
+                                  labels=range(len(data_preprocessing.get_labels(g))))
+            self.train_precisions[g] = {l: p_g[l.index] for l in data_preprocessing.get_labels(g).values()}
+
+            r_g = recall_score(y_true=data_preprocessing.get_ground_truths(test=False,
+                                                                           K=self.__K_train,
+                                                                           g=g),
+                               y_pred=self.__train_pred_data[g],
+                               average=None,
+                               labels=range(len(data_preprocessing.get_labels(g))))
+            self.train_recalls[g] = {l: r_g[l.index] for l in data_preprocessing.get_labels(g).values()}
 
         self.rules: dict[str, dict[data_preprocessing.Label, EDCR.Rule]] = {'error_detections': {},
                                                                             'error_corrections': {}}
@@ -336,11 +346,21 @@ class EDCR:
 
         return instance
 
-    def __get_predictions(self,
-                          test: bool,
-                          g: data_preprocessing.Granularity = None) -> typing.Union[np.array, tuple[np.array]]:
+    @staticmethod
+    def get_C_str(CC: set[_Condition]) -> str:
+        return '{' + ', '.join(str(obj) for obj in CC) + '}'
+
+    @staticmethod
+    def get_CC_str(CC: set[(_Condition, data_preprocessing.Label)]) -> str:
+        return ('{' + ', '.join(['(' + ', '.join(item_repr) + ')' for item_repr in
+                                 [[str(obj) for obj in item] for item in CC]]) + '}')
+
+    def get_predictions(self,
+                        test: bool,
+                        g: data_preprocessing.Granularity = None) -> typing.Union[np.array, tuple[np.array]]:
         """Retrieves prediction data based on specified test/train mode.
 
+        :param g:
         :param test: True for test data, False for training data.
         :return: Fine-grained and coarse-grained prediction data.
         """
@@ -353,7 +373,7 @@ class EDCR:
         return pred_fine_data, pred_coarse_data
 
     def test_get_predictions(self):
-        assert np.all(self.__get_predictions(test=True, g=data_preprocessing.granularities['fine']) ==
+        assert np.all(self.get_predictions(test=True, g=data_preprocessing.granularities['fine']) ==
                       np.load('test/test_pred_fine.npy'))
 
     def get_where_label_is_l(self,
@@ -381,7 +401,7 @@ class EDCR:
         data = self.get_where_label_is_l(pred=pred,
                                            test=test,
                                            l=l)
-        assert (np.all(data == expected_result))
+        assert np.all(data == expected_result)
 
     def __get_where_predicted_l(self,
                                 test: bool,
@@ -418,7 +438,7 @@ class EDCR:
         :param prior:
         :param test: True to use test data, False to use training data.
         """
-        pred_fine_data, pred_coarse_data = self.__get_predictions(test=test) if (not test) or prior else \
+        pred_fine_data, pred_coarse_data = self.get_predictions(test=test) if (not test) or prior else \
             [self.__post_correction_rules_test_predictions[g] for g in data_preprocessing.granularities.values()]
         true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.__K_test) if test \
                                                 else data_preprocessing.get_ground_truths(test=test, K=self.__K_train) 
@@ -453,6 +473,7 @@ class EDCR:
                                          expected_result: np.array):
         data = self.__get_where_predicted_correct(test=test, g=g)
         assert(np.all(data == expected_result))
+
     def __get_where_predicted_incorrect(self,
                                         test: bool,
                                         g: data_preprocessing.Granularity) -> np.array:
@@ -491,7 +512,7 @@ class EDCR:
     @staticmethod
     def _get_where_any_conditions_satisfied(C: set[_Condition],
                                             fine_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                            coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
+                                            coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> np.array:
         """Checks where any given conditions are satisfied.
 
         :param C: A set of `Condition` objects.
@@ -510,6 +531,19 @@ class EDCR:
 
         return any_condition_satisfied
 
+    def test_get_where_any_conditions_satisfied(self,
+                                                C: set[_Condition],
+                                                fine_data: typing.Union[np.array, typing.Iterable[np.array]],
+                                                coarse_data: typing.Union[np.array, typing.Iterable[np.array]],
+                                                expected_result: np.array,
+                                                print_result: bool = False):
+        result = self._get_where_any_conditions_satisfied(C=C,
+                                                          fine_data=fine_data,
+                                                          coarse_data=coarse_data)
+        if print_result:
+            print(result)
+        assert np.all(result == expected_result)
+
     def __get_NEG_l_C(self,
                       l: data_preprocessing.Label,
                       C: set[_Condition]) -> int:
@@ -520,7 +554,7 @@ class EDCR:
         :return: The number of instances that is true negative and satisfying all conditions.
         """
         where_train_tp_l = self.__get_where_train_tp_l(l=l)
-        train_pred_fine_data, train_pred_coarse_data = self.__get_predictions(test=False)
+        train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
         where_any_conditions_satisfied_on_train = (
             self._get_where_any_conditions_satisfied(C=C,
                                                      fine_data=train_pred_fine_data,
@@ -529,12 +563,12 @@ class EDCR:
 
         return NEG_l
     
-    def test_get_NEG_l(self,
+    def test_get_NEG_l_C(self,
                         l: data_preprocessing.Label,
                         C: set[_Condition],
                         expected_result: float,
                         error_threshold: float = 1e-07):
-        data = self.__get_NEG_l(l=l, C=C)
+        data = self.__get_NEG_l_C(l=l, C=C)
         assert(math.fabs(data - expected_result) < error_threshold)
 
     def __get_POS_l_C(self,
@@ -548,7 +582,7 @@ class EDCR:
         :return: The number of instances that are false negative and satisfying some conditions.
         """
         where_train_fp_l = self.__get_where_train_fp_l(l=l)
-        train_pred_fine_data, train_pred_coarse_data = self.__get_predictions(test=False)
+        train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
         where_any_conditions_satisfied_on_train = (
             self._get_where_any_conditions_satisfied(C=C,
                                                      fine_data=train_pred_fine_data,
@@ -567,7 +601,7 @@ class EDCR:
 
     def __get_BOD_CC(self,
                      CC: set[(_Condition, data_preprocessing.Label)]) -> (int, np.array):
-        train_fine_pred_data, train_coarse_pred_data = self.__get_predictions(test=False)
+        train_fine_pred_data, train_coarse_pred_data = self.get_predictions(test=False)
         where_any_pair_is_satisfied_in_train_pred = np.zeros_like(train_fine_pred_data)
 
         for cond, l_prime in CC:
@@ -635,8 +669,8 @@ class EDCR:
         N_l = self.__get_how_many_predicted_l(test=False, l=l)
 
         if N_l:
-            P_l = self.__train_precisions[l.g][l.index]
-            R_l = self.__train_recalls[l.g][l.index]
+            P_l = self.train_precisions[l.g][l]
+            R_l = self.train_recalls[l.g][l]
             q_l = self.__epsilon * N_l * P_l / R_l
 
             DC_star = {cond for cond in self.__condition_datas if self.__get_NEG_l_C(l=l, C={cond}) <= q_l}
@@ -657,6 +691,13 @@ class EDCR:
 
         return DC_l
 
+    def test_DetRuleLearn(self,
+                          l: data_preprocessing.Label,
+                          expected_result: set[_Condition]):
+        result = self.__DetRuleLearn(l=l)
+        print(self.get_C_str(result))
+        assert result == expected_result
+
     def _CorrRuleLearn(self,
                        l: data_preprocessing.Label,
                        CC_all: set[(_Condition, data_preprocessing.Label)]) -> \
@@ -670,27 +711,27 @@ class EDCR:
         """
         CC_l = set()
         CC_l_prime = CC_all.copy()
-        CC_sorted = sorted(CC_all, key=lambda cond_l: self.__get_CON_l_CC(l=l, CC={cond_l}), reverse=True)
+        CC_sorted = sorted(CC_all, key=lambda cond_and_l: self.__get_CON_l_CC(l=l, CC={cond_and_l}), reverse=True)
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
-            for cond_l in CC_sorted:
-                a = self.__get_CON_l_CC(l=l, CC=CC_l.union({cond_l})) - self.__get_CON_l_CC(l=l, CC=CC_l)
-                b = (self.__get_CON_l_CC(l=l, CC=CC_l_prime.difference({cond_l})) -
+            for cond_and_l in CC_sorted:
+                a = self.__get_CON_l_CC(l=l, CC=CC_l.union({cond_and_l})) - self.__get_CON_l_CC(l=l, CC=CC_l)
+                b = (self.__get_CON_l_CC(l=l, CC=CC_l_prime.difference({cond_and_l})) -
                      self.__get_CON_l_CC(l=l, CC=CC_l_prime))
 
                 if a >= b:
-                    CC_l = CC_l.union({cond_l})
+                    CC_l = CC_l.union({cond_and_l})
                 else:
-                    CC_l_prime = CC_l_prime.difference({cond_l})
+                    CC_l_prime = CC_l_prime.difference({cond_and_l})
 
                 if utils.is_local():
                     progress_bar.update(1)
 
-        print(f'\n{l}: len(CC_l)={len(CC_l)}, CON_l_CC={self.__get_CON_l_CC(l=l, CC=CC_l)}, '
-              f'P_l={self.__train_precisions[l.g][l.index]}\n')
+        print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.__get_CON_l_CC(l=l, CC=CC_l)}, '
+              f'P_l={self.train_precisions[l.g][l]}\n')
 
-        # if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.__train_precisions[l.g][l.index]:
-        #     CC_l = set()
+        if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
+            CC_l = set()
 
         return l, CC_l
 
@@ -707,8 +748,9 @@ class EDCR:
         with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
             for l in granularity_labels:
                 DC_l = self.__DetRuleLearn(l=l)
-                error_correction_rule_l = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
-                self.rules['error_detections'][l] = error_correction_rule_l
+
+                if len(DC_l):
+                    self.error_detection_rules[l] = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
 
                 for cond_l in DC_l:
                     if not (isinstance(cond_l, EDCR.PredCondition) and cond_l.l == l):
@@ -729,7 +771,7 @@ class EDCR:
             if len(CC_l):
                 self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
             else:
-                print('#' * 10 + str(l))
+                print(utils.red_text('\n' + '#' * 10 + f' {l} has not error correction rule!\n'))
 
     def apply_detection_rules(self,
                               g: data_preprocessing.Granularity):
@@ -739,7 +781,7 @@ class EDCR:
 
         :params g: The granularity of the predictions to be processed.
         """
-        test_pred_fine_data, test_pred_coarse_data = self.__get_predictions(test=True)
+        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
 
         altered_pred_granularity_datas = {}
         for l, rule_l in self.error_detection_rules.items():
@@ -747,7 +789,7 @@ class EDCR:
                 altered_pred_granularity_datas[l] = rule_l(test_pred_fine_data=test_pred_fine_data,
                                                            test_pred_coarse_data=test_pred_coarse_data)
 
-        altered_pred_granularity_data = self.__get_predictions(test=True, g=g)
+        altered_pred_granularity_data = self.get_predictions(test=True, g=g)
 
         for altered_pred_data_l in altered_pred_granularity_datas.values():
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
@@ -762,7 +804,7 @@ class EDCR:
         :param g: The granularity of the predictions to be processed.
         """
 
-        test_pred_fine_data, test_pred_coarse_data = self.__get_predictions(test=True)
+        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
 
         altered_pred_granularity_datas = {}
         for l, rule_l in self.error_correction_rules.items():
@@ -770,7 +812,7 @@ class EDCR:
                 altered_pred_granularity_datas[l] = rule_l(test_pred_fine_data=test_pred_fine_data,
                                                            test_pred_coarse_data=test_pred_coarse_data)
 
-        altered_pred_granularity_data = self.__get_predictions(test=True, g=g)
+        altered_pred_granularity_data = self.get_predictions(test=True, g=g)
 
         collision_array = np.zeros_like(altered_pred_granularity_data)
 
@@ -788,11 +830,10 @@ class EDCR:
 
         self.__post_correction_rules_test_predictions[g] = altered_pred_granularity_data
 
-
     def get_l_correction_rule_support_on_test(self,
                                               l: data_preprocessing.Label) -> float:
-        # if l not in self.error_correction_rules:
-        #     return 0
+        if l not in self.error_correction_rules:
+            return 0
 
         r_l = self.error_correction_rules[l]
         where_predicted_l = self.__get_where_predicted_l(test=True, l=l)
@@ -810,6 +851,35 @@ class EDCR:
 
         return s_l
 
+    def get_l_correction_rule_confidence_on_test(self,
+                                                 l: data_preprocessing.Label) -> float:
+        if l not in self.error_correction_rules:
+            return 0
+
+        r_l = self.error_correction_rules[l]
+        return self.__get_CON_l_CC(l=l, CC=r_l.C_l)
+
+    def get_l_theoretical_precision_increase(self,
+                                             l: data_preprocessing.Label) -> float:
+        s_l = self.get_l_correction_rule_support_on_test(l=l)
+        c_l = self.get_l_correction_rule_confidence_on_test(l=l)
+        p_l = precision_score(y_true=data_preprocessing.get_ground_truths(test=True,
+                                                                          K=self.__K,
+                                                                          g=l.g),
+                              y_pred=self.__test_pred_data[l.g],
+                              labels=range(len(data_preprocessing.get_labels(g))),
+                              average=None)[l.index]
+
+        return s_l / (1 - s_l) * (c_l + p_l - 1)
+
+    def get_g_theoretical_precision_increase(self,
+                                             g: data_preprocessing.Granularity):
+        return np.mean([self.get_l_theoretical_precision_increase(l=l)
+                        for l in data_preprocessing.get_labels(g).values()])
+
+
+
+
 if __name__ == '__main__':
     edcr = EDCR(epsilon=0.1,
                 main_model_name='vit_b_16',
@@ -823,11 +893,13 @@ if __name__ == '__main__':
     for g in data_preprocessing.granularities.values():
         edcr.DetCorrRuleLearn(g=g)
 
-    print([edcr.get_l_correction_rule_support_on_test(l=l) for l in list(data_preprocessing.fine_grain_labels.values())
-           + list(data_preprocessing.coarse_grain_labels.values())])
+    print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
+           list(data_preprocessing.fine_grain_labels.values()) + list(data_preprocessing.coarse_grain_labels.values())])
 
     for g in data_preprocessing.granularities:
         edcr.apply_detection_rules(g=g)
         edcr.apply_correction_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)
+    print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
+    print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
