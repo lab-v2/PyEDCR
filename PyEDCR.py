@@ -322,12 +322,19 @@ class EDCR:
             fg = data_preprocessing.fine_grain_classes_str
             cg = data_preprocessing.coarse_grain_classes_str
 
-            print('\n'.join([(
-                f'pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
+            print('Train labels:\n' + '\n'.join([(
+                f'{i}: pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
                 f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
-                for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index
-                in zip(*list(instance.__train_pred_data.values()),
-                       *data_preprocessing.get_ground_truths(test=False, K=instance.__K))]))
+                for i, (fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index)
+                in enumerate(zip(*list(instance.__train_pred_data.values()),
+                                 *data_preprocessing.get_ground_truths(test=False, K=instance.__K)))]))
+
+            print('\nTest labels:\n' + '\n'.join([(
+                f'{i}: pred: {(fg[fine_prediction_index], cg[coarse_prediction__index])}, '
+                f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
+                for i, (fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index)
+                in enumerate(zip(*list(instance.__test_pred_data.values()),
+                                 *data_preprocessing.get_ground_truths(test=True, K=instance.__K)))]))
 
         return instance
 
@@ -390,6 +397,13 @@ class EDCR:
                                 test: bool,
                                 l: data_preprocessing.Label) -> np.array:
         return self.__get_where_label_is_l(pred=True, test=test, l=l)
+
+    def test_get_where_predicted_l(self,
+                                   test: bool,
+                                   l: data_preprocessing.Label,
+                                   expected_result: np.array):
+        result = self.__get_where_predicted_l(test=test, l=l)
+        assert np.all(result == expected_result)
 
     def __get_how_many_predicted_l(self,
                                    test: bool,
