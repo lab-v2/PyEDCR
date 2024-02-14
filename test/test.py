@@ -21,6 +21,8 @@ l_Air_Defense, l_BMD_coarse, l_BMP, l_BTR, l_MT_LB_coarse, l_SPA, l_Tank = cg_l
  l_Iskander, l_MT_LB_fine, l_Pantsir_S1, l_RS_24, l_T_14, l_T_62, l_T_64, l_T_72, l_T_80, l_T_90, l_TOS_1, l_Tornado) \
     = fg_l
 
+consistency_constraint = EDCR.ConsistencyCondition()
+
 
 def run_union_and_difference_test():
     CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP)}

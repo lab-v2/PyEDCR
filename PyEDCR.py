@@ -168,7 +168,7 @@ class EDCR:
 
             :param test_pred_fine_data: The fine-grained prediction data.
             :param test_pred_coarse_data: The coarse-grained prediction data.
-            :return: modified prediction contains -1 at examples that have errors for a specific granularity as
+            :return: modified prediction contains -1 at examples that have errors for a specific granularity as 
             derived from Label l.
             """
             test_pred_granularity_data, where_predicted_l = self._get_datas(test_pred_fine_data=test_pred_fine_data,
@@ -345,6 +345,7 @@ class EDCR:
                           g: data_preprocessing.Granularity = None) -> typing.Union[np.array, tuple[np.array]]:
         """Retrieves prediction data based on specified test/train mode.
 
+        :param g:
         :param test: True for test data, False for training data.
         :return: Fine-grained and coarse-grained prediction data.
         """
@@ -383,7 +384,7 @@ class EDCR:
         data = self.__get_where_label_is_l(pred=pred,
                                            test=test,
                                            l=l)
-        assert (np.all(data == expected_result))
+        assert np.all(data == expected_result)
 
     def __get_where_predicted_l(self,
                                 test: bool,
@@ -467,30 +468,52 @@ class EDCR:
     def __get_where_train_tp_l(self,
                                l: data_preprocessing.Label) -> np.array:
         """ Retrieves indices of training instances where the true label is l and the model correctly predicted l.
-
+        
         :param l: The label to query.
         :return: A boolean array indicating which training instances satisfy the criteria.
         """
         return self.__get_where_predicted_l(test=False, l=l) * self.__get_where_predicted_correct(test=False, g=l.g)
 
+    def test_get_where_train_tp_l(self,
+                                  l: data_preprocessing.Label,
+                                  expected_result: np.array,
+                                  print_result: bool = False):
+        result = self.__get_where_train_tp_l(l)
+
+        if print_result:
+            print(result)
+
+        assert np.all(result == expected_result)
+
     def __get_where_train_fp_l(self,
                                l: data_preprocessing.Label) -> np.array:
         """ Retrieves indices of training instances where the true label is l and the model incorrectly predicted l.
-
+        
         :param l: The label to query.
         :return: A boolean array indicating which training instances satisfy the criteria.
         """
         return self.__get_where_predicted_l(test=False, l=l) * self.__get_where_predicted_incorrect(test=False, g=l.g)
 
+    def test_get_where_train_fp_l(self,
+                                  l: data_preprocessing.Label,
+                                  expected_result: np.array,
+                                  print_result: bool = False):
+        result = self.__get_where_train_fp_l(l)
+
+        if print_result:
+            print(result)
+
+        assert np.all(result == expected_result)
+
     @staticmethod
     def _get_where_any_conditions_satisfied(C: set[_Condition],
                                             fine_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                            coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> bool:
+                                            coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> np.array:
         """Checks where any given conditions are satisfied.
 
         :param C: A set of `Condition` objects.
-        :fine_data: Data that used for Condition having FineGrainLabel l
-        :coarse_data: Data that used for Condition having CoarseGrainLabel l
+        :fine_data: Data that used for Condition having FineGrainLabel l 
+        :coarse_data: Data that used for Condition having CoarseGrainLabel l 
         :return: A NumPy array with True values if the example satisfy any conditions and False otherwise.
         """
         any_condition_satisfied = np.zeros_like(fine_data)
@@ -499,6 +522,19 @@ class EDCR:
             any_condition_satisfied |= cond(fine_data=fine_data, coarse_data=coarse_data)
 
         return any_condition_satisfied
+
+    def test_get_where_any_conditions_satisfied(self,
+                                                C: set[_Condition],
+                                                fine_data: typing.Union[np.array, typing.Iterable[np.array]],
+                                                coarse_data: typing.Union[np.array, typing.Iterable[np.array]],
+                                                expected_result: np.array,
+                                                print_result: bool = False):
+        result = self._get_where_any_conditions_satisfied(C=C,
+                                                          fine_data=fine_data,
+                                                          coarse_data=coarse_data)
+        if print_result:
+            print(result)
+        assert np.all(result == expected_result)
 
     def __get_NEG_l_C(self,
                       l: data_preprocessing.Label,
@@ -649,7 +685,7 @@ class EDCR:
                        l: data_preprocessing.Label,
                        CC_all: set[(_Condition, data_preprocessing.Label)]) -> \
             (data_preprocessing.Label, [tuple[_Condition, data_preprocessing.Label]]):
-        """Learns error correction rules for a specific label and granularity. These rules associate conditions
+        """Learns error correction rules for a specific label and granularity. These rules associate conditions 
         with alternative labels that are more likely to be correct when those conditions are met.
 
         :param l: The label of interest.
@@ -751,8 +787,8 @@ class EDCR:
 
     def apply_correction_rules(self,
                                g: data_preprocessing.Granularity):
-        """Applies error correction rules to test predictions for a given granularity. If a rule is satisfied for a
-        particular label, the prediction data for that label is corrected using the rule's logic.
+        """Applies error correction rules to test predictions for a given granularity. If a rule is satisfied for a 
+        particular label, the prediction data for that label is corrected using the rule's logic. 
 
         :param g: The granularity of the predictions to be processed.
         """
@@ -812,22 +848,35 @@ class EDCR:
         r_l = self.error_correction_rules[l]
         return self.__get_CON_l_CC(l=l, CC=r_l.C_l)
 
+    def get_l_test_precision_score(self,
+                                   l: data_preprocessing):
+        return precision_score(y_true=data_preprocessing.get_ground_truths(test=True,
+                                                                           K=self.__K,
+                                                                           g=l.g),
+                               y_pred=self.__test_pred_data[l.g],
+                               labels=range(len(data_preprocessing.get_labels(l.g))),
+                               average=None)[l.index]
+
     def get_l_theoretical_precision_increase(self,
                                              l: data_preprocessing.Label) -> float:
         s_l = self.get_l_correction_rule_support_on_test(l=l)
         c_l = self.get_l_correction_rule_confidence_on_test(l=l)
-        p_l = precision_score(y_true=data_preprocessing.get_ground_truths(test=True,
-                                                                          K=self.__K,
-                                                                          g=l.g),
-                              y_pred=self.__test_pred_data[l.g],
-                              average=None)[l.index]
+        p_l = self.get_l_test_precision_score(l=l)
 
         return s_l / (1 - s_l) * (c_l + p_l - 1)
 
-    def get_mean_theoretical_precision_increase(self,
-                                                g: data_preprocessing.Granularity):
+    def get_g_theoretical_precision_increase(self,
+                                             g: data_preprocessing.Granularity):
         return np.mean([self.get_l_theoretical_precision_increase(l=l)
                         for l in data_preprocessing.get_labels(g).values()])
+
+    def get_theorem_1_condition_for_l(self,
+                                      l: data_preprocessing.Label):
+        return self.get_l_correction_rule_support_on_test(l=l) + self.get_l_test_precision_score(l=l) <= 1
+
+    def get_theorem_1_condition_for_g(self,
+                                      g: data_preprocessing.Granularity):
+        return np.array([self.get_theorem_1_condition_for_l(l=l) for l in data_preprocessing.get_labels(g).values()])
 
 
 if __name__ == '__main__':
@@ -844,12 +893,15 @@ if __name__ == '__main__':
         edcr.DetCorrRuleLearn(g=g)
 
     print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
-           list(data_preprocessing.fine_grain_labels.values()) + list(data_preprocessing.coarse_grain_labels.values())])
+           list(data_preprocessing.fine_grain_labels.values()) +
+           list(data_preprocessing.coarse_grain_labels.values())])
 
     for g in data_preprocessing.granularities:
         edcr.apply_detection_rules(g=g)
         edcr.apply_correction_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)
-    print(edcr.get_mean_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
-    print(edcr.get_mean_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
+    print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
+    print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
+    print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
+    print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
