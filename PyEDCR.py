@@ -474,6 +474,18 @@ class EDCR:
         """
         return self.__get_where_predicted_l(test=False, l=l) * self.__get_where_predicted_correct(test=False, g=l.g)
 
+
+    def test_get_where_train_tp_l(self,
+                                  l: data_preprocessing.Label,
+                                  expected_result: np.array,
+                                  print_result: bool = False):
+        result = self.__get_where_train_tp_l(l)
+
+        if print_result:
+            print(result)
+
+        assert np.all(result == expected_result)
+
     def __get_where_train_fp_l(self,
                                l: data_preprocessing.Label) -> np.array:
         """ Retrieves indices of training instances where the true label is l and the model incorrectly predicted l.
@@ -482,6 +494,17 @@ class EDCR:
         :return: A boolean array indicating which training instances satisfy the criteria.
         """
         return self.__get_where_predicted_l(test=False, l=l) * self.__get_where_predicted_incorrect(test=False, g=l.g)
+
+    def test_get_where_train_fp_l(self,
+                                  l: data_preprocessing.Label,
+                                  expected_result: np.array,
+                                  print_result: bool = False):
+        result = self.__get_where_train_fp_l(l)
+
+        if print_result:
+            print(result)
+
+        assert np.all(result == expected_result)
 
     @staticmethod
     def _get_where_any_conditions_satisfied(C: set[_Condition],
@@ -826,16 +849,19 @@ class EDCR:
         r_l = self.error_correction_rules[l]
         return self.__get_CON_l_CC(l=l, CC=r_l.C_l)
 
+    def get_l_test_precision_score(self,
+                                   l: data_preprocessing):
+        return precision_score(y_true=data_preprocessing.get_ground_truths(test=True,
+                                                                          K=self.__K,
+                                                                          g=l.g),
+                              y_pred=self.__test_pred_data[l.g],
+                              labels=range(len(data_preprocessing.get_labels(l.g))),
+                              average=None)[l.index]
     def get_l_theoretical_precision_increase(self,
                                              l: data_preprocessing.Label) -> float:
         s_l = self.get_l_correction_rule_support_on_test(l=l)
         c_l = self.get_l_correction_rule_confidence_on_test(l=l)
-        p_l = precision_score(y_true=data_preprocessing.get_ground_truths(test=True,
-                                                                          K=self.__K,
-                                                                          g=l.g),
-                              y_pred=self.__test_pred_data[l.g],
-                              labels=range(len(data_preprocessing.get_labels(g))),
-                              average=None)[l.index]
+        p_l = self.get_l_test_precision_score(l=l)
 
         return s_l / (1 - s_l) * (c_l + p_l - 1)
 
@@ -844,7 +870,14 @@ class EDCR:
         return np.mean([self.get_l_theoretical_precision_increase(l=l)
                         for l in data_preprocessing.get_labels(g).values()])
 
+    def get_theorem_1_condition_for_l(self,
+                                      l: data_preprocessing.Label):
+        return self.get_l_correction_rule_support_on_test(l=l) + self.get_l_test_precision_score(l=l) <= 1
 
+
+    def get_theorem_1_condition_for_g(self,
+                                      g: data_preprocessing.Granularity):
+        return np.array([self.get_theorem_1_condition_for_l(l=l) for l in data_preprocessing.get_labels(g).values()])
 
 
 if __name__ == '__main__':
@@ -871,3 +904,5 @@ if __name__ == '__main__':
     edcr.print_metrics(test=True, prior=False)
     print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
     print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
+    print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
+    print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
