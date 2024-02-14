@@ -76,3 +76,4 @@ edcr.test_how_many_predicted_l(test=False,
                                expected_result=except_result_2)
 
 print(f"{method_str} method passed!")
+
