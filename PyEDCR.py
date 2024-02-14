@@ -570,8 +570,9 @@ class EDCR:
                          l: data_preprocessing.Label,
                          C: set[_Condition],
                          expected_result: int):
+        print(f'expected_result: {expected_result}')
         result = self.__get_NEG_l_C(l=l, C=C)
-        print(result)
+        print(f'actual result: {result}')
 
         assert result == expected_result
 
