@@ -8,6 +8,8 @@ import pathlib
 import typing
 import abc
 
+from typing import List
+
 current_file_location = pathlib.Path(__file__).parent.resolve()
 os.chdir(current_file_location)
 
@@ -21,15 +23,32 @@ granularities_str = ['fine', 'coarse']
 
 # Data for our use case
 
-test_true_fine_data = np.load(r'test_fine/test_true_fine.npy')
-test_true_coarse_data = np.load(r'test_coarse/test_true_coarse.npy')
+test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
+test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
 
-train_true_fine_data = np.load(r'train_fine/train_true_fine.npy')
-train_true_coarse_data = np.load(r'train_coarse/train_true_coarse.npy')
+train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
+train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
 
 
 def is_monotonic(arr: np.array) -> bool:
     return np.all(arr[:-1] <= arr[1:])
+
+
+def expand_ranges(tuples):
+    """
+    Expands a list of tuples of integers into a list containing all numbers within the ranges.
+    :param tuples: A list of tuples of integers representing ranges (start, end).
+    :returns: A list containing all numbers within the specified ranges.
+    """
+
+    result = []
+    for start, end in tuples:
+        # Ensure start is less than or equal to end
+        if start > end:
+            start, end = end, start
+        # Add all numbers from start (inclusive) to end (exclusive)
+        result.extend(range(start, end + 1))
+    return result
 
 
 def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
@@ -78,8 +97,10 @@ class Granularity(typing.Hashable):
 
 
 def get_ground_truths(test: bool,
-                      K: int,
+                      K: List[int] = None,
                       g: Granularity = None) -> np.array:
+    if K is None:
+        K = [(0, len(test_true_coarse_data) - 1)]
     if test:
         true_fine_data = test_true_fine_data
         true_coarse_data = test_true_coarse_data
@@ -88,9 +109,9 @@ def get_ground_truths(test: bool,
         true_coarse_data = train_true_coarse_data
 
     if g is None:
-        return true_fine_data, true_coarse_data
+        return true_fine_data[K], true_coarse_data[K]
     else:
-        return true_fine_data if str(g) == 'fine' else true_coarse_data
+        return true_fine_data[K] if str(g) == 'fine' else true_coarse_data[K]
 
 
 granularities = {g_str: Granularity(g_str=g_str) for g_str in granularities_str}
@@ -273,9 +294,9 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path],
     datasets = {f'{train_or_test}': CombinedImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
                                                                 transform=get_dataset_transforms(
                                                                     train_or_test=train_or_test))
-                if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                               transform=
-                                                               get_dataset_transforms(train_or_test=train_or_test))
+    if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
+                                                   transform=
+                                                   get_dataset_transforms(train_or_test=train_or_test))
                 for train_or_test in ['train', 'test']}
 
     print(f"Total number of train images: {len(datasets['train'])}\n"
@@ -310,7 +331,6 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
 
 def get_one_hot_encoding(arr: np.array) -> np.array:
     return np.eye(np.max(arr) + 1)[arr].T
-
 
 
 for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
