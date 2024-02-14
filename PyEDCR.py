@@ -861,7 +861,8 @@ if __name__ == '__main__':
         edcr.DetCorrRuleLearn(g=g)
 
     print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
-           list(data_preprocessing.fine_grain_labels.values()) + list(data_preprocessing.coarse_grain_labels.values())])
+           list(data_preprocessing.fine_grain_labels.values()) +
+           list(data_preprocessing.coarse_grain_labels.values())])
 
     for g in data_preprocessing.granularities:
         edcr.apply_detection_rules(g=g)
