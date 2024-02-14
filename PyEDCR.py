@@ -384,7 +384,7 @@ class EDCR:
         data = self.__get_where_label_is_l(pred=pred,
                                            test=test,
                                            l=l)
-        assert (np.all(data == expected_result))
+        assert np.all(data == expected_result)
 
     def __get_where_predicted_l(self,
                                 test: bool,
@@ -834,12 +834,13 @@ class EDCR:
                                                                           K=self.__K,
                                                                           g=l.g),
                               y_pred=self.__test_pred_data[l.g],
+                              labels=range(len(data_preprocessing.get_labels(g))),
                               average=None)[l.index]
 
         return s_l / (1 - s_l) * (c_l + p_l - 1)
 
-    def get_mean_theoretical_precision_increase(self,
-                                                g: data_preprocessing.Granularity):
+    def get_g_theoretical_precision_increase(self,
+                                             g: data_preprocessing.Granularity):
         return np.mean([self.get_l_theoretical_precision_increase(l=l)
                         for l in data_preprocessing.get_labels(g).values()])
 
@@ -867,5 +868,5 @@ if __name__ == '__main__':
         edcr.apply_correction_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)
-    print(edcr.get_mean_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
-    print(edcr.get_mean_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
+    print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
+    print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
