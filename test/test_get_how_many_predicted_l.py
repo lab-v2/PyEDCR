@@ -26,6 +26,15 @@ warnings.filterwarnings('ignore')
 # T-72: [1411, 1443]      T-80: [1444, 1499]      T-90: [1500, 1556]      TOS-1: [1557, 1590]
 # Tornado: [1591, 1620]
 
+# Coarse_to_fine dictionary
+# 'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
+# 'BMP': ['BMP-1', 'BMP-2', 'BMP-T15'],
+# 'BTR': ['BRDM', 'BTR-60', 'BTR-70', 'BTR-80'],
+# 'Tank': ['T-14', 'T-62', 'T-64', 'T-72', 'T-80', 'T-90'],
+# 'Self Propelled Artillery': ['2S19_MSTA', 'BM-30', 'D-30', 'Tornado', 'TOS-1'],
+# 'BMD': ['BMD'],
+# 'MT_LB': ['MT_LB']
+
 K_train_slice = [(1, 10), (400, 410)]
 K_test_slice = [(1, 10), (50, 60)]
 
