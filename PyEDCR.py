@@ -617,6 +617,12 @@ class EDCR:
 
     def __get_BOD_CC(self,
                      CC: set[(_Condition, data_preprocessing.Label)]) -> (int, np.array):
+        """Calculate the number of train samples that satisfy the body of the 2nd rule for some set of condition
+        class pair.
+
+        :param CC: A set of `Condition`-`Class` pair.
+        :return: The number of instances that satisfy the body of the 2nd rule and the boolean array it.
+        """
         train_fine_pred_data, train_coarse_pred_data = self.__get_predictions(test=False)
         where_any_pair_is_satisfied_in_train_pred = np.zeros_like(train_fine_pred_data)
 
@@ -630,20 +636,35 @@ class EDCR:
 
         return BOD_l, where_any_pair_is_satisfied_in_train_pred
 
-    def test_BOD_CC(self,
-                    CC: set[(_Condition, data_preprocessing.Label)],
-                    expected_result: float):
+    def test_get_BOD_CC(self,
+                        CC: set[(_Condition, data_preprocessing.Label)],
+                        expected_result: int):
+        print(f'expected_result: {expected_result}')
         res = self.__get_BOD_CC(CC=CC)[0]
-        print(res)
+        print(f'actual result: {res}')
         assert res == expected_result
 
     def __get_POS_l_CC(self,
                        l: data_preprocessing.Label,
                        where_any_pair_is_satisfied_in_train_pred: np.array) -> int:
+        """Calculate the number of train samples that satisfy the body of the 2nd rule and head
+        (ground truth is l) for a label l and some set of condition class pair.
+
+        :param where_any_pair_is_satisfied_in_train_pred: A boolean mask examples satisfy any `Condition`-`Class` pair.
+        :return: The number of instances that satisfy the body of the 2nd rule and the boolean array it.
+        """
         where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, l=l)
         POS_l_CC = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
 
         return POS_l_CC
+
+    def test_get_POS_l_CC(self,
+                        CC: set[(_Condition, data_preprocessing.Label)],
+                        expected_result: int):
+        print(f'expected_result: {expected_result}')
+        res = self.__get_BOD_CC(CC=CC)[0]
+        print(f'actual result: {res}')
+        assert res == expected_result
 
     def __get_CON_l_CC(self,
                        l: data_preprocessing.Label,

@@ -66,25 +66,20 @@ l_Air_Defense, l_BMD, l_BMP, l_BTR, l_MT_LB, l_SPA, l_Tank = cg_l
 
 # Test 1: No condition is satisfied
 
-label = l_Tank
-C = {pred_BM_30, pred_30N6E}
+CC = {(pred_BM_30, l_BMD), (pred_30N6E, l_Air_Defense)}
 
 except_result_1 = 0
 
-edcr.test_get_NEG_l_C(l=label,
-                      C=C,
-                      expected_result=except_result_1)
+edcr.test_get_BOD_CC(CC=CC,
+                     expected_result=except_result_1)
 
-# Test 2: all example satisfy 2 condition and false
+# Test 2: all example satisfy 2 condition
 
-label = l_BMD
-C = {pred_T_62, pred_T_14}
+CC = {(pred_RS_24, l_Tank), (pred_T_62, l_BMD)}
 
-except_result_2 = 1
+except_result_1 = 2
 
-edcr.test_get_NEG_l_C(l=label,
-                      C=C,
-                      expected_result=except_result_2)
-
+edcr.test_get_BOD_CC(CC=CC,
+                     expected_result=except_result_1)
 
 print(f"{method_str} method passed!")
