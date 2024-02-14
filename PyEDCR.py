@@ -246,7 +246,8 @@ class EDCR:
                  lr: typing.Union[str, float],
                  num_epochs: int,
                  epsilon: typing.Union[str, float],
-                 K: int = None):
+                 K_train: list((int, int)) = None,
+                 K_test:list((int, int)) = None):
         self.__main_model_name = main_model_name
         self.__combined = combined
         self.__loss = loss
@@ -264,15 +265,19 @@ class EDCR:
                                                     for g_str in data_preprocessing.granularities_str}
                       for test in [True, False]}
 
-        self.__K = K if K is not None else np.load(pred_paths['train']['fine']).shape[0]
+        self.__K_train = data_preprocessing.expand_ranges(K_train) if K_train is not None \
+                        else data_preprocessing.expand_ranges([(0,np.load(pred_paths['train']['fine']).shape[0] - 1)])
+        self.__K_test = data_preprocessing.expand_ranges(K_test) if K_test is not None \
+                        else data_preprocessing.expand_ranges([(0,np.load(pred_paths['test']['fine']).shape[0] - 1)])
+
         self.__T = np.load(pred_paths['train']['fine']).shape[0]
 
         self.__train_pred_data = {g: np.load(pred_paths['train']['fine']
-                                             if str(g) == 'fine' else pred_paths['train']['coarse'])[:self.__K]
+                                             if str(g) == 'fine' else pred_paths['train']['coarse'])[self.__K_train]
                                   for g in data_preprocessing.granularities.values()}
 
         self.__test_pred_data = {g: np.load(pred_paths['test']['fine']
-                                            if str(g) == 'fine' else pred_paths['test']['coarse'])[:self.__K]
+                                            if str(g) == 'fine' else pred_paths['test']['coarse'])[self.__K_test]
                                  for g in data_preprocessing.granularities.values()}
 
         self.__condition_datas = ({EDCR.PredCondition(l=l)
@@ -281,14 +286,14 @@ class EDCR:
                                   union({EDCR.ConsistencyCondition()}))
 
         self.__train_precisions = {g: precision_score(y_true=data_preprocessing.get_ground_truths(test=False,
-                                                                                                  K=self.__K,
+                                                                                                  K=self.__K_train,
                                                                                                   g=g),
                                                       y_pred=self.__train_pred_data[g],
                                                       average=None)
                                    for g in data_preprocessing.granularities.values()}
 
         self.__train_recalls = {g: recall_score(y_true=data_preprocessing.get_ground_truths(test=False,
-                                                                                            K=self.__K,
+                                                                                            K=self.__K_train,
                                                                                             g=g),
                                                 y_pred=self.__train_pred_data[g],
                                                 average=None)
@@ -303,7 +308,8 @@ class EDCR:
     @classmethod
     def test(cls,
              epsilon: float,
-             K: int,
+             K_train: list((int, int)) = None,
+             K_test: list((int, int)) = None,
              print_pred_and_true: bool = False) -> EDCR:
         instance = cls(main_model_name='vit_b_16',
                        combined=True,
@@ -311,9 +317,11 @@ class EDCR:
                        lr=0.0001,
                        num_epochs=20,
                        epsilon=epsilon,
-                       K=K)
+                       K_train=K_train,
+                       K_test=K_test)
 
-        print(f'Taking {instance.__K} / {instance.__T} train examples')
+        print(f'Taking {instance.__K_train} / {instance.__T} train examples')
+        print(f'Taking {instance.__K_test} / {instance.__T} test examples')
 
         if print_pred_and_true:
             fg = data_preprocessing.fine_grain_classes_str
@@ -324,7 +332,7 @@ class EDCR:
                 f'true: {(fg[fine_gt__index], cg[coarse_gt__index])}')
                 for fine_prediction_index, coarse_prediction__index, fine_gt__index, coarse_gt__index
                 in zip(*list(instance.__train_pred_data.values()),
-                       *data_preprocessing.get_ground_truths(test=False, K=instance.__K))]))
+                       *data_preprocessing.get_ground_truths(test=False, K=instance.__K_train))]))
 
         return instance
 
@@ -348,7 +356,7 @@ class EDCR:
         assert np.all(self.__get_predictions(test=True, g=data_preprocessing.granularities['fine']) ==
                       np.load('test/test_pred_fine.npy'))
 
-    def __get_where_label_is_l(self,
+    def get_where_label_is_l(self,
                                pred: bool,
                                test: bool,
                                l: data_preprocessing.Label) -> np.array:
@@ -358,8 +366,10 @@ class EDCR:
         :param l: The label to search for.
         :return: A boolean array indicating which instances have the given label.
         """
-        granularity_data = self.__get_predictions(test=test, g=l.g) if pred else \
-            (data_preprocessing.get_ground_truths(test=test, K=self.__K, g=l.g))
+        prediction = self.__get_predictions(test=test, g=l.g)
+        ground_truth = data_preprocessing.get_ground_truths(test=test, K=self.__K_test, g=l.g) if test \
+                            else data_preprocessing.get_ground_truths(test=test, K=self.__K_train, g=l.g)
+        granularity_data = prediction if pred else ground_truth
         where_label_is_l = np.equal(granularity_data, l.index)
         return where_label_is_l
 
@@ -368,7 +378,7 @@ class EDCR:
                                   test: bool,
                                   l: data_preprocessing.Label,
                                   expected_result: np.array):
-        data = self.__get_where_label_is_l(pred=pred,
+        data = self.get_where_label_is_l(pred=pred,
                                            test=test,
                                            l=l)
         assert (np.all(data == expected_result))
@@ -376,7 +386,7 @@ class EDCR:
     def __get_where_predicted_l(self,
                                 test: bool,
                                 l: data_preprocessing.Label) -> np.array:
-        return self.__get_where_label_is_l(pred=True, test=test, l=l)
+        return self.get_where_label_is_l(pred=True, test=test, l=l)
 
     def __get_how_many_predicted_l(self,
                                    test: bool,
@@ -410,7 +420,8 @@ class EDCR:
         """
         pred_fine_data, pred_coarse_data = self.__get_predictions(test=test) if (not test) or prior else \
             [self.__post_correction_rules_test_predictions[g] for g in data_preprocessing.granularities.values()]
-        true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.__K, )
+        true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.__K_test) if test \
+                                                else data_preprocessing.get_ground_truths(test=test, K=self.__K_train) 
 
         vit_pipeline.get_and_print_metrics(pred_fine_data=pred_fine_data,
                                            pred_coarse_data=pred_coarse_data,
@@ -432,8 +443,9 @@ class EDCR:
         :param g: The granularity level.
         :return: A mask with 1s for true positive instances, 0s otherwise.
         """
-        return np.equal(self.__get_predictions(test=test, g=g),
-                        data_preprocessing.get_ground_truths(test=test, K=self.__K, g=g))
+        ground_truth = data_preprocessing.get_ground_truths(test=test, K=self.__K_test, g=g) if test \
+                            else data_preprocessing.get_ground_truths(test=test, K=self.__K_train, g=g)
+        return np.equal(self.__get_predictions(test=test, g=g), ground_truth)
 
     def test_get_where_predicted_correct(self,
                                          test: bool,
@@ -578,7 +590,7 @@ class EDCR:
     def __get_POS_l_CC(self,
                        l: data_preprocessing.Label,
                        where_any_pair_is_satisfied_in_train_pred: np.array) -> int:
-        where_train_ground_truths_is_l = self.__get_where_label_is_l(pred=False, test=False, l=l)
+        where_train_ground_truths_is_l = self.get_where_label_is_l(pred=False, test=False, l=l)
         POS_l_CC = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
 
         return POS_l_CC
