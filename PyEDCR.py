@@ -403,6 +403,7 @@ class EDCR:
                                            l=l)
         assert np.all(data == expected_result)
 
+
     def __get_where_predicted_l(self,
                                 test: bool,
                                 l: data_preprocessing.Label) -> np.array:
@@ -591,13 +592,13 @@ class EDCR:
 
         return POS_l
     
-    def test_get_POS_l(self,
+    def test_get_POS_l_C(self,
                         l: data_preprocessing.Label,
                         C: set[_Condition],
-                        expected_result: float,
-                        error_threshold: float = 1e-07):
-        data = self.__get_POS_l(l=l, C=C)
-        assert(math.fabs(data - expected_result) < error_threshold)
+                        expected_result: int):
+        print('uh oh')
+        POS = self.__get_POS_l_C(l=l, C=C)
+        assert POS == expected_result
 
     def __get_BOD_CC(self,
                      CC: set[(_Condition, data_preprocessing.Label)]) -> (int, np.array):
