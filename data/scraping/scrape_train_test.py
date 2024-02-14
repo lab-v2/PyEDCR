@@ -181,7 +181,7 @@ if __name__ == "__main__":
     create_directory(train_images_path)
     create_directory(test_images_path)
 
-    data_file_path = rf'../WEO_Data_Sheet.xlsx'
+    data_file_path = rf'../data/WEO_Data_Sheet.xlsx'
     dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
     fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
     fine_grain_classes = set(fine_grain_results_df['Class Name'].values)
