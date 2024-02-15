@@ -38,8 +38,10 @@ def run():
         # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
         # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
 
+    for g in data_preprocessing.granularities:
         edcr.apply_correction_rules(g=g)
 
+    for g in data_preprocessing.granularities:
         edcr.apply_reversion_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)

@@ -839,8 +839,6 @@ class EDCR:
             altered_pred_granularity_datas[l] = rule_g_l(test_pred_fine_data=test_pred_fine_data,
                                                          test_pred_coarse_data=test_pred_coarse_data)
 
-
-
         # collision_array = np.zeros_like(altered_pred_granularity_data)
         #
         # for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
@@ -952,10 +950,7 @@ if __name__ == '__main__':
         # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
         # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
 
-    for g in data_preprocessing.granularities:
         edcr.apply_correction_rules(g=g)
-
-    for g in data_preprocessing.granularities:
         edcr.apply_reversion_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)
