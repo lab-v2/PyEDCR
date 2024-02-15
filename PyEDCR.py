@@ -744,11 +744,11 @@ class EDCR:
                 if utils.is_local():
                     progress_bar.update(1)
 
-        print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.__get_CON_l_CC(l=l, CC=CC_l)}, '
-              f'P_l={self.train_precisions[l.g][l]}\n')
+        # print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.__get_CON_l_CC(l=l, CC=CC_l)}, '
+        #       f'P_l={self.train_precisions[l.g][l]}\n')
 
-        if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
-            CC_l = set()
+        # if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
+        #     CC_l = set()
 
         if not utils.is_local():
             shared_index.value += 1

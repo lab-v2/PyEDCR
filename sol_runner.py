@@ -40,4 +40,6 @@ def run():
 
         edcr.apply_correction_rules(g=g)
 
+        edcr.apply_reversion_rules(g=g)
+
     edcr.print_metrics(test=True, prior=False)
