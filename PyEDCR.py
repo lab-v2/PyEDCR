@@ -130,7 +130,7 @@ class EDCR:
             :param test_pred_coarse_data: The coarse-grained prediction data.
             :return: A tuple containing the relevant prediction data and a mask indicating where the label is predicted.
             """
-            test_pred_granularity_data = test_pred_fine_data if isinstance(self._l, data_preprocessing.FineGrainLabel) \
+            test_pred_granularity_data = test_pred_fine_data if self._l.g == data_preprocessing.granularities['fine'] \
                 else test_pred_coarse_data
             where_predicted_l = np.equal(test_pred_granularity_data, self._l.index)
 
@@ -813,16 +813,11 @@ class EDCR:
         :params g: The granularity of the predictions to be processed.
         """
         test_pred_fine_data, test_pred_coarse_data = self.__get_predictions(test=True)
-
-        altered_pred_granularity_datas = {}
-        for l, rule_l in self.error_detection_rules.items():
-            if l.g == g:
-                altered_pred_granularity_datas[l] = rule_l(test_pred_fine_data=test_pred_fine_data,
-                                                           test_pred_coarse_data=test_pred_coarse_data)
-
         altered_pred_granularity_data = self.__get_predictions(test=True, g=g)
 
-        for altered_pred_data_l in altered_pred_granularity_datas.values():
+        for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
+            altered_pred_data_l = rule_g_l(test_pred_fine_data=test_pred_fine_data,
+                                           test_pred_coarse_data=test_pred_coarse_data)
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
         self.__test_pred_data[g] = altered_pred_granularity_data
@@ -838,10 +833,9 @@ class EDCR:
         test_pred_fine_data, test_pred_coarse_data = self.__get_predictions(test=True)
 
         altered_pred_granularity_datas = {}
-        for l, rule_l in self.error_correction_rules.items():
-            if l.g == g:
-                altered_pred_granularity_datas[l] = rule_l(test_pred_fine_data=test_pred_fine_data,
-                                                           test_pred_coarse_data=test_pred_coarse_data)
+        for l, rule_g_l in {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items():
+            altered_pred_granularity_datas[l] = rule_g_l(test_pred_fine_data=test_pred_fine_data,
+                                                         test_pred_coarse_data=test_pred_coarse_data)
 
         altered_pred_granularity_data = self.__get_predictions(test=True, g=g)
 
@@ -850,8 +844,8 @@ class EDCR:
         for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
             for l_2, altered_pred_data_l_2 in altered_pred_granularity_datas.items():
                 if l_1 != l_2:
-                    where_supposed_to_correct_to_l1 = np.equal(altered_pred_data_l_1, l_1)
-                    where_supposed_to_correct_to_l2 = np.equal(altered_pred_data_l_2, l_2)
+                    where_supposed_to_correct_to_l1 = np.equal(altered_pred_data_l_1, l_1.index)
+                    where_supposed_to_correct_to_l2 = np.equal(altered_pred_data_l_2, l_2.index)
                     collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
 
         for l, altered_pred_data_l in altered_pred_granularity_datas.items():
@@ -862,13 +856,11 @@ class EDCR:
         self.__test_pred_data[g] = altered_pred_granularity_data
 
     def apply_reversion_rules(self,
-                               g: data_preprocessing.Granularity):
+                              g: data_preprocessing.Granularity):
         pred_granularity_data = self.__get_predictions(test=True, g=g)
 
         self.__test_pred_data[g] = np.where(pred_granularity_data == -1,
                                             self.__original_test_pred_data[g], pred_granularity_data)
-
-
 
     def get_l_correction_rule_support_on_test(self,
                                               l: data_preprocessing.Label) -> float:
@@ -961,5 +953,3 @@ if __name__ == '__main__':
         edcr.apply_reversion_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)
-
-
