@@ -91,6 +91,26 @@ def compute_sat_normally(logits_to_predicate,
                 sat_agg_list.append(Forall(x, Not(And(logits_to_predicate(x, l[i]), logits_to_predicate(x, l[j])))))
 
     # Rewrite the inconsistency code (Forall(x, Implies(P(x,coarse_label), Not(P(x,coarse_to_not_fine))))
+    # Rewrite the inconsistency code (Forall(x, Implies(P(x,coarse_label), Not(P(x,coarse_to_not_fine))))
+    ##Define a set of fine grain labels without the corresponding fine grain labels of the given coarse label 
+    ## which will remove corresponding fine grain labels with incoming coarse label
+
+    ## Repeat for incoming fine label 
+    """
+    for i in coarse labels
+        violation_set = set()
+        violaton_set.append(coarse_to_fine[i]) (corresponding fine labels to coarse labels) 
+        fine_grain_set = set(fine_label_dict.values())
+        for j in fine_grain_set.difference(violation_set):
+            sat_agg_list.append(
+               Forall(x,
+                      Implies(logits_to_predicate(x,l[i]), 
+                              Not(logits_to_predicate(x,l[j]))
+                              )
+                      )
+            )
+    """
+                             
     for i in coarse_label_dict.values():
         for j in fine_label_dict.values():
             corresponding_coarse_label = data_preprocessing.fine_to_course_idx[j] + len(fine_label_dict)
