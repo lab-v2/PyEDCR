@@ -170,6 +170,11 @@ def compute_sat_testing_value(logits_to_predicate,
     sat_agg_label = []
 
     # Rewrite the inconsistency code (Forall(x, Implies(P(x,coarse_label), Not(P(x,coarse_to_not_fine))))
+    ##Define a set of fine grain labels without the corresponding fine grain labels of the given coarse label 
+    ## which will remove corresponding fine grain labels with incoming coarse label
+
+    ## Repeat for incoming fine label 
+                             
     for coarse_label, i in coarse_label_dict.items():
         for fine_label, j in fine_label_dict.items():
             corresponding_coarse_label = data_preprocessing.fine_to_course_idx[j] + len(fine_label_dict)
