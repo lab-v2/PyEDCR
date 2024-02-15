@@ -865,7 +865,7 @@ class EDCR:
                                g: data_preprocessing.Granularity):
         pred_granularity_data = self.__get_predictions(test=True, g=g)
 
-        self.__test_pred_data[g] = np.where(pred_granularity_data == - 1,
+        self.__test_pred_data[g] = np.where(pred_granularity_data == -1,
                                             self.__original_test_pred_data[g], pred_granularity_data)
 
 
