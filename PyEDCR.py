@@ -445,8 +445,7 @@ class EDCR:
         :param prior:
         :param test: True to use test data, False to use training data.
         """
-        pred_fine_data, pred_coarse_data = self.__get_predictions(test=test) if (not test) or prior else \
-            [self.__post_correction_rules_test_predictions[g] for g in data_preprocessing.granularities.values()]
+        pred_fine_data, pred_coarse_data = self.__get_predictions(test=test)
         true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.__K_test) if test \
             else data_preprocessing.get_ground_truths(test=test, K=self.__K_train)
 
