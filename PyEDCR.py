@@ -276,6 +276,8 @@ class EDCR:
                                             if str(g) == 'fine' else pred_paths['test']['coarse'])[self.__K_test]
                                  for g in data_preprocessing.granularities.values()}
 
+        self.__original_test_pred_data = self.__test_pred_data.copy()
+
         self.__condition_datas = ({EDCR.PredCondition(l=l)
                                    for g in data_preprocessing.granularities.values()
                                    for l in data_preprocessing.get_labels(g).values()}.
@@ -303,9 +305,6 @@ class EDCR:
 
         self.error_detection_rules: dict[data_preprocessing.Label, EDCR.ErrorDetectionRule] = {}
         self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
-
-        self.__post_detection_rules_test_predictions = {}
-        self.__post_correction_rules_test_predictions = {}
 
     @classmethod
     def test(cls,
@@ -748,8 +747,8 @@ class EDCR:
         print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.__get_CON_l_CC(l=l, CC=CC_l)}, '
               f'P_l={self.train_precisions[l.g][l]}\n')
 
-        # if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
-        #     CC_l = set()
+        if self.__get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
+            CC_l = set()
 
         if not utils.is_local():
             shared_index.value += 1
@@ -862,6 +861,15 @@ class EDCR:
 
         self.__test_pred_data[g] = altered_pred_granularity_data
 
+    def apply_reversion_rules(self,
+                               g: data_preprocessing.Granularity):
+        pred_granularity_data = self.__get_predictions(test=True, g=g)
+
+        self.__test_pred_data[g] = np.where(pred_granularity_data == - 1,
+                                            self.__original_test_pred_data[g], pred_granularity_data)
+
+
+
     def get_l_correction_rule_support_on_test(self,
                                               l: data_preprocessing.Label) -> float:
         if l not in self.error_detection_rules:
@@ -949,6 +957,8 @@ if __name__ == '__main__':
         # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
 
         edcr.apply_correction_rules(g=g)
+
+        edcr.apply_reversion_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)
 
