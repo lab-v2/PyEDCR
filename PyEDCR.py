@@ -226,6 +226,7 @@ class EDCR:
             :param test_pred_coarse_data: The coarse-grained prediction data.
             :return: new test prediction for a specific granularity as derived from Label l.
             """
+
             where_any_pair_satisfied = self.get_where_any_pair_satisfied(test_pred_fine_data=test_pred_fine_data,
                                                                          test_pred_coarse_data=test_pred_coarse_data)
 
@@ -831,27 +832,30 @@ class EDCR:
         """
 
         test_pred_fine_data, test_pred_coarse_data = self.__get_predictions(test=True)
+        altered_pred_granularity_data = self.__get_predictions(test=True, g=g)
 
         altered_pred_granularity_datas = {}
         for l, rule_g_l in {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items():
             altered_pred_granularity_datas[l] = rule_g_l(test_pred_fine_data=test_pred_fine_data,
                                                          test_pred_coarse_data=test_pred_coarse_data)
 
-        altered_pred_granularity_data = self.__get_predictions(test=True, g=g)
 
-        collision_array = np.zeros_like(altered_pred_granularity_data)
 
-        for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
-            for l_2, altered_pred_data_l_2 in altered_pred_granularity_datas.items():
-                if l_1 != l_2:
-                    where_supposed_to_correct_to_l1 = np.equal(altered_pred_data_l_1, l_1.index)
-                    where_supposed_to_correct_to_l2 = np.equal(altered_pred_data_l_2, l_2.index)
-                    collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
+        # collision_array = np.zeros_like(altered_pred_granularity_data)
+        #
+        # for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
+        #     for l_2, altered_pred_data_l_2 in altered_pred_granularity_datas.items():
+        #         if l_1 != l_2:
+        #             where_supposed_to_correct_to_l1 = np.equal(altered_pred_data_l_1, l_1.index)
+        #             where_supposed_to_correct_to_l2 = np.equal(altered_pred_data_l_2, l_2.index)
+        #             collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
 
         for l, altered_pred_data_l in altered_pred_granularity_datas.items():
-            altered_pred_granularity_data = np.where((collision_array != 1) & (altered_pred_data_l == l.index),
-                                                     l.index,
-                                                     altered_pred_granularity_data)
+            altered_pred_granularity_data = np.where(
+                # (collision_array != 1) &
+                (altered_pred_data_l == l.index),
+                l.index,
+                altered_pred_granularity_data)
 
         self.__test_pred_data[g] = altered_pred_granularity_data
 
@@ -913,13 +917,13 @@ class EDCR:
         return np.mean([self.get_l_theoretical_precision_increase(l=l)
                         for l in data_preprocessing.get_labels(g).values()])
 
-    def get_theorem_1_condition_for_l(self,
-                                      l: data_preprocessing.Label):
+    def get_l_theorem_1_condition(self,
+                                  l: data_preprocessing.Label):
         return self.get_l_correction_rule_support_on_test(l=l) + self.get_l_test_precision_score(l=l) <= 1
 
-    def get_theorem_1_condition_for_g(self,
-                                      g: data_preprocessing.Granularity):
-        return np.array([self.get_theorem_1_condition_for_l(l=l) for l in data_preprocessing.get_labels(g).values()])
+    def get_g_theorem_1_condition(self,
+                                  g: data_preprocessing.Granularity):
+        return np.array([self.get_l_theorem_1_condition(l=l) for l in data_preprocessing.get_labels(g).values()])
 
 
 if __name__ == '__main__':
@@ -948,8 +952,10 @@ if __name__ == '__main__':
         # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
         # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
 
+    for g in data_preprocessing.granularities:
         edcr.apply_correction_rules(g=g)
 
+    for g in data_preprocessing.granularities:
         edcr.apply_reversion_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False)
