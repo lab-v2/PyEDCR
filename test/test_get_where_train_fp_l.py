@@ -94,6 +94,6 @@ def test_case_3():
     print(f'Case {case_number} passed!')
 
 if __name__ == '__main__':
-    #test_case_1()
-    #test_case_2()
+    test_case_1()
+    test_case_2()
     test_case_3()
