@@ -60,24 +60,23 @@ def run_tests():
     test.run(method_str='get_where_label_is_l', pred=True, test=False, l=l_Tank, expected_output=0)
     test.run(method_str='get_where_label_is_l', pred=True, test=False, l=l_Iskander, expected_output=0)
     test.run(method_str='get_where_label_is_l', pred=True, test=False, l=l_SPA,
-             expected_output=np.array([1] * 11 + [0]))
+             expected_output=np.array([1] * 7 + [0, 1, 0]))
     test.run(method_str='get_where_label_is_l', pred=True, test=False, l=l_2S19_MSTA,
-             expected_output=np.array([[1] * 6 + [0] + [1] * 4 + [0]]))
+             expected_output=np.array([[0] + [1] * 5 + [0] + [1] * 2 + [0]]))
     test.run(method_str='get_where_label_is_l', pred=False, test=False, l=l_Tank, expected_output=0)
     test.run(method_str='get_where_label_is_l', pred=False, test=False, l=l_Iskander, expected_output=0)
     test.run(method_str='get_where_label_is_l', pred=False, test=False, l=l_SPA, expected_output=1)
     test.run(method_str='get_where_label_is_l', pred=False, test=False, l=l_2S19_MSTA, expected_output=1)
     test.run(method_str='get_where_label_is_l', pred=True, test=True, l=l_Tank,
-             expected_output=np.array([1] + [0] * 5 + [1] + [0] * 5))
+             expected_output=np.array([0] * 5 + [1] + [0] * 4))
     test.run(method_str='get_where_label_is_l', pred=True, test=True, l=l_Iskander, expected_output=0)
     test.run(method_str='get_where_label_is_l', pred=True, test=True, l=l_SPA,
-             expected_output=np.array([0] + [1] * 5 + [0] + [1] * 5))
-    test.run(method_str='get_where_label_is_l', pred=True, test=True, l=l_2S19_MSTA,
-             expected_output=np.array([0] + [1] * 5 + [0] * 2 + [1] * 4))
+             expected_output=np.array([1] + [0] + [1] * 3 + [0] + [1] * 4))
+    test.run(method_str='get_where_label_is_l', pred=True, test=True, l=l_2S19_MSTA, expected_output=0)
     test.run(method_str='get_where_label_is_l', pred=False, test=True, l=l_Tank, expected_output=0)
     test.run(method_str='get_where_label_is_l', pred=False, test=True, l=l_Iskander, expected_output=0)
     test.run(method_str='get_where_label_is_l', pred=False, test=True, l=l_SPA, expected_output=1)
-    test.run(method_str='get_where_label_is_l', pred=False, test=True, l=l_2S19_MSTA, expected_output=1)
+    test.run(method_str='get_where_label_is_l', pred=False, test=True, l=l_2S19_MSTA, expected_output=0)
 
 
 if __name__ == '__main__':
