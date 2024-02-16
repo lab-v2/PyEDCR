@@ -106,7 +106,7 @@ class EDCR:
         def __eq__(self, other):
             return self.__hash__() == other.__hash__()
 
-    class _Rule(typing.Callable, typing.Sized, abc.ABC):
+    class Rule(typing.Callable, typing.Sized, abc.ABC):
         """Represents a rule for evaluating predictions based on conditions and labels.
 
         :param l: The label associated with the rule.
@@ -147,7 +147,7 @@ class EDCR:
         def __len__(self):
             return len(self._C_l)
 
-    class ErrorDetectionRule(_Rule):
+    class ErrorDetectionRule(Rule):
         def __init__(self,
                      l: data_preprocessing.Label,
                      DC_l: set[EDCR._Condition]):
@@ -184,7 +184,7 @@ class EDCR:
         def __str__(self) -> str:
             return '\n'.join(f'error_{self._l}(x) <- pred_{self._l}(x) ^ {cond}(x)' for cond in self._C_l)
 
-    class ErrorCorrectionRule(_Rule):
+    class ErrorCorrectionRule(Rule):
         def __init__(self,
                      l: data_preprocessing.Label,
                      CC_l: set[(EDCR._Condition, data_preprocessing.Label)]):
@@ -304,6 +304,22 @@ class EDCR:
         self.error_detection_rules: dict[data_preprocessing.Label, EDCR.ErrorDetectionRule] = {}
         self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
 
+    def set_error_detection_rules(self, rules: typing.Dict[data_preprocessing.Label, EDCR.ErrorDetectionRule]):
+        """
+        Manually sets the error detection rule dictionary.
+
+        :params rules: A dictionary mapping label instances to error detection rule objects.
+        """
+        self.error_detection_rules = rules
+
+    def set_error_correction_rules(self, rules: typing.Dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule]):
+        """
+        Manually sets the error correction rule dictionary.
+
+        :params rules: A dictionary mapping label instances to error detection rule objects.
+        """
+        self.error_correction_rules = rules
+
     @classmethod
     def test(cls,
              epsilon: float,
@@ -379,6 +395,7 @@ class EDCR:
                              l: data_preprocessing.Label) -> np.array:
         """ Retrieves indices of instances where the specified label is present.
 
+        :param pred: True for prediction, False for ground truth
         :param test: Whether to use test data (True) or training data (False).
         :param l: The label to search for.
         :return: A boolean array indicating which instances have the given label.
@@ -395,10 +412,12 @@ class EDCR:
                                   test: bool,
                                   l: data_preprocessing.Label,
                                   expected_result: np.array):
-        data = self.get_where_label_is_l(pred=pred,
+        result = self.get_where_label_is_l(pred=pred,
                                          test=test,
                                          l=l)
-        assert np.all(data == expected_result)
+        print(f'expected_result: {expected_result}')
+        print(f'actual result: {result}')
+        assert np.all(result == expected_result)
 
     def get_where_predicted_l(self,
                               test: bool,
@@ -410,6 +429,8 @@ class EDCR:
                                    l: data_preprocessing.Label,
                                    expected_result: np.array):
         result = self.get_where_predicted_l(test=test, l=l)
+        print(f'expected_result: {expected_result}')
+        print(f'actual result: {result}')
         assert np.all(result == expected_result)
 
     def get_how_many_predicted_l(self,
@@ -427,8 +448,10 @@ class EDCR:
                                   test: bool,
                                   l: data_preprocessing.Label,
                                   expected_result: int):
-        data = self.get_how_many_predicted_l(test=test, l=l)
-        assert (np.all(data == expected_result))
+        result = self.get_how_many_predicted_l(test=test, l=l)
+        print(f'expected_result: {expected_result}')
+        print(f'actual result: {result}')
+        assert (np.all(result == expected_result))
 
     def print_metrics(self,
                       test: bool,
@@ -474,8 +497,10 @@ class EDCR:
                                          test: bool,
                                          g: data_preprocessing.Granularity,
                                          expected_result: np.array):
-        data = self.get_where_predicted_correct(test=test, g=g)
-        assert (np.all(data == expected_result))
+        result = self.get_where_predicted_correct(test=test, g=g)
+        print(f'expected_result: {expected_result}')
+        print(f'actual result: {result}')
+        assert (np.all(result == expected_result))
 
     def get_where_predicted_incorrect(self,
                                       test: bool,
@@ -498,13 +523,10 @@ class EDCR:
 
     def test_get_where_train_tp_l(self,
                                   l: data_preprocessing.Label,
-                                  expected_result: np.array,
-                                  print_result: bool = False):
+                                  expected_result: np.array):
         result = self.get_where_train_tp_l(l)
-
-        if print_result:
-            print(result)
-
+        print(f'expected_result: {expected_result}')
+        print(f'actual result: {result}')
         assert np.all(result == expected_result)
 
     def get_where_train_fp_l(self,
@@ -518,13 +540,10 @@ class EDCR:
 
     def test_get_where_train_fp_l(self,
                                   l: data_preprocessing.Label,
-                                  expected_result: np.array,
-                                  print_result: bool = False):
+                                  expected_result: np.array):
         result = self.get_where_train_fp_l(l)
-
-        if print_result:
-            print(result)
-
+        print(f'expected_result: {expected_result}')
+        print(f'actual result: {result}')
         assert np.all(result == expected_result)
 
     @staticmethod
@@ -549,13 +568,12 @@ class EDCR:
                                                 C: set[_Condition],
                                                 fine_data: typing.Union[np.array, typing.Iterable[np.array]],
                                                 coarse_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                                expected_result: np.array,
-                                                print_result: bool = False):
+                                                expected_result: np.array):
         result = self._get_where_any_conditions_satisfied(C=C,
                                                           fine_data=fine_data,
                                                           coarse_data=coarse_data)
-        if print_result:
-            print(result)
+        print(f'expected_result: {expected_result}')
+        print(f'actual result: {result}')
         assert np.all(result == expected_result)
 
     def get_NEG_l_C(self,
@@ -582,8 +600,8 @@ class EDCR:
                          C: set[_Condition],
                          expected_result: int):
         result = self.get_NEG_l_C(l=l, C=C)
-        print(result)
-
+        print(f'expected_result: {expected_result}')
+        print(f'actual result: {result}')
         assert result == expected_result
 
     def get_POS_l_C(self,
@@ -610,10 +628,9 @@ class EDCR:
                          l: data_preprocessing.Label,
                          C: set[_Condition],
                          expected_result: int):
-        print(f'expected_result: {expected_result}')
         result = self.get_POS_l_C(l=l, C=C)
+        print(f'expected_result: {expected_result}')
         print(f'actual result: {result}')
-
         assert result == expected_result
 
     def get_BOD_CC(self,
@@ -640,10 +657,10 @@ class EDCR:
     def test_get_BOD_CC(self,
                         CC: set[(_Condition, data_preprocessing.Label)],
                         expected_result: int):
+        result = self.get_BOD_CC(CC=CC)[0]
         print(f'expected_result: {expected_result}')
-        res = self.get_BOD_CC(CC=CC)[0]
-        print(f'actual result: {res}')
-        assert res == expected_result
+        print(f'actual result: {result}')
+        assert result == expected_result
 
     def get_POS_l_CC(self,
                      l: data_preprocessing.Label,
@@ -841,6 +858,15 @@ class EDCR:
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
         self.test_pred_data[g] = altered_pred_granularity_data
+
+    def test_apply_detection_rules(self,
+                                   g: data_preprocessing.Granularity,
+                                   expected_result: np.array):
+        result = np.where(self.test_pred_data[g] == -1, -1, 0)
+        print(f'expected_result: {expected_result}')
+        print(f'actual result: {result}')
+        assert np.array_equal(result, expected_result)
+
 
     def apply_correction_rules(self,
                                g: data_preprocessing.Granularity):
