@@ -1,10 +1,9 @@
-import typing
 import warnings
-
 import numpy as np
 
 warnings.filterwarnings('ignore')
 
+import utils
 import data_preprocessing
 from PyEDCR import EDCR
 
@@ -98,4 +97,14 @@ class Test:
             **method_kwargs):
         method = getattr(self.edcr, method_str)
         output = method(*method_args, **method_kwargs)
-        assert np.all(output == expected_output) if isinstance(output, np.ndarray) else (output == expected_output)
+        test_passed = np.all(output == expected_output) if isinstance(output, np.ndarray) \
+            else output == expected_output
+
+        if test_passed:
+            print(utils.green_text(f'Test passed!'))
+        else:
+            print(utils.red_text('Test failed!'))
+            print(f'Expected:\n{expected_output}')
+            print(f'Actual:\n{output}')
+
+        assert test_passed
