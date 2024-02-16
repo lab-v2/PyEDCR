@@ -4,6 +4,9 @@ import warnings
 import numpy as np
 import utils
 
+from test_PYEDCR.test import *
+
+
 # This will silence all warnings, including ones unrelated to your evaluation.
 # Use this approach with caution!
 warnings.filterwarnings('ignore')
@@ -18,8 +21,10 @@ method_str = "get_where_train_fp_l"
 
 # Test 1
 def test_case_1():
-    K_train_slice = [(1, 5), (401, 405)]
-    K_test_slice = [(1, 10), (50, 60)]
+    K= [(1, 5), (401, 405)]
+    test = Test(epsilon=0.1, K_train=K, K_test=K, print_pred_and_true=False)
+    test.run(method_str='get_where_label_is_l', pred=True, test=False, l=l_Tank, expected_output=0)
+
 
     edcr = EDCR.test(epsilon=0.1,
                      K_train=K_train_slice,
