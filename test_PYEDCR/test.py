@@ -1,4 +1,5 @@
 import warnings
+
 import numpy as np
 
 warnings.filterwarnings('ignore')
@@ -73,8 +74,8 @@ class Test:
             cg = data_preprocessing.coarse_grain_classes_str
 
             if K_train is not None:
-                print(f'Taking {len(self.edcr.K_train)} / {self.edcr.T_train} train examples')
-                print('\nTrain samples:\n' + '\n'.join([(
+                print(f'\nTaking {len(self.edcr.K_train)} / {self.edcr.T_train} train examples\n' +
+                      '\n'.join([(
                     f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
                     f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
                     for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
@@ -82,8 +83,8 @@ class Test:
                            *data_preprocessing.get_ground_truths(test=False, K=self.edcr.K_train))]))
 
             if K_test is not None:
-                print(f'Taking {len(self.edcr.K_test)} / {self.edcr.T_test} test examples')
-                print('\nTest samples:\n' + '\n'.join([(
+                print(f'\nTaking {len(self.edcr.K_test)} / {self.edcr.T_test} test examples\n' +
+                      '\n'.join([(
                     f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
                     f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
                     for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
