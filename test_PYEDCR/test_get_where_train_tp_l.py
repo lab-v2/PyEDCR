@@ -26,7 +26,6 @@ def test_case_1():
                      K_test=K_test_slice,
                      print_pred_and_true=True)
 
-
     case_number = 1
 
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
@@ -37,7 +36,7 @@ def test_case_1():
     except_result_1 = np.array([0, 0, 0, 0, 0, 1, 1, 1, 0, 1])
 
     edcr.test_get_where_train_tp_l(l=test_label,
-                                    expected_result=except_result_1)
+                                   expected_result=except_result_1)
 
     print(f'Case {case_number} passed!')
 
@@ -67,6 +66,7 @@ def test_case_2():
 
     print(f'Case {case_number} passed!')
 
+
 def test_case_3():
     K_train_slice = [(6, 10), (2201, 2205), (3001, 3005), (3601, 3605), (3970, 3974), (7500, 7524)]
     K_test_slice = [(1, 10), (50, 60)]
@@ -93,6 +93,7 @@ def test_case_3():
                                    expected_result=except_result_2)
 
     print(f'Case {case_number} passed!')
+
 
 if __name__ == '__main__':
     test_case_1()
