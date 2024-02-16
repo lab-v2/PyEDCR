@@ -69,17 +69,12 @@ class Test:
                          epsilon=epsilon,
                          K_train=K_train,
                          K_test=K_test)
-
-        if K_train is not None:
-            print(f'Taking {len(self.edcr.K_train)} / {self.edcr.T_train} train examples')
-        if K_test is not None:
-            print(f'Taking {len(self.edcr.K_test)} / {self.edcr.T_test} test examples')
-
         if print_pred_and_true:
             fg = data_preprocessing.fine_grain_classes_str
             cg = data_preprocessing.coarse_grain_classes_str
 
             if K_train is not None:
+                print(f'Taking {len(self.edcr.K_train)} / {self.edcr.T_train} train examples')
                 print('\nTrain samples:\n' + '\n'.join([(
                     f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
                     f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
@@ -88,6 +83,7 @@ class Test:
                            *data_preprocessing.get_ground_truths(test=False, K=self.edcr.K_train))]))
 
             if K_test is not None:
+                print(f'Taking {len(self.edcr.K_test)} / {self.edcr.T_test} test examples')
                 print('\nTest samples:\n' + '\n'.join([(
                     f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
                     f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
