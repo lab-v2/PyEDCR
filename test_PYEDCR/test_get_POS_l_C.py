@@ -69,6 +69,7 @@ l_Air_Defense, l_BMD, l_BMP, l_BTR, l_MT_LB, l_SPA, l_Tank = cg_l
 label = l_Tank
 C = {pred_BM_30, pred_30N6E}
 
+
 except_result_1 = 0
 
 edcr.test_get_NEG_l_C(l=label,
