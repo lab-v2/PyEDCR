@@ -76,20 +76,20 @@ class Test:
             if K_train is not None:
                 print(f'\nTaking {len(self.edcr.K_train)} / {self.edcr.T_train} train examples\n' +
                       '\n'.join([(
-                    f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-                    f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-                    for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-                    in zip(*list(self.edcr.train_pred_data.values()),
-                           *data_preprocessing.get_ground_truths(test=False, K=self.edcr.K_train))]))
+                        f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
+                        f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
+                        for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
+                        in zip(*list(self.edcr.train_pred_data.values()),
+                               *data_preprocessing.get_ground_truths(test=False, K=self.edcr.K_train))]))
 
             if K_test is not None:
                 print(f'\nTaking {len(self.edcr.K_test)} / {self.edcr.T_test} test examples\n' +
                       '\n'.join([(
-                    f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-                    f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-                    for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-                    in zip(*list(self.edcr.test_pred_data.values()),
-                           *data_preprocessing.get_ground_truths(test=True, K=self.edcr.K_test))]))
+                        f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
+                        f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
+                        for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
+                        in zip(*list(self.edcr.test_pred_data.values()),
+                               *data_preprocessing.get_ground_truths(test=True, K=self.edcr.K_test))]))
 
     def run(self,
             method_str: str,

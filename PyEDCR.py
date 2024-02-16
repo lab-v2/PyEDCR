@@ -406,18 +406,6 @@ class EDCR:
         where_label_is_l = np.equal(data, l.index)
         return where_label_is_l
 
-    def test_get_where_label_is_l(self,
-                                  pred: bool,
-                                  test: bool,
-                                  l: data_preprocessing.Label,
-                                  expected_result: np.array):
-        result = self.get_where_label_is_l(pred=pred,
-                                           test=test,
-                                           l=l)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert np.all(result == expected_result)
-
     def get_where_predicted_l(self,
                               test: bool,
                               l: data_preprocessing.Label) -> np.array:
@@ -562,18 +550,6 @@ class EDCR:
             any_condition_satisfied |= cond(fine_data=fine_data, coarse_data=coarse_data)
 
         return any_condition_satisfied
-
-    def test_get_where_any_conditions_satisfied(self,
-                                                C: set[_Condition],
-                                                fine_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                                coarse_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                                expected_result: np.array):
-        result = self._get_where_any_conditions_satisfied(C=C,
-                                                          fine_data=fine_data,
-                                                          coarse_data=coarse_data)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert np.all(result == expected_result)
 
     def get_NEG_l_C(self,
                     l: data_preprocessing.Label,
