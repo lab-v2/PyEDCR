@@ -26,6 +26,9 @@ l_Air_Defense, l_BMD_coarse, l_BMP, l_BTR, l_MT_LB_coarse, l_SPA, l_Tank = cg_l
 
 consistency_constraint = EDCR.ConsistencyCondition()
 
+fg = data_preprocessing.fine_grain_classes_str
+cg = data_preprocessing.coarse_grain_classes_str
+
 
 # This is index for train fine true data:
 # 2S19_MSTA: [0, 343]     30N6E: [344, 462]       BM-30: [463, 723]       BMD: [724, 1045]
@@ -59,8 +62,7 @@ class Test:
     def __init__(self,
                  epsilon: float,
                  K_train: list[(int, int)] = None,
-                 K_test: list[(int, int)] = None,
-                 print_pred_and_true: bool = False):
+                 K_test: list[(int, int)] = None):
         self.edcr = EDCR(main_model_name='vit_b_16',
                          combined=True,
                          loss='BCE',
@@ -69,27 +71,26 @@ class Test:
                          epsilon=epsilon,
                          K_train=K_train,
                          K_test=K_test)
-        if print_pred_and_true:
-            fg = data_preprocessing.fine_grain_classes_str
-            cg = data_preprocessing.coarse_grain_classes_str
 
-            if K_train is not None:
-                print(f'\nTaking {len(self.edcr.K_train)} / {self.edcr.T_train} train examples\n' +
-                      '\n'.join([(
-                        f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-                        f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-                        for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-                        in zip(*list(self.edcr.train_pred_data.values()),
-                               *data_preprocessing.get_ground_truths(test=False, K=self.edcr.K_train))]))
+    def print_examples(self,
+                       test: bool):
+        if test:
+            K = self.edcr.K_test
+            T = self.edcr.T_test
+            source_str = 'test'
+            pred_data = self.edcr.test_pred_data.values()
+        else:
+            K = self.edcr.K_train
+            T = self.edcr.T_train
+            source_str = 'train'
+            pred_data = self.edcr.train_pred_data.values()
 
-            if K_test is not None:
-                print(f'\nTaking {len(self.edcr.K_test)} / {self.edcr.T_test} test examples\n' +
-                      '\n'.join([(
-                        f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-                        f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-                        for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-                        in zip(*list(self.edcr.test_pred_data.values()),
-                               *data_preprocessing.get_ground_truths(test=True, K=self.edcr.K_test))]))
+        print(f'\nTaking {len(K)} / {T} {source_str} examples\n' +
+              '\n'.join([(
+                  f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
+                  f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
+                  for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
+                  in zip(*list(pred_data), *data_preprocessing.get_ground_truths(test=test, K=K))]))
 
     def run(self,
             method_str: str,
@@ -105,6 +106,8 @@ class Test:
             print(utils.green_text(f'Test passed!'))
         else:
             print(utils.red_text('Test failed!'))
+            for test in [False, True]:
+                self.print_examples(test=test)
             print(f'Expected:\n{expected_output}')
             print(f'Actual:\n{output}')
 

@@ -1,24 +1,30 @@
-import numpy as np
-
 from test_PYEDCR.test import *
 
 
 def run_tests():
     K = [(0, 9)]
-    test = Test(epsilon=0.1, K_train=K, K_test=K, print_pred_and_true=False)
+    test = Test(epsilon=0.1, K_train=K, K_test=K)
 
     train_pred_fine_data, train_pred_coarse_data = test.edcr.get_predictions(test=False)
 
-    test.run(method_str='test_get_where_any_conditions_satisfied',
+    test.run(method_str='get_where_any_conditions_satisfied',
              C={pred_Tornado, pred_BMP_1},
              fine_data=train_pred_fine_data,
              coarse_data=train_pred_coarse_data,
              expected_output=0)
 
-    # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=1)
+    test.run(method_str='get_where_any_conditions_satisfied',
+             C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=np.array([1] * 6 + [0] + [1] * 3))
+
+    test.run(method_str='get_where_any_conditions_satisfied',
+             C={pred_Tornado, pred_BMP_1, pred_SPA},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=np.array([1] * 6 + [0] + [1] * 3))
+
     #
     # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_SPA},
     #                                              fine_data=train_pred_fine_data,
