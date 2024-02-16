@@ -1,11 +1,11 @@
 import numpy as np
 
-from test import *
+from test_PYEDCR.test import *
 
 
 def run_tests():
-    K = 10
-    edcr = EDCR.test(epsilon=0.1, K=K, print_pred_and_true=True)
+    K_train = [(0, 10)]
+    edcr = EDCR.test(epsilon=0.1, K_train=K_train, print_pred_and_true=True)
     edcr.test_get_where_label_is_l(pred=True, test=False, l=l_Tank, expected_result=0)
     edcr.test_get_where_label_is_l(pred=True, test=False, l=l_Iskander, expected_result=0)
     edcr.test_get_where_label_is_l(pred=True, test=False, l=l_SPA, expected_result=1)

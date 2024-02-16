@@ -1,6 +1,6 @@
 import numpy as np
 
-from test import *
+from test_PYEDCR.test import *
 
 
 def run_tests():
