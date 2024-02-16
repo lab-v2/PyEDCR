@@ -413,8 +413,8 @@ class EDCR:
                                   l: data_preprocessing.Label,
                                   expected_result: np.array):
         result = self.get_where_label_is_l(pred=pred,
-                                         test=test,
-                                         l=l)
+                                           test=test,
+                                           l=l)
         print(f'expected_result: {expected_result}')
         print(f'actual result: {result}')
         assert np.all(result == expected_result)
@@ -507,6 +507,7 @@ class EDCR:
                                       g: data_preprocessing.Granularity) -> np.array:
         """Calculates false positive mask for given granularity and label.
 
+        :param test: whether to get prediction from train or test set
         :param g: The granularity level
         :return: A mask with 1s for false positive instances, 0s otherwise.
         """
@@ -867,7 +868,6 @@ class EDCR:
         print(f'actual result: {result}')
         assert np.array_equal(result, expected_result)
 
-
     def apply_correction_rules(self,
                                g: data_preprocessing.Granularity):
         """Applies error correction rules to test predictions for a given granularity. If a rule is satisfied for a
@@ -969,6 +969,7 @@ class EDCR:
         return np.array([self.get_l_theorem_1_condition(l=l) for l in data_preprocessing.get_labels(g).values()])
 
 
+#
 if __name__ == '__main__':
     edcr = EDCR(epsilon=0.1,
                 main_model_name='vit_b_16',
@@ -979,15 +980,15 @@ if __name__ == '__main__':
     # edcr.print_metrics(test=False, prior=True)
     edcr.print_metrics(test=True, prior=True)
 
-    for g in data_preprocessing.granularities.values():
-        edcr.DetCorrRuleLearn(g=g)
+    for g_i in data_preprocessing.granularities.values():
+        edcr.DetCorrRuleLearn(g=g_i)
 
     # print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
     #        list(data_preprocessing.fine_grain_labels.values()) +
     #        list(data_preprocessing.coarse_grain_labels.values())])
 
-    for g in data_preprocessing.granularities:
-        edcr.apply_detection_rules(g=g)
+    for g_i in data_preprocessing.granularities:
+        edcr.apply_detection_rules(g=g_i)
 
         # edcr.print_metrics(test=True, prior=False)
         # edcr.print_metrics(test=True, prior=False)
@@ -996,7 +997,7 @@ if __name__ == '__main__':
         # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
         # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
 
-        edcr.apply_correction_rules(g=g)
-        edcr.apply_reversion_rules(g=g)
+        edcr.apply_correction_rules(g=g_i)
+        edcr.apply_reversion_rules(g=g_i)
 
     edcr.print_metrics(test=True, prior=False)

@@ -69,13 +69,10 @@ l_Air_Defense, l_BMD, l_BMP, l_BTR, l_MT_LB, l_SPA, l_Tank = cg_l
 
 error_detection_rule_dict = {}
 
-label = l_Tank
 DC_l = {pred_2S19_MSTA, pred_30N6E}
-
-error_detection_rule_dict[label] = edcr.ErrorDetectionRule(label, DC_l)
+error_detection_rule_dict[l_Tank] = edcr.ErrorDetectionRule(l_Tank, DC_l)
 
 edcr.set_error_detection_rules(error_detection_rule_dict)
-
 edcr.apply_detection_rules(g_coarse)
 
 expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
@@ -87,13 +84,10 @@ edcr.test_apply_detection_rules(g=g_coarse,
 
 error_detection_rule_dict = {}
 
-label = l_Air_Defense
 DC_l = {pred_2S19_MSTA, pred_30N6E}
-
-error_detection_rule_dict[label] = edcr.ErrorDetectionRule(label, DC_l)
+error_detection_rule_dict[l_Air_Defense] = edcr.ErrorDetectionRule(l_Air_Defense, DC_l)
 
 edcr.set_error_detection_rules(error_detection_rule_dict)
-
 edcr.apply_detection_rules(g_coarse)
 
 expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1])
@@ -112,7 +106,6 @@ DC_30N6E = {pred_2S19_MSTA, pred_30N6E}
 error_detection_rule_dict[l_Air_Defense] = edcr.ErrorDetectionRule(l_Air_Defense, DC_30N6E)
 
 edcr.set_error_detection_rules(error_detection_rule_dict)
-
 edcr.apply_detection_rules(g_coarse)
 
 expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1, -1])

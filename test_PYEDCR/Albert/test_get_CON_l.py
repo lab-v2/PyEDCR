@@ -26,17 +26,17 @@ l_Air_Defense, l_BMD, l_BMP, l_BTR, l_MT_LB, l_SPA, l_Tank = cg_l
  pred_BTR_70, pred_BTR_80, pred_D_30, pred_Iskander, pred_MT_LB, pred_Pantsir_S1, pred_RS_24, pred_T_14, pred_T_62,
  pred_T_64, pred_T_72, pred_T_80, pred_T_90, pred_TOS_1, pred_Tornado) = [pred_conditions[l] for l in fg_l]
 
-check_train_fine_pred = np.load("test_data/check_train_fine_pred.npy")
-check_train_coarse_pred = np.load("test_data/check_train_coarse_pred.npy")
+check_train_fine_pred = np.load("../test_data/check_train_fine_pred.npy")
+check_train_coarse_pred = np.load("../test_data/check_train_coarse_pred.npy")
 
-check_test_fine_pred = np.load("test_data/check_test_fine_pred.npy")
-check_test_coarse_pred = np.load("test_data/check_test_coarse_pred.npy")
+check_test_fine_pred = np.load("../test_data/check_test_fine_pred.npy")
+check_test_coarse_pred = np.load("../test_data/check_test_coarse_pred.npy")
 
-check_train_fine_true = np.load("test_data/check_train_fine_true.npy")
-check_train_coarse_true = np.load("test_data/check_train_coarse_true.npy")
+check_train_fine_true = np.load("../test_data/check_train_fine_true.npy")
+check_train_coarse_true = np.load("../test_data/check_train_coarse_true.npy")
 
-check_test_fine_true = np.load("test_data/check_test_fine_true.npy")
-check_test_coarse_true = np.load("test_data/check_test_coarse_true.npy")
+check_test_fine_true = np.load("../test_data/check_test_fine_true.npy")
+check_test_coarse_true = np.load("../test_data/check_test_coarse_true.npy")
 
 # Print data use for testing:
 
