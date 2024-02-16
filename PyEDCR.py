@@ -264,7 +264,8 @@ class EDCR:
             else data_preprocessing.expand_ranges([(0, np.load(pred_paths['train']['fine']).shape[0] - 1)])
         self.K_test = data_preprocessing.expand_ranges(K_test) if K_test is not None \
             else data_preprocessing.expand_ranges([(0, np.load(pred_paths['test']['fine']).shape[0] - 1)])
-        self.T = np.load(pred_paths['train']['fine']).shape[0]
+        self.T_train = np.load(pred_paths['train']['fine']).shape[0]
+        self.T_test = np.load(pred_paths['test']['fine']).shape[0]
 
         self.train_pred_data = {g: np.load(pred_paths['train']['fine']
                                            if str(g) == 'fine' else pred_paths['train']['coarse'])[self.K_train]
@@ -319,45 +320,45 @@ class EDCR:
         :params rules: A dictionary mapping label instances to error detection rule objects.
         """
         self.error_correction_rules = rules
-
-    @classmethod
-    def test(cls,
-             epsilon: float,
-             K_train: list[(int, int)] = None,
-             K_test: list[(int, int)] = None,
-             print_pred_and_true: bool = False) -> EDCR:
-        instance = cls(main_model_name='vit_b_16',
-                       combined=True,
-                       loss='BCE',
-                       lr=0.0001,
-                       num_epochs=20,
-                       epsilon=epsilon,
-                       K_train=K_train,
-                       K_test=K_test)
-
-        if K_train is not None:
-            print(f'Taking {len(instance.K_train)} / {instance.T} train examples')
-            print(f'Taking {len(instance.K_test)} / {instance.T} test examples')
-
-        if print_pred_and_true:
-            fg = data_preprocessing.fine_grain_classes_str
-            cg = data_preprocessing.coarse_grain_classes_str
-
-            print('\nTrain samples:\n' + '\n'.join([(
-                f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-                f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-                for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-                in zip(*list(instance.train_pred_data.values()),
-                       *data_preprocessing.get_ground_truths(test=False, K=instance.K_train))]))
-
-            print('\nTest samples:\n' + '\n'.join([(
-                f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-                f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-                for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-                in zip(*list(instance.test_pred_data.values()),
-                       *data_preprocessing.get_ground_truths(test=True, K=instance.K_train))]))
-
-        return instance
+    #
+    # @classmethod
+    # def test(cls,
+    #          epsilon: float,
+    #          K_train: list[(int, int)] = None,
+    #          K_test: list[(int, int)] = None,
+    #          print_pred_and_true: bool = False) -> EDCR:
+    #     instance = cls(main_model_name='vit_b_16',
+    #                    combined=True,
+    #                    loss='BCE',
+    #                    lr=0.0001,
+    #                    num_epochs=20,
+    #                    epsilon=epsilon,
+    #                    K_train=K_train,
+    #                    K_test=K_test)
+    #
+    #     if K_train is not None:
+    #         print(f'Taking {len(instance.K_train)} / {instance.T} train examples')
+    #         print(f'Taking {len(instance.K_test)} / {instance.T} test examples')
+    #
+    #     if print_pred_and_true:
+    #         fg = data_preprocessing.fine_grain_classes_str
+    #         cg = data_preprocessing.coarse_grain_classes_str
+    #
+    #         print('\nTrain samples:\n' + '\n'.join([(
+    #             f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
+    #             f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
+    #             for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
+    #             in zip(*list(instance.train_pred_data.values()),
+    #                    *data_preprocessing.get_ground_truths(test=False, K=instance.K_train))]))
+    #
+    #         print('\nTest samples:\n' + '\n'.join([(
+    #             f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
+    #             f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
+    #             for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
+    #             in zip(*list(instance.test_pred_data.values()),
+    #                    *data_preprocessing.get_ground_truths(test=True, K=instance.K_train))]))
+    #
+    #     return instance
 
     @staticmethod
     def get_C_str(CC: set[_Condition]) -> str:
@@ -400,11 +401,9 @@ class EDCR:
         :param l: The label to search for.
         :return: A boolean array indicating which instances have the given label.
         """
-        prediction = self.get_predictions(test=test, g=l.g)
-        ground_truth = data_preprocessing.get_ground_truths(test=test, K=self.K_test, g=l.g) if test \
-            else data_preprocessing.get_ground_truths(test=test, K=self.K_train, g=l.g)
-        granularity_data = prediction if pred else ground_truth
-        where_label_is_l = np.equal(granularity_data, l.index)
+        data = self.get_predictions(test=test, g=l.g) if pred else (
+            data_preprocessing.get_ground_truths(test=test, K=self.K_test if test else self.K_train, g=l.g))
+        where_label_is_l = np.equal(data, l.index)
         return where_label_is_l
 
     def test_get_where_label_is_l(self,

@@ -1,6 +1,8 @@
 import typing
 import warnings
 
+import numpy as np
+
 warnings.filterwarnings('ignore')
 
 import data_preprocessing
@@ -69,58 +71,35 @@ class Test:
                          K_test=K_test)
 
         if K_train is not None:
-            print(f'Taking {len(self.edcr.K_train)} / {self.edcr.T} train examples')
-            print(f'Taking {len(self.edcr.K_test)} / {self.edcr.T} test examples')
+            print(f'Taking {len(self.edcr.K_train)} / {self.edcr.T_train} train examples')
+        if K_test is not None:
+            print(f'Taking {len(self.edcr.K_test)} / {self.edcr.T_test} test examples')
 
         if print_pred_and_true:
             fg = data_preprocessing.fine_grain_classes_str
             cg = data_preprocessing.coarse_grain_classes_str
 
-            print('\nTrain samples:\n' + '\n'.join([(
-                f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-                f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-                for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-                in zip(*list(self.edcr.train_pred_data.values()),
-                       *data_preprocessing.get_ground_truths(test=False, K=self.edcr.K_train))]))
+            if K_train is not None:
+                print('\nTrain samples:\n' + '\n'.join([(
+                    f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
+                    f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
+                    for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
+                    in zip(*list(self.edcr.train_pred_data.values()),
+                           *data_preprocessing.get_ground_truths(test=False, K=self.edcr.K_train))]))
 
-            print('\nTest samples:\n' + '\n'.join([(
-                f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-                f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-                for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-                in zip(*list(self.edcr.test_pred_data.values()),
-                       *data_preprocessing.get_ground_truths(test=True, K=self.edcr.K_train))]))
+            if K_test is not None:
+                print('\nTest samples:\n' + '\n'.join([(
+                    f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
+                    f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
+                    for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
+                    in zip(*list(self.edcr.test_pred_data.values()),
+                           *data_preprocessing.get_ground_truths(test=True, K=self.edcr.K_test))]))
 
     def run(self,
             method_str: str,
-            method_input,
-            expected_output):
+            expected_output,
+            *method_args,
+            **method_kwargs):
         method = getattr(self.edcr, method_str)
-        assert method(method_input) == expected_output
-
-class TestApplyDetectionRules(Test):
-    def __init__(self,
-                 epsilon: float,
-                 K_train: list[(int, int)] = None,
-                 K_test: list[(int, int)] = None,
-                 print_pred_and_true: bool = False,
-                 error_detection_rule_dict = False
-                 ):
-        super().__init__(epsilon, K_train, K_test, print_pred_and_true)
-        self.edcr.set_error_detection_rules(error_detection_rule_dict)
-
-
-
-if __name__ == '__main__':
-    K_train_slice = [(1, 10), (400, 410)]
-    K_test_slice = [(1, 10), (50, 60)]
-
-    test = Test(epsilon=0.1,
-                K_train=K_train_slice,
-                K_test=K_test_slice,
-                print_pred_and_true=True)
-    method_str = "apply_detection_rules"
-    test.run(method_str, )
-    edcr = EDCR.test(epsilon=0.1,
-                     K_train=K_train_slice,
-                     K_test=K_test_slice,
-                     print_pred_and_true=True)
+        output = method(*method_args, **method_kwargs)
+        assert np.all(output == expected_output) if isinstance(output, np.ndarray) else (output == expected_output)
