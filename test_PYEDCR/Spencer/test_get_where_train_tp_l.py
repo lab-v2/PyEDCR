@@ -1,19 +1,9 @@
-from PyEDCR import EDCR
-import data_preprocessing
-import warnings
-import numpy as np
-import utils
-
 from test_PYEDCR.test import *
 
 
 # This will silence all warnings, including ones unrelated to your evaluation.
 # Use this approach with caution!
 warnings.filterwarnings('ignore')
-
-# get label
-label_fine = data_preprocessing.get_labels(data_preprocessing.granularities['fine'])
-label_coarse = data_preprocessing.get_labels(data_preprocessing.granularities['coarse'])
 
 # method name
 method_str = "get_where_train_tp_l"
@@ -75,19 +65,18 @@ def test_case_3():
     test.run(l=l_Air_Defense, expected_output=np.array([0] * 20 + [1] * 5 + [0] * 25))
     test.run(l=l_T_72, expected_output=np.array([0] * 50))
     test.run(l=l_2S19_MSTA, expected_output=np.array([0] + [1] * 4 + [0] * 45))
-    # test.run(l=l_BRDM, expected_output=np.array()
-    # test.run(l=l_BTR_60, expected_output=np.array()
-    # test.run(l=l_BTR_70, expected_output=np.array()
-    # test.run(l=l_BTR_80, expected_output=np.array()
-    # test.run(l=l_D_30, expected_output=np.array()
-    # test.run(l=l_Iskander, expected_output=np.array()
-    # test.run(l=l_BM_30, expected_output=np.array()
-    # test.run(l=l_Tornado, expected_output=np.array()
+    test.run(l=l_BRDM, expected_output=np.array([0] * 5 + [1] * 5 + [0] * 40))
+    test.run(l=l_BTR_60, expected_output=np.array([0] * 50))
+    test.run(l=l_BTR_70, expected_output=np.array([0] * 12 + [1] * 3 + [0] * 35))
+    test.run(l=l_BTR_80, expected_output=np.array([0] * 15 + [1] * 2 + [0] * 33))
+    test.run(l=l_D_30, expected_output=np.array([0] * 17 + [1] * 3 + [0] * 30))
+    test.run(l=l_Iskander, expected_output=np.array([0] * 20 + [1] * 5 + [0] * 25))
+    test.run(l=l_BM_30, expected_output=np.array([0] * 50))
+    test.run(l=l_Tornado, expected_output=np.array([0] * 26 + [1] * 2 + [0] + [1] * 2 + [0] + [1] * 11 + [0] * 3 + [1] * 4))
 
     print(f'Case {case_number} passed!')
 
-
 if __name__ == '__main__':
-    # test_case_1()
-    # test_case_2()
+    test_case_1()
+    test_case_2()
     test_case_3()

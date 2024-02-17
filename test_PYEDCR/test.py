@@ -1,4 +1,7 @@
+import typing
+
 import numpy as np
+
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -74,24 +77,30 @@ class Test:
         self.method = getattr(self.edcr, method_str)
 
     def print_examples(self,
-                       test: bool):
-        if test:
-            K = self.edcr.K_test
-            T = self.edcr.T_test
-            source_str = 'test'
-            pred_data = self.edcr.test_pred_data.values()
-        else:
-            K = self.edcr.K_train
-            T = self.edcr.T_train
-            source_str = 'train'
-            pred_data = self.edcr.train_pred_data.values()
+                       test: bool = None):
+        def print_test_or_train(test: bool):
+            if test:
+                K = self.edcr.K_test
+                T = self.edcr.T_test
+                source_str = 'test'
+                pred_data = self.edcr.test_pred_data.values()
+            else:
+                K = self.edcr.K_train
+                T = self.edcr.T_train
+                source_str = 'train'
+                pred_data = self.edcr.train_pred_data.values()
+            print(f'\nTaking {len(K)} / {T} {source_str} examples\n' +
+                  '\n'.join([(
+                      f'pred: {(fg_str[fine_prediction_index], cg_str[coarse_prediction_index])}, '
+                      f'true: {(fg_str[fine_gt_index], cg_str[coarse_gt_index])}')
+                      for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
+                      in zip(*list(pred_data), *data_preprocessing.get_ground_truths(test=test, K=K))]))
 
-        print(f'\nTaking {len(K)} / {T} {source_str} examples\n' +
-              '\n'.join([(
-                  f'pred: {(fg_str[fine_prediction_index], cg_str[coarse_prediction_index])}, '
-                  f'true: {(fg_str[fine_gt_index], cg_str[coarse_gt_index])}')
-                  for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-                  in zip(*list(pred_data), *data_preprocessing.get_ground_truths(test=test, K=K))]))
+        if test is not None:
+            print_test_or_train(test)
+        else:
+            for test in [False, True]:
+                print_test_or_train(test)
 
     def run_edge_cases(self, *method_args, **method_kwargs):
         pass
@@ -105,11 +114,14 @@ class Test:
             else output == expected_output
 
         if test_passed:
-            print(utils.green_text(f'Test passed!'))
+            print(utils.green_text(f"Testing {self.method.__name__} "
+                                   f"with args={(f'{[str(o) for o in method_args]},' if len(method_args) else '')}"
+                                   + str({str(k): [str(v_i) for v_i in v] if isinstance(v, typing.Iterable) else str(v)
+                                          for k, v in method_kwargs.items()}) +
+                                   f" and expected_output={expected_output} has passed!"))
         else:
-            print(utils.red_text('Test failed!'))
-            for test in [False, True]:
-                self.print_examples(test=test)
+            print(utils.red_text(f'Test {self.method.__name__} has failed!'))
+            self.print_examples()
             print(f'Expected:\n{expected_output}')
             print(f'Actual:\n{output}')
 
