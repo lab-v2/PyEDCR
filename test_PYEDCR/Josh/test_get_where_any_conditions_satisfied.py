@@ -7,7 +7,7 @@ class TestWhereAnyConditionsSatisfied(Test):
                  K_train: list[(int, int)] = None,
                  K_test: list[(int, int)] = None):
         method_str = 'get_where_any_conditions_satisfied'
-        super().__init__(epsilon, method_str, K_train, K_test)
+        super().__init__(epsilon=epsilon, method_str=method_str, K_train=K_train, K_test=K_test)
 
     def run_edge_cases(self,
                        fine_data: np.array,
@@ -39,6 +39,70 @@ def run_tests():
 
     train_pred_fine_data, train_pred_coarse_data = test.edcr.get_predictions(test=False)
 
+    test.run(C={pred_Tornado, pred_BMP_1},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=0)
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=np.array([1] * 6 + [0] + [1] * 3))
+
+    test.run(C={pred_SPA},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=1)
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_SPA},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=1)
+
+    test.run(C={pred_2S19_MSTA, pred_T_72},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=1)
+
+    test.run_edge_cases(fine_data=train_pred_fine_data,
+                        coarse_data=train_pred_coarse_data)
+
+    test_pred_fine_data, test_pred_coarse_data = test.edcr.get_predictions(test=True)
+
+    test.print_examples()
+    test.run(C={pred_Tornado, pred_BMP_1},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=0)
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=np.array([0] + [1] * 5 + [0] * 2 + [1] * 2))
+
+    test.run(C={pred_SPA},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=np.array([0] + [1] * 5 + [0] * 1 + [1] * 3))
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_SPA},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=np.array([0] + [1] * 5 + [0] * 1 + [1] * 3))
+
+    test.run(C={pred_2S19_MSTA, pred_T_72},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=np.array([0] + [1] * 6 + [0] * 1 + [1] * 2))
+
+    test.run_edge_cases(fine_data=test_pred_fine_data,
+                        coarse_data=test_pred_coarse_data)
+
+    K = [(500, 509), (1500, 1509)]
+
+    test = TestWhereAnyConditionsSatisfied(epsilon=0.1, K_train=K, K_test=K)
+
+    train_pred_fine_data, train_pred_coarse_data = test.edcr.get_predictions(test=False)
 
     test.run(C={pred_Tornado, pred_BMP_1},
              fine_data=train_pred_fine_data,
@@ -65,32 +129,41 @@ def run_tests():
              coarse_data=train_pred_coarse_data,
              expected_output=1)
 
+    test.run_edge_cases(fine_data=train_pred_fine_data,
+                        coarse_data=train_pred_coarse_data)
 
+    test_pred_fine_data, test_pred_coarse_data = test.edcr.get_predictions(test=True)
 
-    # K = 12
-    # edcr = EDCR.test(epsilon=0.1, K=K)
-    # train_pred_fine_data, train_pred_coarse_data = edcr.get_predictions(test=False)
-    # expected_result = np.array([1] * 11 + [0])
-    # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=0)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=expected_result)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_SPA},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=expected_result)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_SPA, pred_2S19_MSTA},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=expected_result)
-    #
+    test.print_examples()
+    test.run(C={pred_Tornado, pred_BMP_1},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=0)
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=np.array([0] + [1] * 5 + [0] * 2 + [1] * 2))
+
+    test.run(C={pred_SPA},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=np.array([0] + [1] * 5 + [0] * 1 + [1] * 3))
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_SPA},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=np.array([0] + [1] * 5 + [0] * 1 + [1] * 3))
+
+    test.run(C={pred_2S19_MSTA, pred_T_72},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=np.array([0] + [1] * 6 + [0] * 1 + [1] * 2))
+
+    test.run_edge_cases(fine_data=test_pred_fine_data,
+                        coarse_data=test_pred_coarse_data)
+
+    # edcr = EDCR.test(epsilon=0.1, K=K
     # K = 20
     # edcr = EDCR.test(epsilon=0.1, K=K, print_pred_and_true=True)
     # train_pred_fine_data, train_pred_coarse_data = edcr.get_predictions(test=False)
