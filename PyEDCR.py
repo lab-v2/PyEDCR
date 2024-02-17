@@ -270,12 +270,10 @@ class EDCR:
         self.T_train = np.load(pred_paths['train']['fine']).shape[0]
         self.T_test = np.load(pred_paths['test']['fine']).shape[0]
 
-        self.train_pred_data = {g: np.load(pred_paths['train']['fine']
-                                           if str(g) == 'fine' else pred_paths['train']['coarse'])[self.K_train]
+        self.train_pred_data = {g: np.load(pred_paths['train'][str(g)])[self.K_train]
                                 for g in data_preprocessing.granularities.values()}
 
-        self.test_pred_data = {g: np.load(pred_paths['test']['fine']
-                                          if str(g) == 'fine' else pred_paths['test']['coarse'])[self.K_test]
+        self.test_pred_data = {g: np.load(pred_paths['test'][str(g)])[self.K_test]
                                for g in data_preprocessing.granularities.values()}
 
         self.original_test_pred_data = self.test_pred_data.copy()
@@ -916,9 +914,9 @@ class EDCR:
         if l not in self.error_detection_rules:
             return 0
 
+        N_l = self.get_how_many_predicted_l(test=True, l=l)
         where_predicted_l_and_any_conditions_satisfied = self.get_where_l_detection_rule_body_is_satisfied(l=l)
         num_predicted_l_and_any_conditions_satisfied = np.sum(where_predicted_l_and_any_conditions_satisfied)
-        N_l = self.get_how_many_predicted_l(test=True, l=l)
         s_l = num_predicted_l_and_any_conditions_satisfied / N_l
 
         return s_l
