@@ -353,10 +353,6 @@ class EDCR:
 
         return pred_fine_data, pred_coarse_data
 
-    def test_get_predictions(self):
-        assert np.all(self.get_predictions(test=True, g=data_preprocessing.granularities['fine']) ==
-                      np.load('test/test_pred_fine.npy'))
-
     def get_where_label_is_l(self,
                              pred: bool,
                              test: bool,
@@ -378,15 +374,6 @@ class EDCR:
                               l: data_preprocessing.Label) -> np.array:
         return self.get_where_label_is_l(pred=True, test=test, l=l)
 
-    def test_get_where_predicted_l(self,
-                                   test: bool,
-                                   l: data_preprocessing.Label,
-                                   expected_result: np.array):
-        result = self.get_where_predicted_l(test=test, l=l)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert np.all(result == expected_result)
-
     def get_how_many_predicted_l(self,
                                  test: bool,
                                  l: data_preprocessing.Label) -> int:
@@ -397,15 +384,6 @@ class EDCR:
         :return: A boolean array indicating which instances have the given label.
         """
         return np.sum(self.get_where_predicted_l(test=test, l=l))
-
-    def test_how_many_predicted_l(self,
-                                  test: bool,
-                                  l: data_preprocessing.Label,
-                                  expected_result: int):
-        result = self.get_how_many_predicted_l(test=test, l=l)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert (np.all(result == expected_result))
 
     def print_metrics(self,
                       test: bool,
@@ -450,15 +428,6 @@ class EDCR:
             else data_preprocessing.get_ground_truths(test=test, K=self.K_train, g=g)
         return np.where(self.get_predictions(test=test, g=g) == ground_truth, 1, 0)
 
-    def test_get_where_predicted_correct(self,
-                                         test: bool,
-                                         g: data_preprocessing.Granularity,
-                                         expected_result: np.array):
-        result = self.get_where_predicted_correct(test=test, g=g)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert (np.all(result == expected_result))
-
     def get_where_predicted_incorrect(self,
                                       test: bool,
                                       g: data_preprocessing.Granularity) -> np.array:
@@ -479,14 +448,6 @@ class EDCR:
         """
         return self.get_where_predicted_l(test=False, l=l) * self.get_where_predicted_correct(test=False, g=l.g)
 
-    def test_get_where_train_tp_l(self,
-                                  l: data_preprocessing.Label,
-                                  expected_result: np.array):
-        result = self.get_where_train_tp_l(l)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert np.all(result == expected_result)
-
     def get_where_fp_l(self,
                        test: bool,
                        l: data_preprocessing.Label) -> np.array:
@@ -497,14 +458,6 @@ class EDCR:
         :return: A boolean array indicating which instances satisfy the criteria.
         """
         return self.get_where_predicted_l(test=test, l=l) * self.get_where_predicted_incorrect(test=test, g=l.g)
-
-    def test_get_where_train_fp_l(self,
-                                  l: data_preprocessing.Label,
-                                  expected_result: np.array):
-        result = self.get_where_fp_l(test=False, l=l)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert np.all(result == expected_result)
 
     @staticmethod
     def get_where_any_conditions_satisfied(C: set[_Condition],
@@ -543,15 +496,6 @@ class EDCR:
 
         return NEG_l
 
-    def test_get_NEG_l_C(self,
-                         l: data_preprocessing.Label,
-                         C: set[_Condition],
-                         expected_result: int):
-        result = self.get_NEG_l_C(l=l, C=C)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert result == expected_result
-
     def get_POS_l_C(self,
                     l: data_preprocessing.Label,
                     C: set[_Condition]) -> int:
@@ -571,15 +515,6 @@ class EDCR:
         POS_l = np.sum(where_train_fp_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
-
-    def test_get_POS_l_C(self,
-                         l: data_preprocessing.Label,
-                         C: set[_Condition],
-                         expected_result: int):
-        result = self.get_POS_l_C(l=l, C=C)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert result == expected_result
 
     def get_BOD_CC(self,
                    CC: set[(_Condition, data_preprocessing.Label)]) -> (int, np.array):
@@ -602,14 +537,6 @@ class EDCR:
 
         return BOD_l, where_any_pair_is_satisfied_in_train_pred
 
-    def test_get_BOD_CC(self,
-                        CC: set[(_Condition, data_preprocessing.Label)],
-                        expected_result: int):
-        result = self.get_BOD_CC(CC=CC)[0]
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert result == expected_result
-
     def get_POS_l_CC(self,
                      l: data_preprocessing.Label,
                      where_any_pair_is_satisfied_in_train_pred: np.array) -> int:
@@ -624,14 +551,6 @@ class EDCR:
         POS_l_CC = np.sum(where_any_pair_is_satisfied_in_train_pred * where_train_ground_truths_is_l)
 
         return POS_l_CC
-
-    def test_get_POS_l_CC(self,
-                          CC: set[(_Condition, data_preprocessing.Label)],
-                          expected_result: int):
-        print(f'expected_result: {expected_result}')
-        res = self.get_BOD_CC(CC=CC)[0]
-        print(f'actual result: {res}')
-        assert res == expected_result
 
     def get_CON_l_CC(self,
                      l: data_preprocessing.Label,
@@ -651,12 +570,6 @@ class EDCR:
         CON_l_CC = POS_l_CC / BOD_CC if BOD_CC else 0
 
         return CON_l_CC
-
-    def test_CON_l_CC(self,
-                      l: data_preprocessing.Label,
-                      CC: set[(_Condition, data_preprocessing.Label)],
-                      expected_result: float):
-        assert self.get_CON_l_CC(l=l, CC=CC) == expected_result
 
     def DetRuleLearn(self,
                      l: data_preprocessing.Label) -> set[_Condition]:
@@ -691,13 +604,6 @@ class EDCR:
                            if self.get_NEG_l_C(l=l, C=DC_l.union({cond})) <= q_l}
 
         return DC_l
-
-    def test_DetRuleLearn(self,
-                          l: data_preprocessing.Label,
-                          expected_result: set[_Condition]):
-        result = self.DetRuleLearn(l=l)
-        print(self.get_C_str(result))
-        assert result == expected_result
 
     def _CorrRuleLearn(self,
                        l: data_preprocessing.Label,
@@ -740,12 +646,6 @@ class EDCR:
             print(f'Completed {shared_index.value}/{len(data_preprocessing.get_labels(l.g).values())}')
 
         return l, CC_l
-
-    def test_CorrRuleLearn(self,
-                           l: data_preprocessing.Label,
-                           CC: set[(_Condition, data_preprocessing.Label)],
-                           expected_result: float):
-        pass
 
     def DetCorrRuleLearn(self,
                          g: data_preprocessing.Granularity,
