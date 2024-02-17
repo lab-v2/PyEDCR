@@ -3,11 +3,13 @@ import warnings
 import numpy as np
 import utils
 from test_PYEDCR.test import *
-import PyEDCR
+from PyEDCR import EDCR
+import typing
 
 # This will silence all warnings, including ones unrelated to your evaluation.
 # Use this approach with caution
 warnings.filterwarnings('ignore')
+
 
 # This is index for train fine true data:
 # 2S19_MSTA: [0, 343]     30N6E: [344, 462]       BM-30: [463, 723]       BMD: [724, 1045]
@@ -36,24 +38,38 @@ warnings.filterwarnings('ignore')
 # 'BMD': ['BMD'],
 # 'MT_LB': ['MT_LB']
 
+class TestApplyDetectionRules(Test):
+    def __init__(self,
+                 epsilon: float,
+                 method_str: str,
+                 K_train: list[(int, int)],
+                 K_test: list[(int, int)],
+                 ):
+        super().__init__(epsilon, method_str, K_train, K_test)
+
+    def set_rules(self,
+                  rule_data: typing.Dict[data_preprocessing.Label, {EDCR._Condition}]):
+        self.edcr.set_error_detection_rules(rule_data)
+
 
 if __name__ == '__main__':
+    method_str = 'apply_detection_rules'
 
     K_train_slice = [(1, 10), (400, 410)]
     K_test_slice = [(1, 10), (50, 60)]
 
-    edcr = Test(epsilon=0.1,
-                K_train=K_train_slice,
-                K_test=K_test_slice,
-                print_pred_and_true=True)
+    test = TestApplyDetectionRules(epsilon=0.1,
+                                   method_str=method_str,
+                                   K_train=K_train_slice,
+                                   K_test=K_test_slice)
 
     # Test 1
+    error_detection_rules = {l_Tank: {pred_2S19_MSTA, pred_30N6E}}
+    expected_output = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-    DC_l = {pred_2S19_MSTA, pred_30N6E}
-
-    expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-
-
+    test.set_rules(error_detection_rules)
+    test.run(expected_output=expected_output,
+             g=g_coarse)
 
     # Test 2
 
@@ -87,6 +103,3 @@ if __name__ == '__main__':
     #
     # edcr.test_apply_detection_rules(g=g_coarse,
     #                                 expected_result=expected_result)
-
-
-

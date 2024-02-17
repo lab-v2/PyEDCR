@@ -839,16 +839,9 @@ class EDCR:
 
         self.test_pred_data[g] = altered_pred_granularity_data
 
-    def test_apply_detection_rules(self,
-                                   g: data_preprocessing.Granularity,
-                                   detection_rules: typing.Dict[data_preprocessing.Label, {_Condition}],
-                                   expected_result: np.array):
-        self.set_error_detection_rules(detection_rules)
-        self.apply_detection_rules(g)
-        result = np.where(self.test_pred_data[g] == -1, -1, 0)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert np.array_equal(result, expected_result)
+        error_mask = np.where(self.test_pred_data[g] == -1, -1, 0)
+
+        return error_mask
 
     def apply_correction_rules(self,
                                g: data_preprocessing.Granularity):
