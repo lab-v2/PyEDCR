@@ -163,6 +163,18 @@ class EDCR:
             assert all(cond.l != self._l for cond in {cond_prime for cond_prime in self._C_l
                                                       if isinstance(cond_prime, EDCR.PredCondition)})
 
+        def get_where_body_is_satisfied(self,
+                                        test_pred_fine_data: np.array,
+                                        test_pred_coarse_data: np.array) -> np.array:
+            where_predicted_l = self._get_datas(test_pred_fine_data=test_pred_fine_data,
+                                                test_pred_coarse_data=test_pred_coarse_data)[1]
+            where_any_conditions_satisfied = EDCR.get_where_any_conditions_satisfied(C=self._C_l,
+                                                                                     fine_data=test_pred_fine_data,
+                                                                                     coarse_data=test_pred_coarse_data)
+            where_body_is_satisfied = where_predicted_l * where_any_conditions_satisfied
+
+            return where_body_is_satisfied
+
         def __call__(self,
                      test_pred_fine_data: np.array,
                      test_pred_coarse_data: np.array) -> np.array:
@@ -173,12 +185,11 @@ class EDCR:
             :return: modified prediction contains -1 at examples that have errors for a specific granularity as
             derived from Label l.
             """
-            test_pred_granularity_data, where_predicted_l = self._get_datas(test_pred_fine_data=test_pred_fine_data,
-                                                                            test_pred_coarse_data=test_pred_coarse_data)
-            where_any_conditions_satisfied = EDCR.get_where_any_conditions_satisfied(C=self._C_l,
-                                                                                     fine_data=test_pred_fine_data,
-                                                                                     coarse_data=test_pred_coarse_data)
-            where_predicted_l_and_any_conditions_satisfied = where_predicted_l * where_any_conditions_satisfied
+            test_pred_granularity_data = self._get_datas(test_pred_fine_data=test_pred_fine_data,
+                                                         test_pred_coarse_data=test_pred_coarse_data)[0]
+            where_predicted_l_and_any_conditions_satisfied = (
+                self.get_where_body_is_satisfied(test_pred_fine_data=test_pred_fine_data,
+                                                 test_pred_coarse_data=test_pred_coarse_data))
             altered_pred_data = np.where(where_predicted_l_and_any_conditions_satisfied == 1, -1,
                                          test_pred_granularity_data)
 
@@ -455,6 +466,7 @@ class EDCR:
         Calculates and prints various metrics (accuracy, precision, recall, etc.)
         using appropriate true labels and prediction data based on the specified mode.
 
+        :param print_inconsistencies:
         :param prior:
         :param test: True to use test data, False to use training data.
         """
@@ -902,10 +914,13 @@ class EDCR:
         N_l = self.get_how_many_predicted_l(test=True, l=l)
         r_l = self.error_detection_rules[l]
         where_predicted_l_and_any_conditions_satisfied = np.where(
-            r_l(test_pred_fine_data=self.test_pred_data[data_preprocessing.granularities['fine']],
-                test_pred_coarse_data=self.test_pred_data[data_preprocessing.granularities['coarse']]) == -1, 1, 0)
+            r_l(test_pred_fine_data=self.original_test_pred_data[data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.original_test_pred_data[data_preprocessing.granularities['coarse']]) == -1,
+            1, 0)
         num_predicted_l_and_any_conditions_satisfied = np.sum(where_predicted_l_and_any_conditions_satisfied)
         s_l = num_predicted_l_and_any_conditions_satisfied / N_l
+
+        assert s_l <= 1
 
         return s_l
 
