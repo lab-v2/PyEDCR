@@ -40,7 +40,6 @@ def test_case_1():
 def test_case_2():
     K = [(351, 355), (471, 475), (4001, 4005), (4601, 4605), (6001, 6005)]
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
-    test.print_examples(test=False)
     case_number = 2
 
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
@@ -63,34 +62,32 @@ def test_case_2():
 
 
 def test_case_3():
-    K_train_slice = [(6, 10), (2201, 2205), (3001, 3005), (3601, 3605), (3970, 3974), (7500, 7524)]
-    K_test_slice = [(1, 10), (50, 60)]
-
-    edcr = EDCR.test(epsilon=0.1,
-                     K_train=K_train_slice,
-                     K_test=K_test_slice,
-                     print_pred_and_true=False)
-
+    K = [(6, 10), (2201, 2205), (3001, 3005), (3601, 3605), (3970, 3974), (7500, 7524)]
+    test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
+    test.print_examples(test=False)
     case_number = 3
 
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
-    test_label = label_fine['Tornado']
 
-    print(f'label is: {test_label._l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
-
-    except_result_2 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                0, 0, 0, 0, 0, 0, 1, 1, 0, 1,
-                                1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-                                1, 1, 1, 0, 0, 0, 1, 1, 1, 1])
-
-    edcr.test_get_where_train_tp_l(l=test_label,
-                                   expected_result=except_result_2)
+    test.run(l=l_SPA, expected_output=np.array([1] * 5 + [0] * 12 + [1] * 3 + [0] * 5 + [1] * 5 + [0] + [1] * 5 + [0] + [1] * 13))
+    test.run(l=l_BTR, expected_output=np.array([0] * 6 + [1] * 11 + [0] * 33))
+    test.run(l=l_BMP, expected_output=np.array([0] * 50))
+    test.run(l=l_Air_Defense, expected_output=np.array([0] * 20 + [1] * 5 + [0] * 25))
+    test.run(l=l_T_72, expected_output=np.array([0] * 50))
+    test.run(l=l_2S19_MSTA, expected_output=np.array([0] + [1] * 4 + [0] * 45))
+    # test.run(l=l_BRDM, expected_output=np.array()
+    # test.run(l=l_BTR_60, expected_output=np.array()
+    # test.run(l=l_BTR_70, expected_output=np.array()
+    # test.run(l=l_BTR_80, expected_output=np.array()
+    # test.run(l=l_D_30, expected_output=np.array()
+    # test.run(l=l_Iskander, expected_output=np.array()
+    # test.run(l=l_BM_30, expected_output=np.array()
+    # test.run(l=l_Tornado, expected_output=np.array()
 
     print(f'Case {case_number} passed!')
 
 
 if __name__ == '__main__':
     # test_case_1()
-    test_case_2()
-    # test_case_3()
+    # test_case_2()
+    test_case_3()
