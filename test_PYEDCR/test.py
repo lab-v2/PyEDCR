@@ -93,7 +93,7 @@ class Test:
                   for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
                   in zip(*list(pred_data), *data_preprocessing.get_ground_truths(test=test, K=K))]))
 
-    def run_edge_cases(self):
+    def run_edge_cases(self, *method_args, **method_kwargs):
         pass
 
     def run(self,
