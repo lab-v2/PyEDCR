@@ -122,20 +122,9 @@ class EDCR:
             self._l = l
             self._C_l = C_l
 
-        def _get_datas(self,
-                       test_pred_fine_data: np.array,
-                       test_pred_coarse_data: np.array) -> (np.array, np.array):
-            """Retrieves fine-grained or coarse-grained prediction data based on the label's granularity.
-
-            :param test_pred_fine_data: The fine-grained prediction data.
-            :param test_pred_coarse_data: The coarse-grained prediction data.
-            :return: A tuple containing the relevant prediction data and a mask indicating where the label is predicted.
-            """
-            test_pred_granularity_data = test_pred_fine_data if self._l.g == data_preprocessing.granularities['fine'] \
-                else test_pred_coarse_data
-            where_predicted_l = np.where(test_pred_granularity_data == self._l.index, 1, 0)
-
-            return test_pred_granularity_data, where_predicted_l
+        def get_where_predicted_l(self,
+                                  data: np.array) -> np.array:
+            return np.where(data == self._l.index, 1, 0)
 
         @abc.abstractmethod
         def __call__(self,
@@ -166,8 +155,9 @@ class EDCR:
         def get_where_body_is_satisfied(self,
                                         test_pred_fine_data: np.array,
                                         test_pred_coarse_data: np.array) -> np.array:
-            where_predicted_l = self._get_datas(test_pred_fine_data=test_pred_fine_data,
-                                                test_pred_coarse_data=test_pred_coarse_data)[1]
+            test_pred_granularity_data = test_pred_fine_data if self._l.g == data_preprocessing.granularities['fine'] \
+                else test_pred_coarse_data
+            where_predicted_l = self.get_where_predicted_l(data=test_pred_granularity_data)
             where_any_conditions_satisfied = EDCR.get_where_any_conditions_satisfied(C=self._C_l,
                                                                                      fine_data=test_pred_fine_data,
                                                                                      coarse_data=test_pred_coarse_data)
@@ -185,8 +175,8 @@ class EDCR:
             :return: modified prediction contains -1 at examples that have errors for a specific granularity as
             derived from Label l.
             """
-            test_pred_granularity_data = self._get_datas(test_pred_fine_data=test_pred_fine_data,
-                                                         test_pred_coarse_data=test_pred_coarse_data)[0]
+            test_pred_granularity_data = test_pred_fine_data if self._l.g == data_preprocessing.granularities['fine'] \
+                else test_pred_coarse_data
             where_predicted_l_and_any_conditions_satisfied = (
                 self.get_where_body_is_satisfied(test_pred_fine_data=test_pred_fine_data,
                                                  test_pred_coarse_data=test_pred_coarse_data))
@@ -212,8 +202,8 @@ class EDCR:
         def get_where_any_pair_satisfied(self,
                                          test_pred_fine_data: np.array,
                                          test_pred_coarse_data: np.array) -> np.array:
-            test_pred_granularity_data = self._get_datas(test_pred_fine_data=test_pred_fine_data,
-                                                         test_pred_coarse_data=test_pred_coarse_data)[0]
+            test_pred_granularity_data = test_pred_fine_data if self._l.g == data_preprocessing.granularities['fine'] \
+                else test_pred_coarse_data
 
             where_any_pair_satisfied = np.zeros_like(test_pred_granularity_data)
 
@@ -336,45 +326,6 @@ class EDCR:
         """
         self.error_correction_rules = rules
 
-    #
-    # @classmethod
-    # def test(cls,
-    #          epsilon: float,
-    #          K_train: list[(int, int)] = None,
-    #          K_test: list[(int, int)] = None,
-    #          print_pred_and_true: bool = False) -> EDCR:
-    #     instance = cls(main_model_name='vit_b_16',
-    #                    combined=True,
-    #                    loss='BCE',
-    #                    lr=0.0001,
-    #                    num_epochs=20,
-    #                    epsilon=epsilon,
-    #                    K_train=K_train,
-    #                    K_test=K_test)
-    #
-    #     if K_train is not None:
-    #         print(f'Taking {len(instance.K_train)} / {instance.T} train examples')
-    #         print(f'Taking {len(instance.K_test)} / {instance.T} test examples')
-    #
-    #     if print_pred_and_true:
-    #         fg = data_preprocessing.fine_grain_classes_str
-    #         cg = data_preprocessing.coarse_grain_classes_str
-    #
-    #         print('\nTrain samples:\n' + '\n'.join([(
-    #             f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-    #             f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-    #             for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-    #             in zip(*list(instance.train_pred_data.values()),
-    #                    *data_preprocessing.get_ground_truths(test=False, K=instance.K_train))]))
-    #
-    #         print('\nTest samples:\n' + '\n'.join([(
-    #             f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-    #             f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
-    #             for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
-    #             in zip(*list(instance.test_pred_data.values()),
-    #                    *data_preprocessing.get_ground_truths(test=True, K=instance.K_train))]))
-    #
-    #     return instance
 
     @staticmethod
     def get_C_str(CC: set[_Condition]) -> str:
