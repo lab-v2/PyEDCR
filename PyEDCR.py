@@ -305,13 +305,16 @@ class EDCR:
         self.error_detection_rules: dict[data_preprocessing.Label, EDCR.ErrorDetectionRule] = {}
         self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
 
-    def set_error_detection_rules(self, rules: typing.Dict[data_preprocessing.Label, EDCR.ErrorDetectionRule]):
+    def set_error_detection_rules(self, rules: typing.Dict[data_preprocessing.Label, {_Condition}]):
         """
         Manually sets the error detection rule dictionary.
 
         :params rules: A dictionary mapping label instances to error detection rule objects.
         """
-        self.error_detection_rules = rules
+        error_detection_rules = {}
+        for label, DC_l in rules.items():
+            error_detection_rules[label] = EDCR.ErrorDetectionRule(label, DC_l)
+        self.error_detection_rules = error_detection_rules
 
     def set_error_correction_rules(self, rules: typing.Dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule]):
         """
@@ -320,6 +323,7 @@ class EDCR:
         :params rules: A dictionary mapping label instances to error detection rule objects.
         """
         self.error_correction_rules = rules
+
     #
     # @classmethod
     # def test(cls,
@@ -494,6 +498,7 @@ class EDCR:
                                       g: data_preprocessing.Granularity) -> np.array:
         """Calculates false positive mask for given granularity and label.
 
+        :param test: whether to get prediction from train or test set
         :param g: The granularity level
         :return: A mask with 1s for false positive instances, 0s otherwise.
         """
@@ -834,13 +839,9 @@ class EDCR:
 
         self.test_pred_data[g] = altered_pred_granularity_data
 
-    def test_apply_detection_rules(self,
-                                   g: data_preprocessing.Granularity,
-                                   expected_result: np.array):
-        result = np.where(self.test_pred_data[g] == -1, -1, 0)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert np.array_equal(result, expected_result)
+        error_mask = np.where(self.test_pred_data[g] == -1, -1, 0)
+
+        return error_mask
 
     def apply_correction_rules(self,
                                g: data_preprocessing.Granularity):
