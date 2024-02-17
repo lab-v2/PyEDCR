@@ -86,30 +86,30 @@ def get_metrics(pred_fine_data: np.array,
                                    y_pred=pred_fine_data)
     fine_f1 = f1_score(y_true=true_fine_data,
                        y_pred=pred_fine_data,
-                       # labels=range(len(data_preprocessing.fine_grain_classes_str)),
+                       labels=range(len(data_preprocessing.fine_grain_classes_str)),
                        average='macro')
     fine_precision = precision_score(y_true=true_fine_data,
                                      y_pred=pred_fine_data,
-                                     # labels=range(len(data_preprocessing.fine_grain_classes_str)),
+                                     labels=range(len(data_preprocessing.fine_grain_classes_str)),
                                      average='macro')
     fine_recall = recall_score(y_true=true_fine_data,
                                y_pred=pred_fine_data,
-                               # labels=range(len(data_preprocessing.fine_grain_classes_str)),
+                               labels=range(len(data_preprocessing.fine_grain_classes_str)),
                                average='macro')
 
     coarse_accuracy = accuracy_score(y_true=true_coarse_data,
                                      y_pred=pred_coarse_data)
     coarse_f1 = f1_score(y_true=true_coarse_data,
                          y_pred=pred_coarse_data,
-                         # labels=range(len(data_preprocessing.coarse_grain_classes_str)),
+                         labels=range(len(data_preprocessing.coarse_grain_classes_str)),
                          average='macro')
     coarse_precision = precision_score(y_true=true_coarse_data,
                                        y_pred=pred_coarse_data,
-                                       # labels=range(len(data_preprocessing.coarse_grain_classes_str)),
+                                       labels=range(len(data_preprocessing.coarse_grain_classes_str)),
                                        average='macro')
     coarse_recall = recall_score(y_true=true_coarse_data,
                                  y_pred=pred_coarse_data,
-                                 # labels=range(len(data_preprocessing.coarse_grain_classes_str)),
+                                 labels=range(len(data_preprocessing.coarse_grain_classes_str)),
                                  average='macro')
 
     return (fine_accuracy, fine_f1, fine_precision, fine_recall,
@@ -125,7 +125,8 @@ def get_and_print_metrics(pred_fine_data: np.array,
                           prior: bool = True,
                           combined: bool = True,
                           model_name: str = '',
-                          lr: typing.Union[str, float] = ''):
+                          lr: typing.Union[str, float] = '',
+                          print_inconsistencies: bool = True):
     """
     Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
 
@@ -167,9 +168,10 @@ def get_and_print_metrics(pred_fine_data: np.array,
           f'{utils.green_text(round(coarse_recall * 100, 2))}%\n'
           )
 
-    print_num_inconsistencies(pred_fine_data=pred_fine_data,
-                              pred_coarse_data=pred_coarse_data,
-                              prior=prior)
+    if print_inconsistencies:
+        print_num_inconsistencies(pred_fine_data=pred_fine_data,
+                                  pred_coarse_data=pred_coarse_data,
+                                  prior=prior)
 
     return fine_accuracy, coarse_accuracy
 
