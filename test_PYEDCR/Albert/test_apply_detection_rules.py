@@ -58,48 +58,41 @@ if __name__ == '__main__':
     K_train_slice = [(1, 10), (400, 410)]
     K_test_slice = [(1, 10), (50, 60)]
 
+    # Test 1
     test = TestApplyDetectionRules(epsilon=0.1,
                                    method_str=method_str,
                                    K_train=K_train_slice,
                                    K_test=K_test_slice)
 
-    # Test 1
-    error_detection_rules = {l_Tank: {pred_2S19_MSTA, pred_30N6E}}
+    error_detection_rules_1 = {l_Tank: {pred_2S19_MSTA, pred_30N6E}}
     expected_output = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-    test.set_rules(error_detection_rules)
+    test.set_rules(error_detection_rules_1)
     test.run(expected_output=expected_output,
              g=g_coarse)
 
     # Test 2
+    test = TestApplyDetectionRules(epsilon=0.1,
+                                   method_str=method_str,
+                                   K_train=K_train_slice,
+                                   K_test=K_test_slice)
 
-    # error_detection_rule_dict = {}
-    #
-    # DC_l = {pred_2S19_MSTA, pred_30N6E}
-    # error_detection_rule_dict[l_Air_Defense] = edcr.ErrorDetectionRule(l_Air_Defense, DC_l)
-    #
-    # edcr.set_error_detection_rules(error_detection_rule_dict)
-    # edcr.apply_detection_rules(g_coarse)
-    #
-    # expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1])
-    #
-    # edcr.test_apply_detection_rules(g=g_coarse,
-    #                                 expected_result=expected_result)
+    error_detection_rules_2 = {l_Air_Defense: {pred_2S19_MSTA, pred_30N6E}}
+    expected_output = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1])
+
+    test.set_rules(error_detection_rules_2)
+    test.run(expected_output=expected_output,
+             g=g_coarse)
 
     # Test 3
+    test = TestApplyDetectionRules(epsilon=0.1,
+                                   method_str=method_str,
+                                   K_train=K_train_slice,
+                                   K_test=K_test_slice)
+    error_detection_rules_3 = {l_Air_Defense: {pred_2S19_MSTA, pred_30N6E},
+                               l_Tank: {pred_2S19_MSTA, pred_30N6E}}
+    expected_output = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1, -1])
 
-    # error_detection_rule_dict = {}
-    #
-    # DC_Tank = {pred_2S19_MSTA, pred_30N6E}
-    # error_detection_rule_dict[l_Tank] = edcr.ErrorDetectionRule(l_Tank, DC_Tank)
-    #
-    # DC_30N6E = {pred_2S19_MSTA, pred_30N6E}
-    # error_detection_rule_dict[l_Air_Defense] = edcr.ErrorDetectionRule(l_Air_Defense, DC_30N6E)
-    #
-    # edcr.set_error_detection_rules(error_detection_rule_dict)
-    # edcr.apply_detection_rules(g_coarse)
-    #
-    # expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1, -1])
-    #
-    # edcr.test_apply_detection_rules(g=g_coarse,
-    #                                 expected_result=expected_result)
+    test.set_rules(error_detection_rules_3)
+    test.run(expected_output=expected_output,
+             g=g_coarse)
