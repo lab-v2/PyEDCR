@@ -540,8 +540,8 @@ class EDCR:
 
     @staticmethod
     def get_where_any_conditions_satisfied(C: set[_Condition],
-                                           fine_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                           coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> np.array:
+                                           fine_data: np.array,
+                                           coarse_data: np.array) -> np.array:
         """Checks where any given conditions are satisfied.
 
         :param fine_data: Data that used for Condition having FineGrainLabel l

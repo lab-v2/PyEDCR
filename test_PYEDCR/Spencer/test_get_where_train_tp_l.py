@@ -51,7 +51,12 @@ def test_case_2():
     test.run(l=l_MT_LB_coarse, expected_output=np.array([0] * 25))
     test.run(l=l_Pantsir_S1, expected_output=np.array([0] * 15 + [1] * 5 + [0] * 5))
     test.run(l=l_30N6E, expected_output=np.array([0] + [1] + [0] * 2 + [1] + [0] * 20))
-    test.run(l=l_30N6E, expected_output=np.array([0] + [1] + [0] * 2 + [1] + [0] * 20))
+    test.run(l=l_D_30, expected_output=np.array([0] * 25))
+    test.run(l=l_RS_24, expected_output=np.array([0] * 25))
+    test.run(l=l_BM_30, expected_output=np.array([0] * 5 + [1] * 3 + [0] + [1] + [0] * 15))
+    test.run(l=l_Iskander, expected_output=np.array([0] * 10 + [1] * 5 + [0] * 10))
+    test.run(l=l_T_64, expected_output=np.array([0] * 20 + [1] + [0] + [1] * 3))
+    test.run(l=l_T_72, expected_output=np.array([0] * 25))
 
 
     print(f'Case {case_number} passed!')
