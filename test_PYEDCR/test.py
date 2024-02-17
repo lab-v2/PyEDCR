@@ -1,6 +1,5 @@
-import warnings
-
 import numpy as np
+import warnings
 
 warnings.filterwarnings('ignore')
 
@@ -26,8 +25,8 @@ l_Air_Defense, l_BMD_coarse, l_BMP, l_BTR, l_MT_LB_coarse, l_SPA, l_Tank = cg_l
 
 consistency_constraint = EDCR.ConsistencyCondition()
 
-fg = data_preprocessing.fine_grain_classes_str
-cg = data_preprocessing.coarse_grain_classes_str
+fg_str = data_preprocessing.fine_grain_classes_str
+cg_str = data_preprocessing.coarse_grain_classes_str
 
 
 # This is index for train fine true data:
@@ -61,6 +60,7 @@ cg = data_preprocessing.coarse_grain_classes_str
 class Test:
     def __init__(self,
                  epsilon: float,
+                 method_str: str,
                  K_train: list[(int, int)] = None,
                  K_test: list[(int, int)] = None):
         self.edcr = EDCR(main_model_name='vit_b_16',
@@ -71,6 +71,7 @@ class Test:
                          epsilon=epsilon,
                          K_train=K_train,
                          K_test=K_test)
+        self.method = getattr(self.edcr, method_str)
 
     def print_examples(self,
                        test: bool):
@@ -87,18 +88,19 @@ class Test:
 
         print(f'\nTaking {len(K)} / {T} {source_str} examples\n' +
               '\n'.join([(
-                  f'pred: {(fg[fine_prediction_index], cg[coarse_prediction_index])}, '
-                  f'true: {(fg[fine_gt_index], cg[coarse_gt_index])}')
+                  f'pred: {(fg_str[fine_prediction_index], cg_str[coarse_prediction_index])}, '
+                  f'true: {(fg_str[fine_gt_index], cg_str[coarse_gt_index])}')
                   for fine_prediction_index, coarse_prediction_index, fine_gt_index, coarse_gt_index
                   in zip(*list(pred_data), *data_preprocessing.get_ground_truths(test=test, K=K))]))
 
+    def run_edge_cases(self):
+        pass
+
     def run(self,
-            method_str: str,
             expected_output,
             *method_args,
             **method_kwargs):
-        method = getattr(self.edcr, method_str)
-        output = method(*method_args, **method_kwargs)
+        output = self.method(*method_args, **method_kwargs)
         test_passed = np.all(output == expected_output) if isinstance(output, np.ndarray) \
             else output == expected_output
 
