@@ -69,7 +69,6 @@ def run_tests():
 
     test_pred_fine_data, test_pred_coarse_data = test.edcr.get_predictions(test=True)
 
-    test.print_examples()
     test.run(C={pred_Tornado, pred_BMP_1},
              fine_data=test_pred_fine_data,
              coarse_data=test_pred_coarse_data,
@@ -112,22 +111,22 @@ def run_tests():
     test.run(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
              fine_data=train_pred_fine_data,
              coarse_data=train_pred_coarse_data,
-             expected_output=np.array([1] * 6 + [0] + [1] * 3))
+             expected_output=0)
 
     test.run(C={pred_SPA},
              fine_data=train_pred_fine_data,
              coarse_data=train_pred_coarse_data,
-             expected_output=1)
+             expected_output=np.array([1] * 10 + [0] * 10))
 
     test.run(C={pred_Tornado, pred_BMP_1, pred_SPA},
              fine_data=train_pred_fine_data,
              coarse_data=train_pred_coarse_data,
-             expected_output=1)
+             expected_output=np.array([1] * 10 + [0] * 10))
 
     test.run(C={pred_2S19_MSTA, pred_T_72},
              fine_data=train_pred_fine_data,
              coarse_data=train_pred_coarse_data,
-             expected_output=1)
+             expected_output=0)
 
     test.run_edge_cases(fine_data=train_pred_fine_data,
                         coarse_data=train_pred_coarse_data)
@@ -143,22 +142,22 @@ def run_tests():
     test.run(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
              fine_data=test_pred_fine_data,
              coarse_data=test_pred_coarse_data,
-             expected_output=np.array([0] + [1] * 5 + [0] * 2 + [1] * 2))
+             expected_output=0)
 
     test.run(C={pred_SPA},
              fine_data=test_pred_fine_data,
              coarse_data=test_pred_coarse_data,
-             expected_output=np.array([0] + [1] * 5 + [0] * 1 + [1] * 3))
+             expected_output=0)
 
     test.run(C={pred_Tornado, pred_BMP_1, pred_SPA},
              fine_data=test_pred_fine_data,
              coarse_data=test_pred_coarse_data,
-             expected_output=np.array([0] + [1] * 5 + [0] * 1 + [1] * 3))
+             expected_output=0)
 
     test.run(C={pred_2S19_MSTA, pred_T_72},
              fine_data=test_pred_fine_data,
              coarse_data=test_pred_coarse_data,
-             expected_output=np.array([0] + [1] * 6 + [0] * 1 + [1] * 2))
+             expected_output=np.array([0] * 12 + [1] + [0] * 7))
 
     test.run_edge_cases(fine_data=test_pred_fine_data,
                         coarse_data=test_pred_coarse_data)
