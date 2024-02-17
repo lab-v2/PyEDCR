@@ -894,28 +894,16 @@ class EDCR:
         self.test_pred_data[g] = np.where(pred_granularity_data == -1,
                                           self.original_test_pred_data[g], pred_granularity_data)
 
-    def get_where_l_detection_rule_body_is_satisfied(self,
-                                                     l: data_preprocessing.Label):
-        where_predicted_l = self.get_where_predicted_l(test=True, l=l)
-        r_l = self.error_detection_rules[l]
-
-        where_any_conditions_satisfied = (
-            EDCR.get_where_any_conditions_satisfied(C=r_l.C_l,
-                                                    fine_data=self.test_pred_data[
-                                                        data_preprocessing.granularities['fine']],
-                                                    coarse_data=self.test_pred_data[
-                                                        data_preprocessing.granularities['coarse']]))
-        where_l_detection_rule_body_is_satisfied = where_predicted_l * where_any_conditions_satisfied
-
-        return where_l_detection_rule_body_is_satisfied
-
     def get_l_detection_rule_support_on_test(self,
                                              l: data_preprocessing.Label) -> float:
         if l not in self.error_detection_rules:
             return 0
 
         N_l = self.get_how_many_predicted_l(test=True, l=l)
-        where_predicted_l_and_any_conditions_satisfied = self.get_where_l_detection_rule_body_is_satisfied(l=l)
+        r_l = self.error_detection_rules[l]
+        where_predicted_l_and_any_conditions_satisfied = np.where(
+            r_l(test_pred_fine_data=self.test_pred_data[data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.test_pred_data[data_preprocessing.granularities['coarse']]) == -1, 1, 0)
         num_predicted_l_and_any_conditions_satisfied = np.sum(where_predicted_l_and_any_conditions_satisfied)
         s_l = num_predicted_l_and_any_conditions_satisfied / N_l
 
@@ -926,7 +914,10 @@ class EDCR:
         if l not in self.error_detection_rules:
             return 0
 
-        where_l_detection_rule_body_is_satisfied = self.get_where_l_detection_rule_body_is_satisfied(l=l)
+        r_l = self.error_detection_rules[l]
+        where_l_detection_rule_body_is_satisfied = np.where(
+            r_l(test_pred_fine_data=self.test_pred_data[data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.test_pred_data[data_preprocessing.granularities['coarse']]) == -1, 1, 0)
         where_l_fp = self.get_where_fp_l(test=True, l=l)
         where_head_and_body_is_satisfied = where_l_detection_rule_body_is_satisfied * where_l_fp
 
@@ -987,6 +978,7 @@ if __name__ == '__main__':
 
     for g in data_preprocessing.granularities:
         edcr.apply_detection_rules(g=g)
+
         print(edcr.get_g_theoretical_precision_increase(g=g))
 
     edcr.print_metrics(test=True, prior=False, print_inconsistencies=False)
