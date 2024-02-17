@@ -172,9 +172,9 @@ class EDCR:
             """
             test_pred_granularity_data, where_predicted_l = self._get_datas(test_pred_fine_data=test_pred_fine_data,
                                                                             test_pred_coarse_data=test_pred_coarse_data)
-            where_any_conditions_satisfied = EDCR._get_where_any_conditions_satisfied(C=self._C_l,
-                                                                                      fine_data=test_pred_fine_data,
-                                                                                      coarse_data=test_pred_coarse_data)
+            where_any_conditions_satisfied = EDCR.get_where_any_conditions_satisfied(C=self._C_l,
+                                                                                     fine_data=test_pred_fine_data,
+                                                                                     coarse_data=test_pred_coarse_data)
             where_predicted_l_and_any_conditions_satisfied = where_predicted_l * where_any_conditions_satisfied
             altered_pred_data = np.where(where_predicted_l_and_any_conditions_satisfied == 1, -1,
                                          test_pred_granularity_data)
@@ -205,9 +205,9 @@ class EDCR:
 
             for cond, l_prime in self._C_l:
                 where_condition_satisfied = (
-                    EDCR._get_where_any_conditions_satisfied(C={cond},
-                                                             fine_data=test_pred_fine_data,
-                                                             coarse_data=test_pred_coarse_data))
+                    EDCR.get_where_any_conditions_satisfied(C={cond},
+                                                            fine_data=test_pred_fine_data,
+                                                            coarse_data=test_pred_coarse_data))
                 where_predicted_l_prime = np.equal(test_pred_granularity_data, l_prime.index)
                 where_pair_satisfied = where_condition_satisfied * where_predicted_l_prime
 
@@ -406,18 +406,6 @@ class EDCR:
         where_label_is_l = np.equal(data, l.index)
         return where_label_is_l
 
-    def test_get_where_label_is_l(self,
-                                  pred: bool,
-                                  test: bool,
-                                  l: data_preprocessing.Label,
-                                  expected_result: np.array):
-        result = self.get_where_label_is_l(pred=pred,
-                                           test=test,
-                                           l=l)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert np.all(result == expected_result)
-
     def get_where_predicted_l(self,
                               test: bool,
                               l: data_preprocessing.Label) -> np.array:
@@ -546,14 +534,14 @@ class EDCR:
         assert np.all(result == expected_result)
 
     @staticmethod
-    def _get_where_any_conditions_satisfied(C: set[_Condition],
-                                            fine_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                            coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> np.array:
+    def get_where_any_conditions_satisfied(C: set[_Condition],
+                                           fine_data: typing.Union[np.array, typing.Iterable[np.array]],
+                                           coarse_data: typing.Union[np.array, typing.Iterable[np.array]]) -> np.array:
         """Checks where any given conditions are satisfied.
 
+        :param fine_data: Data that used for Condition having FineGrainLabel l
+        :param coarse_data: Data that used for Condition having CoarseGrainLabel l
         :param C: A set of `Condition` objects.
-        :fine_data: Data that used for Condition having FineGrainLabel l
-        :coarse_data: Data that used for Condition having CoarseGrainLabel l
         :return: A NumPy array with True values if the example satisfy any conditions and False otherwise.
         """
         any_condition_satisfied = np.zeros_like(fine_data)
@@ -562,18 +550,6 @@ class EDCR:
             any_condition_satisfied |= cond(fine_data=fine_data, coarse_data=coarse_data)
 
         return any_condition_satisfied
-
-    def test_get_where_any_conditions_satisfied(self,
-                                                C: set[_Condition],
-                                                fine_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                                coarse_data: typing.Union[np.array, typing.Iterable[np.array]],
-                                                expected_result: np.array):
-        result = self._get_where_any_conditions_satisfied(C=C,
-                                                          fine_data=fine_data,
-                                                          coarse_data=coarse_data)
-        print(f'expected_result: {expected_result}')
-        print(f'actual result: {result}')
-        assert np.all(result == expected_result)
 
     def get_NEG_l_C(self,
                     l: data_preprocessing.Label,
@@ -587,9 +563,9 @@ class EDCR:
         where_train_tp_l = self.get_where_train_tp_l(l=l)
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
         where_any_conditions_satisfied_on_train = (
-            self._get_where_any_conditions_satisfied(C=C,
-                                                     fine_data=train_pred_fine_data,
-                                                     coarse_data=train_pred_coarse_data))
+            self.get_where_any_conditions_satisfied(C=C,
+                                                    fine_data=train_pred_fine_data,
+                                                    coarse_data=train_pred_coarse_data))
         NEG_l = np.sum(where_train_tp_l * where_any_conditions_satisfied_on_train)
 
         return NEG_l
@@ -616,9 +592,9 @@ class EDCR:
         where_train_fp_l = self.get_where_train_fp_l(l=l)
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
         where_any_conditions_satisfied_on_train = (
-            self._get_where_any_conditions_satisfied(C=C,
-                                                     fine_data=train_pred_fine_data,
-                                                     coarse_data=train_pred_coarse_data))
+            self.get_where_any_conditions_satisfied(C=C,
+                                                    fine_data=train_pred_fine_data,
+                                                    coarse_data=train_pred_coarse_data))
         POS_l = np.sum(where_train_fp_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
