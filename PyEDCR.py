@@ -316,12 +316,16 @@ class EDCR:
             error_detection_rules[label] = EDCR.ErrorDetectionRule(label, DC_l)
         self.error_detection_rules = error_detection_rules
 
-    def set_error_correction_rules(self, rules: typing.Dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule]):
+    def set_error_correction_rules(self,
+                                   rules: typing.Dict[data_preprocessing.Label, {_Condition, data_preprocessing.Label}]):
         """
         Manually sets the error correction rule dictionary.
 
         :params rules: A dictionary mapping label instances to error detection rule objects.
         """
+        error_correction_rules = {}
+        for label, CC_l in rules.items():
+            error_correction_rules[label] = EDCR.ErrorCorrectionRule(label, CC_l=CC_l)
         self.error_correction_rules = rules
 
     #
