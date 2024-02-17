@@ -117,9 +117,10 @@ class Test:
             print(utils.green_text(f"Testing {self.method.__name__} "
                                    f"with args={(f'{[str(o) for o in method_args]},' if len(method_args) else '')}"
                                    + str({str(k): [str(v_i) for v_i in v] if isinstance(v, typing.Iterable) else str(v)
-                                          for k, v in method_kwargs.items()}) + " passed!"))
+                                          for k, v in method_kwargs.items()}) +
+                                   f" and expected_output={expected_output} has passed!"))
         else:
-            print(utils.red_text('Test failed!'))
+            print(utils.red_text(f'Test {self.method.__name__} has failed!'))
             self.print_examples()
             print(f'Expected:\n{expected_output}')
             print(f'Actual:\n{output}')
