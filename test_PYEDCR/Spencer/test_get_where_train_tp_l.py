@@ -22,49 +22,37 @@ method_str = "get_where_train_tp_l"
 # Test 1
 def test_case_1():
     K = [(1, 5), (401, 405)]
-    test = Test(epsilon=0.1, K_train=K, K_test=K, print_pred_and_true=True)
+    test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
     case_number = 1
 
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
 
-    test.run(method_str='get_where_train_tp_l', l=l_30N6E,
-             expected_output=np.array([0] * 5 + [1] * 3 + [0] + [1]))
-    test.run(method_str='get_where_train_tp_l', l=l_Air_Defense,
-             expected_output=np.array([0] * 5 + [1] * 5))
-    test.run(method_str='get_where_train_tp_l', l=l_Tank,
-             expected_output=np.array([0] * 10))
-    test.run(method_str='get_where_train_tp_l', l=l_SPA,
-             expected_output=np.array([1] * 5 + [0] * 5))
-    test.run(method_str='get_where_train_tp_l', l=l_RS_24,
-             expected_output=np.array([0] * 10))
-    test.run(method_str='get_where_train_tp_l', l=l_2S19_MSTA,
-             expected_output=np.array([1] * 5 + [0] * 5))
-
+    test.run(l=l_30N6E, expected_output=np.array([0] * 5 + [1] * 3 + [0] + [1]))
+    test.run(l=l_Air_Defense,expected_output=np.array([0] * 5 + [1] * 5))
+    test.run(l=l_Tank, expected_output=np.array([0] * 10))
+    test.run(l=l_SPA, expected_output=np.array([1] * 5 + [0] * 5))
+    test.run(l=l_RS_24, expected_output=np.array([0] * 10))
+    test.run(l=l_2S19_MSTA, expected_output=np.array([1] * 5 + [0] * 5))
 
     print(f'Case {case_number} passed!')
 
 
 def test_case_2():
     K = [(351, 355), (471, 475), (4001, 4005), (4601, 4605), (6001, 6005)]
-
-    edcr = EDCR.test(epsilon=0.1,
-                     K_train=K_train_slice,
-                     K_test=K_test_slice,
-                     print_pred_and_true=False)
-
+    test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
+    test.print_examples(test=False)
     case_number = 2
 
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
-    test_label = label_coarse['Air Defense']
 
-    print(f'label is: {test_label._l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
+    test.run(l=l_Air_Defense, expected_output=np.array([1] * 5 + [0] * 5 + [1] * 10 + [0] * 5))
+    test.run(l=l_SPA, expected_output=np.array([0] * 5 + [1] * 5 + [0] * 15))
+    test.run(l=l_Tank, expected_output=np.array([0] * 20 + [1] * 5))
+    test.run(l=l_MT_LB_coarse, expected_output=np.array([0] * 25))
+    test.run(l=l_Pantsir_S1, expected_output=np.array([0] * 15 + [1] * 5 + [0] * 5))
+    test.run(l=l_30N6E, expected_output=np.array([0] + [1] + [0] * 2 + [1] + [0] * 20))
+    test.run(l=l_30N6E, expected_output=np.array([0] + [1] + [0] * 2 + [1] + [0] * 20))
 
-    except_result_2 = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
-                                1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                0, 0, 0, 0, 0])
-
-    edcr.test_get_where_train_tp_l(l=test_label,
-                                   expected_result=except_result_2)
 
     print(f'Case {case_number} passed!')
 
@@ -98,6 +86,6 @@ def test_case_3():
 
 
 if __name__ == '__main__':
-    test_case_1()
-    # test_case_2()
+    # test_case_1()
+    test_case_2()
     # test_case_3()
