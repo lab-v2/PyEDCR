@@ -1,7 +1,3 @@
-import data_preprocessing
-import warnings
-import numpy as np
-import utils
 from test_PYEDCR.test import *
 from PyEDCR import EDCR
 import typing
@@ -38,61 +34,117 @@ warnings.filterwarnings('ignore')
 # 'BMD': ['BMD'],
 # 'MT_LB': ['MT_LB']
 
-class TestApplyDetectionRules(Test):
+class TestApplyCorrectionRules(Test):
     def __init__(self,
                  epsilon: float,
-                 method_str: str,
                  K_train: list[(int, int)],
                  K_test: list[(int, int)],
                  ):
+        method_str = 'apply_correction_rules'
         super().__init__(epsilon, method_str, K_train, K_test)
 
     def set_rules(self,
-                  rule_data: typing.Dict[data_preprocessing.Label, {EDCR._Condition, data_preprocessing.Label}]):
+                  rule_data: typing.Dict[data_preprocessing.Label, {(EDCR._Condition, data_preprocessing.Label)}]):
         self.edcr.set_error_correction_rules(rule_data)
+
+    def print_examples(self,
+                       test: bool = True):
+        # for padding:
+        N = 60
+        K = self.edcr.K_test
+        T = self.edcr.T_test
+        source_str = 'test'
+        old_data = self.edcr.original_test_pred_data.values()
+        new_data = self.edcr.test_pred_data.values()
+
+        print(f'\nTaking {len(K)} / {T} {source_str} examples\n')
+        for (fine_prediction_index, coarse_prediction_index,
+             fine_prediction_index_new, coarse_prediction_index_new,
+             fine_gt_index, coarse_gt_index) \
+                in zip(*list(old_data),
+                       *list(new_data),
+                       *data_preprocessing.get_ground_truths(test=True, K=K)):
+            # Calculate padding to ensure each column reaches the desired width
+            pred_old_padding = N - len(
+                f'pred_old: {(fg_str[fine_prediction_index], cg_str[coarse_prediction_index])}')
+            pred_new_padding = N - len(
+                f'pred_new: {(fg_str[fine_prediction_index_new], cg_str[coarse_prediction_index_new])}')
+            true_padding = N - len(f'true: {(fg_str[fine_gt_index], cg_str[coarse_gt_index])}')
+
+            if pred_new_padding != pred_old_padding:
+                print(utils.green_text(
+                    f'pred_old:{(fg_str[fine_prediction_index], cg_str[coarse_prediction_index])}'
+                    + ' ' * pred_old_padding +
+                    f'pred_new:{(fg_str[fine_prediction_index_new], cg_str[coarse_prediction_index_new])}'
+                    + ' ' * pred_new_padding +
+                    f'true:{(fg_str[fine_gt_index], cg_str[coarse_gt_index])}' + ' ' * true_padding))
+            else:
+                print(
+                    f'pred_old:{(fg_str[fine_prediction_index], cg_str[coarse_prediction_index])}'
+                    + ' ' * pred_old_padding +
+                    f'pred_new:{(fg_str[fine_prediction_index_new], cg_str[coarse_prediction_index_new])}'
+                    + ' ' * pred_new_padding +
+                    f'true:{(fg_str[fine_gt_index], cg_str[coarse_gt_index])}' + ' ' * true_padding)
+
+    def run(self,
+            expected_output,
+            *method_args,
+            **method_kwargs):
+        output = self.method(*method_args, **method_kwargs)
+        test_passed = np.all(output == expected_output) if isinstance(output, np.ndarray) \
+            else output == expected_output
+
+        if test_passed:
+            print(utils.green_text(f'Test passed!'))
+        else:
+            print(utils.red_text('Test failed!'))
+            for test in [True]:
+                self.print_examples()
+            print(f'Expected:\n{expected_output}')
+            print(f'Actual:\n{output}')
 
 
 if __name__ == '__main__':
-    method_str = 'apply_detection_rules'
-
     K_train_slice = [(1, 10), (400, 410)]
-    K_test_slice = [(1, 10), (50, 60)]
+    K_test_slice = [(1250, 1259), (1310, 1319), (1450, 1459), (1500, 1510)]
 
     # Test 1
-    test = TestApplyDetectionRules(epsilon=0.1,
-                                   method_str=method_str,
-                                   K_train=K_train_slice,
-                                   K_test=K_test_slice)
+    test_1 = TestApplyCorrectionRules(epsilon=0.1,
+                                      K_train=K_train_slice,
+                                      K_test=K_test_slice)
 
-    error_detection_rules_1 = {l_Tank: {pred_2S19_MSTA, pred_30N6E}}
-    expected_output = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    error_correction_rules_1 = {l_Air_Defense: {(pred_2S19_MSTA, l_Tank)}}
+    expected_output_1 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                  0, -1, 0, 0, 0, 0, 0, 0, 0, 0,
+                                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ])
 
-    test.set_rules(error_detection_rules_1)
-    test.run(expected_output=expected_output,
-             g=g_coarse)
+    test_1.set_rules(error_correction_rules_1)
+    test_1.run(expected_output=expected_output_1,
+               g=g_coarse)
 
-    # Test 2
-    test = TestApplyDetectionRules(epsilon=0.1,
-                                   method_str=method_str,
-                                   K_train=K_train_slice,
-                                   K_test=K_test_slice)
-
-    error_detection_rules_2 = {l_Air_Defense: {pred_2S19_MSTA, pred_30N6E}}
-    expected_output = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1])
-
-    test.set_rules(error_detection_rules_2)
-    test.run(expected_output=expected_output,
-             g=g_coarse)
-
-    # Test 3
-    test = TestApplyDetectionRules(epsilon=0.1,
-                                   method_str=method_str,
-                                   K_train=K_train_slice,
-                                   K_test=K_test_slice)
-    error_detection_rules_3 = {l_Air_Defense: {pred_2S19_MSTA, pred_30N6E},
-                               l_Tank: {pred_2S19_MSTA, pred_30N6E}}
-    expected_output = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1, -1])
-
-    test.set_rules(error_detection_rules_3)
-    test.run(expected_output=expected_output,
-             g=g_coarse)
+    # # Test 2
+    # test = TestApplyDetectionRules(epsilon=0.1,
+    #                                method_str=method_str,
+    #                                K_train=K_train_slice,
+    #                                K_test=K_test_slice)
+    #
+    # error_detection_rules_2 = {l_Air_Defense: {pred_2S19_MSTA, pred_30N6E}}
+    # expected_output = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1])
+    #
+    # test.set_rules(error_detection_rules_2)
+    # test.run(expected_output=expected_output,
+    #          g=g_coarse)
+    #
+    # # Test 3
+    # test = TestApplyDetectionRules(epsilon=0.1,
+    #                                method_str=method_str,
+    #                                K_train=K_train_slice,
+    #                                K_test=K_test_slice)
+    # error_detection_rules_3 = {l_Air_Defense: {pred_2S19_MSTA, pred_30N6E},
+    #                            l_Tank: {pred_2S19_MSTA, pred_30N6E}}
+    # expected_output = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1, -1])
+    #
+    # test.set_rules(error_detection_rules_3)
+    # test.run(expected_output=expected_output,
+    #          g=g_coarse)

@@ -317,7 +317,7 @@ class EDCR:
         self.error_detection_rules = error_detection_rules
 
     def set_error_correction_rules(self,
-                                   rules: typing.Dict[data_preprocessing.Label, {_Condition, data_preprocessing.Label}]):
+                                   rules: typing.Dict[data_preprocessing.Label, {(_Condition, data_preprocessing.Label)}]):
         """
         Manually sets the error correction rule dictionary.
 
@@ -326,7 +326,7 @@ class EDCR:
         error_correction_rules = {}
         for label, CC_l in rules.items():
             error_correction_rules[label] = EDCR.ErrorCorrectionRule(label, CC_l=CC_l)
-        self.error_correction_rules = rules
+        self.error_correction_rules = error_correction_rules
 
     #
     # @classmethod
@@ -880,6 +880,8 @@ class EDCR:
                 altered_pred_granularity_data)
 
         self.test_pred_data[g] = altered_pred_granularity_data
+
+        return altered_pred_granularity_data
 
     def apply_reversion_rules(self,
                               g: data_preprocessing.Granularity):
