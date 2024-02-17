@@ -913,11 +913,11 @@ class EDCR:
 
         N_l = self.get_how_many_predicted_l(test=True, l=l)
         r_l = self.error_detection_rules[l]
-        where_predicted_l_and_any_conditions_satisfied = np.where(
-            r_l(test_pred_fine_data=self.original_test_pred_data[data_preprocessing.granularities['fine']],
-                test_pred_coarse_data=self.original_test_pred_data[data_preprocessing.granularities['coarse']]) == -1,
-            1, 0)
-        num_predicted_l_and_any_conditions_satisfied = np.sum(where_predicted_l_and_any_conditions_satisfied)
+        where_l_detection_rule_body_is_satisfied = (
+            r_l.get_where_body_is_satisfied(
+                test_pred_fine_data=self.original_test_pred_data[data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.original_test_pred_data[data_preprocessing.granularities['coarse']]))
+        num_predicted_l_and_any_conditions_satisfied = np.sum(where_l_detection_rule_body_is_satisfied)
         s_l = num_predicted_l_and_any_conditions_satisfied / N_l
 
         assert s_l <= 1
@@ -930,13 +930,19 @@ class EDCR:
             return 0
 
         r_l = self.error_detection_rules[l]
-        where_l_detection_rule_body_is_satisfied = np.where(
-            r_l(test_pred_fine_data=self.test_pred_data[data_preprocessing.granularities['fine']],
-                test_pred_coarse_data=self.test_pred_data[data_preprocessing.granularities['coarse']]) == -1, 1, 0)
+        where_l_detection_rule_body_is_satisfied = (
+            r_l.get_where_body_is_satisfied(
+                test_pred_fine_data=self.original_test_pred_data[data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.original_test_pred_data[data_preprocessing.granularities['coarse']]))
         where_l_fp = self.get_where_fp_l(test=True, l=l)
         where_head_and_body_is_satisfied = where_l_detection_rule_body_is_satisfied * where_l_fp
 
-        c_l = np.sum(where_head_and_body_is_satisfied) / np.sum(where_l_detection_rule_body_is_satisfied)
+        num_where_l_detection_rule_body_is_satisfied = np.sum(where_l_detection_rule_body_is_satisfied)
+
+        if num_where_l_detection_rule_body_is_satisfied == 0:
+            return 0
+
+        c_l = np.sum(where_head_and_body_is_satisfied) / num_where_l_detection_rule_body_is_satisfied
         return c_l
 
     def get_l_test_original_precision_score(self,
