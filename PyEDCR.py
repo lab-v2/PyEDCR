@@ -305,13 +305,16 @@ class EDCR:
         self.error_detection_rules: dict[data_preprocessing.Label, EDCR.ErrorDetectionRule] = {}
         self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
 
-    def set_error_detection_rules(self, rules: typing.Dict[data_preprocessing.Label, EDCR.ErrorDetectionRule]):
+    def set_error_detection_rules(self, rules: typing.Dict[data_preprocessing.Label, {_Condition}]):
         """
         Manually sets the error detection rule dictionary.
 
         :params rules: A dictionary mapping label instances to error detection rule objects.
         """
-        self.error_detection_rules = rules
+        error_detection_rules = {}
+        for label, DC_l in rules.items():
+            error_detection_rules[label] = EDCR.ErrorDetectionRule(label, DC_l)
+        self.error_detection_rules = error_detection_rules
 
     def set_error_correction_rules(self, rules: typing.Dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule]):
         """
@@ -320,6 +323,7 @@ class EDCR:
         :params rules: A dictionary mapping label instances to error detection rule objects.
         """
         self.error_correction_rules = rules
+
     #
     # @classmethod
     # def test(cls,
@@ -861,12 +865,14 @@ class EDCR:
 
     def test_apply_detection_rules(self,
                                    g: data_preprocessing.Granularity,
+                                   detection_rules: typing.Dict[data_preprocessing.Label, {_Condition}],
                                    expected_result: np.array):
+        self.set_error_detection_rules(detection_rules)
+        self.apply_detection_rules(g)
         result = np.where(self.test_pred_data[g] == -1, -1, 0)
         print(f'expected_result: {expected_result}')
         print(f'actual result: {result}')
         assert np.array_equal(result, expected_result)
-
 
     def apply_correction_rules(self,
                                g: data_preprocessing.Granularity):

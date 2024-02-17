@@ -1,8 +1,9 @@
-from PyEDCR import EDCR
 import data_preprocessing
 import warnings
 import numpy as np
 import utils
+from test_PYEDCR.test import *
+import PyEDCR
 
 # This will silence all warnings, including ones unrelated to your evaluation.
 # Use this approach with caution
@@ -35,84 +36,57 @@ warnings.filterwarnings('ignore')
 # 'BMD': ['BMD'],
 # 'MT_LB': ['MT_LB']
 
-K_train_slice = [(1, 10), (400, 410)]
-K_test_slice = [(1, 10), (50, 60)]
 
-edcr = EDCR.test(epsilon=0.1,
-                 K_train=K_train_slice,
-                 K_test=K_test_slice,
-                 print_pred_and_true=True)
+if __name__ == '__main__':
 
-# get label
-label_fine = data_preprocessing.get_labels(data_preprocessing.granularities['fine'])
-label_coarse = data_preprocessing.get_labels(data_preprocessing.granularities['coarse'])
+    K_train_slice = [(1, 10), (400, 410)]
+    K_test_slice = [(1, 10), (50, 60)]
 
-# method name
-method_str = "apply_detection_rules"
+    edcr = Test(epsilon=0.1,
+                K_train=K_train_slice,
+                K_test=K_test_slice,
+                print_pred_and_true=True)
 
-print(utils.blue_text("=" * 50 + "test " + method_str + "=" * 50))
+    # Test 1
 
-# labels and conditions:
+    DC_l = {pred_2S19_MSTA, pred_30N6E}
 
-g_fine, g_coarse = data_preprocessing.granularities.values()
-fg_l, cg_l = list(data_preprocessing.fine_grain_labels.values()), list(data_preprocessing.coarse_grain_labels.values())
-pred_conditions = {l: EDCR.PredCondition(l=l) for l in fg_l + cg_l}
-
-l_Air_Defense, l_BMD, l_BMP, l_BTR, l_MT_LB, l_SPA, l_Tank = cg_l
+    expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
 
-(pred_2S19_MSTA, pred_30N6E, pred_BM_30, pred_BMD, pred_BMP_1, pred_BMP_2, pred_BMP_T15, pred_BRDM, pred_BTR_60,
- pred_BTR_70, pred_BTR_80, pred_D_30, pred_Iskander, pred_MT_LB, pred_Pantsir_S1, pred_RS_24, pred_T_14, pred_T_62,
- pred_T_64, pred_T_72, pred_T_80, pred_T_90, pred_TOS_1, pred_Tornado) = [pred_conditions[l] for l in fg_l]
 
-# Test 1
+    # Test 2
 
-error_detection_rule_dict = {}
+    # error_detection_rule_dict = {}
+    #
+    # DC_l = {pred_2S19_MSTA, pred_30N6E}
+    # error_detection_rule_dict[l_Air_Defense] = edcr.ErrorDetectionRule(l_Air_Defense, DC_l)
+    #
+    # edcr.set_error_detection_rules(error_detection_rule_dict)
+    # edcr.apply_detection_rules(g_coarse)
+    #
+    # expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1])
+    #
+    # edcr.test_apply_detection_rules(g=g_coarse,
+    #                                 expected_result=expected_result)
 
-DC_l = {pred_2S19_MSTA, pred_30N6E}
-error_detection_rule_dict[l_Tank] = edcr.ErrorDetectionRule(l_Tank, DC_l)
+    # Test 3
 
-edcr.set_error_detection_rules(error_detection_rule_dict)
-edcr.apply_detection_rules(g_coarse)
+    # error_detection_rule_dict = {}
+    #
+    # DC_Tank = {pred_2S19_MSTA, pred_30N6E}
+    # error_detection_rule_dict[l_Tank] = edcr.ErrorDetectionRule(l_Tank, DC_Tank)
+    #
+    # DC_30N6E = {pred_2S19_MSTA, pred_30N6E}
+    # error_detection_rule_dict[l_Air_Defense] = edcr.ErrorDetectionRule(l_Air_Defense, DC_30N6E)
+    #
+    # edcr.set_error_detection_rules(error_detection_rule_dict)
+    # edcr.apply_detection_rules(g_coarse)
+    #
+    # expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1, -1])
+    #
+    # edcr.test_apply_detection_rules(g=g_coarse,
+    #                                 expected_result=expected_result)
 
-expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-
-edcr.test_apply_detection_rules(g=g_coarse,
-                                expected_result=expected_result)
-
-# Test 2
-
-error_detection_rule_dict = {}
-
-DC_l = {pred_2S19_MSTA, pred_30N6E}
-error_detection_rule_dict[l_Air_Defense] = edcr.ErrorDetectionRule(l_Air_Defense, DC_l)
-
-edcr.set_error_detection_rules(error_detection_rule_dict)
-edcr.apply_detection_rules(g_coarse)
-
-expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1])
-
-edcr.test_apply_detection_rules(g=g_coarse,
-                                expected_result=expected_result)
-
-# Test 3
-
-error_detection_rule_dict = {}
-
-DC_Tank = {pred_2S19_MSTA, pred_30N6E}
-error_detection_rule_dict[l_Tank] = edcr.ErrorDetectionRule(l_Tank, DC_Tank)
-
-DC_30N6E = {pred_2S19_MSTA, pred_30N6E}
-error_detection_rule_dict[l_Air_Defense] = edcr.ErrorDetectionRule(l_Air_Defense, DC_30N6E)
-
-edcr.set_error_detection_rules(error_detection_rule_dict)
-edcr.apply_detection_rules(g_coarse)
-
-expected_result = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1, -1])
-
-edcr.test_apply_detection_rules(g=g_coarse,
-                                expected_result=expected_result)
-
-print(f"{method_str} method passed!")
 
 
