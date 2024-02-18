@@ -130,6 +130,7 @@ def get_and_print_metrics(pred_fine_data: np.array,
     """
     Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
 
+    :param print_inconsistencies:
     :param pred_fine_data: NumPy array of predictions at the fine granularity.
     :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
     :param loss: The loss function used during training.
