@@ -733,7 +733,7 @@ class EDCR:
 
         :param g: The granularity of the predictions to be processed.
         """
-        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True, original=False)
+        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
         altered_pred_granularity_data = self.get_predictions(test=True, g=g, original=False)
 
         altered_pred_granularity_datas = {}
@@ -761,7 +761,7 @@ class EDCR:
 
     def apply_reversion_rules(self,
                               g: data_preprocessing.Granularity):
-        pred_granularity_data = self.get_predictions(test=True, g=g)
+        pred_granularity_data = self.get_predictions(test=True, g=g, original=False)
 
         self.test_pred_data[g] = np.where(pred_granularity_data == -1,
                                           self.original_test_pred_data[g], pred_granularity_data)
@@ -858,7 +858,7 @@ if __name__ == '__main__':
 
     # for g in data_preprocessing.granularities:
         edcr.apply_correction_rules(g=g)
-        # edcr.apply_reversion_rules(g=g)
+        edcr.apply_reversion_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
 
