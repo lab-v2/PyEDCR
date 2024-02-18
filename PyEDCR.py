@@ -823,6 +823,24 @@ class EDCR:
                                for l in data_preprocessing.get_labels(g).values()]
         return np.mean(precision_increases)
 
+    def get_l_theoretical_recall_decrease(self,
+                                          l: data_preprocessing.Label) -> float:
+        c_l = self.get_l_detection_rule_confidence_on_test(l=l)
+        s_l = self.get_l_detection_rule_support_on_test(l=l)
+        p_l = self.original_test_precisions[l.g][l]
+        r_l = self.original_test_recalls[l.g][l]
+        theoretical_recall_decrease = (1 - c_l) * s_l * r_l / p_l
+
+        assert theoretical_recall_decrease <= self.epsilon
+
+        return theoretical_recall_decrease
+
+    def get_g_theoretical_recall_decrease(self,
+                                          g: data_preprocessing.Granularity):
+        recall_decreases = [self.get_l_theoretical_recall_decrease(l=l)
+                            for l in data_preprocessing.get_labels(g).values()]
+        return np.mean(recall_decreases)
+
     def get_l_theorem_1_condition(self,
                                   l: data_preprocessing.Label):
         return self.get_l_detection_rule_support_on_test(l=l) + self.original_test_precisions[l] <= 1
@@ -833,7 +851,7 @@ class EDCR:
 
 
 if __name__ == '__main__':
-    edcr = EDCR(epsilon=0.1,
+    edcr = EDCR(epsilon=0.5,
                 main_model_name='vit_b_16',
                 combined=True,
                 loss='BCE',
@@ -852,11 +870,19 @@ if __name__ == '__main__':
         edcr.apply_detection_rules(g=g)
         p, r = edcr.get_g_precision_and_recall(g=g, test=True, original=False)
         new_avg_precision = np.mean(list(p.values()))
+        new_avg_recall = np.mean(list(r.values()))
         old_precision = np.mean(list(edcr.original_test_precisions[g].values()))
-        print(f'new: {new_avg_precision}, old: {old_precision}, diff: {new_avg_precision - old_precision}\n'
-              f'theoretical_precision_increase: {edcr.get_g_theoretical_precision_increase(g=g)}')
+        old_recall = np.mean(list(edcr.original_test_recalls[g].values()))
 
-    # for g in data_preprocessing.granularities:
+        print(f'new precision: {new_avg_precision}, old precision: {old_precision}, '
+              f'diff: {new_avg_precision - old_precision}\n'
+              f'theoretical_precision_increase: {edcr.get_g_theoretical_precision_increase(g=g)}')
+        print(f'new recall: {new_avg_recall}, old recall: {old_recall}, '
+              f'diff: {new_avg_recall - old_recall}\n'
+              f'theoretical_precision_increase: {edcr.get_g_theoretical_recall_decrease(g=g)}')
+
+
+        # for g in data_preprocessing.granularities:
         edcr.apply_correction_rules(g=g)
         edcr.apply_reversion_rules(g=g)
 
