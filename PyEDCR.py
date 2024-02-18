@@ -838,8 +838,6 @@ class EDCR:
         r_l = self.original_test_recalls[l.g][l]
         theoretical_recall_decrease = (1 - c_l) * s_l * r_l / p_l
 
-        # assert theoretical_recall_decrease <= self.epsilon
-
         return theoretical_recall_decrease
 
     def get_g_theoretical_recall_decrease(self,
