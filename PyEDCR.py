@@ -366,18 +366,20 @@ class EDCR:
     def print_metrics(self,
                       test: bool,
                       prior: bool,
-                      print_inconsistencies: bool = True):
+                      print_inconsistencies: bool = True,
+                      original: bool = True):
 
         """Prints performance metrics for given test/train data.
 
         Calculates and prints various metrics (accuracy, precision, recall, etc.)
         using appropriate true labels and prediction data based on the specified mode.
 
+        :param original:
         :param print_inconsistencies:
         :param prior:
         :param test: True to use test data, False to use training data.
         """
-        pred_fine_data, pred_coarse_data = self.get_predictions(test=test)
+        pred_fine_data, pred_coarse_data = self.get_predictions(test=test, original=original)
         true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.K_test) if test \
             else data_preprocessing.get_ground_truths(test=test, K=self.K_train)
 
@@ -855,7 +857,7 @@ if __name__ == '__main__':
         print(f'new: {new_avg_precision}, old: {old_precision}, diff: {new_avg_precision - old_precision}\n'
               f'theoretical_precision_increase: {edcr.get_g_theoretical_precision_increase(g=g)}')
 
-    edcr.print_metrics(test=True, prior=False, print_inconsistencies=False)
+    edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
 
     #     # print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
     #     # print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
