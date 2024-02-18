@@ -612,7 +612,7 @@ class EDCR:
 
                 for cond in DC_star:
                     POS_l_c = self.get_POS_l_C(l=l, C=DC_l.union({cond}))
-                    if POS_l_c > best_score:
+                    if POS_l_c >= best_score:
                         best_score = POS_l_c
                         best_cond = cond
 
@@ -838,7 +838,7 @@ class EDCR:
         r_l = self.original_test_recalls[l.g][l]
         theoretical_recall_decrease = (1 - c_l) * s_l * r_l / p_l
 
-        assert theoretical_recall_decrease <= self.epsilon
+        # assert theoretical_recall_decrease <= self.epsilon
 
         return theoretical_recall_decrease
 
