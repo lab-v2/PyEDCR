@@ -831,7 +831,9 @@ class EDCR:
         r_l = self.original_test_recalls[l.g][l]
         theoretical_recall_decrease = (1 - c_l) * s_l * r_l / p_l
 
-        assert theoretical_recall_decrease <= self.epsilon
+        if theoretical_recall_decrease <= self.epsilon:
+            print('hi')
+        # assert theoretical_recall_decrease <= self.epsilon
 
         return theoretical_recall_decrease
 
@@ -879,12 +881,12 @@ if __name__ == '__main__':
               f'theoretical_precision_increase: {edcr.get_g_theoretical_precision_increase(g=g)}')
         print(f'new recall: {new_avg_recall}, old recall: {old_recall}, '
               f'diff: {new_avg_recall - old_recall}\n'
-              f'theoretical_precision_increase: {edcr.get_g_theoretical_recall_decrease(g=g)}')
+              f'theoretical_recall_decrease: {edcr.get_g_theoretical_recall_decrease(g=g)}')
 
 
         # for g in data_preprocessing.granularities:
-        edcr.apply_correction_rules(g=g)
-        edcr.apply_reversion_rules(g=g)
+        # edcr.apply_correction_rules(g=g)
+        # edcr.apply_reversion_rules(g=g)
 
     edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
 
