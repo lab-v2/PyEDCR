@@ -733,27 +733,26 @@ class EDCR:
 
         :param g: The granularity of the predictions to be processed.
         """
-        # TODO: put in get_predictions original flag
-        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
-        altered_pred_granularity_data = self.get_predictions(test=True, g=g)
+        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True, original=False)
+        altered_pred_granularity_data = self.get_predictions(test=True, g=g, original=False)
 
         altered_pred_granularity_datas = {}
         for l, rule_g_l in {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items():
             altered_pred_granularity_datas[l] = rule_g_l(test_pred_fine_data=test_pred_fine_data,
                                                          test_pred_coarse_data=test_pred_coarse_data)
 
-        # collision_array = np.zeros_like(altered_pred_granularity_data)
-        #
-        # for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
-        #     for l_2, altered_pred_data_l_2 in altered_pred_granularity_datas.items():
-        #         if l_1 != l_2:
-        #             where_supposed_to_correct_to_l1 = np.where(altered_pred_data_l_1 == l_1.index, 1, 0)
-        #             where_supposed_to_correct_to_l2 = np.where(altered_pred_data_l_2 == l_2.index, 1, 0)
-        #             collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
+        collision_array = np.zeros_like(altered_pred_granularity_data)
+
+        for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
+            for l_2, altered_pred_data_l_2 in altered_pred_granularity_datas.items():
+                if l_1 != l_2:
+                    where_supposed_to_correct_to_l1 = np.where(altered_pred_data_l_1 == l_1.index, 1, 0)
+                    where_supposed_to_correct_to_l2 = np.where(altered_pred_data_l_2 == l_2.index, 1, 0)
+                    collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
 
         for l, altered_pred_data_l in altered_pred_granularity_datas.items():
             altered_pred_granularity_data = np.where(
-                # (collision_array != 1) &
+                (collision_array != 1) &
                 (altered_pred_data_l == l.index),
                 l.index,
                 altered_pred_granularity_data)
@@ -857,13 +856,12 @@ if __name__ == '__main__':
         print(f'new: {new_avg_precision}, old: {old_precision}, diff: {new_avg_precision - old_precision}\n'
               f'theoretical_precision_increase: {edcr.get_g_theoretical_precision_increase(g=g)}')
 
+    # for g in data_preprocessing.granularities:
+        edcr.apply_correction_rules(g=g)
+        # edcr.apply_reversion_rules(g=g)
+
     edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
 
-    #     # print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['fine']))
-    #     # print(edcr.get_g_theoretical_precision_increase(g=data_preprocessing.granularities['coarse']))
-    #     # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['fine']))
-    #     # print(edcr.get_theorem_1_condition_for_g(g=data_preprocessing.granularities['coarse']))
-    #
     #     edcr.apply_correction_rules(g=g)
     #     edcr.apply_reversion_rules(g=g)
     #
