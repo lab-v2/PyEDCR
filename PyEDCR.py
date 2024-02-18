@@ -292,8 +292,6 @@ class EDCR:
             self.original_test_precisions[g], self.original_test_recalls[g] = (
                 self.get_g_precision_and_recall(g=g, test=True))
 
-            print(np.mean(list(self.original_test_precisions[g].values())))
-
         self.error_detection_rules: dict[data_preprocessing.Label, EDCR.ErrorDetectionRule] = {}
         self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
 
