@@ -1,6 +1,5 @@
 from test_PYEDCR.test import *
 
-
 # This will silence all warnings, including ones unrelated to your evaluation.
 # Use this approach with caution!
 warnings.filterwarnings('ignore')
@@ -14,11 +13,11 @@ def test_case_1():
     K = [(1, 5), (401, 405)]
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
     case_number = 1
-
+    test.print_examples(test=False)
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
 
     test.run(l=l_30N6E, expected_output=np.array([0] * 5 + [1] * 3 + [0] + [1]))
-    test.run(l=l_Air_Defense,expected_output=np.array([0] * 5 + [1] * 5))
+    test.run(l=l_Air_Defense, expected_output=np.array([0] * 5 + [1] * 5))
     test.run(l=l_Tank, expected_output=np.array([0] * 10))
     test.run(l=l_SPA, expected_output=np.array([1] * 5 + [0] * 5))
     test.run(l=l_RS_24, expected_output=np.array([0] * 10))
@@ -47,7 +46,6 @@ def test_case_2():
     test.run(l=l_T_64, expected_output=np.array([0] * 20 + [1] + [0] + [1] * 3))
     test.run(l=l_T_72, expected_output=np.array([0] * 25))
 
-
     print(f'Case {case_number} passed!')
 
 
@@ -59,7 +57,8 @@ def test_case_3():
 
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
 
-    test.run(l=l_SPA, expected_output=np.array([1] * 5 + [0] * 12 + [1] * 3 + [0] * 5 + [1] * 5 + [0] + [1] * 5 + [0] + [1] * 13))
+    test.run(l=l_SPA, expected_output=np.array(
+        [1] * 5 + [0] * 12 + [1] * 3 + [0] * 5 + [1] * 5 + [0] + [1] * 5 + [0] + [1] * 13))
     test.run(l=l_BTR, expected_output=np.array([0] * 6 + [1] * 11 + [0] * 33))
     test.run(l=l_BMP, expected_output=np.array([0] * 50))
     test.run(l=l_Air_Defense, expected_output=np.array([0] * 20 + [1] * 5 + [0] * 25))
@@ -72,9 +71,11 @@ def test_case_3():
     test.run(l=l_D_30, expected_output=np.array([0] * 17 + [1] * 3 + [0] * 30))
     test.run(l=l_Iskander, expected_output=np.array([0] * 20 + [1] * 5 + [0] * 25))
     test.run(l=l_BM_30, expected_output=np.array([0] * 50))
-    test.run(l=l_Tornado, expected_output=np.array([0] * 26 + [1] * 2 + [0] + [1] * 2 + [0] + [1] * 11 + [0] * 3 + [1] * 4))
+    test.run(l=l_Tornado,
+             expected_output=np.array([0] * 26 + [1] * 2 + [0] + [1] * 2 + [0] + [1] * 11 + [0] * 3 + [1] * 4))
 
     print(f'Case {case_number} passed!')
+
 
 if __name__ == '__main__':
     test_case_1()

@@ -33,6 +33,7 @@ class TestWhereAnyConditionsSatisfied(Test):
                  expected_output=1)
 
 
+
 def run_tests():
     K = [(0, 9)]
     test = TestWhereAnyConditionsSatisfied(epsilon=0.1, K_train=K, K_test=K)
@@ -133,7 +134,6 @@ def run_tests():
 
     test_pred_fine_data, test_pred_coarse_data = test.edcr.get_predictions(test=True)
 
-    test.print_examples()
     test.run(C={pred_Tornado, pred_BMP_1},
              fine_data=test_pred_fine_data,
              coarse_data=test_pred_coarse_data,
@@ -162,56 +162,69 @@ def run_tests():
     test.run_edge_cases(fine_data=test_pred_fine_data,
                         coarse_data=test_pred_coarse_data)
 
-    # edcr = EDCR.test(epsilon=0.1, K=K
-    # K = 20
-    # edcr = EDCR.test(epsilon=0.1, K=K, print_pred_and_true=True)
-    # train_pred_fine_data, train_pred_coarse_data = edcr.get_predictions(test=False)
-    # expected_result = np.array([1] * 11 + [0, 1, 1] * 3)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=0)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=expected_result)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_SPA},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=expected_result)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={pred_Tornado, pred_BMP_1, pred_SPA, pred_2S19_MSTA},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=expected_result)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={consistency_constraint},
-    #                                              fine_data=train_pred_fine_data,
-    #                                              coarse_data=train_pred_coarse_data,
-    #                                              expected_result=1)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={consistency_constraint},
-    #                                              fine_data=np.array([4]),
-    #                                              coarse_data=np.array([0]),
-    #                                              expected_result=0)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={consistency_constraint},
-    #                                              fine_data=np.array([l_BMP_1.index, l_T_14.index]),
-    #                                              coarse_data=np.array([l_BMP.index, l_Tank.index]),
-    #                                              expected_result=1)
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={consistency_constraint},
-    #                                              fine_data=np.array([l_BMP_1.index, l_T_14.index]),
-    #                                              coarse_data=np.array([l_Tank.index, l_Tank.index]),
-    #                                              expected_result=np.array([0, 1]))
-    #
-    # edcr.test_get_where_any_conditions_satisfied(C={consistency_constraint},
-    #                                              fine_data=np.array([l_BMP_1.index, l_MT_LB_fine.index]),
-    #                                              coarse_data=np.array([l_Tank.index, l_Tank.index]),
-    #                                              expected_result=0)
+    K = [(100, 104), (200, 204), (300, 304), (400, 404)]
+
+    test = TestWhereAnyConditionsSatisfied(epsilon=0.1, K_train=K, K_test=K)
+
+    train_pred_fine_data, train_pred_coarse_data = test.edcr.get_predictions(test=False)
+
+    test.run(C={pred_Tornado, pred_BMP_1},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=0)
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=0)
+
+    test.run(C={pred_SPA},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=np.array([1] * 10 + [0] * 10))
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_SPA},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=np.array([1] * 10 + [0] * 10))
+
+    test.run(C={pred_2S19_MSTA, pred_T_72},
+             fine_data=train_pred_fine_data,
+             coarse_data=train_pred_coarse_data,
+             expected_output=0)
+
+    test.run_edge_cases(fine_data=train_pred_fine_data,
+                        coarse_data=train_pred_coarse_data)
+
+    test_pred_fine_data, test_pred_coarse_data = test.edcr.get_predictions(test=True)
+
+    test.run(C={pred_Tornado, pred_BMP_1},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=0)
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_2S19_MSTA},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=0)
+
+    test.run(C={pred_SPA},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=0)
+
+    test.run(C={pred_Tornado, pred_BMP_1, pred_SPA},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=0)
+
+    test.run(C={pred_2S19_MSTA, pred_T_72},
+             fine_data=test_pred_fine_data,
+             coarse_data=test_pred_coarse_data,
+             expected_output=np.array([0] * 12 + [1] + [0] * 7))
+
+    test.run_edge_cases(fine_data=test_pred_fine_data,
+                        coarse_data=test_pred_coarse_data)
 
 
 if __name__ == '__main__':
