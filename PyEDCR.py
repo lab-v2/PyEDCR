@@ -683,6 +683,7 @@ class EDCR:
                 if utils.is_local():
                     progress_bar.update(1)
 
+        self.print_metrics(test=True, prior=True)
         # learning correction rules
         if learn_correction_rules:
             print(f'\nLearning {g}-grain error correction rules...')
@@ -859,12 +860,12 @@ if __name__ == '__main__':
         edcr.print_metrics(test=True, prior=True)
         edcr.print_metrics(test=False, prior=True)
 
-        # for g in data_preprocessing.granularities.values():
-        #     edcr.DetCorrRuleLearn(g=g, learn_correction_rules=False)
-        #
-        # # # print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
-        # # #        list(data_preprocessing.fine_grain_labels.values()) +
-        # # #        list(data_preprocessing.coarse_grain_labels.values())])
+        for g in data_preprocessing.granularities.values():
+            edcr.DetCorrRuleLearn(g=g, learn_correction_rules=True)
+
+        # # print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
+        # #        list(data_preprocessing.fine_grain_labels.values()) +
+        # #        list(data_preprocessing.coarse_grain_labels.values())])
         #
         # for g in data_preprocessing.granularities:
         #     edcr.apply_detection_rules(g=g)
