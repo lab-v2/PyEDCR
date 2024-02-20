@@ -4,12 +4,12 @@ from test_PYEDCR.test import *
 
 method_str = 'get_BOD_CC'
 
+
 class TestGetBODCC(Test):
     def __init__(self,
                  epsilon: float,
                  K_train: list[(int, int)] = None,
                  K_test: list[(int, int)] = None):
-        method_str = 'get_BOD_CC'
         super().__init__(epsilon=epsilon, method_str=method_str, K_train=K_train, K_test=K_test)
 
     def run(self,
@@ -33,6 +33,7 @@ class TestGetBODCC(Test):
 
         assert test_passed
 
+
 def run_test_1():
     K = [(0, 9)]
     test = TestGetBODCC(epsilon=0.1, K_train=K, K_test=None)
@@ -40,9 +41,11 @@ def run_test_1():
     CC_l_1 = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_BMP_1, l_SPA)}
     CC_l_2 = {(pred_T_72, l_SPA), (pred_BMP_2, l_BMP), (pred_BMP_1, l_SPA)}
     CC_l_3 = {(pred_2S19_MSTA, l_SPA), (pred_BMP_2, l_BMP), (pred_2S19_MSTA, l_Tank)}
-    CC_l_4 = {(pred_2S19_MSTA, l_SPA), (pred_BMP_, l_BMP), (pred_2S19_MSTA, l_Tank)}
-
-
+    CC_l_4 = {(pred_2S19_MSTA, l_SPA), (pred_T_72, l_SPA), (pred_2S19_MSTA, l_Tank), (pred_T_72, l_SPA)}
+    CC_l_5 = {(pred_30N6E, l_SPA), (pred_T_72, l_BTR), (pred_2S19_MSTA, l_Tank)}
+    CC_l_6 = {(pred_2S19_MSTA, l_BMP), (pred_T_72, l_BTR), (pred_2S19_MSTA, l_Tank)}
+    CC_l_7 = {(pred_SPA, l_2S19_MSTA)}
+    CC_l_8 = {(pred_SPA, l_2S19_MSTA), (pred_SPA, l_T_72), (pred_2S19_MSTA, l_SPA), (pred_T_72, l_SPA)}
 
     case_number = 1
     test.print_examples(test=False)
@@ -51,7 +54,11 @@ def run_test_1():
     test.run(CC=CC_l_1, expected_output=(0, np.array([0] * 10)))
     test.run(CC=CC_l_2, expected_output=(1, np.array([0] * 10)))
     test.run(CC=CC_l_3, expected_output=(9, np.array([0] * 10)))
-
+    test.run(CC=CC_l_4, expected_output=(10, np.array([0] * 10)))
+    test.run(CC=CC_l_5, expected_output=(0, np.array([0] * 10)))
+    test.run(CC=CC_l_6, expected_output=(0, np.array([0] * 10)))
+    test.run(CC=CC_l_7, expected_output=(9, np.array([0] * 10)))
+    test.run(CC=CC_l_8, expected_output=(10, np.array([0] * 10)))
 
     # edcr.test_BOD_CC(CC=CC_l, expected_result=0)
     # edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=0)
@@ -69,27 +76,19 @@ def run_test_1():
 
 
 def run_test_2():
-    K = 12
-    edcr = EDCR.test(epsilon=0.1, K=K, print_pred_and_true=True)
+    K = [(351, 355), (471, 475), (4001, 4005), (4601, 4605), (6001, 6005)]
+    test = TestGetBODCC(epsilon=0.1, K_train=K, K_test=None)
 
-    CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP)}
-    edcr.test_BOD_CC(CC=CC_l, expected_result=0)
-    edcr.test_BOD_CC(CC=CC_l, expected_result=0)
+    CC_l_1 = {(pred_Pantsir_S1, l_Air_Defense)}
+    CC_l_2 = {(pred_Pantsir_S1, l_Air_Defense), (pred_30N6E, l_Air_Defense), (pred_30N6E, l_SPA)}
+    CC_l_3 = {(pred_Iskander, l_Tank), (pred_BTR_60, l_BTR), }
 
-    CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_2S19_MSTA, l_SPA)}
-    edcr.test_BOD_CC(CC=CC_l, expected_result=11)
-    edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=1)
-    edcr.test_CON_l_CC(l=l_BMP, CC=CC_l, expected_result=0)
+    case_number = 2
+    test.print_examples(test=False)
+    print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
 
-    CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_2S19_MSTA, l_SPA), (pred_BTR_70, l_BTR)}
-    edcr.test_BOD_CC(CC=CC_l, expected_result=12)
-    edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=1)
-    edcr.test_CON_l_CC(l=l_BMP, CC=CC_l, expected_result=0)
-
-    CC_l = set(itertools.product(pred_conditions.values(), fg_l + cg_l))
-    edcr.test_BOD_CC(CC=CC_l, expected_result=K)
-    edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=1)
-    edcr.test_CON_l_CC(l=l_BMP, CC=CC_l, expected_result=0)
+    test.run(CC=CC_l_1, expected_output=(6, np.array([0] * 10)))
+    test.run(CC=CC_l_2, expected_output=(8, np.array([0] * 10)))
 
 
 def run_test_3():
@@ -127,5 +126,5 @@ def run_test_3():
 
 if __name__ == '__main__':
     run_test_1()
-    # run_test_2()
+    run_test_2()
     # run_test_3()
