@@ -573,9 +573,9 @@ class EDCR:
         """
 
         BOD_CC, where_any_pair_is_satisfied_in_train_pred = self.get_BOD_CC(CC=CC)
-        POS_l_CC = self.get_POS_l_CC(l=l,
-                                     where_any_pair_is_satisfied_in_train_pred=
-                                     where_any_pair_is_satisfied_in_train_pred)
+        POS_l_CC = (
+            self.get_POS_l_CC(l=l,
+                              where_any_pair_is_satisfied_in_train_pred=where_any_pair_is_satisfied_in_train_pred))
         CON_l_CC = POS_l_CC / BOD_CC if BOD_CC else 0
 
         return CON_l_CC
@@ -628,7 +628,7 @@ class EDCR:
         """
         CC_l = set()
         CC_l_prime = CC_all.copy()
-        CC_sorted = sorted(CC_all, key=lambda cond_and_l: self.get_CON_l_CC(l=l, CC={cond_and_l}), reverse=True)
+        CC_sorted = sorted(CC_all, key=lambda c_l: self.get_CON_l_CC(l=l, CC={c_l}), reverse=True)
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
             for cond_and_l in CC_sorted:
@@ -860,8 +860,8 @@ if __name__ == '__main__':
         edcr.print_metrics(test=True, prior=True)
         edcr.print_metrics(test=False, prior=True)
 
-        for g in data_preprocessing.granularities.values():
-            edcr.DetCorrRuleLearn(g=g, learn_correction_rules=True)
+        for g_i in data_preprocessing.granularities.values():
+            edcr.DetCorrRuleLearn(g=g_i, learn_correction_rules=True)
 
         # # print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
         # #        list(data_preprocessing.fine_grain_labels.values()) +
