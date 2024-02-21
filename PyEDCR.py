@@ -202,7 +202,10 @@ class EDCR:
 
             where_any_pair_satisfied = np.zeros_like(test_pred_granularity_data)
 
-            for cond, l_prime in self.C_l:
+            C_l = {(cond, l_prime) for cond, l_prime in self.C_l if isinstance(cond, EDCR.ConsistencyCondition)
+                   or cond.l.g != l_prime.g}
+
+            for cond, l_prime in C_l:
                 where_condition_satisfied = (
                     EDCR.get_where_any_conditions_satisfied(C={cond},
                                                             fine_data=test_pred_fine_data,
@@ -716,7 +719,7 @@ class EDCR:
 
         :params g: The granularity of the predictions to be processed.
         """
-        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
+        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True, original=True)
         altered_pred_granularity_data = self.get_predictions(test=True, g=g)
 
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
@@ -877,17 +880,6 @@ class EDCR:
     def check_g_correction_rule_precision_recall(self,
                                                  g: data_preprocessing.Granularity):
         (p_g_new, r_g_new) = self.get_g_precision_and_recall(g=g, test=True, original=False)
-        # for l in data_preprocessing.get_labels(g).values():
-        #     c_l = self.get_l_correction_rule_confidence_on_test(l=l)
-        #     p_l = self.original_test_precisions[g][l]
-        #     r_l = self.original_test_recalls[g][l]
-        #     (p_l_new, r_l_new) = p_g_new[l], r_g_new[l]
-        #
-        #     print(f'class {l}: new precision: {p_l_new}, old precision: {p_l}, '
-        #           f'diff: {p_l_new - p_l}')
-        #     print(f'class {l}: new recall: {r_l_new}, old recall: {r_l}, '
-        #           f'diff: {r_l_new - r_l}')
-        #     print(f'class {l}: confidence: {c_l}')
 
         for l in data_preprocessing.get_labels(g).values():
             c_l = self.get_l_correction_rule_confidence_on_test(l=l)
@@ -927,11 +919,10 @@ if __name__ == '__main__':
         for gra in data_preprocessing.granularities:
             edcr.apply_detection_rules(g=gra)
             edcr.apply_correction_rules(g=gra)
-            p, r = edcr.get_g_precision_and_recall(g=gra, test=True, original=False)
 
-            edcr.check_g_correction_rule_precision_recall(gra)
+        edcr.check_g_correction_rule_precision_recall(data_preprocessing.granularities['fine'])
 
-        edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
+        # edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
 
         # for g in data_preprocessing.granularities:
         #     edcr.apply_detection_rules(g=g)
