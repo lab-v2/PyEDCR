@@ -866,9 +866,10 @@ if __name__ == '__main__':
         # # print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
         # #        list(data_preprocessing.fine_grain_labels.values()) +
         # #        list(data_preprocessing.coarse_grain_labels.values())])
-        #
-        # for g in data_preprocessing.granularities:
-        #     edcr.apply_detection_rules(g=g)
+        
+        for g in data_preprocessing.granularities:
+            edcr.apply_detection_rules(g=g)
+
         #     p, r = edcr.get_g_precision_and_recall(g=g, test=True, original=False)
         #     new_avg_precision = np.mean(list(p.values()))
         #     new_avg_recall = np.mean(list(r.values()))
