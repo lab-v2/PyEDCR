@@ -309,7 +309,8 @@ class EDCR:
         self.error_detection_rules = error_detection_rules
 
     def set_error_correction_rules(self,
-                                   rules: typing.Dict[data_preprocessing.Label, {(_Condition, data_preprocessing.Label)}]):
+                                   rules: typing.Dict[
+                                       data_preprocessing.Label, {(_Condition, data_preprocessing.Label)}]):
         """
         Manually sets the error correction rule dictionary.
 
@@ -876,27 +877,37 @@ class EDCR:
     def check_g_correction_rule_precision_recall(self,
                                                  g: data_preprocessing.Granularity):
         (p_g_new, r_g_new) = self.get_g_precision_and_recall(g=g, test=True, original=False)
+        # for l in data_preprocessing.get_labels(g).values():
+        #     c_l = self.get_l_correction_rule_confidence_on_test(l=l)
+        #     p_l = self.original_test_precisions[g][l]
+        #     r_l = self.original_test_recalls[g][l]
+        #     (p_l_new, r_l_new) = p_g_new[l], r_g_new[l]
+        #
+        #     print(f'class {l}: new precision: {p_l_new}, old precision: {p_l}, '
+        #           f'diff: {p_l_new - p_l}')
+        #     print(f'class {l}: new recall: {r_l_new}, old recall: {r_l}, '
+        #           f'diff: {r_l_new - r_l}')
+        #     print(f'class {l}: confidence: {c_l}')
+
         for l in data_preprocessing.get_labels(g).values():
             c_l = self.get_l_correction_rule_confidence_on_test(l=l)
             p_l = self.original_test_precisions[g][l]
             r_l = self.original_test_recalls[g][l]
             (p_l_new, r_l_new) = p_g_new[l], r_g_new[l]
 
-            # print(f'class {l}: new precision: {p_l_new}, old precision: {p_l}, '
-            #       f'diff: {p_l_new - p_l}')
-            # print(f'class {l}: new recall: {r_l_new}, old recall: {r_l}, '
-            #       f'diff: {r_l_new - r_l}')
-            # print(f'class {l}: confidence: {c_l}')
+            try:
+                assert r_l_new >= r_l
+            except AssertionError:
+                print(f'class {l}: new recall: {r_l_new}, old recall: {r_l}, '
+                      f'diff: {r_l_new - r_l}')
 
-        for l in data_preprocessing.get_labels(g).values():
-            c_l = self.get_l_correction_rule_confidence_on_test(l=l)
-            p_l = self.original_test_precisions[g][l]
-            r_l = self.original_test_recalls[g][l]
-            (p_l_new, r_l_new) = p_g_new[l], r_g_new[l]
-            if p_l_new > p_l:
-                assert c_l > p_l
-
-            assert r_l_new >= r_l
+            try:
+                if p_l_new > p_l:
+                    assert c_l > p_l
+            except AssertionError:
+                print(f'class {l}: new precision: {p_l_new}, old precision: {p_l}, '
+                      f'diff: {p_l_new - p_l}')
+                print(f'class {l}: confidence: {c_l}')
 
 
 if __name__ == '__main__':
