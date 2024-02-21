@@ -882,11 +882,11 @@ class EDCR:
             r_l = self.original_test_recalls[g][l]
             (p_l_new, r_l_new) = p_g_new[l], r_g_new[l]
 
-            print(f'class {l}: new precision: {p_l_new}, old precision: {p_l}, '
-                  f'diff: {p_l_new - p_l}')
-            print(f'class {l}: new recall: {r_l_new}, old recall: {r_l}, '
-                  f'diff: {r_l_new - r_l}')
-            print(f'class {l}: confidence: {c_l}')
+            # print(f'class {l}: new precision: {p_l_new}, old precision: {p_l}, '
+            #       f'diff: {p_l_new - p_l}')
+            # print(f'class {l}: new recall: {r_l_new}, old recall: {r_l}, '
+            #       f'diff: {r_l_new - r_l}')
+            # print(f'class {l}: confidence: {c_l}')
 
         for l in data_preprocessing.get_labels(g).values():
             c_l = self.get_l_correction_rule_confidence_on_test(l=l)
@@ -909,24 +909,18 @@ if __name__ == '__main__':
                     lr=0.0001,
                     num_epochs=20)
         edcr.print_metrics(test=True, prior=True)
-        edcr.print_metrics(test=False, prior=True)
 
-        # for g in data_preprocessing.granularities.values():
-        #     edcr.DetCorrRuleLearn(g=g, learn_correction_rules=True)
-
-        # for gra in data_preprocessing.granularities.values():
-        edcr.DetCorrRuleLearn(g=data_preprocessing.granularities['coarse'], learn_correction_rules=True)
+        for g in data_preprocessing.granularities.values():
+            edcr.DetCorrRuleLearn(g=g, learn_correction_rules=True)
 
         for gra in data_preprocessing.granularities:
+            edcr.apply_detection_rules(g=gra)
             edcr.apply_correction_rules(g=gra)
+            p, r = edcr.get_g_precision_and_recall(g=gra, test=True, original=False)
 
-        gra = data_preprocessing.granularities['coarse']
-        p, r = edcr.get_g_precision_and_recall(g=gra, test=True, original=False)
-
-        edcr.check_g_correction_rule_precision_recall(gra)
+            edcr.check_g_correction_rule_precision_recall(gra)
 
         edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
-
 
         # for g in data_preprocessing.granularities:
         #     edcr.apply_detection_rules(g=g)
