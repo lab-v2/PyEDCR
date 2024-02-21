@@ -5,10 +5,6 @@ from test_PYEDCR.test import *
 # Use this approach with caution!
 warnings.filterwarnings('ignore')
 
-# get label
-label_fine = data_preprocessing.get_labels(data_preprocessing.granularities['fine'])
-label_coarse = data_preprocessing.get_labels(data_preprocessing.granularities['coarse'])
-
 # method name
 method_str = "get_where_train_fp_l"
 
