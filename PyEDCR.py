@@ -297,6 +297,12 @@ class EDCR:
 
             # print(np.mean(list(self.original_test_precisions[g].values())))
 
+        self.post_detection_test_precisions = {}
+        self.post_detection_test_recalls = {}
+
+        self.post_correction_test_precisions = {}
+        self.post_correction_test_recalls = {}
+
         self.error_detection_rules: dict[data_preprocessing.Label, EDCR.ErrorDetectionRule] = {}
         self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
 
@@ -647,7 +653,7 @@ class EDCR:
                 if a >= b:
                     CC_l = CC_l.union({cond_and_l})
                 else:
-                    CC_l_prime = CC_l_prime.difference({cond_and_l})
+                    CC_l = CC_l_prime.difference({cond_and_l})
 
                 if utils.is_local():
                     progress_bar.update(1)
@@ -719,7 +725,7 @@ class EDCR:
 
         :params g: The granularity of the predictions to be processed.
         """
-        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True, original=True)
+        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
         altered_pred_granularity_data = self.get_predictions(test=True, g=g)
 
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
@@ -730,6 +736,9 @@ class EDCR:
         self.test_pred_data[g] = altered_pred_granularity_data
 
         error_mask = np.where(self.test_pred_data[g] == -1, -1, 0)
+
+        self.post_detection_test_precisions[g], self.post_detection_test_recalls[g] = (
+            self.get_g_precision_and_recall(g=g, test=True, original=False))
 
         return error_mask
 
@@ -748,23 +757,26 @@ class EDCR:
             altered_pred_granularity_datas[l] = rule_g_l(test_pred_fine_data=test_pred_fine_data,
                                                          test_pred_coarse_data=test_pred_coarse_data)
 
-        collision_array = np.zeros_like(altered_pred_granularity_data)
-
-        for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
-            for l_2, altered_pred_data_l_2 in altered_pred_granularity_datas.items():
-                if l_1 != l_2:
-                    where_supposed_to_correct_to_l1 = np.where(altered_pred_data_l_1 == l_1.index, 1, 0)
-                    where_supposed_to_correct_to_l2 = np.where(altered_pred_data_l_2 == l_2.index, 1, 0)
-                    collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
+        # collision_array = np.zeros_like(altered_pred_granularity_data)
+        #
+        # for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
+        #     for l_2, altered_pred_data_l_2 in altered_pred_granularity_datas.items():
+        #         if l_1 != l_2:
+        #             where_supposed_to_correct_to_l1 = np.where(altered_pred_data_l_1 == l_1.index, 1, 0)
+        #             where_supposed_to_correct_to_l2 = np.where(altered_pred_data_l_2 == l_2.index, 1, 0)
+        #             collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
 
         for l, altered_pred_data_l in altered_pred_granularity_datas.items():
             altered_pred_granularity_data = np.where(
-                (collision_array != 1) &
+                # (collision_array != 1) &
                 (altered_pred_data_l == l.index),
                 l.index,
                 altered_pred_granularity_data)
 
         self.test_pred_data[g] = altered_pred_granularity_data
+
+        self.post_correction_test_precisions[g], self.post_correction_test_recalls[g] = (
+            self.get_g_precision_and_recall(g=g, test=True, original=False))
 
         return altered_pred_granularity_data
 
@@ -879,13 +891,12 @@ class EDCR:
 
     def check_g_correction_rule_precision_recall(self,
                                                  g: data_preprocessing.Granularity):
-        (p_g_new, r_g_new) = self.get_g_precision_and_recall(g=g, test=True, original=False)
 
         for l in data_preprocessing.get_labels(g).values():
             c_l = self.get_l_correction_rule_confidence_on_test(l=l)
-            p_l = self.original_test_precisions[g][l]
-            r_l = self.original_test_recalls[g][l]
-            (p_l_new, r_l_new) = p_g_new[l], r_g_new[l]
+            p_l = self.post_detection_test_precisions[g][l]
+            r_l = self.post_detection_test_recalls[g][l]
+            (p_l_new, r_l_new) = self.post_correction_test_precisions[g][l], self.post_correction_test_recalls[g][l]
 
             try:
                 assert r_l_new >= r_l
@@ -922,7 +933,7 @@ if __name__ == '__main__':
 
         edcr.check_g_correction_rule_precision_recall(data_preprocessing.granularities['fine'])
 
-        # edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
+        edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
 
         # for g in data_preprocessing.granularities:
         #     edcr.apply_detection_rules(g=g)
