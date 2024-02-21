@@ -6,6 +6,8 @@ import numpy as np
 import multiprocessing as mp
 import multiprocessing.managers
 import warnings
+import matplotlib.pyplot as plt
+import random
 
 warnings.filterwarnings('ignore')
 
@@ -631,7 +633,8 @@ class EDCR:
     def _CorrRuleLearn(self,
                        l: data_preprocessing.Label,
                        CC_all: set[(_Condition, data_preprocessing.Label)],
-                       shared_index: mp.managers.ValueProxy) -> \
+                       shared_index: mp.managers.ValueProxy,
+                       randomized: bool = True) -> \
             (data_preprocessing.Label, [tuple[_Condition, data_preprocessing.Label]]):
         """Learns error correction rules for a specific label and granularity. These rules associate conditions
         with alternative labels that are more likely to be correct when those conditions are met.
@@ -650,13 +653,21 @@ class EDCR:
                 b = (self.get_CON_l_CC(l=l, CC=CC_l_prime.difference({cond_and_l})) -
                      self.get_CON_l_CC(l=l, CC=CC_l_prime))
 
-                if a >= b:
+                # randomized algorithm
+                a_prime = max(a, 0)
+                b_prime = max(b, 0)
+                p = a_prime / (a_prime + b_prime)
+
+                if (not randomized and a >= b) or (randomized and random.random() < p):
                     CC_l = CC_l.union({cond_and_l})
                 else:
-                    CC_l = CC_l_prime.difference({cond_and_l})
+                    CC_l_prime = CC_l_prime.difference({cond_and_l})
 
                 if utils.is_local():
                     progress_bar.update(1)
+
+        assert CC_l_prime == CC_l
+
 
         print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.get_CON_l_CC(l=l, CC=CC_l)}, '
               f'P_l={self.train_precisions[l.g][l]}\n')
@@ -905,6 +916,9 @@ class EDCR:
                       f'diff: {r_l_new - r_l}')
 
             try:
+                if c_l > p_l:
+                    assert p_l_new > p_l
+
                 if p_l_new > p_l:
                     assert c_l > p_l
             except AssertionError:
@@ -914,7 +928,12 @@ class EDCR:
 
 
 if __name__ == '__main__':
-    for e in [0.1 * i for i in range(1, 2)]:
+    ps, rs = ({g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
+              {g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
+
+    epsilons = [0.1 * i for i in range(5, 6)]
+
+    for e in epsilons:
         print('#' * 25 + f'eps = {e}' + '#' * 50)
         edcr = EDCR(epsilon=e,
                     main_model_name='vit_b_16',
@@ -924,16 +943,41 @@ if __name__ == '__main__':
                     num_epochs=20)
         edcr.print_metrics(test=True, prior=True)
 
-        for g in data_preprocessing.granularities.values():
-            edcr.DetCorrRuleLearn(g=g, learn_correction_rules=True)
+        for gra in data_preprocessing.granularities.values():
+            edcr.DetCorrRuleLearn(g=gra, learn_correction_rules=True)
 
         for gra in data_preprocessing.granularities:
             edcr.apply_detection_rules(g=gra)
             edcr.apply_correction_rules(g=gra)
 
-        edcr.check_g_correction_rule_precision_recall(data_preprocessing.granularities['fine'])
+            ps[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_precisions[gra].values()))
+            rs[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_recalls[gra].values()))
+            ps[gra]['post_correction'][e] = np.mean(list(edcr.post_correction_test_precisions[gra].values()))
+            rs[gra]['post_correction'][e] = np.mean(list(edcr.post_correction_test_recalls[gra].values()))
 
-        edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
+        edcr.print_metrics(test=True, prior=False, original=False, print_inconsistencies=False)
+
+    # for gra in data_preprocessing.granularities:
+    #     plt.plot((epsilons, [ps[gra]['pre_correction'][e] for e in epsilons]),
+    #              label='pre correction average precision')
+    #     plt.plot((epsilons, [rs[gra]['pre_correction'][e] for e in epsilons]), label='pre correction average recall')
+    #
+    #     plt.plot((epsilons, [ps[gra]['post_correction'][e] for e in epsilons]), label='post correction average '
+    #                                                                                   'precision')
+    #     plt.plot((epsilons, [rs[gra]['post_correction'][e] for e in epsilons]), label='post correction average recall')
+    #
+    #     plt.legend()
+    #     plt.tight_layout()
+    #     plt.grid()
+    #     plt.title(f'{gra}')
+    #     plt.show()
+    #     plt.clf()
+    #     plt.cla()
+
+
+        # edcr.check_g_correction_rule_precision_recall(data_preprocessing.granularities['fine'])
+
+        # edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
 
         # for g in data_preprocessing.granularities:
         #     edcr.apply_detection_rules(g=g)
