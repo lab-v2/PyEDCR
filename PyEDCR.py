@@ -307,7 +307,8 @@ class EDCR:
         self.error_detection_rules = error_detection_rules
 
     def set_error_correction_rules(self,
-                                   rules: typing.Dict[data_preprocessing.Label, {(_Condition, data_preprocessing.Label)}]):
+                                   rules: typing.Dict[
+                                       data_preprocessing.Label, {(_Condition, data_preprocessing.Label)}]):
         """
         Manually sets the error correction rule dictionary.
 
@@ -649,8 +650,8 @@ class EDCR:
         print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.get_CON_l_CC(l=l, CC=CC_l)}, '
               f'P_l={self.train_precisions[l.g][l]}\n')
 
-        # if self.get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
-        #     CC_l = set()
+        if self.get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
+            CC_l = set()
 
         if not utils.is_local():
             shared_index.value += 1
@@ -808,8 +809,8 @@ class EDCR:
         c_l = np.sum(where_head_and_body_is_satisfied) / num_where_l_detection_rule_body_is_satisfied
         return c_l
 
-    def get_l_theoretical_precision_increase(self,
-                                             l: data_preprocessing.Label) -> float:
+    def get_l_detection_rule_theoretical_precision_increase(self,
+                                                            l: data_preprocessing.Label) -> float:
         s_l = self.get_l_detection_rule_support_on_test(l=l)
 
         if s_l == 0:
@@ -820,14 +821,14 @@ class EDCR:
 
         return s_l / (1 - s_l) * (c_l + p_l - 1)
 
-    def get_g_theoretical_precision_increase(self,
-                                             g: data_preprocessing.Granularity):
-        precision_increases = [self.get_l_theoretical_precision_increase(l=l)
+    def get_g_detection_rule_theoretical_precision_increase(self,
+                                                            g: data_preprocessing.Granularity):
+        precision_increases = [self.get_l_detection_rule_theoretical_precision_increase(l=l)
                                for l in data_preprocessing.get_labels(g).values()]
         return np.mean(precision_increases)
 
-    def get_l_theoretical_recall_decrease(self,
-                                          l: data_preprocessing.Label) -> float:
+    def get_l_detection_rule_theoretical_recall_decrease(self,
+                                                         l: data_preprocessing.Label) -> float:
         c_l = self.get_l_detection_rule_confidence_on_test(l=l)
         s_l = self.get_l_detection_rule_support_on_test(l=l)
         p_l = self.original_test_precisions[l.g][l]
@@ -836,9 +837,9 @@ class EDCR:
 
         return theoretical_recall_decrease
 
-    def get_g_theoretical_recall_decrease(self,
-                                          g: data_preprocessing.Granularity):
-        recall_decreases = [self.get_l_theoretical_recall_decrease(l=l)
+    def get_g_detection_rule_theoretical_recall_decrease(self,
+                                                         g: data_preprocessing.Granularity):
+        recall_decreases = [self.get_l_detection_rule_theoretical_recall_decrease(l=l)
                             for l in data_preprocessing.get_labels(g).values()]
         return np.mean(recall_decreases)
 
@@ -849,6 +850,52 @@ class EDCR:
     def get_g_theorem_1_condition(self,
                                   g: data_preprocessing.Granularity):
         return np.array([self.get_l_theorem_1_condition(l=l) for l in data_preprocessing.get_labels(g).values()])
+
+    def get_l_correction_rule_confidence_on_test(self,
+                                                 l: data_preprocessing.Label) -> float:
+        if l not in self.error_correction_rules:
+            return 0
+
+        r_l = self.error_correction_rules[l]
+        where_l_correction_rule_body_is_satisfied = (
+            r_l.get_where_any_pair_satisfied(
+                test_pred_fine_data=self.original_test_pred_data[data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.original_test_pred_data[data_preprocessing.granularities['coarse']]))
+        where_l_gt = self.get_where_label_is_l(pred=False, test=True, l=l)
+        where_head_and_body_is_satisfied = where_l_correction_rule_body_is_satisfied * where_l_gt
+
+        num_where_l_correction_rule_body_is_satisfied = np.sum(where_l_correction_rule_body_is_satisfied)
+
+        if num_where_l_correction_rule_body_is_satisfied == 0:
+            return 0
+
+        c_l = np.sum(where_head_and_body_is_satisfied) / num_where_l_correction_rule_body_is_satisfied
+        return c_l
+
+    def check_g_correction_rule_precision_recall(self,
+                                                 g: data_preprocessing.Granularity):
+        (p_g_new, r_g_new) = self.get_g_precision_and_recall(g=g, test=True, original=False)
+        for l in data_preprocessing.get_labels(g).values():
+            c_l = self.get_l_correction_rule_confidence_on_test(l=l)
+            p_l = self.original_test_precisions[g][l]
+            r_l = self.original_test_recalls[g][l]
+            (p_l_new, r_l_new) = p_g_new[l], r_g_new[l]
+
+            print(f'class {l}: new precision: {p_l_new}, old precision: {p_l}, '
+                  f'diff: {p_l_new - p_l}')
+            print(f'class {l}: new recall: {r_l_new}, old recall: {r_l}, '
+                  f'diff: {r_l_new - r_l}')
+            print(f'class {l}: confidence: {c_l}')
+
+        for l in data_preprocessing.get_labels(g).values():
+            c_l = self.get_l_correction_rule_confidence_on_test(l=l)
+            p_l = self.original_test_precisions[g][l]
+            r_l = self.original_test_recalls[g][l]
+            (p_l_new, r_l_new) = p_g_new[l], r_g_new[l]
+            if p_l_new > p_l:
+                assert c_l > p_l
+
+            assert r_l_new >= r_l
 
 
 if __name__ == '__main__':
@@ -863,34 +910,18 @@ if __name__ == '__main__':
         edcr.print_metrics(test=True, prior=False)
         edcr.print_metrics(test=False, prior=False)
 
-        # for g in data_preprocessing.granularities.values():
-        #     edcr.DetCorrRuleLearn(g=g, learn_correction_rules=False)
-        #
-        # # # print([edcr.get_l_correction_rule_support_on_test(l=l) for l in
-        # # #        list(data_preprocessing.fine_grain_labels.values()) +
-        # # #        list(data_preprocessing.coarse_grain_labels.values())])
-        #
-        # for g in data_preprocessing.granularities:
-        #     edcr.apply_detection_rules(g=g)
-        #     p, r = edcr.get_g_precision_and_recall(g=g, test=True, original=False)
-        #     new_avg_precision = np.mean(list(p.values()))
-        #     new_avg_recall = np.mean(list(r.values()))
-        #     old_precision = np.mean(list(edcr.original_test_precisions[g].values()))
-        #     old_recall = np.mean(list(edcr.original_test_recalls[g].values()))
-        #
-        #     print(f'new precision: {new_avg_precision}, old precision: {old_precision}, '
-        #           f'diff: {new_avg_precision - old_precision}\n'
-        #           f'theoretical_precision_increase: {edcr.get_g_theoretical_precision_increase(g=g)}')
-        #     print(f'new recall: {new_avg_recall}, old recall: {old_recall}, '
-        #           f'diff: {new_avg_recall - old_recall}\n'
-        #           f'theoretical_recall_decrease: {edcr.get_g_theoretical_recall_decrease(g=g)}')
-        #
-        #
-        #     # for g in data_preprocessing.granularities:
-        #     # edcr.apply_correction_rules(g=g)
-        #     # edcr.apply_reversion_rules(g=g)
-        #
-        # edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
+        # for gra in data_preprocessing.granularities.values():
+        edcr.DetCorrRuleLearn(g=data_preprocessing.granularities['coarse'], learn_correction_rules=True)
+
+        for gra in data_preprocessing.granularities:
+            edcr.apply_correction_rules(g=gra)
+
+        gra = data_preprocessing.granularities['coarse']
+        p, r = edcr.get_g_precision_and_recall(g=gra, test=True, original=False)
+
+        edcr.check_g_correction_rule_precision_recall(gra)
+
+        edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
 
         #     edcr.apply_correction_rules(g=g)
         #     edcr.apply_reversion_rules(g=g)
