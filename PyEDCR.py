@@ -960,10 +960,10 @@ if __name__ == '__main__':
 
             print(np.mean(list(edcr.post_detection_test_precisions[gra].values())))
 
-            ps[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_precisions[gra].values()))
-            rs[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_recalls[gra].values()))
-            ps[gra]['post_correction'][e] = np.mean(list(edcr.post_correction_test_precisions[gra].values()))
-            rs[gra]['post_correction'][e] = np.mean(list(edcr.post_correction_test_recalls[gra].values()))
+            ps[gra]['pre_correction'][epsilon] = np.mean(list(edcr.post_detection_test_precisions[gra].values()))
+            rs[gra]['pre_correction'][epsilon] = np.mean(list(edcr.post_detection_test_recalls[gra].values()))
+            ps[gra]['post_correction'][epsilon] = np.mean(list(edcr.post_correction_test_precisions[gra].values()))
+            rs[gra]['post_correction'][epsilon] = np.mean(list(edcr.post_correction_test_recalls[gra].values()))
 
         edcr.print_metrics(test=True, prior=False, original=False, print_inconsistencies=False)
 
