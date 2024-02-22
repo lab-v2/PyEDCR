@@ -277,10 +277,9 @@ class EDCR:
         self.test_pred_data = {g: np.load(pred_paths['test'][str(g)])[self.K_test]
                                for g in data_preprocessing.granularities.values()}
 
-        self.condition_datas = ({EDCR.PredCondition(l=l)
-                                 for g in data_preprocessing.granularities.values()
-                                 for l in data_preprocessing.get_labels(g).values()}.
-                                union({EDCR.ConsistencyCondition()}))
+        self.condition_datas = {g: {EDCR.PredCondition(l=l)
+                                    for l in data_preprocessing.get_labels(g).values()}.union(
+            {EDCR.ConsistencyCondition()}) for g in data_preprocessing.granularities.values()}
 
         self.train_precisions = {}
         self.train_recalls = {}
@@ -606,13 +605,16 @@ class EDCR:
         """
         DC_l = set()
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l))
+        g = l.g
+        other_g_str = 'fine' if str(g) == 'coarse' else 'coarse'
+        other_g = data_preprocessing.granularities[other_g_str]
 
         if N_l:
             P_l = self.train_precisions[l.g][l]
             R_l = self.train_recalls[l.g][l]
             q_l = self.epsilon * N_l * P_l / R_l
 
-            DC_star = {cond for cond in self.condition_datas if self.get_NEG_l_C(l=l, C={cond}) <= q_l}
+            DC_star = {cond for cond in self.condition_datas[other_g] if self.get_NEG_l_C(l=l, C={cond}) <= q_l}
 
             while DC_star != set():
                 best_score = -1
@@ -625,7 +627,7 @@ class EDCR:
                         best_cond = cond
 
                 DC_l = DC_l.union({best_cond})
-                DC_star = {cond for cond in self.condition_datas.difference(DC_l)
+                DC_star = {cond for cond in self.condition_datas[other_g].difference(DC_l)
                            if self.get_NEG_l_C(l=l, C=DC_l.union({cond})) <= q_l}
 
         return DC_l
@@ -656,7 +658,7 @@ class EDCR:
                 # randomized algorithm
                 a_prime = max(a, 0)
                 b_prime = max(b, 0)
-                p = a_prime / (a_prime + b_prime)
+                p = a_prime / (a_prime + b_prime) if not (a_prime == 0 and b_prime == 0) else 1
 
                 if (not randomized and a >= b) or (randomized and random.random() < p):
                     CC_l = CC_l.union({cond_and_l})
