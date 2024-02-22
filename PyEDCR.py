@@ -6,6 +6,8 @@ import numpy as np
 import multiprocessing as mp
 import multiprocessing.managers
 import warnings
+import matplotlib.pyplot as plt
+import random
 
 warnings.filterwarnings('ignore')
 
@@ -13,6 +15,8 @@ import utils
 import data_preprocessing
 import vit_pipeline
 import context_handlers
+
+randomized: bool = False
 
 
 class EDCR:
@@ -275,11 +279,11 @@ class EDCR:
         self.test_pred_data = {g: np.load(pred_paths['test'][str(g)])[self.K_test]
                                for g in data_preprocessing.granularities.values()}
 
-        self.condition_datas = ({EDCR.PredCondition(l=l)
-                                 for g in data_preprocessing.granularities.values()
-                                 for l in data_preprocessing.get_labels(g).values()}.
-                                union({EDCR.ConsistencyCondition()}))
+        self.condition_datas = {g: {EDCR.PredCondition(l=l)
+                                    for l in data_preprocessing.get_labels(g).values()}.union(
+            {EDCR.ConsistencyCondition()}) for g in data_preprocessing.granularities.values()}
 
+        self.CC_all = {g: set() for g in data_preprocessing.granularities.values()}
         self.train_precisions = {}
         self.train_recalls = {}
 
@@ -604,13 +608,16 @@ class EDCR:
         """
         DC_l = set()
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l))
+        g = l.g
+        other_g_str = 'fine' if str(g) == 'coarse' else 'coarse'
+        other_g = data_preprocessing.granularities[other_g_str]
 
         if N_l:
             P_l = self.train_precisions[l.g][l]
             R_l = self.train_recalls[l.g][l]
             q_l = self.epsilon * N_l * P_l / R_l
 
-            DC_star = {cond for cond in self.condition_datas if self.get_NEG_l_C(l=l, C={cond}) <= q_l}
+            DC_star = {cond for cond in self.condition_datas[other_g] if self.get_NEG_l_C(l=l, C={cond}) <= q_l}
 
             while DC_star != set():
                 best_score = -1
@@ -623,7 +630,7 @@ class EDCR:
                         best_cond = cond
 
                 DC_l = DC_l.union({best_cond})
-                DC_star = {cond for cond in self.condition_datas.difference(DC_l)
+                DC_star = {cond for cond in self.condition_datas[other_g].difference(DC_l)
                            if self.get_NEG_l_C(l=l, C=DC_l.union({cond})) <= q_l}
 
         return DC_l
@@ -650,13 +657,20 @@ class EDCR:
                 b = (self.get_CON_l_CC(l=l, CC=CC_l_prime.difference({cond_and_l})) -
                      self.get_CON_l_CC(l=l, CC=CC_l_prime))
 
-                if a >= b:
+                # randomized algorithm
+                a_prime = max(a, 0)
+                b_prime = max(b, 0)
+                p = a_prime / (a_prime + b_prime) if not (a_prime == 0 and b_prime == 0) else 1
+
+                if (not randomized and a >= b) or (randomized and random.random() < p):
                     CC_l = CC_l.union({cond_and_l})
                 else:
-                    CC_l = CC_l_prime.difference({cond_and_l})
+                    CC_l_prime = CC_l_prime.difference({cond_and_l})
 
                 if utils.is_local():
                     progress_bar.update(1)
+
+        assert CC_l_prime == CC_l
 
         print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.get_CON_l_CC(l=l, CC=CC_l)}, '
               f'P_l={self.train_precisions[l.g][l]}\n')
@@ -670,18 +684,11 @@ class EDCR:
 
         return l, CC_l
 
-    def DetCorrRuleLearn(self,
-                         g: data_preprocessing.Granularity,
-                         learn_correction_rules: bool = True):
-        """Learns error detection and correction rules for all labels at a given granularity.
-
-        :param learn_correction_rules:
-        :param g: The granularity level (e.g., 'fine', 'coarse').
-        """
-        CC_all = set()  # in this use case where the conditions are fine and coarse predictions
+    def learn_detection_rules(self,
+                              g: data_preprocessing.Granularity):
+        self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
         granularity_labels = data_preprocessing.get_labels(g).values()
 
-        # learning detection rules
         print(f'\nLearning {g}-grain error detection rules...')
         with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
             for l in granularity_labels:
@@ -692,30 +699,34 @@ class EDCR:
 
                 for cond_l in DC_l:
                     if not (isinstance(cond_l, EDCR.PredCondition) and cond_l.l == l):
-                        CC_all = CC_all.union({(cond_l, l)})
+                        self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
                 if utils.is_local():
                     progress_bar.update(1)
 
-        # learning correction rules
-        if learn_correction_rules:
-            print(f'\nLearning {g}-grain error correction rules...')
-            processes_num = min(len(granularity_labels), mp.cpu_count())
+    def learn_correction_rules(self,
+                               g: data_preprocessing.Granularity):
 
-            manager = mp.Manager()
-            shared_index = manager.Value('i', 0)
+        granularity_labels = data_preprocessing.get_labels(g).values()
+        other_g = data_preprocessing.granularities['fine' if str(g) == 'coarse' else 'coarse']
 
-            iterable = [(l, CC_all, shared_index) for l in granularity_labels]
+        print(f'\nLearning {g}-grain error correction rules...')
+        processes_num = min(len(granularity_labels), mp.cpu_count())
 
-            with mp.Pool(processes_num) as pool:
-                CC_ls = pool.starmap(func=self._CorrRuleLearn,
-                                     iterable=iterable)
+        manager = mp.Manager()
+        shared_index = manager.Value('i', 0)
 
-            for l, CC_l in CC_ls:
-                if len(CC_l):
-                    self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
-                else:
-                    print(utils.red_text('\n' + '#' * 10 + f' {l} does not have an error correction rule!\n'))
+        iterable = [(l, self.CC_all[g], shared_index) for l in granularity_labels]
+
+        with mp.Pool(processes_num) as pool:
+            CC_ls = pool.starmap(func=self._CorrRuleLearn,
+                                 iterable=iterable)
+
+        for l, CC_l in CC_ls:
+            if len(CC_l):
+                self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
+            else:
+                print(utils.red_text('\n' + '#' * 10 + f' {l} does not have an error correction rule!\n'))
 
     def apply_detection_rules(self,
                               g: data_preprocessing.Granularity):
@@ -905,6 +916,9 @@ class EDCR:
                       f'diff: {r_l_new - r_l}')
 
             try:
+                if c_l > p_l:
+                    assert p_l_new > p_l
+
                 if p_l_new > p_l:
                     assert c_l > p_l
             except AssertionError:
@@ -914,7 +928,12 @@ class EDCR:
 
 
 if __name__ == '__main__':
-    for e in [0.1 * i for i in range(1, 2)]:
+    ps, rs = ({g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
+              {g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
+
+    epsilons = [0.1 * i for i in range(5, 6)]
+
+    for e in epsilons:
         print('#' * 25 + f'eps = {e}' + '#' * 50)
         edcr = EDCR(epsilon=e,
                     main_model_name='vit_b_16',
@@ -924,40 +943,67 @@ if __name__ == '__main__':
                     num_epochs=20)
         edcr.print_metrics(test=True, prior=True)
 
-        for g in data_preprocessing.granularities.values():
-            edcr.DetCorrRuleLearn(g=g, learn_correction_rules=True)
+        for gra in data_preprocessing.granularities.values():
+            edcr.learn_detection_rules(g=gra)
+        for gra in data_preprocessing.granularities.values():
+            edcr.learn_correction_rules(g=gra)
 
         for gra in data_preprocessing.granularities:
             edcr.apply_detection_rules(g=gra)
             edcr.apply_correction_rules(g=gra)
+            edcr.apply_reversion_rules(g=gra)
 
-        edcr.check_g_correction_rule_precision_recall(data_preprocessing.granularities['fine'])
+            ps[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_precisions[gra].values()))
+            rs[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_recalls[gra].values()))
+            ps[gra]['post_correction'][e] = np.mean(list(edcr.post_correction_test_precisions[gra].values()))
+            rs[gra]['post_correction'][e] = np.mean(list(edcr.post_correction_test_recalls[gra].values()))
 
-        edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
+        edcr.print_metrics(test=True, prior=False, original=False, print_inconsistencies=False)
 
-        # for g in data_preprocessing.granularities:
-        #     edcr.apply_detection_rules(g=g)
-        #     p, r = edcr.get_g_precision_and_recall(g=g, test=True, original=False)
-        #     new_avg_precision = np.mean(list(p.values()))
-        #     new_avg_recall = np.mean(list(r.values()))
-        #     old_precision = np.mean(list(edcr.original_test_precisions[g].values()))
-        #     old_recall = np.mean(list(edcr.original_test_recalls[g].values()))
-        #
-        #     print(f'new precision: {new_avg_precision}, old precision: {old_precision}, '
-        #           f'diff: {new_avg_precision - old_precision}\n'
-        #           f'theoretical_precision_increase: {edcr.get_g_theoretical_precision_increase(g=g)}')
-        #     print(f'new recall: {new_avg_recall}, old recall: {old_recall}, '
-        #           f'diff: {new_avg_recall - old_recall}\n'
-        #           f'theoretical_recall_decrease: {edcr.get_g_theoretical_recall_decrease(g=g)}')
-        #
-        #
-        #     # for g in data_preprocessing.granularities:
-        #     # edcr.apply_correction_rules(g=g)
-        #     # edcr.apply_reversion_rules(g=g)
-        #
-        # edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
+    # for gra in data_preprocessing.granularities:
+    #     plt.plot((epsilons, [ps[gra]['pre_correction'][e] for e in epsilons]),
+    #              label='pre correction average precision')
+    #     plt.plot((epsilons, [rs[gra]['pre_correction'][e] for e in epsilons]), label='pre correction average recall')
+    #
+    #     plt.plot((epsilons, [ps[gra]['post_correction'][e] for e in epsilons]), label='post correction average '
+    #                                                                                   'precision')
+    #     plt.plot((epsilons, [rs[gra]['post_correction'][e] for e in epsilons]), label='post correction average recall')
+    #
+    #     plt.legend()
+    #     plt.tight_layout()
+    #     plt.grid()
+    #     plt.title(f'{gra}')
+    #     plt.show()
+    #     plt.clf()
+    #     plt.cla()
 
-        #     edcr.apply_correction_rules(g=g)
-        #     edcr.apply_reversion_rules(g=g)
-        #
-        # edcr.print_metrics(test=True, prior=False)
+    # edcr.check_g_correction_rule_precision_recall(data_preprocessing.granularities['fine'])
+
+    # edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
+
+    # for g in data_preprocessing.granularities:
+    #     edcr.apply_detection_rules(g=g)
+    #     p, r = edcr.get_g_precision_and_recall(g=g, test=True, original=False)
+    #     new_avg_precision = np.mean(list(p.values()))
+    #     new_avg_recall = np.mean(list(r.values()))
+    #     old_precision = np.mean(list(edcr.original_test_precisions[g].values()))
+    #     old_recall = np.mean(list(edcr.original_test_recalls[g].values()))
+    #
+    #     print(f'new precision: {new_avg_precision}, old precision: {old_precision}, '
+    #           f'diff: {new_avg_precision - old_precision}\n'
+    #           f'theoretical_precision_increase: {edcr.get_g_theoretical_precision_increase(g=g)}')
+    #     print(f'new recall: {new_avg_recall}, old recall: {old_recall}, '
+    #           f'diff: {new_avg_recall - old_recall}\n'
+    #           f'theoretical_recall_decrease: {edcr.get_g_theoretical_recall_decrease(g=g)}')
+    #
+    #
+    #     # for g in data_preprocessing.granularities:
+    #     # edcr.apply_correction_rules(g=g)
+    #     # edcr.apply_reversion_rules(g=g)
+    #
+    # edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
+
+    #     edcr.apply_correction_rules(g=g)
+    #     edcr.apply_reversion_rules(g=g)
+    #
+    # edcr.print_metrics(test=True, prior=False)
