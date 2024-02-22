@@ -10,11 +10,13 @@ def run_test_1():
     CC_l_1 = {(pred_2S19_MSTA, l_SPA)}
     CC_l_2 = {(pred_2S19_MSTA, l_SPA), (pred_T_72, l_SPA)}
     CC_l_3 = {(pred_Iskander, l_Tank)}
+    CC_l_4 = {}
 
     test.run(l=l_2S19_MSTA, CC=CC_l_1, expected_output=1.0)
     test.run(l=l_2S19_MSTA, CC=CC_l_2, expected_output=1.0)
     test.run(l=l_T_72, CC=CC_l_2, expected_output=0.0)
     test.run(l=l_T_80, CC=CC_l_3, expected_output=0.0)
+    test.run(l=l_T_72, CC=CC_l_4, expected_output=0.0)
 
 
 def run_test_2():
@@ -44,39 +46,28 @@ def run_test_2():
 
 
 def run_test_3():
-    K = 20
-    edcr = EDCR.test(epsilon=0.1, K=K, print_pred_and_true=True)
+    K = [(6, 10), (2201, 2205), (3001, 3005), (3601, 3605), (3970, 3974), (4400, 4400), (7500, 7524)]
 
-    CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP)}
-    edcr.test_BOD_CC(CC=CC_l, expected_result=0)
-    edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=0)
+    test = Test(epsilon=0.1, K_train=K, K_test=None, method_str='get_CON_l_CC')
 
-    CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_2S19_MSTA, l_SPA)}
-    edcr.test_BOD_CC(CC=CC_l, expected_result=17)
-    edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=1)
+    CC_l_1 = {(pred_2S19_MSTA, l_SPA), (pred_BRDM, l_BTR)}
+    CC_l_2 = {(pred_D_30, l_SPA), (pred_Iskander, l_Air_Defense)}
+    CC_l_3 = {(pred_MT_LB_fine, l_MT_LB_coarse)}
+    CC_l_4 = {(pred_Tornado, l_SPA), (pred_BRDM, l_BTR)}
 
-    CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_2S19_MSTA, l_SPA), (pred_BTR_70, l_BTR)}
-    edcr.test_BOD_CC(CC=CC_l, expected_result=18)
-    edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=1)
-
-    CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_2S19_MSTA, l_SPA), (pred_BTR_70, l_BTR),
-            (pred_RS_24, l_Air_Defense)}
-    edcr.test_BOD_CC(CC=CC_l, expected_result=19)
-    edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=1)
-
-    CC_l = {(pred_Tornado, l_SPA), (pred_BMP_1, l_BMP), (pred_2S19_MSTA, l_SPA), (pred_BTR_70, l_BTR),
-            (pred_RS_24, l_Air_Defense), (pred_T_64, l_Tank)}
-    edcr.test_BOD_CC(CC=CC_l, expected_result=20)
-    edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=1)
-
-    CC_l = set(itertools.product(pred_conditions.values(), fg_l + cg_l))
-    edcr.test_BOD_CC(CC=CC_l, expected_result=K)
-    edcr.test_CON_l_CC(l=l_SPA, CC=CC_l, expected_result=1)
-    edcr.test_BOD_CC(CC=CC_l, expected_result=K)
-    edcr.test_CON_l_CC(l=l_BMP, CC=CC_l, expected_result=0)
+    test.run(l=l_2S19_MSTA, CC=CC_l_1, expected_output=(4/8))
+    test.run(l=l_BRDM, CC=CC_l_1, expected_output=(4/8))
+    test.run(l=l_D_30, CC=CC_l_2, expected_output=(3/8))
+    test.run(l=l_Iskander, CC=CC_l_2, expected_output=(5/8))
+    test.run(l=l_Tornado, CC=CC_l_2, expected_output=0.0)
+    test.run(l=l_Tornado, CC=CC_l_2, expected_output=0.0)
+    test.run(l=l_MT_LB_fine, CC=CC_l_3, expected_output=1.0)
+    test.run(l=l_Tornado, CC=CC_l_4, expected_output=(17/21))
+    test.run(l=l_BRDM, CC=CC_l_4, expected_output=(4/21))
+    test.run(l=l_BRDM, CC=CC_l_4, expected_output=(3/21))
 
 
 if __name__ == '__main__':
     # run_test_1()
-    run_test_2()
-    # run_test_3()
+    # run_test_2()
+    run_test_3()
