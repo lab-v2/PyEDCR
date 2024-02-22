@@ -928,19 +928,24 @@ class EDCR:
 
 
 if __name__ == '__main__':
+    input_model_name = 'vit_b_16'
+    input_epoch = 20
+    input_lr = 0.0001
+    input_loss = 'BCE'
+
     ps, rs = ({g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
               {g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
-    epsilons = [0.1 * i for i in range(5, 6)]
+    epsilons = [0.1 * i for i in range(1, 50)]
 
-    for e in epsilons:
-        print('#' * 25 + f'eps = {e}' + '#' * 50)
-        edcr = EDCR(epsilon=e,
-                    main_model_name='vit_b_16',
+    for epsilon in epsilons:
+        print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
+        edcr = EDCR(epsilon=epsilon,
+                    main_model_name=input_model_name,
                     combined=True,
-                    loss='BCE',
-                    lr=0.0001,
-                    num_epochs=20)
+                    loss=input_loss,
+                    lr=input_lr,
+                    num_epochs=input_epoch)
         edcr.print_metrics(test=True, prior=True)
 
         for gra in data_preprocessing.granularities.values():
@@ -953,6 +958,8 @@ if __name__ == '__main__':
             edcr.apply_correction_rules(g=gra)
             edcr.apply_reversion_rules(g=gra)
 
+            print(np.mean(list(edcr.post_detection_test_precisions[gra].values())))
+
             ps[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_precisions[gra].values()))
             rs[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_recalls[gra].values()))
             ps[gra]['post_correction'][e] = np.mean(list(edcr.post_correction_test_precisions[gra].values()))
@@ -960,22 +967,23 @@ if __name__ == '__main__':
 
         edcr.print_metrics(test=True, prior=False, original=False, print_inconsistencies=False)
 
-    # for gra in data_preprocessing.granularities:
-    #     plt.plot((epsilons, [ps[gra]['pre_correction'][e] for e in epsilons]),
-    #              label='pre correction average precision')
-    #     plt.plot((epsilons, [rs[gra]['pre_correction'][e] for e in epsilons]), label='pre correction average recall')
-    #
-    #     plt.plot((epsilons, [ps[gra]['post_correction'][e] for e in epsilons]), label='post correction average '
-    #                                                                                   'precision')
-    #     plt.plot((epsilons, [rs[gra]['post_correction'][e] for e in epsilons]), label='post correction average recall')
-    #
-    #     plt.legend()
-    #     plt.tight_layout()
-    #     plt.grid()
-    #     plt.title(f'{gra}')
-    #     plt.show()
-    #     plt.clf()
-    #     plt.cla()
+    for gra in data_preprocessing.granularities:
+        plt.plot(epsilons, [ps[gra]['pre_correction'][e] for e in epsilons],
+                 label='pre correction average precision')
+        plt.plot(epsilons, [rs[gra]['pre_correction'][e] for e in epsilons], label='pre correction average recall')
+
+        plt.plot(epsilons, [ps[gra]['post_correction'][e] for e in epsilons], label='post correction average '
+                                                                                    'precision')
+        plt.plot(epsilons, [rs[gra]['post_correction'][e] for e in epsilons], label='post correction average recall')
+
+        plt.legend()
+        plt.tight_layout()
+        plt.grid()
+        plt.title(f'{gra}')
+        plt.savefig(f'figs/{input_model_name}_{gra}_{input_loss}_lr{input_lr}_e{input_epoch - 1}.png')
+        # plt.show()
+        plt.clf()
+        plt.cla()
 
     # edcr.check_g_correction_rule_precision_recall(data_preprocessing.granularities['fine'])
 
