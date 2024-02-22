@@ -636,7 +636,7 @@ class EDCR:
                        l: data_preprocessing.Label,
                        CC_all: set[(_Condition, data_preprocessing.Label)],
                        shared_index: mp.managers.ValueProxy,
-                       randomized: bool = True) -> \
+                       randomized: bool = False) -> \
             (data_preprocessing.Label, [tuple[_Condition, data_preprocessing.Label]]):
         """Learns error correction rules for a specific label and granularity. These rules associate conditions
         with alternative labels that are more likely to be correct when those conditions are met.
@@ -951,6 +951,7 @@ if __name__ == '__main__':
         for gra in data_preprocessing.granularities:
             edcr.apply_detection_rules(g=gra)
             edcr.apply_correction_rules(g=gra)
+            # edcr.apply_reversion_rules(g=gra)
 
             ps[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_precisions[gra].values()))
             rs[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_recalls[gra].values()))
