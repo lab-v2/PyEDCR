@@ -1,5 +1,3 @@
-import itertools
-
 from test_PYEDCR.test import *
 
 
@@ -28,7 +26,8 @@ def run_test_2():
     CC_l_2 = {(pred_Iskander, l_Air_Defense), (pred_T_72, l_Tank), (pred_BM_30, l_SPA)}
     CC_l_3 = {(pred_T_90, l_Tank), (pred_BMD_fine, l_BMD_coarse), (pred_30N6E, l_Air_Defense), (pred_T_64, l_Tank)}
     CC_l_4 = {(pred_Tank, l_T_90), (pred_BMD_coarse, l_BMD_fine), (pred_Air_Defense, l_30N6E), (pred_Tank, l_T_64)}
-    CC_l_5 = {(pred_SPA, l_Tornado), (pred_Air_Defense, l_Iskander), (pred_Tank, l_T_64), (pred_Air_Defense, l_Pantsir_S1)}
+    CC_l_5 = {(pred_SPA, l_Tornado), (pred_Air_Defense, l_Iskander), (pred_Tank, l_T_64), (pred_Air_Defense,
+                                                                                           l_Pantsir_S1)}
 
     test.run(l=l_30N6E, CC=CC_l_1, expected_output=(1/6))
     test.run(l=l_Pantsir_S1, CC=CC_l_1, expected_output=(5/6))
