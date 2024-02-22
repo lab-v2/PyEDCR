@@ -121,7 +121,7 @@ class Test:
                                    f" and expected_output={expected_output} has passed!"))
         else:
             print(utils.red_text(f'Test {self.method.__name__} has failed!'))
-            self.print_examples()
+            self.print_examples(test=False)
             print(f'Expected:\n{expected_output}')
             print(f'Actual:\n{output}')
 
