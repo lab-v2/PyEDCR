@@ -127,13 +127,20 @@ class EDCR:
             self.C_l = C_l
 
         def get_where_predicted_l(self,
-                                  data: np.array) -> np.array:
-            return np.where(data == self.l.index, 1, 0)
+                                  data: np.array,
+                                  l_prime: data_preprocessing.Label = None) -> np.array:
+            return np.where(data == (self.l.index if l_prime is None else l_prime.index), 1, 0)
 
         @abc.abstractmethod
         def __call__(self,
                      test_pred_fine_data: np.array,
                      test_pred_coarse_data: np.array) -> np.array:
+            pass
+
+        @abc.abstractmethod
+        def get_where_body_is_satisfied(self,
+                                        test_pred_fine_data: np.array,
+                                        test_pred_coarse_data: np.array):
             pass
 
         def __len__(self):
@@ -199,9 +206,9 @@ class EDCR:
             """
             super().__init__(l=l, C_l=CC_l)
 
-        def get_where_any_pair_satisfied(self,
-                                         test_pred_fine_data: np.array,
-                                         test_pred_coarse_data: np.array) -> np.array:
+        def get_where_body_is_satisfied(self,
+                                        test_pred_fine_data: np.array,
+                                        test_pred_coarse_data: np.array) -> np.array:
             test_pred_granularity_data = test_pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
                 else test_pred_coarse_data
 
@@ -215,7 +222,8 @@ class EDCR:
                     EDCR.get_where_any_conditions_satisfied(C={cond},
                                                             fine_data=test_pred_fine_data,
                                                             coarse_data=test_pred_coarse_data))
-                where_predicted_l_prime = np.where(test_pred_granularity_data == l_prime.index, 1, 0)
+                where_predicted_l_prime = self.get_where_predicted_l(data=test_pred_granularity_data,
+                                                                     l_prime=l_prime)
                 where_pair_satisfied = where_condition_satisfied * where_predicted_l_prime
 
                 where_any_pair_satisfied |= where_pair_satisfied
@@ -231,8 +239,8 @@ class EDCR:
             :param test_pred_coarse_data: The coarse-grained prediction data.
             :return: new test prediction for a specific granularity as derived from Label l.
             """
-            where_any_pair_satisfied = self.get_where_any_pair_satisfied(test_pred_fine_data=test_pred_fine_data,
-                                                                         test_pred_coarse_data=test_pred_coarse_data)
+            where_any_pair_satisfied = self.get_where_body_is_satisfied(test_pred_fine_data=test_pred_fine_data,
+                                                                        test_pred_coarse_data=test_pred_coarse_data)
 
             altered_pred_data = np.where(where_any_pair_satisfied == 1, self.l.index, -1)
 
@@ -671,8 +679,8 @@ class EDCR:
 
         assert CC_l_prime == CC_l
 
-        print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.get_CON_l_CC(l=l, CC=CC_l)}, '
-              f'P_l={self.train_precisions[l.g][l]}\n')
+        # print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.get_CON_l_CC(l=l, CC=CC_l)}, '
+        #       f'P_l={self.train_precisions[l.g][l]}\n')
 
         # if self.get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
         #     CC_l = set()
@@ -891,7 +899,7 @@ class EDCR:
 
         r_l = self.error_correction_rules[l]
         where_l_correction_rule_body_is_satisfied = (
-            r_l.get_where_any_pair_satisfied(
+            r_l.get_where_body_is_satisfied(
                 test_pred_fine_data=self.original_test_pred_data[data_preprocessing.granularities['fine']],
                 test_pred_coarse_data=self.original_test_pred_data[data_preprocessing.granularities['coarse']]))
         where_l_gt = self.get_where_label_is_l(pred=False, test=True, l=l)
@@ -930,6 +938,41 @@ class EDCR:
                 print(f'class {l}: new precision: {p_l_new}, old precision: {p_l}, '
                       f'diff: {p_l_new - p_l}')
                 print(f'class {l}: confidence: {c_l}')
+
+    def get_l_correction_rule_support_on_test(self,
+                                              l: data_preprocessing.Label) -> float:
+        if l not in self.error_correction_rules:
+            return 0
+
+        N_l = np.sum(self.get_where_label_is_l(pred=True, test=True, l=l))
+        r_l = self.error_correction_rules[l]
+        where_rule_body_is_satisfied = (
+            r_l.get_where_body_is_satisfied(
+                test_pred_fine_data=self.original_test_pred_data[data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.original_test_pred_data[data_preprocessing.granularities['coarse']]))
+        num_where_rule_body_is_satisfied = np.sum(where_rule_body_is_satisfied)
+        s_l = num_where_rule_body_is_satisfied / N_l
+
+        assert s_l <= 1
+
+        return s_l
+
+    def get_l_correction_rule_theoretical_precision_increase(self,
+                                                             l: data_preprocessing.Label) -> float:
+        c_l = self.get_l_correction_rule_confidence_on_test(l=l)
+        s_l = self.get_l_correction_rule_support_on_test(l=l)
+        N_l = np.sum(self.get_where_label_is_l(pred=True, test=True, l=l))
+        N = self.test_pred_data[l.g].shape[0]
+        p_l_post_detection = self.post_detection_test_precisions[l.g][l]
+        P_l_post_detection = N_l / N
+
+        return s_l * (c_l - p_l_post_detection) / (P_l_post_detection + s_l)
+
+    def get_g_correction_rule_theoretical_precision_increase(self,
+                                                             g: data_preprocessing.Granularity):
+        precision_increases = [self.get_l_correction_rule_theoretical_precision_increase(l=l)
+                               for l in data_preprocessing.get_labels(g).values()]
+        return np.mean(precision_increases)
 
 
 def plot_per_class(ps,
@@ -995,7 +1038,7 @@ if __name__ == '__main__':
         {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
         {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
-    epsilons = [0.1 * i for i in range(1, 5)]
+    epsilons = [0.1 * i for i in range(1, 2)]
 
     for epsilon in epsilons:
         print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
@@ -1017,22 +1060,23 @@ if __name__ == '__main__':
             edcr.apply_correction_rules(g=gra)
             edcr.apply_reversion_rules(g=gra)
 
-            precision_dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
-            recall_dict[gra]['initial'][epsilon] = edcr.original_test_recalls[gra]
-            precision_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_precisions[gra]
-            recall_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_recalls[gra]
-            precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
-            recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
+            print(edcr.get_g_correction_rule_theoretical_precision_increase(g=gra))
+
+            # precision_dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
+            # recall_dict[gra]['initial'][epsilon] = edcr.original_test_recalls[gra]
+            # precision_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_precisions[gra]
+            # recall_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_recalls[gra]
+            # precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
+            # recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
 
         edcr.print_metrics(test=True, prior=False, original=False, print_inconsistencies=False)
 
-    folder = "experiment_1"
-
-    if not os.path.exists(f'figs/{folder}'):
-        os.mkdir(f'figs/{folder}')
-
-    plot_per_class(ps=precision_dict,
-                   rs=recall_dict,
-                   folder="experiment_1")
-    plot_all(precision_dict, recall_dict, "experiment_1")
-
+    # folder = "experiment_1"
+    #
+    # if not os.path.exists(f'figs/{folder}'):
+    #     os.mkdir(f'figs/{folder}')
+    #
+    # plot_per_class(ps=precision_dict,
+    #                rs=recall_dict,
+    #                folder="experiment_1")
+    # plot_all(precision_dict, recall_dict, "experiment_1")
