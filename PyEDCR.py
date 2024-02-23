@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import os.path
 import typing
 import numpy as np
 import multiprocessing as mp
@@ -299,8 +300,6 @@ class EDCR:
             self.original_test_precisions[g], self.original_test_recalls[g] = (
                 self.get_g_precision_and_recall(g=g, test=True))
 
-            # print(np.mean(list(self.original_test_precisions[g].values())))
-
         self.post_detection_test_precisions = {}
         self.post_detection_test_recalls = {}
 
@@ -349,9 +348,9 @@ class EDCR:
                         original: bool = True) -> typing.Union[np.array, tuple[np.array]]:
         """Retrieves prediction data based on specified test/train mode.
 
-        :param original:
-        :param g:
-        :param test: True for test data, False for training data.
+        :param original: whether the prediction is original or modify during EDCR inference
+        :param g: The granularity level
+        :param test: whether to get data from train or test set
         :return: Fine-grained and coarse-grained prediction data.
         """
         test_pred_data = (self.original_test_pred_data if original else self.test_pred_data)
@@ -370,9 +369,9 @@ class EDCR:
                              original: bool = True) -> np.array:
         """ Retrieves indices of instances where the specified label is present.
 
-        :param original:
+        :param original: whether the prediction is original or modify during EDCR inference
         :param pred: True for prediction, False for ground truth
-        :param test: Whether to use test data (True) or training data (False).
+        :param test: whether to get data from train or test set
         :param l: The label to search for.
         :return: A boolean array indicating which instances have the given label.
         """
@@ -392,10 +391,10 @@ class EDCR:
         Calculates and prints various metrics (accuracy, precision, recall, etc.)
         using appropriate true labels and prediction data based on the specified mode.
 
-        :param original:
-        :param print_inconsistencies:
+        :param original: whether the prediction is original or modify during EDCR inference
+        :param print_inconsistencies: whether to print the inconsistencies metric or not
         :param prior:
-        :param test: True to use test data, False to use training data.
+        :param test: whether to get data from train or test set
         """
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, original=original)
         true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.K_test) if test \
@@ -419,8 +418,8 @@ class EDCR:
                                     original: bool = True) -> np.array:
         """Calculates true positive mask for given granularity and label.
 
-        :param original:
-        :param test: Whether to use test data (True) or training data (False).
+        :param original: whether the prediction is original or modify during EDCR inference
+        :param test: whether to get data from train or test set
         :param g: The granularity level.
         :return: A mask with 1s for true positive instances, 0s otherwise.
         """
@@ -433,8 +432,8 @@ class EDCR:
                                       original: bool = True) -> np.array:
         """Calculates false positive mask for given granularity and label.
 
-        :param original:
-        :param test: whether to get prediction from train or test set
+        :param original: whether the prediction is original or modify during EDCR inference
+        :param test: whether to get data from train or test set
         :param g: The granularity level
         :return: A mask with 1s for false positive instances, 0s otherwise.
         """
@@ -446,8 +445,8 @@ class EDCR:
                        original: bool = True) -> np.array:
         """ Retrieves indices of training instances where the true label is l and the model correctly predicted l.
 
-        :param original:
-        :param test:
+        :param original: whether the prediction is original or modify during EDCR inference
+        :param test: whether to get data from train or test set
         :param l: The label to query.
         :return: A boolean array indicating which training instances satisfy the criteria.
         """
@@ -460,8 +459,8 @@ class EDCR:
                        original: bool = True) -> np.array:
         """ Retrieves indices of instances where the predicted label is l and the ground truth is not l.
 
-        :param original:
-        :param test:
+        :param original: whether the prediction is original or modify during EDCR inference
+        :param test: whether to get data from train or test set
         :param l: The label to query.
         :return: A boolean array indicating which instances satisfy the criteria.
         """
@@ -793,6 +792,12 @@ class EDCR:
 
     def apply_reversion_rules(self,
                               g: data_preprocessing.Granularity):
+        """Applies error reversion rules to recover a prediction for a given granularity. If the inference of detection
+        and correction rules do not change the label, the prediction label for that example is set to be the original
+        one.
+
+        :param g: The granularity of the predictions to be processed.
+        """
         pred_granularity_data = self.get_predictions(test=True, g=g, original=False)
 
         self.test_pred_data[g] = np.where(pred_granularity_data == -1,
@@ -927,15 +932,74 @@ class EDCR:
                 print(f'class {l}: confidence: {c_l}')
 
 
+def plot_per_class(ps,
+                   rs,
+                   folder: str):
+    for g in data_preprocessing.granularities:
+        # plot all label per granularity:
+        for label in data_preprocessing.get_labels(g).values():
+            plt.plot(epsilons, [ps[g]['initial'][e][label] for e in epsilons],
+                     label='initial average precision')
+            plt.plot(epsilons, [ps[g]['pre_correction'][e][label] for e in epsilons],
+                     label='pre correction average precision')
+            plt.plot(epsilons, [ps[g]['post_correction'][e][label] for e in epsilons],
+                     label='post correction average precision')
+
+            plt.plot(epsilons, [rs[g]['initial'][e][label] for e in epsilons],
+                     label='initial average recall')
+            plt.plot(epsilons, [rs[g]['pre_correction'][e][label] for e in epsilons],
+                     label='pre correction average recall')
+            plt.plot(epsilons, [rs[g]['post_correction'][e][label] for e in epsilons],
+                     label='post correction average recall')
+
+            plt.legend()
+            plt.tight_layout()
+            plt.grid()
+            plt.title(f'{label}')
+            plt.savefig(f'figs/{folder}/{label}.png')
+            plt.clf()
+            plt.cla()
+
+
+def plot_all(ps,
+             rs,
+             folder: str):
+    for g in data_preprocessing.granularities:
+        # plot average precision recall per granularity:
+
+        plt.plot(epsilons, [np.mean(list(ps[g]['initial'][e].values())) for e in epsilons],
+                 label='initial average precision')
+        plt.plot(epsilons, [np.mean(list(ps[g]['pre_correction'][e].values())) for e in epsilons],
+                 label='pre correction average precision')
+        plt.plot(epsilons, [np.mean(list(ps[g]['post_correction'][e].values())) for e in epsilons],
+                 label='post correction average precision')
+
+        plt.plot(epsilons, [np.mean(list(rs[g]['initial'][e].values())) for e in epsilons],
+                 label='initial average precision')
+        plt.plot(epsilons, [np.mean(list(rs[g]['pre_correction'][e].values())) for e in epsilons],
+                 label='pre correction average precision')
+        plt.plot(epsilons, [np.mean(list(rs[g]['post_correction'][e].values())) for e in epsilons],
+                 label='post correction average precision')
+
+        plt.legend()
+        plt.tight_layout()
+        plt.grid()
+        plt.title(f'average precision recall for {g}')
+        plt.savefig(f'figs/{folder}/average_{g}.png')
+        plt.clf()
+        plt.cla()
+
+
 if __name__ == '__main__':
-    ps, rs = ({g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
-              {g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
+    precision_dict, recall_dict = (
+        {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
+        {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
-    epsilons = [0.1 * i for i in range(5, 6)]
+    epsilons = [0.1 * i for i in range(1, 5)]
 
-    for e in epsilons:
-        print('#' * 25 + f'eps = {e}' + '#' * 50)
-        edcr = EDCR(epsilon=e,
+    for epsilon in epsilons:
+        print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
+        edcr = EDCR(epsilon=epsilon,
                     main_model_name='vit_b_16',
                     combined=True,
                     loss='BCE',
@@ -953,57 +1017,21 @@ if __name__ == '__main__':
             edcr.apply_correction_rules(g=gra)
             edcr.apply_reversion_rules(g=gra)
 
-            ps[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_precisions[gra].values()))
-            rs[gra]['pre_correction'][e] = np.mean(list(edcr.post_detection_test_recalls[gra].values()))
-            ps[gra]['post_correction'][e] = np.mean(list(edcr.post_correction_test_precisions[gra].values()))
-            rs[gra]['post_correction'][e] = np.mean(list(edcr.post_correction_test_recalls[gra].values()))
+            precision_dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
+            recall_dict[gra]['initial'][epsilon] = edcr.original_test_recalls[gra]
+            precision_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_precisions[gra]
+            recall_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_recalls[gra]
+            precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
+            recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
 
         edcr.print_metrics(test=True, prior=False, original=False, print_inconsistencies=False)
 
-    # for gra in data_preprocessing.granularities:
-    #     plt.plot((epsilons, [ps[gra]['pre_correction'][e] for e in epsilons]),
-    #              label='pre correction average precision')
-    #     plt.plot((epsilons, [rs[gra]['pre_correction'][e] for e in epsilons]), label='pre correction average recall')
-    #
-    #     plt.plot((epsilons, [ps[gra]['post_correction'][e] for e in epsilons]), label='post correction average '
-    #                                                                                   'precision')
-    #     plt.plot((epsilons, [rs[gra]['post_correction'][e] for e in epsilons]), label='post correction average recall')
-    #
-    #     plt.legend()
-    #     plt.tight_layout()
-    #     plt.grid()
-    #     plt.title(f'{gra}')
-    #     plt.show()
-    #     plt.clf()
-    #     plt.cla()
+    folder = "experiment_1"
 
-    # edcr.check_g_correction_rule_precision_recall(data_preprocessing.granularities['fine'])
+    if not os.path.exists(f'figs/{folder}'):
+        os.mkdir(f'figs/{folder}')
 
-    # edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
-
-    # for g in data_preprocessing.granularities:
-    #     edcr.apply_detection_rules(g=g)
-    #     p, r = edcr.get_g_precision_and_recall(g=g, test=True, original=False)
-    #     new_avg_precision = np.mean(list(p.values()))
-    #     new_avg_recall = np.mean(list(r.values()))
-    #     old_precision = np.mean(list(edcr.original_test_precisions[g].values()))
-    #     old_recall = np.mean(list(edcr.original_test_recalls[g].values()))
-    #
-    #     print(f'new precision: {new_avg_precision}, old precision: {old_precision}, '
-    #           f'diff: {new_avg_precision - old_precision}\n'
-    #           f'theoretical_precision_increase: {edcr.get_g_theoretical_precision_increase(g=g)}')
-    #     print(f'new recall: {new_avg_recall}, old recall: {old_recall}, '
-    #           f'diff: {new_avg_recall - old_recall}\n'
-    #           f'theoretical_recall_decrease: {edcr.get_g_theoretical_recall_decrease(g=g)}')
-    #
-    #
-    #     # for g in data_preprocessing.granularities:
-    #     # edcr.apply_correction_rules(g=g)
-    #     # edcr.apply_reversion_rules(g=g)
-    #
-    # edcr.print_metrics(test=True, prior=False, print_inconsistencies=False, original=False)
-
-    #     edcr.apply_correction_rules(g=g)
-    #     edcr.apply_reversion_rules(g=g)
-    #
-    # edcr.print_metrics(test=True, prior=False)
+    plot_per_class(ps=precision_dict,
+                   rs=recall_dict,
+                   folder="experiment_1")
+    plot_all(precision_dict, recall_dict, "experiment_1")
