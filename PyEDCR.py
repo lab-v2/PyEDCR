@@ -936,7 +936,7 @@ if __name__ == '__main__':
     ps, rs = ({g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
               {g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
-    epsilons = [0.1 * i for i in range(1, 50)]
+    epsilons = [0.01 * i for i in range(1, 100)]
 
     for epsilon in epsilons:
         print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
