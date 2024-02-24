@@ -316,6 +316,17 @@ class EDCR:
         self.post_correction_test_precisions = {}
         self.post_correction_test_recalls = {}
 
+        self.num_predicted_l = {'original': {g: {} for g in data_preprocessing.granularities.values()},
+                                'post_detection': {g: {} for g in data_preprocessing.granularities.values()},
+                                'post_correction': {g: {} for g in data_preprocessing.granularities.values()}}
+
+        for g in data_preprocessing.granularities.values():
+            for l in data_preprocessing.get_labels(g).values():
+                self.num_predicted_l['original'][g][l] = np.sum(self.get_where_label_is_l(pred=True,
+                                                                                          test=True,
+                                                                                          l=l,
+                                                                                          stage='original'))
+
         self.error_detection_rules: dict[data_preprocessing.Label, EDCR.ErrorDetectionRule] = {}
         self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
 
@@ -364,6 +375,7 @@ class EDCR:
         :return: Fine-grained and coarse-grained prediction data.
         """
         test_pred_data = self.test_pred_data[stage]
+
         if g is not None:
             return (test_pred_data if test else self.train_pred_data)[g]
 
@@ -760,6 +772,12 @@ class EDCR:
         self.post_detection_test_precisions[g], self.post_detection_test_recalls[g] = (
             self.get_g_precision_and_recall(g=g, test=True, stage='post_detection'))
 
+        for l in data_preprocessing.get_labels(g).values():
+            self.num_predicted_l['post_detection'][g][l] = np.sum(self.get_where_label_is_l(pred=True,
+                                                                                            test=True,
+                                                                                            l=l,
+                                                                                            stage='post_detection'))
+
         return error_mask
 
     def apply_correction_rules(self,
@@ -797,6 +815,12 @@ class EDCR:
 
         self.post_correction_test_precisions[g], self.post_correction_test_recalls[g] = (
             self.get_g_precision_and_recall(g=g, test=True, stage='post_correction'))
+
+        for l in data_preprocessing.get_labels(g).values():
+            self.num_predicted_l['post_correction'][g][l] = np.sum(self.get_where_label_is_l(pred=True,
+                                                                                             test=True,
+                                                                                             l=l,
+                                                                                             stage='post_correction'))
 
         return altered_pred_granularity_data
 
@@ -943,6 +967,8 @@ class EDCR:
         if l not in self.error_correction_rules:
             return 0
 
+        granularity_data = self.get_predictions(test=True, g=l.g, stage='post_detection')
+
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=True, l=l, stage='post_detection'))
         r_l = self.error_correction_rules[l]
         where_rule_body_is_satisfied = (
@@ -950,8 +976,10 @@ class EDCR:
                 test_pred_fine_data=self.test_pred_data['post_detection'][data_preprocessing.granularities['fine']],
                 test_pred_coarse_data=self.test_pred_data['post_detection'][
                     data_preprocessing.granularities['coarse']]))
-        num_where_rule_body_is_satisfied = np.sum(where_rule_body_is_satisfied)
-        s_l = num_where_rule_body_is_satisfied / N_l
+        where_predicted_l = r_l.get_where_predicted_l(data=granularity_data)
+
+        where_rule_body_is_satisfied_and_predicted_l = where_rule_body_is_satisfied * where_predicted_l
+        s_l = np.sum(where_rule_body_is_satisfied_and_predicted_l) / N_l
 
         assert s_l <= 1
 
@@ -1093,3 +1121,5 @@ if __name__ == '__main__':
     #                rs=recall_dict,
     #                folder="experiment_1")
     # plot_all(precision_dict, recall_dict, "experiment_1")
+
+    print('hi')
