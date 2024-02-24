@@ -787,7 +787,7 @@ class EDCR:
 
         :param g: The granularity of the predictions to be processed.
         """
-        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
+        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True, stage='post_detection')
         altered_pred_granularity_data = self.get_predictions(test=True, g=g, stage='post_detection')
 
         altered_pred_granularity_datas = {}
