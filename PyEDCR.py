@@ -670,20 +670,21 @@ class EDCR:
         """
         CC_l = set()
         CC_l_prime = CC_all.copy()
-        # CC_sorted = sorted(CC_all, key=lambda c_l: self.get_CON_l_CC(l=l, CC={c_l}), reverse=True)
+        CC_sorted = sorted(CC_all, key=lambda c_l: self.get_CON_l_CC(l=l, CC={c_l}), reverse=True)
 
-        with context_handlers.WrapTQDM(total=len(CC_all)) as progress_bar:
-            for cond_and_l in CC_all:
+        with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
+            for cond_and_l in CC_sorted:
                 a = self.get_CON_l_CC(l=l, CC=CC_l.union({cond_and_l})) - self.get_CON_l_CC(l=l, CC=CC_l)
                 b = (self.get_CON_l_CC(l=l, CC=CC_l_prime.difference({cond_and_l})) -
                      self.get_CON_l_CC(l=l, CC=CC_l_prime))
 
                 # randomized algorithm
-                a_prime = max(a, 0)
-                b_prime = max(b, 0)
-                P = a_prime / (a_prime + b_prime) if not (a_prime == 0 and b_prime == 0) else 1
+                # a_prime = max(a, 0)
+                # b_prime = max(b, 0)
+                # P = a_prime / (a_prime + b_prime) if not (a_prime == 0 and b_prime == 0) else 1
 
-                if (not randomized and a >= b) or (randomized and random.random() < P):
+                # if ((not randomized) and a >= b) or (randomized and (random.random() < P)):
+                if a >= b:
                     CC_l = CC_l.union({cond_and_l})
                 else:
                     CC_l_prime = CC_l_prime.difference({cond_and_l})
@@ -787,8 +788,8 @@ class EDCR:
 
         :param g: The granularity of the predictions to be processed.
         """
-        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True, stage='post_detection')
-        altered_pred_granularity_data = self.get_predictions(test=True, g=g, stage='post_detection')
+        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True, stage='original')
+        altered_pred_granularity_data = self.get_predictions(test=True, g=g, stage='original')
 
         altered_pred_granularity_datas = {}
         for l, rule_g_l in {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items():
@@ -922,8 +923,8 @@ class EDCR:
         r_l = self.error_correction_rules[l]
         where_l_correction_rule_body_is_satisfied = (
             r_l.get_where_body_is_satisfied(
-                test_pred_fine_data=self.test_pred_data['post_detection'][data_preprocessing.granularities['fine']],
-                test_pred_coarse_data=self.test_pred_data['post_detection'][
+                test_pred_fine_data=self.test_pred_data['original'][data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.test_pred_data['original'][
                     data_preprocessing.granularities['coarse']]))
         where_l_gt = self.get_where_label_is_l(pred=False, test=True, l=l)
         where_head_and_body_is_satisfied = where_l_correction_rule_body_is_satisfied * where_l_gt
@@ -967,21 +968,18 @@ class EDCR:
         if l not in self.error_correction_rules:
             return 0
 
-        granularity_data = self.get_predictions(test=True, g=l.g, stage='post_detection')
+        granularity_data = self.get_predictions(test=True, g=l.g, stage='original')
 
-        N_l = np.sum(self.get_where_label_is_l(pred=True, test=True, l=l, stage='post_detection'))
+        N_l = np.sum(self.get_where_label_is_l(pred=True, test=True, l=l, stage='original'))
         r_l = self.error_correction_rules[l]
         where_rule_body_is_satisfied = (
             r_l.get_where_body_is_satisfied(
-                test_pred_fine_data=self.test_pred_data['post_detection'][data_preprocessing.granularities['fine']],
-                test_pred_coarse_data=self.test_pred_data['post_detection'][
+                test_pred_fine_data=self.test_pred_data['original'][data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.test_pred_data['original'][
                     data_preprocessing.granularities['coarse']]))
-        where_predicted_l = r_l.get_where_predicted_l(data=granularity_data)
 
-        where_rule_body_is_satisfied_and_predicted_l = where_rule_body_is_satisfied * where_predicted_l
+        where_rule_body_is_satisfied_and_predicted_l = where_rule_body_is_satisfied
         s_l = np.sum(where_rule_body_is_satisfied_and_predicted_l) / N_l
-
-        assert s_l <= 1
 
         return s_l
 
@@ -989,12 +987,9 @@ class EDCR:
                                                              l: data_preprocessing.Label) -> float:
         c_l = self.get_l_correction_rule_confidence_on_test(l=l)
         s_l = self.get_l_correction_rule_support_on_test(l=l)
-        N_l_post_detection = np.sum(self.get_where_label_is_l(pred=True, test=True, l=l, stage='post_detection'))
-        N = self.test_pred_data['post_detection'][l.g].shape[0]
-        p_l_post_detection = self.post_detection_test_precisions[l.g][l]
-        P_l_post_detection = N_l_post_detection / N
+        p_l_post_detection = self.original_test_precisions[l.g][l]
 
-        return s_l * (c_l - p_l_post_detection) / (P_l_post_detection + s_l)
+        return s_l * (c_l - p_l_post_detection) / (1 + s_l)
 
     def get_g_correction_rule_theoretical_precision_increase(self,
                                                              g: data_preprocessing.Granularity):
@@ -1080,11 +1075,11 @@ if __name__ == '__main__':
 
         for gra in data_preprocessing.granularities.values():
             edcr.learn_detection_rules(g=gra)
-            # for gra in data_preprocessing.granularities.values():
+        # for gra in data_preprocessing.granularities.values():
             edcr.learn_correction_rules(g=gra)
 
         for gra in data_preprocessing.granularities:
-            edcr.apply_detection_rules(g=gra)
+            # edcr.apply_detection_rules(g=gra)
             edcr.apply_correction_rules(g=gra)
             # edcr.apply_reversion_rules(g=gra)
 
@@ -1092,7 +1087,7 @@ if __name__ == '__main__':
 
             new_avg_precision = np.mean(list(p.values()))
             new_avg_recall = np.mean(list(r.values()))
-            old_precision = np.mean(list(edcr.post_detection_test_precisions[gra].values()))
+            old_precision = np.mean(list(edcr.original_test_precisions[gra].values()))
             # old_recall = np.mean(list(edcr.original_test_recalls[gra].values()))
 
             print(f'{gra}-grain new precision: {new_avg_precision}, {gra}-grain old precision: {old_precision}, '
