@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import os.path
 import typing
 import numpy as np
 import multiprocessing as mp
@@ -991,6 +990,13 @@ def plot_all(ps,
 
 
 if __name__ == '__main__':
+    input_model_name = 'vit_b_16'
+    input_epoch = 20
+    input_lr = 0.0001
+    input_loss = 'BCE'
+
+    ps, rs = ({g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
+              {g: {'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
     precision_dict, recall_dict = (
         {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
         {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
