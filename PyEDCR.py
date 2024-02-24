@@ -69,10 +69,6 @@ class EDCR:
 
         def __init__(self,
                      l: data_preprocessing.Label):
-            """Initializes a PredCondition instance.
-
-            :param l: The target Label for which the condition is evaluated.
-            """
             self.__l = l
 
         def __call__(self,
@@ -95,6 +91,11 @@ class EDCR:
             return self.__hash__() == other.__hash__()
 
     class ConsistencyCondition(_Condition):
+        """Represents a condition based on a model's prediction of coarse and fine grain class.
+
+        It evaluates to 1 if the model predicts the fine grain and corresponding coarse class for a given example,
+        and 0 otherwise.
+        """
         def __init__(self):
             pass
 
@@ -162,6 +163,12 @@ class EDCR:
         def get_where_body_is_satisfied(self,
                                         test_pred_fine_data: np.array,
                                         test_pred_coarse_data: np.array) -> np.array:
+            """Get the mask of examples satisfy the body of correction rule based on the provided prediction data.
+
+            :param test_pred_fine_data: The fine-grained prediction data.
+            :param test_pred_coarse_data: The coarse-grained prediction data.
+            :return: new test prediction for a specific granularity as derived from Label l.
+            """
             test_pred_granularity_data = test_pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
                 else test_pred_coarse_data
             where_predicted_l = self.get_where_predicted_l(data=test_pred_granularity_data)
@@ -209,6 +216,12 @@ class EDCR:
         def get_where_body_is_satisfied(self,
                                         test_pred_fine_data: np.array,
                                         test_pred_coarse_data: np.array) -> np.array:
+            """Get the mask of examples satisfy the body of correction rule based on the provided prediction data.
+
+            :param test_pred_fine_data: The fine-grained prediction data.
+            :param test_pred_coarse_data: The coarse-grained prediction data.
+            :return: new test prediction for a specific granularity as derived from Label l.
+            """
             test_pred_granularity_data = test_pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
                 else test_pred_coarse_data
 
@@ -369,7 +382,8 @@ class EDCR:
                         stage: str = 'original') -> typing.Union[np.array, tuple[np.array]]:
         """Retrieves prediction data based on specified test/train mode.
 
-        :param stage:
+        :param stage: whether to get data before applying detecting rule (original), after applying detecting rules
+        (post_detection) or correcting rule (post_correction)
         :param g: The granularity level
         :param test: whether to get data from train or test set
         :return: Fine-grained and coarse-grained prediction data.
@@ -391,7 +405,8 @@ class EDCR:
                              stage: str = 'original') -> np.array:
         """ Retrieves indices of instances where the specified label is present.
 
-        :param stage:
+        :param stage: whether to get data before applying detecting rule (original), after applying detecting rules
+        (post_detection) or correcting rule (post_correction)
         :param pred: True for prediction, False for ground truth
         :param test: whether to get data from train or test set
         :param l: The label to search for.
@@ -413,7 +428,8 @@ class EDCR:
         Calculates and prints various metrics (accuracy, precision, recall, etc.)
         using appropriate true labels and prediction data based on the specified mode.
 
-        :param stage:
+        :param stage: whether to get data before applying detecting rule (original), after applying detecting rules
+        (post_detection) or correcting rule (post_correction)
         :param print_inconsistencies: whether to print the inconsistencies metric or not
         :param prior:
         :param test: whether to get data from train or test set
@@ -440,7 +456,8 @@ class EDCR:
                                     stage: str = 'original') -> np.array:
         """Calculates true positive mask for given granularity and label.
 
-        :param stage:
+        :param stage: whether to get data before applying detecting rule (original), after applying detecting rules
+        (post_detection) or correcting rule (post_correction)
         :param test: whether to get data from train or test set
         :param g: The granularity level.
         :return: A mask with 1s for true positive instances, 0s otherwise.
@@ -454,7 +471,8 @@ class EDCR:
                                       stage: str = 'original') -> np.array:
         """Calculates false positive mask for given granularity and label.
 
-        :param stage:
+        :param stage: whether to get data before applying detecting rule (original), after applying detecting rules
+        (post_detection) or correcting rule (post_correction)
         :param test: whether to get data from train or test set
         :param g: The granularity level
         :return: A mask with 1s for false positive instances, 0s otherwise.
@@ -467,7 +485,8 @@ class EDCR:
                        stage: str = 'original') -> np.array:
         """ Retrieves indices of training instances where the true label is l and the model correctly predicted l.
 
-        :param stage:
+        :param stage: whether to get data before applying detecting rule (original), after applying detecting rules
+        (post_detection) or correcting rule (post_correction)
         :param test: whether to get data from train or test set
         :param l: The label to query.
         :return: A boolean array indicating which training instances satisfy the criteria.
@@ -481,7 +500,8 @@ class EDCR:
                        stage: str = 'original') -> np.array:
         """ Retrieves indices of instances where the predicted label is l and the ground truth is not l.
 
-        :param stage:
+        :param stage: whether to get data before applying detecting rule (original), after applying detecting rules
+        (post_detection) or correcting rule (post_correction)
         :param test: whether to get data from train or test set
         :param l: The label to query.
         :return: A boolean array indicating which instances satisfy the criteria.
@@ -494,6 +514,14 @@ class EDCR:
                                    test: bool,
                                    stage: str = 'original') -> (dict[data_preprocessing.Label, float],
                                                                 dict[data_preprocessing.Label, float]):
+        """ Get precision and recall for all labels in a specific granularity
+
+        :param stage: whether to get data before applying detecting rule (original), after applying detecting rules
+        (post_detection) or correcting rule (post_correction)
+        :param test: whether to get data from train or test set
+        :param g: The granularity level
+        :return: 2 dictionary contain precision and recall per class
+        """
         p_g = {}
         r_g = {}
 
@@ -661,8 +689,8 @@ class EDCR:
                        CC_all: set[(_Condition, data_preprocessing.Label)],
                        shared_index: mp.managers.ValueProxy) -> \
             (data_preprocessing.Label, [tuple[_Condition, data_preprocessing.Label]]):
-        """Learns error correction rules for a specific label and granularity. These rules associate conditions
-        with alternative labels that are more likely to be correct when those conditions are met.
+        """Construct a set of condition pair using for error correction rules given a specific label and condition class
+        pair.
 
         :param l: The label of interest.
         :param CC_all: A set of all condition-label pairs to consider for rule learning.
@@ -707,6 +735,11 @@ class EDCR:
 
     def learn_detection_rules(self,
                               g: data_preprocessing.Granularity):
+        """Learns error correction rules for a specific granularity. These rules capture conditions
+        that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
+
+        :param g: The granularity level
+        """
         self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
         granularity_labels = data_preprocessing.get_labels(g).values()
 
@@ -727,6 +760,12 @@ class EDCR:
 
     def learn_correction_rules(self,
                                g: data_preprocessing.Granularity):
+        """
+        Learns error correction rules for a specific granularity. These rules associate conditions
+        with alternative labels that are more likely to be correct when the conditions in such rule are met.
+
+        :param g: The granularity level
+        """
 
         granularity_labels = data_preprocessing.get_labels(g).values()
         other_g = data_preprocessing.granularities['fine' if str(g) == 'coarse' else 'coarse']
