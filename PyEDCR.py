@@ -794,7 +794,7 @@ class EDCR:
         a particular label, the prediction data for that label is modified with a value of -1,
         indicating a potential error.
 
-        :params g: The granularity of the predictions to be processed.
+        :params g: The granularity level
         """
         test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
         altered_pred_granularity_data = self.get_predictions(test=True, g=g)
@@ -824,7 +824,7 @@ class EDCR:
         """Applies error correction rules to test predictions for a given granularity. If a rule is satisfied for a
         particular label, the prediction data for that label is corrected using the rule's logic.
 
-        :param g: The granularity of the predictions to be processed.
+        :param g: The granularity level
         """
         test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True, stage='post_detection')
         altered_pred_granularity_data = self.get_predictions(test=True, g=g, stage='post_detection')
@@ -869,7 +869,7 @@ class EDCR:
         and correction rules do not change the label, the prediction label for that example is set to be the original
         one.
 
-        :param g: The granularity of the predictions to be processed.
+        :param g: The granularity level
         """
         pred_granularity_data = self.get_predictions(test=True, g=g, stage='post_correction')
 
@@ -878,6 +878,11 @@ class EDCR:
 
     def get_l_detection_rule_support_on_test(self,
                                              l: data_preprocessing.Label) -> float:
+        """ Calculate support for class l (from theorem 1) from prediction data before applying detecting rules
+
+        :param l: The label of interest.
+        """
+
         if l not in self.error_detection_rules:
             return 0
 
@@ -896,6 +901,10 @@ class EDCR:
 
     def get_l_detection_rule_confidence_on_test(self,
                                                 l: data_preprocessing.Label) -> float:
+        """ Calculate confidence for class l (from theorem 1) from prediction data before applying detecting rules
+
+        :param l: The label of interest.
+        """
         if l not in self.error_detection_rules:
             return 0
 
@@ -917,6 +926,11 @@ class EDCR:
 
     def get_l_detection_rule_theoretical_precision_increase(self,
                                                             l: data_preprocessing.Label) -> float:
+        """ Calculate theoretical precision increase for class l (from theorem 1) from prediction data after applying
+        detecting rules
+
+        :param l: The label of interest.
+        """
         s_l = self.get_l_detection_rule_support_on_test(l=l)
 
         if s_l == 0:
@@ -929,12 +943,22 @@ class EDCR:
 
     def get_g_detection_rule_theoretical_precision_increase(self,
                                                             g: data_preprocessing.Granularity):
+        """ Calculate precision increase for all classes in granularity g from prediction data after applying
+        detecting rules
+
+        :param g: The granularity level
+        """
         precision_increases = [self.get_l_detection_rule_theoretical_precision_increase(l=l)
                                for l in data_preprocessing.get_labels(g).values()]
         return np.mean(precision_increases)
 
     def get_l_detection_rule_theoretical_recall_decrease(self,
                                                          l: data_preprocessing.Label) -> float:
+        """ Calculate theoretical recall decrease for class l (from theorem 1) from prediction data after applying
+        detecting rules
+
+        :param l: The label of interest.
+        """
         c_l = self.get_l_detection_rule_confidence_on_test(l=l)
         s_l = self.get_l_detection_rule_support_on_test(l=l)
         p_l = self.original_test_precisions[l.g][l]
@@ -945,6 +969,11 @@ class EDCR:
 
     def get_g_detection_rule_theoretical_recall_decrease(self,
                                                          g: data_preprocessing.Granularity):
+        """ Calculate recall decrease for all classes in granularity g from prediction data after applying
+        detecting rules
+
+        :param g: The granularity level
+        """
         recall_decreases = [self.get_l_detection_rule_theoretical_recall_decrease(l=l)
                             for l in data_preprocessing.get_labels(g).values()]
         return np.mean(recall_decreases)
