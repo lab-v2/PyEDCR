@@ -7,10 +7,14 @@ def run_test_1():
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
 
     test.edcr.set_error_correction_rules({l_BTR_80: {(pred_BTR_80, l_BTR_80)},
-
+                                          l_2S19_MSTA: {(pred_2S19_MSTA, l_SPA), (pred_T_72, l_SPA)}
                                           })
 
+    test.print_examples(test=False)
+
     test.run(l=l_BTR_80, expected_output=0)
+    test.run(l=l_2S19_MSTA, expected_output=0)
+
 
 if __name__ == '__main__':
     run_test_1()
