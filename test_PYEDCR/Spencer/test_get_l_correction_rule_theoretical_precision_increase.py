@@ -15,6 +15,8 @@ def run_test_1():
     test.run(l=l_BTR_80, expected_output=0)
     test.run(l=l_2S19_MSTA, expected_output=0)
 
+def run_test_2():
+
 
 if __name__ == '__main__':
     run_test_1()
