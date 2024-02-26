@@ -1127,43 +1127,44 @@ class EDCR:
                                for l in data_preprocessing.get_labels(g).values()]
         return np.mean(precision_increases)
 
-    def evaluate_and_print_detection_rule_precision_increase(self,
-                                                             threshold: float = 1e-5):
-        p = self.get_g_precision_and_recall(g=gra, test=True, stage='post_detection')[0]
+    def evaluate_and_print_g_detection_rule_precision_increase(self,
+                                                               g: data_preprocessing.Granularity,
+                                                               threshold: float = 1e-5):
+        p = self.get_g_precision_and_recall(g=g, test=True, stage='post_detection')[0]
 
-        original_precision = np.mean(list(self.original_test_precisions[gra].values()))
+        original_precision = np.mean(list(self.original_test_precisions[g].values()))
         post_detection_avg_precision = np.mean(list(p.values()))
         precision_diff = post_detection_avg_precision - original_precision
         detection_rule_theoretical_precision_increase = (
-            self.get_g_detection_rule_theoretical_precision_increase(g=gra))
+            self.get_g_detection_rule_theoretical_precision_increase(g=g))
         precision_theory_holds = abs(detection_rule_theoretical_precision_increase - precision_diff) < threshold
         precision_theory_holds_str = utils.green_text('The theory holds!') if precision_theory_holds else (
             utils.red_text('The theory does not hold!'))
 
-
-        print(f'{gra}-grain new precision: {post_detection_avg_precision}, '
-              f'{gra}-grain old precision: {original_precision}, '
+        print(f'{g}-grain new precision: {post_detection_avg_precision}, '
+              f'{g}-grain old precision: {original_precision}, '
               f'diff: {utils.green_text(precision_diff)}\n'
               f'theoretical precision increase: {utils.green_text(detection_rule_theoretical_precision_increase)}\n'
               f'{precision_theory_holds_str}'
               )
 
-    def evaluate_and_print_detection_rule_recall_decrease(self,
-                                                          threshold: float = 1e-5):
-        r = self.get_g_precision_and_recall(g=gra, test=True, stage='post_detection')[1]
+    def evaluate_and_print_g_detection_rule_recall_decrease(self,
+                                                            g: data_preprocessing.Granularity,
+                                                            threshold: float = 1e-5):
+        r = self.get_g_precision_and_recall(g=g, test=True, stage='post_detection')[1]
 
-        original_recall = np.mean(list(self.original_test_recalls[gra].values()))
+        original_recall = np.mean(list(self.original_test_recalls[g].values()))
         post_detection_avg_recall = np.mean(list(r.values()))
         recall_diff = post_detection_avg_recall - original_recall
 
         detection_rule_theoretical_recall_decrease = (
-            self.get_g_detection_rule_theoretical_recall_decrease(g=gra))
-        recall_theory_holds = abs(detection_rule_theoretical_recall_decrease - recall_diff) < threshold
+            self.get_g_detection_rule_theoretical_recall_decrease(g=g))
+        recall_theory_holds = abs(abs(detection_rule_theoretical_recall_decrease) - abs(recall_diff)) < threshold
         recall_theory_holds_str = utils.green_text('The theory holds!') if recall_theory_holds else (
             utils.red_text('The theory does not hold!'))
 
-        print(f'{gra}-grain new recall: {post_detection_avg_recall}, '
-              f'{gra}-grain old recall: {original_recall}, '
+        print(f'{g}-grain new recall: {post_detection_avg_recall}, '
+              f'{g}-grain old recall: {original_recall}, '
               f'diff: {utils.green_text(recall_diff)}\n'
               f'theoretical recall decrease: {utils.green_text(detection_rule_theoretical_recall_decrease)}\n'
               f'{recall_theory_holds_str}'
@@ -1253,8 +1254,8 @@ if __name__ == '__main__':
 
         for gra in data_preprocessing.granularities:
             edcr.apply_detection_rules(g=gra)
-            edcr.evaluate_and_print_detection_rule_precision_increase()
-            edcr.evaluate_and_print_detection_rule_recall_decrease()
+            edcr.evaluate_and_print_g_detection_rule_precision_increase(g=gra)
+            edcr.evaluate_and_print_g_detection_rule_recall_decrease(g=gra)
 
             # edcr.apply_correction_rules(g=gra)
             # edcr.apply_reversion_rules(g=gra)
