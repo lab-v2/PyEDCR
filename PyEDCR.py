@@ -788,8 +788,8 @@ class EDCR:
 
         :param g: The granularity of the predictions to be processed.
         """
-        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True, stage='original')
-        altered_pred_granularity_data = self.get_predictions(test=True, g=g, stage='original')
+        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
+        altered_pred_granularity_data = self.get_predictions(test=True, g=g, stage='post_detection')
 
         altered_pred_granularity_datas = {}
         for l, rule_g_l in {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items():
@@ -812,6 +812,7 @@ class EDCR:
                 l.index,
                 altered_pred_granularity_data)
 
+
         self.test_pred_data['post_correction'][g] = altered_pred_granularity_data
 
         self.post_correction_test_precisions[g], self.post_correction_test_recalls[g] = (
@@ -822,6 +823,7 @@ class EDCR:
                                                                                              test=True,
                                                                                              l=l,
                                                                                              stage='post_correction'))
+
 
         return altered_pred_granularity_data
 
@@ -964,11 +966,10 @@ class EDCR:
                 print(f'class {l}: confidence: {c_l}')
 
     def get_l_correction_rule_support_on_test(self,
-                                              l: data_preprocessing.Label) -> float:
+                                              l: data_preprocessing.Label,
+                                              ) -> float:
         if l not in self.error_correction_rules:
             return 0
-
-        granularity_data = self.get_predictions(test=True, g=l.g, stage='original')
 
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=True, l=l, stage='original'))
         r_l = self.error_correction_rules[l]
@@ -1071,7 +1072,7 @@ if __name__ == '__main__':
                     loss='BCE',
                     lr=0.0001,
                     num_epochs=20)
-        # edcr.print_metrics(test=True, prior=True)
+        edcr.print_metrics(test=True, prior=True)
 
         for gra in data_preprocessing.granularities.values():
             edcr.learn_detection_rules(g=gra)
@@ -1079,42 +1080,62 @@ if __name__ == '__main__':
             edcr.learn_correction_rules(g=gra)
 
         for gra in data_preprocessing.granularities:
-            # edcr.apply_detection_rules(g=gra)
-            edcr.apply_correction_rules(g=gra)
-            # edcr.apply_reversion_rules(g=gra)
+            edcr.apply_detection_rules(g=gra)
 
-            p, r = edcr.get_g_precision_and_recall(g=gra, test=True, stage='post_correction')
+            p, r = edcr.get_g_precision_and_recall(g=gra, test=True, stage='post_detection')
 
             new_avg_precision = np.mean(list(p.values()))
             new_avg_recall = np.mean(list(r.values()))
             old_precision = np.mean(list(edcr.original_test_precisions[gra].values()))
-            # old_recall = np.mean(list(edcr.original_test_recalls[gra].values()))
+            old_recall = np.mean(list(edcr.original_test_recalls[gra].values()))
 
-            print(f'{gra}-grain new precision: {new_avg_precision}, {gra}-grain old precision: {old_precision}, '
-                  f'diff: {new_avg_precision - old_precision}\n'
-                  f'theoretical_precision_increase: {edcr.get_g_correction_rule_theoretical_precision_increase(g=gra)}')
+            print('\n' + '#' * 50 + 'post detection' + '#' * 50)
 
-            # print(f'new recall: {new_avg_recall}, old recall: {old_recall}, '
-            #       f'diff: {new_avg_recall - old_recall}\n'
-            #       f'theoretical_recall_decrease: {edcr.get_g_correction_rule_theoretical_precision_increase(g=gra)}')
+            print(f'{gra}-grain new precision: {new_avg_precision}, '
+                  f'{gra}-grain old precision: {old_precision}, '
+                  f'diff: {utils.green_text(new_avg_precision - old_precision)}\n'
+                  f'theoretical precision increase: '
+                  f'{utils.green_text(edcr.get_g_detection_rule_theoretical_precision_increase(g=gra))}',
+                  )
 
-            # precision_dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
-            # recall_dict[gra]['initial'][epsilon] = edcr.original_test_recalls[gra]
-            # precision_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_precisions[gra]
-            # recall_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_recalls[gra]
-            # precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
-            # recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
+            print(f'{gra}-grain new recall: {new_avg_recall}, '
+                  f'{gra}-grain old recall: {old_recall}, '
+                  f'diff: {utils.green_text(new_avg_recall - old_recall)}\n'
+                  f'theoretical recall increase: '
+                  f'{utils.green_text(edcr.get_g_detection_rule_theoretical_recall_decrease(g=gra))}',
+                  )
 
-        # edcr.print_metrics(test=True, prior=False, original=False, print_inconsistencies=False)
+            edcr.apply_correction_rules(g=gra)
+            # edcr.apply_reversion_rules(g=gra)
 
-    # folder = "experiment_1"
-    #
-    # if not os.path.exists(f'figs/{folder}'):
-    #     os.mkdir(f'figs/{folder}')
-    #
-    # plot_per_class(ps=precision_dict,
-    #                rs=recall_dict,
-    #                folder="experiment_1")
-    # plot_all(precision_dict, recall_dict, "experiment_1")
+            p = edcr.get_g_precision_and_recall(g=gra, test=True, stage='post_correction')[0]
 
-    print('hi')
+            new_avg_precision = np.mean(list(p.values()))
+
+            print('\n' + '#' * 50 + 'post correction' + '#' * 50)
+
+            print(f'{gra}-grain new precision: {new_avg_precision}, '
+                  f'{gra}-grain old precision: {old_precision}, '
+                  f'diff: {utils.green_text(new_avg_precision - old_precision)}\n'
+                  f'theoretical precision increase: '
+                  f'{utils.green_text(edcr.get_g_correction_rule_theoretical_precision_increase(g=gra))}',
+                  )
+
+            precision_dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
+            recall_dict[gra]['initial'][epsilon] = edcr.original_test_recalls[gra]
+            precision_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_precisions[gra]
+            recall_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_recalls[gra]
+            precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
+            recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
+
+        edcr.print_metrics(test=True, prior=False, stage='post_correction', print_inconsistencies=False)
+
+    folder = "experiment_1"
+
+    if not os.path.exists(f'figs/{folder}'):
+        os.mkdir(f'figs/{folder}')
+
+    plot_per_class(ps=precision_dict,
+                   rs=recall_dict,
+                   folder="experiment_1")
+    plot_all(precision_dict, recall_dict, "experiment_1")
