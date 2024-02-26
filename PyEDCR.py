@@ -1084,23 +1084,23 @@ if __name__ == '__main__':
 
             p, r = edcr.get_g_precision_and_recall(g=gra, test=True, stage='post_detection')
 
-            new_avg_precision = np.mean(list(p.values()))
-            new_avg_recall = np.mean(list(r.values()))
-            old_precision = np.mean(list(edcr.original_test_precisions[gra].values()))
-            old_recall = np.mean(list(edcr.original_test_recalls[gra].values()))
+            post_detection_avg_precision = np.mean(list(p.values()))
+            post_detection_avg_recall = np.mean(list(r.values()))
+            original_precision = np.mean(list(edcr.original_test_precisions[gra].values()))
+            original_recall = np.mean(list(edcr.original_test_recalls[gra].values()))
 
             print('\n' + '#' * 50 + 'post detection' + '#' * 50)
 
-            print(f'{gra}-grain new precision: {new_avg_precision}, '
-                  f'{gra}-grain old precision: {old_precision}, '
-                  f'diff: {utils.green_text(new_avg_precision - old_precision)}\n'
+            print(f'{gra}-grain new precision: {post_detection_avg_precision}, '
+                  f'{gra}-grain old precision: {original_precision}, '
+                  f'diff: {utils.green_text(post_detection_avg_precision - original_precision)}\n'
                   f'theoretical precision increase: '
                   f'{utils.green_text(edcr.get_g_detection_rule_theoretical_precision_increase(g=gra))}',
                   )
 
-            print(f'{gra}-grain new recall: {new_avg_recall}, '
-                  f'{gra}-grain old recall: {old_recall}, '
-                  f'diff: {utils.green_text(new_avg_recall - old_recall)}\n'
+            print(f'{gra}-grain new recall: {post_detection_avg_recall}, '
+                  f'{gra}-grain old recall: {original_recall}, '
+                  f'diff: {utils.green_text(post_detection_avg_recall - original_recall)}\n'
                   f'theoretical recall increase: '
                   f'{utils.green_text(edcr.get_g_detection_rule_theoretical_recall_decrease(g=gra))}',
                   )
@@ -1115,8 +1115,8 @@ if __name__ == '__main__':
             print('\n' + '#' * 50 + 'post correction' + '#' * 50)
 
             print(f'{gra}-grain new precision: {new_avg_precision}, '
-                  f'{gra}-grain old precision: {old_precision}, '
-                  f'diff: {utils.green_text(new_avg_precision - old_precision)}\n'
+                  f'{gra}-grain old precision: {post_detection_avg_precision}, '
+                  f'diff: {utils.green_text(new_avg_precision - post_detection_avg_precision)}\n'
                   f'theoretical precision increase: '
                   f'{utils.green_text(edcr.get_g_correction_rule_theoretical_precision_increase(g=gra))}',
                   )
@@ -1130,12 +1130,12 @@ if __name__ == '__main__':
 
         edcr.print_metrics(test=True, prior=False, stage='post_correction', print_inconsistencies=False)
 
-    folder = "experiment_1"
-
-    if not os.path.exists(f'figs/{folder}'):
-        os.mkdir(f'figs/{folder}')
-
-    plot_per_class(ps=precision_dict,
-                   rs=recall_dict,
-                   folder="experiment_1")
-    plot_all(precision_dict, recall_dict, "experiment_1")
+    # folder = "experiment_1"
+    #
+    # if not os.path.exists(f'figs/{folder}'):
+    #     os.mkdir(f'figs/{folder}')
+    #
+    # plot_per_class(ps=precision_dict,
+    #                rs=recall_dict,
+    #                folder="experiment_1")
+    # plot_all(precision_dict, recall_dict, "experiment_1")
