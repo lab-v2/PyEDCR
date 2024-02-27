@@ -50,15 +50,20 @@ def run_test_4():
     test.print_examples(test=False)
 
 def run_test_5():
-    K = [(350, 352), (730, 732), (2952, 2954), (3613, 3615), (5200, 5202), (5810, 5812), (7199, 7201)]
+    K = [(350, 352), (733, 735), (2952, 2954), (3613, 3615), (5200, 5202), (5810, 5812), (7199, 7201)]
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
 
-    test.edcr.set_error_correction_rules({l_T_14: {(pred_T_14, l_Tank)}
+    test.edcr.set_error_correction_rules({l_D_30: {(pred_D_30, l_SPA), (pred_BTR_70, l_BTR)},
+                                          l_T_14: {(pred_T_14, l_Tank), (pred_T_64, l_Tank)}
                                           })
 
+    test.run(l=l_T_14, expected_output=-2/7)
+
+    test.print_examples(test=False)
 
 if __name__ == '__main__':
     # run_test_1()
     # run_test_2()
     # run_test_3()
-    run_test_4()
+    # run_test_4()
+    run_test_5()
