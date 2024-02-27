@@ -394,8 +394,7 @@ class EDCR:
         """
         data = self.get_predictions(test=test, g=l.g, stage=stage) if pred else (
             data_preprocessing.get_ground_truths(test=test, K=self.K_test if test else self.K_train, g=l.g))
-        where_label_is_l = np.where(data == l.index, 1, 0)
-        return where_label_is_l
+        return np.where(data == l.index, 1, 0)
 
     def get_where_label_is_l_in_data(self,
                                      l: data_preprocessing.Label,
@@ -905,7 +904,7 @@ class EDCR:
         # test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
         # self.test_pred_data['post_correction'][g] = self.get_predictions(test=True, g=g)
 
-        for l, rule_g_l in [list({l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items())[0]]:
+        for l, rule_g_l in {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items():
             previous_l_precision = self.get_g_precision_and_recall(g=g, test=True, stage='post_correction')[0][l]
 
             correction_rule_theoretical_precision_increase = (
@@ -1271,7 +1270,7 @@ if __name__ == '__main__':
 
         print('\n' + '#' * 50 + 'post detection' + '#' * 50)
 
-        for gra in [data_preprocessing.granularities['fine']]:
+        for gra in data_preprocessing.granularities.values():
             # edcr.apply_detection_rules(g=gra)
             # edcr.evaluate_and_print_g_detection_rule_precision_increase(g=gra)
             # edcr.evaluate_and_print_g_detection_rule_recall_decrease(g=gra)
