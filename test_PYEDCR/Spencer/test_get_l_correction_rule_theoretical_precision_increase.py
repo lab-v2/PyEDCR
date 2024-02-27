@@ -72,13 +72,15 @@ def run_test_5():
 
 def run_test_6():
     K = [(10, 14), (1056, 1060), (2201, 2205), (3980, 3984), (4240, 4244), (5601, 5605), (7005, 7009)]
-
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
 
-    test.edcr.set_error_correction_rules({l_D_30: {(pred_D_30, l_SPA), (pred_BTR_70, l_BTR)},
-                                          l_T_14: {(pred_T_14, l_Tank), (pred_T_64, l_Tank)},
-                                          l_T_72: {(pred_BMP_T15, l_BMP)}
+    test.edcr.set_error_correction_rules({l_Tank: {(pred_Tank, l_T_62), (pred_Tank, l_T_90)},
+                                          l_SPA: {(pred_SPA, l_2S19_MSTA), (pred_Air_Defense, l_2S19_MSTA),
+                                                  (pred_BMP, l_BMP_1)}
                                           })
+
+    test.run(l=l_Tank, expected_output=0)
+    test.run(l=l_SPA, expected_output=-1 / 4)
 
     test.print_examples(test=False)
 
