@@ -203,7 +203,10 @@ class EDCR:
             :param l: The label associated with the rule.
             :param CC_l: The set of condition-class pair that define the rule.
             """
-            super().__init__(l=l, C_l=CC_l)
+            C_l = {(cond, l_prime) for cond, l_prime in CC_l if isinstance(cond, EDCR.ConsistencyCondition)
+                   or cond.l.g != l_prime.g}
+
+            super().__init__(l=l, C_l=C_l)
 
         def get_where_body_is_satisfied(self,
                                         test_pred_fine_data: np.array,
@@ -213,10 +216,7 @@ class EDCR:
 
             where_any_pair_satisfied = np.zeros_like(test_pred_granularity_data)
 
-            C_l = {(cond, l_prime) for cond, l_prime in self.C_l if isinstance(cond, EDCR.ConsistencyCondition)
-                   or cond.l.g != l_prime.g}
-
-            for cond, l_prime in C_l:
+            for cond, l_prime in self.C_l:
                 where_condition_satisfied = (
                     EDCR.get_where_any_conditions_satisfied(C={cond},
                                                             fine_data=test_pred_fine_data,
@@ -575,7 +575,7 @@ class EDCR:
                                    stage: str = 'original',
                                    test_pred_fine_data: np.array = None,
                                    test_pred_coarse_data: np.array = None) -> (dict[data_preprocessing.Label, float],
-                                                                                 dict[data_preprocessing.Label, float]):
+                                                                               dict[data_preprocessing.Label, float]):
         p_g = {}
         r_g = {}
 
@@ -906,28 +906,19 @@ class EDCR:
 
         :param g: The granularity of the predictions to be processed.
         """
-        test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
+        # test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
         self.test_pred_data['post_correction'][g] = self.get_predictions(test=True, g=g)
 
-        altered_pred_granularity_datas = {}
         for l, rule_g_l in {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items():
-            altered_pred_granularity_datas[l] = rule_g_l(test_pred_fine_data=test_pred_fine_data,
-                                                         test_pred_coarse_data=test_pred_coarse_data)
-
-        # collision_array = np.zeros_like(altered_pred_granularity_data)
-        #
-        # for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
-        #     for l_2, altered_pred_data_l_2 in altered_pred_granularity_datas.items():
-        #         if l_1 != l_2:
-        #             where_supposed_to_correct_to_l1 = np.where(altered_pred_data_l_1 == l_1.index, 1, 0)
-        #             where_supposed_to_correct_to_l2 = np.where(altered_pred_data_l_2 == l_2.index, 1, 0)
-        #             collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
-
-        for l, altered_pred_data_l in altered_pred_granularity_datas.items():
             previous_l_precision = self.get_g_precision_and_recall(g=g, test=True, stage='post_correction')[0][l]
 
             correction_rule_theoretical_precision_increase = (
                 self.get_l_correction_rule_theoretical_precision_increase(l=l))
+
+            altered_pred_data_l = rule_g_l(
+                test_pred_fine_data=self.test_pred_data['post_correction'][data_preprocessing.granularities['fine']],
+                test_pred_coarse_data=self.test_pred_data['post_correction'][data_preprocessing.granularities['coarse']]
+            )
 
             self.test_pred_data['post_correction'][g] = np.where(
                 # (collision_array != 1) &
@@ -939,6 +930,17 @@ class EDCR:
                 l=l,
                 previous_l_precision=previous_l_precision,
                 correction_rule_theoretical_precision_increase=correction_rule_theoretical_precision_increase)
+
+        # collision_array = np.zeros_like(altered_pred_granularity_data)
+        #
+        # for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
+        #     for l_2, altered_pred_data_l_2 in altered_pred_granularity_datas.items():
+        #         if l_1 != l_2:
+        #             where_supposed_to_correct_to_l1 = np.where(altered_pred_data_l_1 == l_1.index, 1, 0)
+        #             where_supposed_to_correct_to_l2 = np.where(altered_pred_data_l_2 == l_2.index, 1, 0)
+        #             collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
+
+        # for l, altered_pred_data_l in altered_pred_granularity_datas.items():
 
         self.post_correction_test_precisions[g], self.post_correction_test_recalls[g] = (
             self.get_g_precision_and_recall(g=g, test=True, stage='post_correction'))
