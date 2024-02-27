@@ -889,8 +889,8 @@ class EDCR:
 
         print(f'class {l} new precision: {post_correction_l_precision}, '
               f'class {l} old precision: {previous_l_precision}, '
-              f'diff: {utils.green_text(precision_diff)}\n'
-              f'theoretical precision increase: {utils.green_text(correction_rule_theoretical_precision_increase)}\n'
+              f'diff: {utils.blue_text(precision_diff)}\n'
+              f'theoretical precision increase: {utils.blue_text(correction_rule_theoretical_precision_increase)}\n'
               f'{precision_theory_holds_str}'
               )
 
@@ -1119,23 +1119,12 @@ class EDCR:
 
     def get_l_correction_rule_theoretical_precision_increase(self,
                                                              l: data_preprocessing.Label,
-                                                             # test_pred_fine_data: np.array = None,
-                                                             # test_pred_coarse_data: np.array = None
                                                              ) -> float:
-        c_l = self.get_l_correction_rule_confidence_on_test(l=l,
-                                                            # test_pred_fine_data=test_pred_fine_data,
-                                                            # test_pred_coarse_data=test_pred_coarse_data
-                                                            )
-        s_l = self.get_l_correction_rule_support_on_test(l=l,
-                                                         # test_pred_fine_data=test_pred_fine_data,
-                                                         # test_pred_coarse_data=test_pred_coarse_data
-                                                         )
+        c_l = self.get_l_correction_rule_confidence_on_test(l=l)
+        s_l = self.get_l_correction_rule_support_on_test(l=l)
         p_l_prior_correction = self.get_g_precision_and_recall(g=l.g,
                                                                test=True,
-                                                               stage='post_correction'
-                                                               # test_pred_fine_data=test_pred_fine_data,
-                                                               # test_pred_coarse_data=test_pred_coarse_data
-                                                               )[0][l]
+                                                               stage='post_correction')[0][l]
 
         return s_l * (c_l - p_l_prior_correction) / (1 + s_l)
 
@@ -1159,10 +1148,12 @@ class EDCR:
         precision_theory_holds_str = utils.green_text('The theory holds!') if precision_theory_holds else (
             utils.red_text('The theory does not hold!'))
 
+        print('\n' + '#' * 20 + f'post detection {g}-grain precision results' + '#' * 20)
+
         print(f'{g}-grain new precision: {post_detection_avg_precision}, '
               f'{g}-grain old precision: {original_precision}, '
-              f'diff: {utils.green_text(precision_diff)}\n'
-              f'theoretical precision increase: {utils.green_text(detection_rule_theoretical_precision_increase)}\n'
+              f'diff: {utils.blue_text(precision_diff)}\n'
+              f'theoretical precision increase: {utils.blue_text(detection_rule_theoretical_precision_increase)}\n'
               f'{precision_theory_holds_str}'
               )
 
@@ -1181,10 +1172,12 @@ class EDCR:
         recall_theory_holds_str = utils.green_text('The theory holds!') if recall_theory_holds else (
             utils.red_text('The theory does not hold!'))
 
+        print('\n' + '#' * 20 + f'post detection {g}-grain recall results' + '#' * 20)
+
         print(f'{g}-grain new recall: {post_detection_avg_recall}, '
               f'{g}-grain old recall: {original_recall}, '
-              f'diff: {utils.green_text(recall_diff)}\n'
-              f'theoretical recall decrease: {utils.green_text(detection_rule_theoretical_recall_decrease)}\n'
+              f'diff: {utils.blue_text(recall_diff)}\n'
+              f'theoretical recall decrease: -{utils.blue_text(detection_rule_theoretical_recall_decrease)}\n'
               f'{recall_theory_holds_str}'
               )
 
@@ -1248,11 +1241,11 @@ def plot_all(ps,
 
 
 if __name__ == '__main__':
-    precision_dict, recall_dict = (
-        {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
-        {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
+    # precision_dict, recall_dict = (
+    #     {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities},
+    #     {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
-    epsilons = [0.1 * i for i in range(1, 2)]
+    epsilons = [0.1 * i for i in range(2, 3)]
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
@@ -1268,12 +1261,12 @@ if __name__ == '__main__':
             edcr.learn_detection_rules(g=gra)
             edcr.learn_correction_rules(g=gra)
 
-        print('\n' + '#' * 50 + 'post detection' + '#' * 50)
+        # print('\n' + '#' * 50 + 'post correction' + '#' * 50)
 
         for gra in data_preprocessing.granularities.values():
-            # edcr.apply_detection_rules(g=gra)
-            # edcr.evaluate_and_print_g_detection_rule_precision_increase(g=gra)
-            # edcr.evaluate_and_print_g_detection_rule_recall_decrease(g=gra)
+            edcr.apply_detection_rules(g=gra)
+            edcr.evaluate_and_print_g_detection_rule_precision_increase(g=gra)
+            edcr.evaluate_and_print_g_detection_rule_recall_decrease(g=gra)
 
             edcr.apply_correction_rules(g=gra)
             # edcr.apply_reversion_rules(g=gra)
@@ -1285,7 +1278,7 @@ if __name__ == '__main__':
             # precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
             # recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
 
-        edcr.print_metrics(test=True, prior=False, stage='post_detection', print_inconsistencies=False)
+        edcr.print_metrics(test=True, prior=False, stage='post_correction', print_inconsistencies=False)
 
     # folder = "experiment_1"
     #
