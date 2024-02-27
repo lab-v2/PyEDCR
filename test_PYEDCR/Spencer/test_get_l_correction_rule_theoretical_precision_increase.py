@@ -38,6 +38,8 @@ def run_test_3():
 
     test.print_examples(test=False)
 
+def run_test
+
 
 if __name__ == '__main__':
     # run_test_1()
