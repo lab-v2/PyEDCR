@@ -291,8 +291,8 @@ class EDCR:
              for test_or_train in ['test', 'train']}
 
         self.condition_datas = {g: {EDCR.PredCondition(l=l)
-                                    for l in data_preprocessing.get_labels(g).values()}.union(
-            {EDCR.ConsistencyCondition()}) for g in data_preprocessing.granularities.values()}
+                                    for l in data_preprocessing.get_labels(g).values()}
+                                for g in data_preprocessing.granularities.values()}
 
         self.CC_all = {g: set() for g in data_preprocessing.granularities.values()}
 
@@ -931,6 +931,8 @@ class EDCR:
                 previous_l_precision=previous_l_precision,
                 correction_rule_theoretical_precision_increase=correction_rule_theoretical_precision_increase)
 
+            self.print_metrics(test=test, prior=False, stage='post_correction', print_inconsistencies=True)
+
         # collision_array = np.zeros_like(altered_pred_granularity_data)
         #
         # for l_1, altered_pred_data_l_1, in altered_pred_granularity_datas.items():
@@ -1312,7 +1314,7 @@ if __name__ == '__main__':
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()
-        # edcr.run_error_detection_application_pipeline(test=test_bool)
+        edcr.run_error_detection_application_pipeline(test=test_bool)
         edcr.run_error_correction_application_pipeline(test=test_bool)
 
         # edcr.apply_reversion_rules(g=gra)
