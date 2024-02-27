@@ -27,8 +27,19 @@ def run_test_2():
 
     test.print_examples(test=False)
 
+def run_test_3():
+    K = [(5219, 5219), (5250, 5254), (5270, 5281), (1829, 1831)]
+    test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
+
+    test.edcr.set_error_correction_rules({l_BMP_T15: {(pred_BMP_T15, l_BMP)}
+                                          })
+
+    test.run(l=l_BMP_T15, expected_output=2/7)
+
+    test.print_examples(test=False)
 
 
 if __name__ == '__main__':
-    run_test_1()
-    run_test_2()
+    # run_test_1()
+    # run_test_2()
+    run_test_3()
