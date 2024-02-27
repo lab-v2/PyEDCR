@@ -72,23 +72,19 @@ class EDCR:
 
             :param l: The target Label for which the condition is evaluated.
             """
-            self.__l = l
+            self.l = l
 
         def __call__(self,
                      fine_data: np.array,
                      coarse_data: np.array) -> np.array:
-            granularity_data = fine_data if self.__l.g == data_preprocessing.granularities['fine'] else coarse_data
-            return np.where(granularity_data == self.__l.index, 1, 0)
+            granularity_data = fine_data if self.l.g == data_preprocessing.granularities['fine'] else coarse_data
+            return np.where(granularity_data == self.l.index, 1, 0)
 
         def __str__(self) -> str:
-            return f'pred_{self.__l}'
-
-        @property
-        def l(self):
-            return self.__l
+            return f'pred_{self.l}'
 
         def __hash__(self):
-            return self.__l.__hash__()
+            return self.l.__hash__()
 
         def __eq__(self, other):
             return self.__hash__() == other.__hash__()
@@ -294,9 +290,9 @@ class EDCR:
 
         self.test_pred_data = {'original': {g: np.load(pred_paths['test'][str(g)])[self.K_test]
                                             for g in data_preprocessing.granularities.values()},
-                               'post_detection': {g: np.zeros_like(np.load(pred_paths['test'][str(g)])[self.K_test])
+                               'post_detection': {g: np.load(pred_paths['test'][str(g)])[self.K_test]
                                                   for g in data_preprocessing.granularities.values()},
-                               'post_correction': {g: np.zeros_like(np.load(pred_paths['test'][str(g)])[self.K_test])
+                               'post_correction': {g: np.load(pred_paths['test'][str(g)])[self.K_test]
                                                    for g in data_preprocessing.granularities.values()}}
 
         for g in data_preprocessing.granularities.values():
@@ -907,9 +903,9 @@ class EDCR:
         :param g: The granularity of the predictions to be processed.
         """
         # test_pred_fine_data, test_pred_coarse_data = self.get_predictions(test=True)
-        self.test_pred_data['post_correction'][g] = self.get_predictions(test=True, g=g)
+        # self.test_pred_data['post_correction'][g] = self.get_predictions(test=True, g=g)
 
-        for l, rule_g_l in {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items():
+        for l, rule_g_l in [list({l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}.items())[0]]:
             previous_l_precision = self.get_g_precision_and_recall(g=g, test=True, stage='post_correction')[0][l]
 
             correction_rule_theoretical_precision_increase = (
@@ -1058,10 +1054,10 @@ class EDCR:
                 if test_pred_fine_data is None else test_pred_fine_data,
                 test_pred_coarse_data=self.test_pred_data['post_correction'][
                     data_preprocessing.granularities['coarse']]
-                if test_pred_coarse_data is None else test_pred_coarse_data, ))
+                if test_pred_coarse_data is None else test_pred_coarse_data))
         where_l_gt = self.get_where_label_is_l(pred=False, test=True, l=l)
-        where_head_and_body_is_satisfied = where_l_correction_rule_body_is_satisfied * where_l_gt
 
+        where_head_and_body_is_satisfied = where_l_correction_rule_body_is_satisfied * where_l_gt
         num_where_l_correction_rule_body_is_satisfied = np.sum(where_l_correction_rule_body_is_satisfied)
 
         if num_where_l_correction_rule_body_is_satisfied == 0:
@@ -1116,7 +1112,7 @@ class EDCR:
                 if test_pred_fine_data is None else test_pred_fine_data,
                 test_pred_coarse_data=self.test_pred_data['post_correction'][
                     data_preprocessing.granularities['coarse']]
-                if test_pred_coarse_data is None else test_pred_coarse_data, ))
+                if test_pred_coarse_data is None else test_pred_coarse_data))
 
         s_l = np.sum(where_rule_body_is_satisfied) / N_l
 
@@ -1275,7 +1271,7 @@ if __name__ == '__main__':
 
         print('\n' + '#' * 50 + 'post detection' + '#' * 50)
 
-        for gra in data_preprocessing.granularities:
+        for gra in [data_preprocessing.granularities['fine']]:
             # edcr.apply_detection_rules(g=gra)
             # edcr.evaluate_and_print_g_detection_rule_precision_increase(g=gra)
             # edcr.evaluate_and_print_g_detection_rule_recall_decrease(g=gra)
