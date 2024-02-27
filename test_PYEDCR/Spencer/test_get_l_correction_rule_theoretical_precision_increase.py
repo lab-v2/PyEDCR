@@ -76,11 +76,14 @@ def run_test_6():
 
     test.edcr.set_error_correction_rules({l_Tank: {(pred_Tank, l_T_62), (pred_Tank, l_T_90)},
                                           l_SPA: {(pred_SPA, l_2S19_MSTA), (pred_Air_Defense, l_2S19_MSTA),
-                                                  (pred_BMP, l_BMP_1)}
+                                                  (pred_BMP, l_BMP_1)},
+                                          l_BTR: {(pred_BTR, l_BRDM), (pred_BTR, l_BTR_60)}
                                           })
 
     test.run(l=l_Tank, expected_output=0)
-    test.run(l=l_SPA, expected_output=-1 / 4)
+    test.run(l=l_BTR, expected_output=-1 / 4)
+    test.run(l=l_SPA, expected_output=3 / 20)
+
 
     test.print_examples(test=False)
 
