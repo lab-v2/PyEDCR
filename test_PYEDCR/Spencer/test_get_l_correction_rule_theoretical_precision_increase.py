@@ -2,6 +2,7 @@ from test_PYEDCR.test import *
 
 method_str = 'get_l_correction_rule_theoretical_precision_increase'
 
+
 def run_test_1():
     K = [(0, 9)]
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
@@ -15,6 +16,7 @@ def run_test_1():
     test.run(l=l_BTR_80, expected_output=0)
     test.run(l=l_2S19_MSTA, expected_output=0)
 
+
 def run_test_2():
     K = [(2975, 2979), (1455, 1459), (3000, 3000), (3190, 3191), (3010, 3012)]
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
@@ -23,9 +25,10 @@ def run_test_2():
                                           l_2S19_MSTA: {(pred_2S19_MSTA, l_SPA), (pred_T_72, l_SPA)}
                                           })
 
-    test.run(l=l_BTR_80, expected_output=1/15)
+    test.run(l=l_BTR_80, expected_output=1 / 15)
 
     test.print_examples(test=False)
+
 
 def run_test_3():
     K = [(5219, 5219), (5250, 5254), (5270, 5281), (1829, 1831)]
@@ -34,32 +37,38 @@ def run_test_3():
     test.edcr.set_error_correction_rules({l_BMP_T15: {(pred_BMP_T15, l_BMP)}
                                           })
 
-    test.run(l=l_BMP_T15, expected_output=2/7)
+    test.run(l=l_BMP_T15, expected_output=2 / 7)
 
     test.print_examples(test=False)
 
+
 def run_test_4():
-    K = [(1842, 1850), (6910, 6915), (5194,5194)]
+    K = [(1842, 1850), (6910, 6915), (5194, 5194)]
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
 
     test.edcr.set_error_correction_rules({l_T_14: {(pred_T_14, l_Tank)}
                                           })
 
-    test.run(l=l_T_14, expected_output=1/3)
+    test.run(l=l_T_14, expected_output=1 / 3)
 
     test.print_examples(test=False)
+
 
 def run_test_5():
     K = [(350, 352), (733, 735), (2952, 2954), (3613, 3615), (5200, 5202), (5810, 5812), (7199, 7201)]
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
 
     test.edcr.set_error_correction_rules({l_D_30: {(pred_D_30, l_SPA), (pred_BTR_70, l_BTR)},
-                                          l_T_14: {(pred_T_14, l_Tank), (pred_T_64, l_Tank)}
+                                          l_T_14: {(pred_T_14, l_Tank), (pred_T_64, l_Tank)},
+                                          l_T_72: {(pred_BMP_T15, l_BMP)}
                                           })
 
-    test.run(l=l_T_14, expected_output=-2/7)
+    test.run(l=l_D_30, expected_output=-2 / 7)
+    test.run(l=l_T_14, expected_output=-1 / 3)
+    test.run(l=l_T_72, expected_output=0)
 
     test.print_examples(test=False)
+
 
 if __name__ == '__main__':
     # run_test_1()
