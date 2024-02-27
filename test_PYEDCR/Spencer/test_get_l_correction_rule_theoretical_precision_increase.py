@@ -39,8 +39,14 @@ def run_test_3():
     test.print_examples(test=False)
 
 def run_test_4():
-    K = [(1842, 1850), (6910, 6915)]
+    K = [(1842, 1850), (6910, 6915), (5194,5194)]
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
+
+    test.edcr.set_error_correction_rules({l_T_14: {(pred_T_14, l_Tank)}
+                                          })
+
+    test.run(l=l_T_14, expected_output=1/3)
+
     test.print_examples(test=False)
 
 
