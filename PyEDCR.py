@@ -574,7 +574,7 @@ class EDCR:
                                    test: bool,
                                    stage: str = 'original',
                                    test_pred_fine_data: np.array = None,
-                                   test_pred_coarse_data: np.array = None, ) -> (dict[data_preprocessing.Label, float],
+                                   test_pred_coarse_data: np.array = None) -> (dict[data_preprocessing.Label, float],
                                                                                  dict[data_preprocessing.Label, float]):
         p_g = {}
         r_g = {}
@@ -587,7 +587,6 @@ class EDCR:
 
                 p_g[l] = t_p_l / (t_p_l + f_p_l)
                 r_g[l] = t_p_l / N_l_gt
-
         else:
             for l in data_preprocessing.get_labels(g).values():
                 t_p_l = np.sum(self.get_where_tp_l_in_data(l=l,
@@ -881,23 +880,20 @@ class EDCR:
 
     def evaluate_and_print_l_correction_rule_precision_increase(self,
                                                                 l: data_preprocessing.Label,
-                                                                threshold: float = 1e-5,
-                                                                previous_precision: float = None):
-        p = self.get_g_precision_and_recall(g=l.g, test=True, stage='post_correction')[0][l]
+                                                                previous_l_precision: float,
+                                                                correction_rule_theoretical_precision_increase: float,
+                                                                threshold: float = 1e-5
+                                                                ):
+        post_correction_l_precision = self.get_g_precision_and_recall(g=l.g, test=True, stage='post_correction')[0][l]
 
-        if previous_precision is None:
-            previous_precision = np.mean(list(self.original_test_precisions[l.g].values()))
+        precision_diff = post_correction_l_precision - previous_l_precision
 
-        post_correction_avg_precision = np.mean(list(p.values()))
-        precision_diff = post_correction_avg_precision - previous_precision
-        correction_rule_theoretical_precision_increase = (
-            self.get_g_correction_rule_theoretical_precision_increase(g=l.g))
         precision_theory_holds = abs(correction_rule_theoretical_precision_increase - precision_diff) < threshold
         precision_theory_holds_str = utils.green_text('The theory holds!') if precision_theory_holds else (
             utils.red_text('The theory does not hold!'))
 
-        print(f'{l.g}-grain new precision: {post_correction_avg_precision}, '
-              f'{l.g}-grain old precision: {previous_precision}, '
+        print(f'class {l} new precision: {post_correction_l_precision}, '
+              f'class {l} old precision: {previous_l_precision}, '
               f'diff: {utils.green_text(precision_diff)}\n'
               f'theoretical precision increase: {utils.green_text(correction_rule_theoretical_precision_increase)}\n'
               f'{precision_theory_holds_str}'
@@ -928,15 +924,21 @@ class EDCR:
         #             collision_array |= where_supposed_to_correct_to_l1 * where_supposed_to_correct_to_l2
 
         for l, altered_pred_data_l in altered_pred_granularity_datas.items():
+            previous_l_precision = self.get_g_precision_and_recall(g=g, test=True, stage='post_correction')[0][l]
+
+            correction_rule_theoretical_precision_increase = (
+                self.get_l_correction_rule_theoretical_precision_increase(l=l))
+
             self.test_pred_data['post_correction'][g] = np.where(
                 # (collision_array != 1) &
                 (altered_pred_data_l == l.index),
                 l.index,
                 self.test_pred_data['post_correction'][g])
 
-            previous_precision = self.get_g_precision_and_recall(g=g, test=True, stage='post_correction')[0][l]
-            self.evaluate_and_print_l_correction_rule_precision_increase(l=l,
-                                                                         previous_precision=previous_precision)
+            self.evaluate_and_print_l_correction_rule_precision_increase(
+                l=l,
+                previous_l_precision=previous_l_precision,
+                correction_rule_theoretical_precision_increase=correction_rule_theoretical_precision_increase)
 
         self.post_correction_test_precisions[g], self.post_correction_test_recalls[g] = (
             self.get_g_precision_and_recall(g=g, test=True, stage='post_correction'))
@@ -1050,9 +1052,9 @@ class EDCR:
         r_l = self.error_correction_rules[l]
         where_l_correction_rule_body_is_satisfied = (
             r_l.get_where_body_is_satisfied(
-                test_pred_fine_data=self.test_pred_data['post_detection'][data_preprocessing.granularities['fine']]
+                test_pred_fine_data=self.test_pred_data['post_correction'][data_preprocessing.granularities['fine']]
                 if test_pred_fine_data is None else test_pred_fine_data,
-                test_pred_coarse_data=self.test_pred_data['post_detection'][
+                test_pred_coarse_data=self.test_pred_data['post_correction'][
                     data_preprocessing.granularities['coarse']]
                 if test_pred_coarse_data is None else test_pred_coarse_data, ))
         where_l_gt = self.get_where_label_is_l(pred=False, test=True, l=l)
@@ -1100,7 +1102,7 @@ class EDCR:
         if l not in self.error_correction_rules:
             return 0
 
-        N_l = np.sum(self.get_where_label_is_l(pred=True, test=True, l=l, stage='post_detection')
+        N_l = np.sum(self.get_where_label_is_l(pred=True, test=True, l=l, stage='post_correction')
                      if (test_pred_fine_data is None and test_pred_coarse_data is None)
                      else self.get_where_label_is_l_in_data(l=l,
                                                             test_pred_fine_data=test_pred_fine_data,
@@ -1108,9 +1110,9 @@ class EDCR:
         r_l = self.error_correction_rules[l]
         where_rule_body_is_satisfied = (
             r_l.get_where_body_is_satisfied(
-                test_pred_fine_data=self.test_pred_data['post_detection'][data_preprocessing.granularities['fine']]
+                test_pred_fine_data=self.test_pred_data['post_correction'][data_preprocessing.granularities['fine']]
                 if test_pred_fine_data is None else test_pred_fine_data,
-                test_pred_coarse_data=self.test_pred_data['post_detection'][
+                test_pred_coarse_data=self.test_pred_data['post_correction'][
                     data_preprocessing.granularities['coarse']]
                 if test_pred_coarse_data is None else test_pred_coarse_data, ))
 
@@ -1133,6 +1135,7 @@ class EDCR:
                                                          )
         p_l_prior_correction = self.get_g_precision_and_recall(g=l.g,
                                                                test=True,
+                                                               stage='post_correction'
                                                                # test_pred_fine_data=test_pred_fine_data,
                                                                # test_pred_coarse_data=test_pred_coarse_data
                                                                )[0][l]
