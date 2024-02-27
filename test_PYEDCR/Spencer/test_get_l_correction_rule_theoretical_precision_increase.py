@@ -87,6 +87,9 @@ def run_test_6():
 
     test.print_examples(test=False)
 
+def run_test_7():
+    pass
+
 if __name__ == '__main__':
     # run_test_1()
     # run_test_2()
