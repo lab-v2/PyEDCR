@@ -38,10 +38,15 @@ def run_test_3():
 
     test.print_examples(test=False)
 
-def run_test
+def run_test_4():
+    K = [(1842, 1850), (6910, 6915)]
+    test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
+    test.print_examples(test=False)
+
 
 
 if __name__ == '__main__':
     # run_test_1()
     # run_test_2()
-    run_test_3()
+    # run_test_3()
+    run_test_4()
