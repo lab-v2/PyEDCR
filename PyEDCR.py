@@ -420,8 +420,8 @@ class EDCR:
 
         original_pred_fine_data, original_pred_coarse_data = None, None
 
-        if stage != 'original':
-            original_pred_fine_data, original_pred_coarse_data = self.get_predictions(test=test, stage='original')
+        # if stage != 'original':
+        #     original_pred_fine_data, original_pred_coarse_data = self.get_predictions(test=test, stage='original')
 
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
         true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.K_test) if test \
