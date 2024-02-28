@@ -796,8 +796,8 @@ class EDCR:
         p_l = self.get_l_precision_and_recall(test=False, l=l)[0]
         CON_CC_l = self.get_CON_l_CC(l=l, CC=CC_l)
 
-        # print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={CON_CC_l}, '
-        #       f'p_l={p_l}\n')
+        print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={CON_CC_l}, '
+              f'p_l={p_l}\n')
 
         # if CON_CC_l <= p_l:
         #     CC_l = set()
