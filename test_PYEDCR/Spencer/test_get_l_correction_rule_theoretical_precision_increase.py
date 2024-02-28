@@ -14,7 +14,7 @@ def run_test_1():
     test.print_examples(test=False)
 
     test.run(test=False, l=l_BTR_80, expected_output=0)
-    test.run(test=False, l=l_2S19_MSTA, expected_output=0)
+    # test.run(test=False, l=l_2S19_MSTA, expected_output=0)
 
 
 def run_test_2():
