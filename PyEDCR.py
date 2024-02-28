@@ -196,8 +196,8 @@ class EDCR:
             :param l: The label associated with the rule.
             :param CC_l: The set of condition-class pair that define the rule.
             """
-            C_l = {(cond, l_prime) for cond, l_prime in CC_l if isinstance(cond, EDCR.InconsistencyCondition)
-                   or cond.l.g != l_prime.g}
+            C_l = {(cond, l_prime) for cond, l_prime in CC_l if (isinstance(cond, EDCR.InconsistencyCondition)
+                   or cond.l.g != l_prime.g) and l_prime != l}
 
             super().__init__(l=l, C_l=C_l)
 
@@ -1325,7 +1325,7 @@ if __name__ == '__main__':
     #     {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
     epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = False
+    test_bool = True
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
