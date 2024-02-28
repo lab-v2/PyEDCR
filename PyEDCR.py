@@ -43,7 +43,6 @@ class EDCR:
         A value of 0 means the condition is not met, while a value of 1 means it is fully met.
         """
 
-        @abc.abstractmethod
         def __init__(self, *args, **kwargs):
             pass
 
@@ -72,6 +71,7 @@ class EDCR:
 
             :param l: The target Label for which the condition is evaluated.
             """
+            super().__init__()
             self.l = l
 
         def __call__(self,
@@ -89,16 +89,13 @@ class EDCR:
         def __eq__(self, other):
             return self.__hash__() == other.__hash__()
 
-    class ConsistencyCondition(_Condition):
-        def __init__(self):
-            pass
-
+    class InconsistencyCondition(_Condition):
         def __call__(self,
                      fine_data: np.array,
                      coarse_data: np.array) -> np.array:
             values = []
             for fine_prediction_index, coarse_prediction_index in zip(fine_data, coarse_data):
-                values += [data_preprocessing.fine_to_course_idx[fine_prediction_index] == coarse_prediction_index]
+                values += [int(data_preprocessing.fine_to_course_idx[fine_prediction_index] != coarse_prediction_index)]
 
             return np.array(values)
 
@@ -199,7 +196,7 @@ class EDCR:
             :param l: The label associated with the rule.
             :param CC_l: The set of condition-class pair that define the rule.
             """
-            C_l = {(cond, l_prime) for cond, l_prime in CC_l if isinstance(cond, EDCR.ConsistencyCondition)
+            C_l = {(cond, l_prime) for cond, l_prime in CC_l if isinstance(cond, EDCR.InconsistencyCondition)
                    or cond.l.g != l_prime.g}
 
             super().__init__(l=l, C_l=C_l)
@@ -252,7 +249,8 @@ class EDCR:
                  num_epochs: int,
                  epsilon: typing.Union[str, float],
                  K_train: list[(int, int)] = None,
-                 K_test: list[(int, int)] = None):
+                 K_test: list[(int, int)] = None,
+                 include_inconsistency_constraint: bool = False):
         self.main_model_name = main_model_name
         self.combined = combined
         self.loss = loss
@@ -290,9 +288,13 @@ class EDCR:
                                  for g in data_preprocessing.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
-        self.condition_datas = {g: {EDCR.PredCondition(l=l)
-                                    for l in data_preprocessing.get_labels(g).values()}
+        self.condition_datas = {g: {EDCR.PredCondition(l=l) for l in
+                                    data_preprocessing.get_labels(g).values()}
                                 for g in data_preprocessing.granularities.values()}
+
+        if include_inconsistency_constraint:
+            for g in data_preprocessing.granularities.values():
+                self.condition_datas[g] = self.condition_datas[g].union({EDCR.InconsistencyCondition()})
 
         self.CC_all = {g: set() for g in data_preprocessing.granularities.values()}
 
@@ -1323,7 +1325,7 @@ if __name__ == '__main__':
     #     {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
     epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = True
+    test_bool = False
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
