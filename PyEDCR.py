@@ -793,11 +793,14 @@ class EDCR:
 
         assert CC_l_prime == CC_l
 
-        # print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.get_CON_l_CC(l=l, CC=CC_l)}, '
-        #       f'P_l={self.train_precisions[l.g][l]}\n')
+        p_l = self.get_l_precision_and_recall(test=False, l=l)[0]
+        CON_CC_l = self.get_CON_l_CC(l=l, CC=CC_l)
 
-        if self.get_CON_l_CC(l=l, CC=CC_l) <= self.get_l_precision_and_recall(test=False, l=l)[0]:
-            CC_l = set()
+        # print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={CON_CC_l}, '
+        #       f'p_l={p_l}\n')
+
+        # if CON_CC_l <= p_l:
+        #     CC_l = set()
 
         if not utils.is_local():
             shared_index.value += 1
@@ -1325,7 +1328,7 @@ if __name__ == '__main__':
     #     {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
     epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = False
+    test_bool = True
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
@@ -1335,7 +1338,7 @@ if __name__ == '__main__':
                     loss='BCE',
                     lr=0.0001,
                     num_epochs=20,
-                    include_inconsistency_constraint=True)
+                    include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()
