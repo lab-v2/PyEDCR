@@ -570,8 +570,8 @@ class EDCR:
         f_p_l = np.sum(self.get_where_fp_l(test=test, l=l, stage=stage))
         N_l_gt = np.sum(self.get_where_label_is_l(test=test, pred=False, l=l, stage=stage))
 
-        p_l = t_p_l / (t_p_l + f_p_l)
-        r_l = t_p_l / N_l_gt
+        p_l = t_p_l / (t_p_l + f_p_l) if not (t_p_l == 0 and f_p_l == 0) else 0
+        r_l = t_p_l / N_l_gt if not N_l_gt == 0 else 0
 
         return p_l, r_l
 
