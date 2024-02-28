@@ -796,8 +796,8 @@ class EDCR:
         # print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={self.get_CON_l_CC(l=l, CC=CC_l)}, '
         #       f'P_l={self.train_precisions[l.g][l]}\n')
 
-        # if self.get_CON_l_CC(l=l, CC=CC_l) <= self.train_precisions[l.g][l]:
-        #     CC_l = set()
+        if self.get_CON_l_CC(l=l, CC=CC_l) <= self.get_l_precision_and_recall(test=False, l=l)[0]:
+            CC_l = set()
 
         if not utils.is_local():
             shared_index.value += 1
@@ -1325,7 +1325,7 @@ if __name__ == '__main__':
     #     {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
     epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = True
+    test_bool = False
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
@@ -1334,13 +1334,13 @@ if __name__ == '__main__':
                     combined=True,
                     loss='BCE',
                     lr=0.0001,
-                    num_epochs=20)
+                    num_epochs=20,
+                    include_inconsistency_constraint=True)
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()
         # edcr.run_error_detection_application_pipeline(test=test_bool)
         edcr.run_error_correction_application_pipeline(test=test_bool)
-
         # edcr.apply_reversion_rules(g=gra)
 
         # precision_dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
