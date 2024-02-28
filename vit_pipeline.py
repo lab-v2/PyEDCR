@@ -116,6 +116,11 @@ def get_metrics(pred_fine_data: np.array,
             coarse_accuracy, coarse_f1, coarse_precision, coarse_recall)
 
 
+def get_change_str(change: typing.Union[float, str]):
+    return '' if change == '' else (utils.red_text(f'({round(change, 2)}%)') if change < 0
+                                    else utils.green_text(f'(+{round(change, 2)}%)'))
+
+
 def get_and_print_metrics(pred_fine_data: np.array,
                           pred_coarse_data: np.array,
                           loss: str,
@@ -126,10 +131,14 @@ def get_and_print_metrics(pred_fine_data: np.array,
                           combined: bool = True,
                           model_name: str = '',
                           lr: typing.Union[str, float] = '',
-                          print_inconsistencies: bool = True):
+                          print_inconsistencies: bool = True,
+                          original_pred_fine_data: np.array = None,
+                          original_pred_coarse_data: np.array = None):
     """
     Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
 
+    :param original_pred_coarse_data:
+    :param original_pred_fine_data:
     :param print_inconsistencies:
     :param pred_fine_data: NumPy array of predictions at the fine granularity.
     :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
@@ -151,22 +160,50 @@ def get_and_print_metrics(pred_fine_data: np.array,
     prior_str = 'prior' if prior else 'post'
     combined_str = 'combined' if combined else 'individual'
 
+    fine_accuracy_change_str = ''
+    fine_f1_change_str = ''
+    fine_precision_change_str = ''
+    fine_recall_change_str = ''
+    coarse_accuracy_change_str = ''
+    coarse_f1_change_str = ''
+    coarse_precision_change_str = ''
+    coarse_recall_change_str = ''
+
+    if original_pred_fine_data is not None and original_pred_coarse_data is not None:
+        (original_fine_accuracy, original_fine_f1, original_fine_precision, original_fine_recall,
+         original_coarse_accuracy, original_coarse_f1, original_coarse_precision, original_coarse_recall) = get_metrics(
+            pred_fine_data=original_pred_fine_data,
+            pred_coarse_data=original_pred_coarse_data,
+            true_fine_data=true_fine_data,
+            true_coarse_data=true_coarse_data)
+        fine_accuracy_change_str = fine_accuracy - original_fine_accuracy
+        fine_f1_change_str = fine_f1 - original_fine_f1
+        fine_precision_change_str = fine_precision - original_fine_precision
+        fine_recall_change_str = fine_recall - original_fine_recall
+        coarse_accuracy_change_str = coarse_accuracy - original_coarse_accuracy
+        coarse_f1_change_str = coarse_f1 - original_coarse_f1
+        coarse_precision_change_str = coarse_precision - original_coarse_precision
+        coarse_recall_change_str = coarse_recall - original_coarse_recall
+
     print('#' * 100 + '\n' + (f'Main model name: {utils.blue_text(model_name)} ' if model_name != '' else '') +
           f"with {utils.blue_text(loss)} loss on the {utils.blue_text('test' if test else 'train')} dataset\n" +
           (f'with lr={utils.blue_text(lr)}\n' if lr != '' else '') +
           f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(fine_accuracy * 100, 2))}%'
-          f', fine-grain {prior_str} {combined_str} macro f1: {utils.green_text(round(fine_f1 * 100, 2))}%'
+          f' {get_change_str(fine_accuracy_change_str)}, '
+          f'fine-grain {prior_str} {combined_str} macro f1: {utils.green_text(round(fine_f1 * 100, 2))}%'
+          f' {get_change_str(fine_f1_change_str)}'
           f'\nFine-grain {prior_str} {combined_str} macro precision: '
-          f'{utils.green_text(round(fine_precision * 100, 2))}%'
-          f', fine-grain {prior_str} {combined_str} macro recall: {utils.green_text(round(fine_recall * 100, 2))}%\n'
+          f'{utils.green_text(round(fine_precision * 100, 2))}% {get_change_str(fine_precision_change_str)}'
+          f', fine-grain {prior_str} {combined_str} macro recall: {utils.green_text(round(fine_recall * 100, 2))}%'
+          f' {get_change_str(fine_recall_change_str)}\n'
           f'\nCoarse-grain {prior_str} {combined_str} accuracy: '
-          f'{utils.green_text(round(coarse_accuracy * 100, 2))}%'
+          f'{utils.green_text(round(coarse_accuracy * 100, 2))}% {get_change_str(coarse_accuracy_change_str)}'
           f', coarse-grain {prior_str} {combined_str} macro f1: '
-          f'{utils.green_text(round(coarse_f1 * 100, 2))}%'
+          f'{utils.green_text(round(coarse_f1 * 100, 2))}% {get_change_str(coarse_f1_change_str)}'
           f'\nCoarse-grain {prior_str} {combined_str} macro precision: '
-          f'{utils.green_text(round(coarse_precision * 100, 2))}%'
+          f'{utils.green_text(round(coarse_precision * 100, 2))}% {get_change_str(coarse_precision_change_str)}'
           f', coarse-grain {prior_str} {combined_str} macro recall: '
-          f'{utils.green_text(round(coarse_recall * 100, 2))}%\n'
+          f'{utils.green_text(round(coarse_recall * 100, 2))}% {get_change_str(coarse_recall_change_str)}\n'
           )
 
     if print_inconsistencies:

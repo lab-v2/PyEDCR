@@ -417,6 +417,12 @@ class EDCR:
         :param prior:
         :param test: whether to get data from train or test set
         """
+
+        original_pred_fine_data, original_pred_coarse_data = None, None
+
+        if stage != 'original':
+            original_pred_fine_data, original_pred_coarse_data = self.get_predictions(test=test, stage='original')
+
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
         true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.K_test) if test \
             else data_preprocessing.get_ground_truths(test=test, K=self.K_train)
@@ -431,7 +437,9 @@ class EDCR:
                                            combined=self.combined,
                                            model_name=self.main_model_name,
                                            lr=self.lr,
-                                           print_inconsistencies=print_inconsistencies)
+                                           print_inconsistencies=print_inconsistencies,
+                                           original_pred_fine_data=original_pred_fine_data,
+                                           original_pred_coarse_data=original_pred_coarse_data)
 
     def get_where_predicted_correct(self,
                                     test: bool,
@@ -857,6 +865,7 @@ class EDCR:
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
         self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
+        # self.pred_data['test' if test else 'train']['post_correction'][g] = altered_pred_granularity_data
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
@@ -893,6 +902,14 @@ class EDCR:
               f'{precision_theory_holds_str}'
               )
 
+    def print_how_many_not_assigned(self,
+                                    test: bool,
+                                    g: data_preprocessing.Granularity,
+                                    stage: str):
+        test_or_train = 'test' if test else 'train'
+        print(f'\nNum not assigned in {test_or_train} {stage} {g}-grain predictions: ' +
+              utils.red_text(f"{np.sum(np.where(self.pred_data[test_or_train][stage][g] == -1, 1, 0))}\n"))
+
     def apply_correction_rules(self,
                                test: bool,
                                g: data_preprocessing.Granularity):
@@ -925,13 +942,15 @@ class EDCR:
                 l.index,
                 self.pred_data[test_or_train]['post_correction'][g])
 
+            # self.print_how_many_not_assigned(test=test, g=g, stage='post_correction')
+
             self.evaluate_and_print_l_correction_rule_precision_increase(
                 test=test,
                 l=l,
                 previous_l_precision=previous_l_precision,
                 correction_rule_theoretical_precision_increase=correction_rule_theoretical_precision_increase)
 
-            self.print_metrics(test=test, prior=False, stage='post_correction', print_inconsistencies=True)
+            self.print_metrics(test=test, prior=False, stage='post_correction', print_inconsistencies=False)
 
         # collision_array = np.zeros_like(altered_pred_granularity_data)
         #
@@ -1126,6 +1145,9 @@ class EDCR:
                      else self.get_where_label_is_l_in_data(l=l,
                                                             test_pred_fine_data=pred_fine_data,
                                                             test_pred_coarse_data=pred_coarse_data))
+        if N_l == 0:
+            return 0
+
         r_l = self.error_correction_rules[l]
         where_rule_body_is_satisfied = (
             r_l.get_where_body_is_satisfied(
@@ -1141,8 +1163,7 @@ class EDCR:
 
     def get_l_correction_rule_theoretical_precision_increase(self,
                                                              test: bool,
-                                                             l: data_preprocessing.Label,
-                                                             ) -> float:
+                                                             l: data_preprocessing.Label) -> float:
         c_l = self.get_l_correction_rule_confidence(test=test, l=l)
         s_l = self.get_l_correction_rule_support(test=test, l=l)
         p_l_prior_correction = self.get_l_precision_and_recall(l=l,
@@ -1224,6 +1245,7 @@ class EDCR:
             self.apply_detection_rules(test=test, g=g)
             self.evaluate_and_print_g_detection_rule_precision_increase(test=test, g=g)
             self.evaluate_and_print_g_detection_rule_recall_decrease(test=test, g=g)
+            self.print_how_many_not_assigned(test=test, g=g, stage='post_detection')
 
         self.print_metrics(test=test, prior=False, stage='post_detection', print_inconsistencies=False)
 
@@ -1234,7 +1256,7 @@ class EDCR:
         for g in data_preprocessing.granularities.values():
             self.apply_correction_rules(test=test, g=g)
 
-        self.print_metrics(test=test, prior=False, stage='post_correction', print_inconsistencies=True)
+        self.print_metrics(test=test, prior=False, stage='post_correction', print_inconsistencies=False)
 
 
 def plot_per_class(ps,
@@ -1314,7 +1336,7 @@ if __name__ == '__main__':
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()
-        edcr.run_error_detection_application_pipeline(test=test_bool)
+        # edcr.run_error_detection_application_pipeline(test=test_bool)
         edcr.run_error_correction_application_pipeline(test=test_bool)
 
         # edcr.apply_reversion_rules(g=gra)
