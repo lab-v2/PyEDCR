@@ -83,12 +83,12 @@ class Test:
                 K = self.edcr.K_test
                 T = self.edcr.T_test
                 source_str = 'test'
-                pred_data = self.edcr.test_pred_data.values()
+                pred_data = self.edcr.pred_data['test']['original'].values()
             else:
                 K = self.edcr.K_train
                 T = self.edcr.T_train
                 source_str = 'train'
-                pred_data = self.edcr.train_pred_data.values()
+                pred_data = self.edcr.pred_data['train']['original'].values()
             print(f'\nTaking {len(K)} / {T} {source_str} examples\n' +
                   '\n'.join([(
                       f'pred: {(fg_str[fine_prediction_index], cg_str[coarse_prediction_index])}, '

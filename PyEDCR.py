@@ -1135,6 +1135,8 @@ class EDCR:
                     data_preprocessing.granularities['coarse']]
                 if pred_coarse_data is None else pred_coarse_data))
 
+        print(N_l)
+
         s_l = np.sum(where_rule_body_is_satisfied) / N_l
 
         return s_l
@@ -1145,6 +1147,7 @@ class EDCR:
                                                              ) -> float:
         c_l = self.get_l_correction_rule_confidence(test=test, l=l)
         s_l = self.get_l_correction_rule_support(test=test, l=l)
+
         p_l_prior_correction = self.get_l_precision_and_recall(l=l,
                                                                test=test,
                                                                stage='post_correction')[0]

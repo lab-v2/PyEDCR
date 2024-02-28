@@ -13,8 +13,8 @@ def run_test_1():
 
     test.print_examples(test=False)
 
-    test.run(l=l_BTR_80, expected_output=0)
-    test.run(l=l_2S19_MSTA, expected_output=0)
+    test.run(test=False, l=l_BTR_80, expected_output=0)
+    test.run(test=False, l=l_2S19_MSTA, expected_output=0)
 
 
 def run_test_2():
@@ -25,7 +25,7 @@ def run_test_2():
                                           l_2S19_MSTA: {(pred_2S19_MSTA, l_SPA), (pred_T_72, l_SPA)}
                                           })
 
-    test.run(l=l_BTR_80, expected_output=1 / 15)
+    test.run(test=False, l=l_BTR_80, expected_output=1 / 15)
 
     test.print_examples(test=False)
 
@@ -37,7 +37,7 @@ def run_test_3():
     test.edcr.set_error_correction_rules({l_BMP_T15: {(pred_BMP_T15, l_BMP)}
                                           })
 
-    test.run(l=l_BMP_T15, expected_output=2 / 7)
+    test.run(test=False, l=l_BMP_T15, expected_output=2 / 7)
 
     test.print_examples(test=False)
 
@@ -49,7 +49,7 @@ def run_test_4():
     test.edcr.set_error_correction_rules({l_T_14: {(pred_T_14, l_Tank)}
                                           })
 
-    test.run(l=l_T_14, expected_output=1 / 3)
+    test.run(test=False, l=l_T_14, expected_output=1 / 3)
 
     test.print_examples(test=False)
 
@@ -63,9 +63,9 @@ def run_test_5():
                                           l_T_72: {(pred_BMP_T15, l_BMP)}
                                           })
 
-    test.run(l=l_D_30, expected_output=-2 / 7)
-    test.run(l=l_T_14, expected_output=-1 / 3)
-    test.run(l=l_T_72, expected_output=0)
+    test.run(test=False, l=l_D_30, expected_output=-2 / 7)
+    test.run(test=False, l=l_T_14, expected_output=-1 / 3)
+    test.run(test=False, l=l_T_72, expected_output=0)
 
     test.print_examples(test=False)
 
@@ -80,9 +80,9 @@ def run_test_6():
                                           l_BTR: {(pred_BTR, l_BRDM), (pred_BTR, l_BTR_60)}
                                           })
 
-    test.run(l=l_Tank, expected_output=0)
-    test.run(l=l_BTR, expected_output=-1 / 4)
-    test.run(l=l_SPA, expected_output=3 / 20)
+    test.run(test=False, l=l_Tank, expected_output=0)
+    test.run(test=False, l=l_BTR, expected_output=-1 / 4)
+    test.run(test=False, l=l_SPA, expected_output=3 / 20)
 
 
     test.print_examples(test=False)
@@ -92,7 +92,7 @@ def run_test_7():
 
     test = Test(epsilon=0.1, K_train=K, K_test=None, method_str=method_str)
 
-    test.edcr.set_error_correction_rules({l_Tank: {(pred_Tank, l_T_62), (pred_Tank, l_T_90)},
+    test.edcr.set_error_correction_rules({l_Pantsir_S1: {(pred_Pantsir_S1, l_Air_Defense), (pred_BRDM, l_BMP)},
                                           l_SPA: {(pred_SPA, l_2S19_MSTA), (pred_Air_Defense, l_2S19_MSTA),
                                                   (pred_BMP, l_BMP_1)},
                                           l_BTR: {(pred_BTR, l_BRDM), (pred_BTR, l_BTR_60)}
@@ -106,10 +106,10 @@ def run_test_7():
 
 
 if __name__ == '__main__':
-    # run_test_1()
+    run_test_1()
     # run_test_2()
     # run_test_3()
     # run_test_4()
     # run_test_5()
     # run_test_6()
-    run_test_7()
+    # run_test_7()
