@@ -197,7 +197,7 @@ class EDCR:
             :param CC_l: The set of condition-class pair that define the rule.
             """
             C_l = {(cond, l_prime) for cond, l_prime in CC_l if (isinstance(cond, EDCR.InconsistencyCondition)
-                   or cond.l.g != l_prime.g) and l_prime != l}
+                                                                 or cond.l.g != l_prime.g) and l_prime != l}
 
             super().__init__(l=l, C_l=C_l)
 
@@ -755,6 +755,14 @@ class EDCR:
 
         return DC_l
 
+    def singleton_CorrRuleLearn(self,
+                                l: data_preprocessing.Label,
+                                CC_all: set[(_Condition, data_preprocessing.Label)]
+                                ):
+        p_l = self.get_l_precision_and_recall(test=False, l=l)[0]
+        CC_l = {cond_and_l for cond_and_l in CC_all if self.get_CON_l_CC(l=l, CC={cond_and_l}) > p_l}
+        return l, CC_l
+
     def _CorrRuleLearn(self,
                        l: data_preprocessing.Label,
                        CC_all: set[(_Condition, data_preprocessing.Label)],
@@ -840,7 +848,9 @@ class EDCR:
         manager = mp.Manager()
         shared_index = manager.Value('i', 0)
 
-        iterable = [(l, self.CC_all[g], shared_index) for l in granularity_labels]
+        iterable = [(l, self.CC_all[g],
+                     shared_index
+                     ) for l in granularity_labels]
 
         with mp.Pool(processes_num) as pool:
             CC_ls = pool.starmap(func=self._CorrRuleLearn,
