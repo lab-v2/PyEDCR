@@ -8,6 +8,7 @@ import multiprocessing.managers
 import warnings
 import matplotlib.pyplot as plt
 import random
+from itertools import combinations
 
 warnings.filterwarnings('ignore')
 
@@ -776,8 +777,10 @@ class EDCR:
         :return: A set of condition-label pairs.
         """
         CC_l = set()
-        CC_l_prime = CC_all.copy()
-        CC_sorted = sorted(CC_all, key=lambda c_l: self.get_CON_l_CC(l=l, CC={c_l}))
+        # CC_l_prime = CC_all.copy()
+        CC_l_prime = set(*c_l for c_l in combinations(CC_all.copy(), 2)
+                         if self.get_CON_l_CC(l=l, CC=c_l) > self.get_l_precision_and_recall(test=False, l=l)[0])
+        CC_sorted = sorted(CC_l_prime, key=lambda c_l: self.get_CON_l_CC(l=l, CC={c_l}))
 
         with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
             for cond_and_l in CC_sorted:
@@ -807,8 +810,8 @@ class EDCR:
         print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={CON_CC_l}, '
               f'p_l={p_l}\n')
 
-        # if CON_CC_l <= p_l:
-        #     CC_l = set()
+        if CON_CC_l <= p_l:
+            CC_l = set()
 
         if not utils.is_local():
             shared_index.value += 1
