@@ -646,6 +646,23 @@ class EDCR:
 
         return NEG_l
 
+    def get_BOD_l_C(self,
+                    C: set[_Condition]) -> int:
+        """Calculate the number of train samples that satisfy any conditions for some set of condition.
+
+        :param C: A set of `Condition` objects.
+        :param l: The label of interest.
+        :return: The number of instances that are false negative and satisfying some conditions.
+        """
+        train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
+        where_any_conditions_satisfied_on_train = (
+            self.get_where_any_conditions_satisfied(C=C,
+                                                    fine_data=train_pred_fine_data,
+                                                    coarse_data=train_pred_coarse_data))
+        BOD_l = np.sum(where_any_conditions_satisfied_on_train)
+
+        return BOD_l
+
     def get_POS_l_C(self,
                     l: data_preprocessing.Label,
                     C: set[_Condition]) -> int:
@@ -743,11 +760,11 @@ class EDCR:
         """
         DC_l = set()
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l))
-        g = l.g
-        other_g_str = 'fine' if str(g) == 'coarse' else 'coarse'
-        other_g = data_preprocessing.granularities[other_g_str]
 
         if N_l:
+            g = l.g
+            other_g_str = 'fine' if str(g) == 'coarse' else 'coarse'
+            other_g = data_preprocessing.granularities[other_g_str]
             P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage='original')
             q_l = self.epsilon * N_l * P_l / R_l
 
@@ -758,9 +775,9 @@ class EDCR:
                 best_cond = None
 
                 for cond in DC_star:
-                    POS_l_c = self.get_POS_l_C(l=l, C=DC_l.union({cond}))
-                    if POS_l_c >= best_score:
-                        best_score = POS_l_c
+                    POS_l = self.get_POS_l_C(l=l, C=DC_l.union({cond}))
+                    if POS_l >= best_score:
+                        best_score = POS_l
                         best_cond = cond
 
                 DC_l = DC_l.union({best_cond})
@@ -935,7 +952,7 @@ class EDCR:
                             curr_label = l_prime
                             recall_increase_for_l = recall_increase_for_l_prime
 
-                candidates[curr_label] = candidates[curr_label].difference({pair})
+                # candidates[curr_label] = candidates[curr_label].difference({pair})
 
         for l in granularity_labels:
             self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=candidates[l])
@@ -1398,7 +1415,7 @@ class EDCR:
         for g in data_preprocessing.granularities.values():
             self.learn_detection_rules(g=g)
             # self.learn_correction_rules(g=g)
-            self.learn_correction_rules_alt(g=g)
+            # self.learn_correction_rules_alt(g=g)
 
         print('\nRule learning completed\n')
 
@@ -1486,7 +1503,7 @@ if __name__ == '__main__':
     #     {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
     epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = True
+    test_bool = False
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
@@ -1500,8 +1517,8 @@ if __name__ == '__main__':
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()
-        # edcr.run_error_detection_application_pipeline(test=test_bool)
-        edcr.run_error_correction_application_pipeline(test=test_bool)
+        edcr.run_error_detection_application_pipeline(test=test_bool)
+        # edcr.run_error_correction_application_pipeline(test=test_bool)
         # edcr.apply_reversion_rules(g=gra)
 
         # precision_dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
