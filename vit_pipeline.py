@@ -832,10 +832,12 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 def initiate(lrs: list[typing.Union[str, float]],
              combined: bool,
              pretrained_path: str = None,
-             debug: bool = False):
+             debug: bool = False,
+             indices: np.array = None):
     """
     Initializes models, datasets, and devices for training.
 
+    :param indices:
     :param lrs: List of learning rates for the models.
     :param combined: Whether the model are individual or combine one.
     :param pretrained_path: Path to a pretrained model (optional).
@@ -851,7 +853,7 @@ def initiate(lrs: list[typing.Union[str, float]],
           f'Epochs num: {num_epochs}\n'
           f'Learning rates: {lrs}')
 
-    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
+    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets()
 
     if combined:
         device = torch.device('cpu') if debug else (
@@ -894,7 +896,11 @@ def initiate(lrs: list[typing.Union[str, float]],
 
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(datasets=datasets,
-                                             batch_size=batch_size)
+                                             batch_size=batch_size,
+                                             indices=indices)
+
+    print(f"Total number of train images: {len(loaders['train'])}\n"
+          f"Total number of test images: {len(loaders['test'])}")
 
     return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
 
@@ -992,8 +998,8 @@ def run_combined_evaluating_pipeline(test: bool,
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
-    #                                   loss='BCE')
+    run_combined_fine_tuning_pipeline(lrs=[0.0001],
+                                      loss='BCE')
     # run_combined_testing_pipeline(lrs=[1e-6],
     #                               loss='BCE',
     #                               pretrained_path='models/vit_b_16_BCE_lr1e-05.pth')

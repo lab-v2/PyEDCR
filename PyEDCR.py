@@ -957,9 +957,6 @@ class EDCR:
         for l in granularity_labels:
             self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=candidates[l])
 
-
-
-
     def learn_correction_rules(self,
                                g: data_preprocessing.Granularity):
 
@@ -1414,20 +1411,44 @@ class EDCR:
 
         for g in data_preprocessing.granularities.values():
             self.learn_detection_rules(g=g)
+            self.run_error_detection_application_pipeline(test=False, print_results=False)
+            examples_with_errors = np.where(self.pred_data['train']['post_detection'][g] == -1)[0]
+
+            fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
+                lrs=[self.lr],
+                combined=self.combined,
+                debug=False,
+                indices=examples_with_errors)
+            for fine_tuner in fine_tuners:
+                with context_handlers.ClearSession():
+                    vit_pipeline.fine_tune_combined_model(lrs=[self.lr],
+                                                          fine_tuner=fine_tuner,
+                                                          device=devices[0],
+                                                          loaders=loaders,
+                                                          num_fine_grain_classes=num_fine_grain_classes,
+                                                          num_coarse_grain_classes=num_coarse_grain_classes,
+                                                          loss=self.loss,
+                                                          save_files=False,
+                                                          debug=False)
+                    print('#' * 100)
             # self.learn_correction_rules(g=g)
             # self.learn_correction_rules_alt(g=g)
 
         print('\nRule learning completed\n')
 
     def run_error_detection_application_pipeline(self,
-                                                 test: bool):
+                                                 test: bool,
+                                                 print_results: bool = True):
         for g in data_preprocessing.granularities.values():
             self.apply_detection_rules(test=test, g=g)
-            self.evaluate_and_print_g_detection_rule_precision_increase(test=test, g=g)
-            self.evaluate_and_print_g_detection_rule_recall_decrease(test=test, g=g)
-            self.print_how_many_not_assigned(test=test, g=g, stage='post_detection')
 
-        self.print_metrics(test=test, prior=False, stage='post_detection', print_inconsistencies=False)
+            if print_results:
+                self.evaluate_and_print_g_detection_rule_precision_increase(test=test, g=g)
+                self.evaluate_and_print_g_detection_rule_recall_decrease(test=test, g=g)
+                self.print_how_many_not_assigned(test=test, g=g, stage='post_detection')
+
+        if print_results:
+            self.print_metrics(test=test, prior=False, stage='post_detection', print_inconsistencies=False)
 
     def run_error_correction_application_pipeline(self,
                                                   test: bool):
