@@ -1429,7 +1429,8 @@ class EDCR:
                                                           num_coarse_grain_classes=num_coarse_grain_classes,
                                                           loss=self.loss,
                                                           save_files=False,
-                                                          debug=False)
+                                                          debug=False,
+                                                          evaluate_on_test=False)
                     print('#' * 100)
             # self.learn_correction_rules(g=g)
             # self.learn_correction_rules_alt(g=g)

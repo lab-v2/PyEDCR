@@ -442,11 +442,11 @@ def print_post_batch_metrics(batch_num: int,
                              batch_total_loss: float = None):
     if batch_num > 0 and batch_num % 10 == 0:
         if batch_fine_grain_loss is not None:
-            print(f'Completed batch num {batch_num}/{num_batches}, '
+            print(f'\nCompleted batch num {batch_num}/{num_batches}, '
                   f'batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
                   f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}')
         else:
-            print(f'Completed batch num {batch_num}/{num_batches}, batch total loss: {round(batch_total_loss, 2)}')
+            print(f'\nCompleted batch num {batch_num}/{num_batches}, batch total loss: {round(batch_total_loss, 2)}')
 
 
 def get_fine_tuning_batches(train_loader: torch.utils.data.DataLoader,
@@ -642,7 +642,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              ltn_num_epochs: int = None,
                              beta: float = 0.1,
                              save_files: bool = True,
-                             debug: bool = False):
+                             debug: bool = False,
+                             evaluate_on_test: bool = True):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -796,16 +797,18 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                 train_coarse_losses += [running_coarse_loss.item() / num_batches]
 
                 scheduler.step()
-                (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
-                 test_fine_accuracy, test_coarse_accuracy) = (
-                    evaluate_combined_model(fine_tuner=fine_tuner,
-                                            loaders=loaders,
-                                            loss=loss,
-                                            device=device,
-                                            test=True))
 
-                test_fine_accuracies += [test_fine_accuracy]
-                test_coarse_accuracies += [test_coarse_accuracy]
+                if evaluate_on_test:
+                    (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
+                     test_fine_accuracy, test_coarse_accuracy) = (
+                        evaluate_combined_model(fine_tuner=fine_tuner,
+                                                loaders=loaders,
+                                                loss=loss,
+                                                device=device,
+                                                test=True))
+
+                    test_fine_accuracies += [test_fine_accuracy]
+                    test_coarse_accuracies += [test_coarse_accuracy]
                 print('#' * 100)
 
                 if (epoch == num_epochs - 1) and save_files:
@@ -899,8 +902,8 @@ def initiate(lrs: list[typing.Union[str, float]],
                                              batch_size=batch_size,
                                              indices=indices)
 
-    print(f"Total number of train images: {len(loaders['train'])}\n"
-          f"Total number of test images: {len(loaders['test'])}")
+    print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
+          f"Total number of test images: {len(loaders['test'].dataset)}")
 
     return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
 

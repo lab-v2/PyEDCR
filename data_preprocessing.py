@@ -324,7 +324,8 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
 
     return {train_or_test_dataset: torch.utils.data.DataLoader(
         dataset=datasets[train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train']
-        if indices is None else torch.utils.data.Subset(datasets[train_or_test_dataset
+        if indices is None or train_or_test_dataset != 'train'
+        else torch.utils.data.Subset(datasets[train_or_test_dataset
         if train_or_test_dataset != 'train_eval' else 'train'], indices),
         batch_size=batch_size,
         shuffle=train_or_test_dataset == 'train')
