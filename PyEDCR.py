@@ -1410,6 +1410,7 @@ class EDCR:
     def run_training_new_model_pipeline(self,
                                         g: data_preprocessing.Granularity):
         examples_with_errors = np.where(self.pred_data['train']['post_detection'][g] == -1)[0]
+
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             lrs=[self.lr],
             combined=self.combined,
@@ -1419,7 +1420,7 @@ class EDCR:
         with (context_handlers.ClearSession()):
             train_fine_predictions, train_coarse_predictions = vit_pipeline.fine_tune_combined_model(
                 lrs=[self.lr],
-                fine_tuner=fine_tuners[0],
+                fine_tuner=fine_tuners[0] if self.correction_model is None else self.correction_model,
                 device=devices[0],
                 loaders=loaders,
                 num_fine_grain_classes=num_fine_grain_classes,
