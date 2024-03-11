@@ -1463,12 +1463,12 @@ class EDCR:
                               EDCR_epoch_num: int):
         print('Started learning pipeline...\n')
 
-        for g in data_preprocessing.granularities.values():
-            for EDCR_epoch in range(EDCR_epoch_num):
+        for EDCR_epoch in range(EDCR_epoch_num):
+            for g in data_preprocessing.granularities.values():
                 self.learn_detection_rules(g=g)
                 self.run_error_detection_application_pipeline(test=False, print_results=False)
 
-        self.run_training_new_model_pipeline()
+            self.run_training_new_model_pipeline()
 
         # self.learn_correction_rules(g=g)
         # self.learn_correction_rules_alt(g=g)
