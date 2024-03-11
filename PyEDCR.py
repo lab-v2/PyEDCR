@@ -1438,6 +1438,21 @@ class EDCR:
                                                           train_g_predictions,
                                                           self.pred_data['train']['original'][g])
 
+    def apply_new_model_on_test(self):
+        new_fine_predictions, new_coarse_predictions = (
+            vit_pipeline.run_combined_evaluating_pipeline(test=True,
+                                                          lrs=[self.lr],
+                                                          loss=self.loss,
+                                                          pretrained_fine_tuner=self.correction_model,
+                                                          save_files=False))
+
+        for g in data_preprocessing.granularities.values():
+            test_g_predictions = new_fine_predictions if g.g_str == 'fine' else new_coarse_predictions
+
+            self.pred_data['test']['post_detection'][g] = np.where(self.pred_data['test']['post_detection'][g] == -1,
+                                                                   test_g_predictions,
+                                                                   self.pred_data['test']['post_detection'][g])
+
     def run_learning_pipeline(self,
                               EDCR_epoch_num: int):
         print('Started learning pipeline...\n')
@@ -1541,7 +1556,7 @@ if __name__ == '__main__':
     #     {g: {'initial': {}, 'pre_correction': {}, 'post_correction': {}} for g in data_preprocessing.granularities})
 
     epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = False
+    test_bool = True
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
@@ -1555,7 +1570,8 @@ if __name__ == '__main__':
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline(EDCR_epoch_num=3)
-        edcr.run_error_detection_application_pipeline(test=test_bool)
+        edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
+        edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
         # edcr.apply_reversion_rules(g=gra)
 
@@ -1566,7 +1582,7 @@ if __name__ == '__main__':
         # precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
         # recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
 
-        # edcr.print_metrics(test=test_bool, prior=False, stage='post_correction', print_inconsistencies=False)
+        edcr.print_metrics(test=test_bool, prior=False, stage='post_detection', print_inconsistencies=False)
 
     # folder = "experiment_1"
     #

@@ -963,11 +963,13 @@ def run_combined_evaluating_pipeline(test: bool,
                                      lrs: list[typing.Union[str, float]],
                                      loss: str,
                                      pretrained_path: str = None,
+                                     pretrained_fine_tuner: models.FineTuner = None,
                                      save_files: bool = True,
                                      debug: bool = utils.is_debug_mode()):
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
+    :param pretrained_fine_tuner:
     :param test: True for test data, False for train data.
     :param lrs: List of learning rates used during training.
     :param loss: The loss function used during training.
@@ -990,11 +992,12 @@ def run_combined_evaluating_pipeline(test: bool,
                  debug=debug))
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-     fine_accuracy, coarse_accuracy) = evaluate_combined_model(fine_tuner=fine_tuners[0],
-                                                               loaders=loaders,
-                                                               loss=loss,
-                                                               device=devices[0],
-                                                               test=test)
+     fine_accuracy, coarse_accuracy) = evaluate_combined_model(
+        fine_tuner=fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner,
+        loaders=loaders,
+        loss=loss,
+        device=devices[0],
+        test=test)
 
     if save_files:
         save_prediction_files(test=test,
@@ -1008,6 +1011,7 @@ def run_combined_evaluating_pipeline(test: bool,
                               coarse_ground_truths=coarse_ground_truths,
                               epoch=num_epochs)
 
+    return fine_predictions, coarse_predictions
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
