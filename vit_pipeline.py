@@ -12,7 +12,7 @@ import data_preprocessing
 
 batch_size = 32
 scheduler_gamma = 0.9
-num_epochs = 1
+num_epochs = 5
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
@@ -846,7 +846,7 @@ def initiate(lrs: list[typing.Union[str, float]],
              combined: bool,
              pretrained_path: str = None,
              debug: bool = False,
-             indices: np.array = None):
+             indices: typing.Sequence = None):
     """
     Initializes models, datasets, and devices for training.
 
