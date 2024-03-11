@@ -20,6 +20,7 @@ combined_results_path = fr'combined_results'
 individual_results_path = fr'individual_results'
 
 scheduler_step_size = 1
+original_prediction_weight = 1
 
 
 def get_filepath(model_name: typing.Union[str, models.FineTuner],
@@ -643,7 +644,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              beta: float = 0.1,
                              save_files: bool = True,
                              debug: bool = False,
-                             evaluate_on_test: bool = True):
+                             evaluate_on_test: bool = True,
+                             Y_original: np.array = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -684,6 +686,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         else:
             epochs = num_epochs
 
+
+
         print(f'\nFine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
               f'using lr={lr} on {device}...')
         print('#' * 100 + '\n')
@@ -720,6 +724,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                         Y_pred = fine_tuner(X)
                         Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
                         Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
+
+                        batch_total_loss = None
 
                         if loss == "weighted":
                             criterion = torch.nn.CrossEntropyLoss()
@@ -759,6 +765,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                 sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
+
+                        if batch_total_loss is not None and Y_original is not None:
+                            batch_total_loss -= original_prediction_weight * criterion(Y_pred, Y_original)
 
                         print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,
