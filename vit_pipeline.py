@@ -686,8 +686,6 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         else:
             epochs = num_epochs
 
-
-
         print(f'\nFine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
               f'using lr={lr} on {device}...')
         print('#' * 100 + '\n')
@@ -724,8 +722,6 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                         Y_pred = fine_tuner(X)
                         Y_pred_fine_grain = Y_pred[:, :num_fine_grain_classes]
                         Y_pred_coarse_grain = Y_pred[:, num_fine_grain_classes:]
-
-                        batch_total_loss = None
 
                         if loss == "weighted":
                             criterion = torch.nn.CrossEntropyLoss()
