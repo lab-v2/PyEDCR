@@ -1437,7 +1437,8 @@ class EDCR:
                 evaluate_on_test=False)
             print('#' * 100)
 
-        self.correction_model = fine_tuners[0]
+        if self.correction_model is None:
+            self.correction_model = fine_tuners[0]
 
         for g in data_preprocessing.granularities.values():
             train_g_predictions = train_fine_predictions if g.g_str == 'fine' else train_coarse_predictions
