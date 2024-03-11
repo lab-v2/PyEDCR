@@ -1434,9 +1434,7 @@ class EDCR:
         self.correction_model = fine_tuners[0]
         train_g_predictions = train_fine_predictions if g.g_str == 'fine' else train_coarse_predictions
 
-        self.pred_data['train']['original'][g] = np.where(self.pred_data['train']['post_detection'][g] == -1,
-                                                          train_g_predictions,
-                                                          self.pred_data['train']['original'][g])
+        self.pred_data['train']['original'][g][examples_with_errors] = train_g_predictions
 
     def apply_new_model_on_test(self):
         new_fine_predictions, new_coarse_predictions = (
