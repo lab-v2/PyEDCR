@@ -11,7 +11,7 @@ import utils
 import data_preprocessing
 
 batch_size = 32
-scheduler_gamma = 0.1
+scheduler_gamma = 0.9
 num_epochs = 20
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
@@ -649,6 +649,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
     train_loader = loaders['train']
     num_batches = len(train_loader)
 
+    train_fine_predictions = None
+    train_coarse_predictions = None
+
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                      lr=lr)
@@ -681,7 +684,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         else:
             epochs = num_epochs
 
-        print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
+        print(f'\nFine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
               f'using lr={lr} on {device}...')
         print('#' * 100 + '\n')
 
@@ -830,6 +833,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
             torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
         else:
             torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}.pth")
+
+        return train_fine_predictions, train_coarse_predictions
 
 
 def initiate(lrs: list[typing.Union[str, float]],

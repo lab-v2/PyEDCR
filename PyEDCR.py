@@ -318,7 +318,8 @@ class EDCR:
 
         self.error_detection_rules: dict[data_preprocessing.Label, EDCR.ErrorDetectionRule] = {}
         self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
-        # self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
+
+        self.correction_model = None
 
     def set_error_detection_rules(self, rules: typing.Dict[data_preprocessing.Label, {_Condition}]):
         """
@@ -1406,34 +1407,48 @@ class EDCR:
               f'theoretical recall decrease: -{utils.blue_text(detection_rule_theoretical_recall_decrease)}\n'
               f'{recall_theory_holds_str}')
 
-    def run_learning_pipeline(self):
+    def run_training_new_model_pipeline(self,
+                                        g: data_preprocessing.Granularity):
+        examples_with_errors = np.where(self.pred_data['train']['post_detection'][g] == -1)[0]
+        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
+            lrs=[self.lr],
+            combined=self.combined,
+            debug=False,
+            indices=examples_with_errors)
+
+        with (context_handlers.ClearSession()):
+            train_fine_predictions, train_coarse_predictions = vit_pipeline.fine_tune_combined_model(
+                lrs=[self.lr],
+                fine_tuner=fine_tuners[0],
+                device=devices[0],
+                loaders=loaders,
+                num_fine_grain_classes=num_fine_grain_classes,
+                num_coarse_grain_classes=num_coarse_grain_classes,
+                loss=self.loss,
+                save_files=False,
+                debug=False,
+                evaluate_on_test=False)
+            print('#' * 100)
+
+        self.correction_model = fine_tuners[0]
+        train_g_predictions = train_fine_predictions if g.g_str == 'fine' else train_coarse_predictions
+
+        self.pred_data['train']['original'][g] = np.where(self.pred_data['train']['post_detection'][g] == -1,
+                                                          train_g_predictions,
+                                                          self.pred_data['train']['original'][g])
+
+    def run_learning_pipeline(self,
+                              EDCR_epoch_num: int):
         print('Started learning pipeline...\n')
 
         for g in data_preprocessing.granularities.values():
-            self.learn_detection_rules(g=g)
-            self.run_error_detection_application_pipeline(test=False, print_results=False)
-            examples_with_errors = np.where(self.pred_data['train']['post_detection'][g] == -1)[0]
+            for EDCR_epoch in range(EDCR_epoch_num):
+                self.learn_detection_rules(g=g)
+                self.run_error_detection_application_pipeline(test=False, print_results=False)
+                self.run_training_new_model_pipeline(g=g)
 
-            fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-                lrs=[self.lr],
-                combined=self.combined,
-                debug=False,
-                indices=examples_with_errors)
-            for fine_tuner in fine_tuners:
-                with context_handlers.ClearSession():
-                    vit_pipeline.fine_tune_combined_model(lrs=[self.lr],
-                                                          fine_tuner=fine_tuner,
-                                                          device=devices[0],
-                                                          loaders=loaders,
-                                                          num_fine_grain_classes=num_fine_grain_classes,
-                                                          num_coarse_grain_classes=num_coarse_grain_classes,
-                                                          loss=self.loss,
-                                                          save_files=False,
-                                                          debug=False,
-                                                          evaluate_on_test=False)
-                    print('#' * 100)
-            # self.learn_correction_rules(g=g)
-            # self.learn_correction_rules_alt(g=g)
+                # self.learn_correction_rules(g=g)
+                # self.learn_correction_rules_alt(g=g)
 
         print('\nRule learning completed\n')
 
@@ -1538,7 +1553,7 @@ if __name__ == '__main__':
                     include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
-        edcr.run_learning_pipeline()
+        edcr.run_learning_pipeline(EDCR_epoch_num=3)
         edcr.run_error_detection_application_pipeline(test=test_bool)
         # edcr.run_error_correction_application_pipeline(test=test_bool)
         # edcr.apply_reversion_rules(g=gra)
