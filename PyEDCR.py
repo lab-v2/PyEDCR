@@ -1449,7 +1449,8 @@ class EDCR:
                                                           lrs=[self.lr],
                                                           loss=self.loss,
                                                           pretrained_fine_tuner=self.correction_model,
-                                                          save_files=False))
+                                                          save_files=False,
+                                                          print_results=False))
 
         for g in data_preprocessing.granularities.values():
             test_g_predictions = new_fine_predictions if g.g_str == 'fine' else new_coarse_predictions

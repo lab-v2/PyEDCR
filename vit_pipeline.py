@@ -12,7 +12,7 @@ import data_preprocessing
 
 batch_size = 32
 scheduler_gamma = 0.9
-num_epochs = 5
+num_epochs = 20
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
@@ -350,7 +350,8 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                             loaders: dict[str, torch.utils.data.DataLoader],
                             loss: str,
                             device: torch.device,
-                            test: bool) -> (list[int], list[int], list[int], list[int], float, float):
+                            test: bool,
+                            print_results: bool = True) -> (list[int], list[int], list[int], list[int], float, float):
     loader = loaders['test' if test else f'train_eval']
     fine_tuner.to(device)
     fine_tuner.eval()
@@ -360,6 +361,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
 
     fine_ground_truths = []
     coarse_ground_truths = []
+    fine_accuracy, coarse_accuracy = None, None
 
     print(f'Testing {fine_tuner} on {device}...')
 
@@ -386,13 +388,14 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
             fine_predictions += predicted_fine.tolist()
             coarse_predictions += predicted_coarse.tolist()
 
-    fine_accuracy, coarse_accuracy = (
-        get_and_print_metrics(pred_fine_data=fine_predictions,
-                              pred_coarse_data=coarse_predictions,
-                              loss=loss,
-                              true_fine_data=fine_ground_truths,
-                              true_coarse_data=coarse_ground_truths,
-                              test=test))
+    if print_results:
+        fine_accuracy, coarse_accuracy = (
+            get_and_print_metrics(pred_fine_data=fine_predictions,
+                                  pred_coarse_data=coarse_predictions,
+                                  loss=loss,
+                                  true_fine_data=fine_ground_truths,
+                                  true_coarse_data=coarse_ground_truths,
+                                  test=test))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
             fine_accuracy, coarse_accuracy)
@@ -965,7 +968,8 @@ def run_combined_evaluating_pipeline(test: bool,
                                      pretrained_path: str = None,
                                      pretrained_fine_tuner: models.FineTuner = None,
                                      save_files: bool = True,
-                                     debug: bool = utils.is_debug_mode()):
+                                     debug: bool = utils.is_debug_mode(),
+                                     print_results: bool = True):
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
@@ -997,7 +1001,8 @@ def run_combined_evaluating_pipeline(test: bool,
         loaders=loaders,
         loss=loss,
         device=devices[0],
-        test=test)
+        test=test,
+        print_results=print_results)
 
     if save_files:
         save_prediction_files(test=test,
