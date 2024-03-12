@@ -10,9 +10,9 @@ import models
 import utils
 import data_preprocessing
 
-batch_size = 32
+batch_size = 64
 scheduler_gamma = 0.9
-num_epochs = 5
+num_epochs = 10
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
@@ -20,7 +20,7 @@ combined_results_path = fr'combined_results'
 individual_results_path = fr'individual_results'
 
 scheduler_step_size = num_epochs
-original_prediction_weight = 1
+original_prediction_weight = 2
 
 
 def get_filepath(model_name: typing.Union[str, models.FineTuner],

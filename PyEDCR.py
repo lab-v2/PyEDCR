@@ -1479,6 +1479,10 @@ class EDCR:
 
             self.run_training_new_model_pipeline()
 
+            print(utils.blue_text('#' * 100 + '\n' + '#' * 40 +
+                                  f'Finished EDCR epoch {EDCR_epoch + 1}/{EDCR_epoch_num}' + '#' * 40 +
+                                  '\n' + '#' * 100))
+
         # self.learn_correction_rules(g=g)
         # self.learn_correction_rules_alt(g=g)
 
