@@ -630,15 +630,17 @@ class EDCR:
 
     def get_NEG_l_C(self,
                     l: data_preprocessing.Label,
-                    C: set[_Condition]) -> int:
+                    C: set[_Condition],
+                    stage: str = 'original') -> int:
         """Calculate the number of train samples that satisfy any of the conditions and are true positive.
 
+        :param stage:
         :param C: A set of `Condition` objects.
         :param l: The label of interest.
         :return: The number of instances that is true negative and satisfying all conditions.
         """
-        where_train_tp_l = self.get_where_tp_l(test=False, l=l)
-        train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
+        where_train_tp_l = self.get_where_tp_l(test=False, l=l, stage=stage)
+        train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
         where_any_conditions_satisfied_on_train = (
             self.get_where_any_conditions_satisfied(C=C,
                                                     fine_data=train_pred_fine_data,
@@ -666,16 +668,18 @@ class EDCR:
 
     def get_POS_l_C(self,
                     l: data_preprocessing.Label,
-                    C: set[_Condition]) -> int:
+                    C: set[_Condition],
+                    stage: str = 'original') -> int:
         """Calculate the number of train samples that satisfy any conditions for some set of condition
         and are false positive.
 
+        :param stage:
         :param C: A set of `Condition` objects.
         :param l: The label of interest.
         :return: The number of instances that are false negative and satisfying some conditions.
         """
-        where_was_wrong_with_respect_to_l = self.get_where_fp_l(test=False, l=l)
-        train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
+        where_was_wrong_with_respect_to_l = self.get_where_fp_l(test=False, l=l, stage=stage)
+        train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
         where_any_conditions_satisfied_on_train = (
             self.get_where_any_conditions_satisfied(C=C,
                                                     fine_data=train_pred_fine_data,
@@ -760,30 +764,33 @@ class EDCR:
         :return: A set of `Condition` representing the learned error detection rules.
         """
         DC_l = set()
-        N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l))
+        stage = 'original' if self.correction_model is None else 'post_detection'
+        N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l, stage=stage))
 
         if N_l:
-            g = l.g
-            other_g_str = 'fine' if str(g) == 'coarse' else 'coarse'
+            other_g_str = 'fine' if str(l.g) == 'coarse' else 'coarse'
             other_g = data_preprocessing.granularities[other_g_str]
-            P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage='original')
+
+            P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage=stage)
             q_l = self.epsilon * N_l * P_l / R_l
 
-            DC_star = {cond for cond in self.condition_datas[other_g] if self.get_NEG_l_C(l=l, C={cond}) <= q_l}
+            DC_star = {cond for cond in self.condition_datas[other_g] if self.get_NEG_l_C(l=l,
+                                                                                          C={cond},
+                                                                                          stage=stage) <= q_l}
 
-            while DC_star != set():
+            while DC_star:
                 best_score = -1
                 best_cond = None
 
                 for cond in DC_star:
-                    POS_l = self.get_POS_l_C(l=l, C=DC_l.union({cond}))
+                    POS_l = self.get_POS_l_C(l=l, C=DC_l.union({cond}), stage=stage)
                     if POS_l >= best_score:
                         best_score = POS_l
                         best_cond = cond
 
                 DC_l = DC_l.union({best_cond})
                 DC_star = {cond for cond in self.condition_datas[other_g].difference(DC_l)
-                           if self.get_NEG_l_C(l=l, C=DC_l.union({cond})) <= q_l}
+                           if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l}
 
         return DC_l
 
@@ -992,8 +999,9 @@ class EDCR:
 
         :params g: The granularity of the predictions to be processed.
         """
-        pred_fine_data, pred_coarse_data = self.get_predictions(test=test)
-        altered_pred_granularity_data = self.get_predictions(test=test, g=g)
+        stage = 'original' if self.correction_model is None else 'post_detection'
+        pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
+        altered_pred_granularity_data = self.get_predictions(test=test, g=g, stage=stage)
 
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
             altered_pred_data_l = rule_g_l(pred_fine_data=pred_fine_data,
@@ -1442,7 +1450,7 @@ class EDCR:
 
         for g in data_preprocessing.granularities.values():
             train_g_predictions = train_fine_predictions if g.g_str == 'fine' else train_coarse_predictions
-            self.pred_data['train']['original'][g][examples_with_errors] = train_g_predictions
+            self.pred_data['train']['post_detection'][g][examples_with_errors] = train_g_predictions
 
     def apply_new_model_on_test(self):
         new_fine_predictions, new_coarse_predictions = (
@@ -1577,7 +1585,7 @@ if __name__ == '__main__':
                     include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
-        edcr.run_learning_pipeline(EDCR_epoch_num=3)
+        edcr.run_learning_pipeline(EDCR_epoch_num=1)
         edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
