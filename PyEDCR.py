@@ -1479,9 +1479,12 @@ class EDCR:
 
             self.run_training_new_model_pipeline()
 
-            print(utils.blue_text('#' * 100 + '\n' + '#' * 40 +
-                                  f'Finished EDCR epoch {EDCR_epoch + 1}/{EDCR_epoch_num}' + '#' * 40 +
-                                  '\n' + '#' * 100))
+            edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{EDCR_epoch_num}'
+            
+            print(utils.blue_text('\n' + '#' * 100 +
+                                  '\n' + '#' * int((100-len(edcr_epoch_str))/2) + edcr_epoch_str +
+                                  '#' * (100 - int((100-len(edcr_epoch_str))/2) - len(edcr_epoch_str)) +
+                                  '\n' + '#' * 100 + '\n'))
 
         # self.learn_correction_rules(g=g)
         # self.learn_correction_rules_alt(g=g)
@@ -1583,7 +1586,7 @@ if __name__ == '__main__':
         edcr = EDCR(epsilon=eps,
                     main_model_name='vit_b_16',
                     combined=True,
-                    loss='BCE',
+                    loss='soft_marginal',
                     lr=0.0001,
                     num_epochs=20,
                     include_inconsistency_constraint=False)
