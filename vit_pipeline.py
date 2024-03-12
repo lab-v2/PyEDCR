@@ -430,7 +430,7 @@ def get_and_print_post_epoch_metrics(epoch: int,
         if running_fine_loss is not None else f'Training epoch total loss: {round(running_total_loss / num_batches, 2)}'
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done,\n'
-          f'{loss_str}'
+          # f'{loss_str}'
           f'\npost-epoch training fine accuracy: {round(training_fine_accuracy * 100, 2)}%'
           f', post-epoch fine f1: {round(training_fine_f1 * 100, 2)}%'
           f'\npost-epoch training coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
@@ -973,6 +973,7 @@ def run_combined_evaluating_pipeline(test: bool,
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
+    :param print_results:
     :param pretrained_fine_tuner:
     :param test: True for test data, False for train data.
     :param lrs: List of learning rates used during training.
@@ -1017,6 +1018,7 @@ def run_combined_evaluating_pipeline(test: bool,
                               epoch=num_epochs)
 
     return fine_predictions, coarse_predictions
+
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
