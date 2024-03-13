@@ -20,7 +20,8 @@ combined_results_path = fr'combined_results'
 individual_results_path = fr'individual_results'
 
 scheduler_step_size = num_epochs
-original_prediction_weight = 0.1
+original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
+                                  len(data_preprocessing.coarse_grain_classes_str))
 
 
 def get_filepath(model_name: typing.Union[str, models.FineTuner],
@@ -766,7 +767,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
                         if batch_total_loss is not None and Y_original_fine is not None:
-                            end_index = (batch_num + 1) * batch_size if batch_num + 1 < len(batches) else \
+                            end_index = (batch_num + 1) * batch_size if batch_num + 1 < num_batches else \
                                                                     len(Y_original_fine)
                             Y_original_fine_one_hot = torch.nn.functional.one_hot(
                                 torch.tensor(Y_original_fine[batch_num * batch_size:end_index]).to(device),
