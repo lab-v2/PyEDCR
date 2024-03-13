@@ -319,6 +319,7 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
 
     Parameters
     ----------
+        :param evaluation:
         :param datasets:
         :param batch_size:
         :param indices:
@@ -332,7 +333,7 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
                                          train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train'],
                                      indices=indices),
         batch_size=batch_size,
-        shuffle=train_or_test_dataset == 'train' and not (evaluation is not None and evaluation))
+        shuffle=train_or_test_dataset == 'train' and (evaluation is None or not evaluation))
         for train_or_test_dataset in ['train', 'train_eval', 'test']}
 
 

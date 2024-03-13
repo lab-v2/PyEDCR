@@ -1459,6 +1459,13 @@ class EDCR:
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
 
+        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
+            lrs=[self.lr],
+            combined=self.combined,
+            debug=False,
+            indices=examples_with_errors,
+            evaluation=True)
+
         (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
          fine_accuracy, coarse_accuracy) = vit_pipeline.evaluate_combined_model(
             fine_tuner=self.correction_model,

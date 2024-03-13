@@ -868,6 +868,7 @@ def initiate(lrs: list[typing.Union[str, float]],
     """
     Initializes models, datasets, and devices for training.
 
+    :param evaluation:
     :param indices:
     :param lrs: List of learning rates for the models.
     :param combined: Whether the model are individual or combine one.
