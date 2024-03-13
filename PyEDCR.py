@@ -1415,8 +1415,7 @@ class EDCR:
               f'theoretical recall decrease: -{utils.blue_text(detection_rule_theoretical_recall_decrease)}\n'
               f'{recall_theory_holds_str}')
 
-    def run_training_new_model_pipeline(self,
-                                        ):
+    def run_training_new_model_pipeline(self):
 
         examples_with_errors = set()
         for g in data_preprocessing.granularities.values():
@@ -1475,7 +1474,7 @@ class EDCR:
         for EDCR_epoch in range(EDCR_epoch_num):
             for g in data_preprocessing.granularities.values():
                 self.learn_detection_rules(g=g)
-                self.run_error_detection_application_pipeline(test=False, print_results=False)
+                self.apply_detection_rules(test=False, g=g)
 
             self.run_training_new_model_pipeline()
 
@@ -1593,7 +1592,7 @@ if __name__ == '__main__':
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline(EDCR_epoch_num=5)
-        edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
+        edcr.run_error_detection_application_pipeline(test=test_bool)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
         # edcr.apply_reversion_rules(g=gra)
