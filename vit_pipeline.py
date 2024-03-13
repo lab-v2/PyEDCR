@@ -12,7 +12,7 @@ import data_preprocessing
 
 batch_size = 64
 scheduler_gamma = 0.9
-num_epochs = 5
+num_epochs = 10
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
@@ -636,6 +636,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
     if not os.path.exists(f"{individual_results_path}test_true_coarse_individual.npy"):
         np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_true_coarse_data)
 
+
 def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              fine_tuner: models.FineTuner,
                              device: torch.device,
@@ -768,7 +769,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                         if batch_total_loss is not None and Y_original_fine is not None:
                             end_index = (batch_num + 1) * batch_size if batch_num + 1 < num_batches else \
-                                                                    len(Y_original_fine)
+                                len(Y_original_fine)
                             Y_original_fine_one_hot = torch.nn.functional.one_hot(
                                 torch.tensor(Y_original_fine[batch_num * batch_size:end_index]).to(device),
                                 num_classes=len(data_preprocessing.fine_grain_classes_str))
