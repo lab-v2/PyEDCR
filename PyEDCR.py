@@ -1610,7 +1610,7 @@ if __name__ == '__main__':
                     include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
-        edcr.run_learning_pipeline(EDCR_epoch_num=5)
+        edcr.run_learning_pipeline(EDCR_epoch_num=1)
         edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
