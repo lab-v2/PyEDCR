@@ -292,13 +292,14 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
     """
 
     data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), '.')
-    datasets = {f'{train_or_test}': CombinedImageFolderWithName(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
-                                                                transform=get_dataset_transforms(
-                                                                    train_or_test=train_or_test))
-    if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                   transform=
-                                                   get_dataset_transforms(train_or_test=train_or_test))
-                for train_or_test in ['train', 'test']}
+    datasets = {
+        f'{train_or_test}': CombinedImageFolderWithName(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
+                                                        transform=get_dataset_transforms(
+                                                            train_or_test=train_or_test))
+        if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
+                                                       transform=
+                                                       get_dataset_transforms(train_or_test=train_or_test))
+        for train_or_test in ['train', 'test']}
 
     classes = datasets['train'].classes
     assert classes == sorted(classes) == fine_grain_classes_str
@@ -325,10 +326,12 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
     return {train_or_test_dataset: torch.utils.data.DataLoader(
         dataset=datasets[train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train']
         if indices is None or train_or_test_dataset != 'train'
-        else torch.utils.data.Subset(datasets[train_or_test_dataset if train_or_test_dataset != 'train_eval'
-        else 'train'], indices),
+        else torch.utils.data.Subset(dataset=
+                                     datasets[
+                                         train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train'],
+                                     indices=indices),
         batch_size=batch_size,
-        shuffle=train_or_test_dataset == 'train')
+        shuffle=train_or_test_dataset == 'train' and indices is None)
         for train_or_test_dataset in ['train', 'train_eval', 'test']}
 
 
