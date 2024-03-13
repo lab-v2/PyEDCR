@@ -20,7 +20,7 @@ combined_results_path = fr'combined_results'
 individual_results_path = fr'individual_results'
 
 scheduler_step_size = num_epochs
-original_prediction_weight = 2
+original_prediction_weight = 0.1
 
 
 def get_filepath(model_name: typing.Union[str, models.FineTuner],
