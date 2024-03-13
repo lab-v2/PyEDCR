@@ -642,12 +642,13 @@ class EDCR:
         :param l: The label of interest.
         :return: The number of instances that is true negative and satisfying all conditions.
         """
-        where_train_tp_l = self.get_where_tp_l(test=False, l=l, stage=stage)
+
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
         where_any_conditions_satisfied_on_train = (
             self.get_where_any_conditions_satisfied(C=C,
                                                     fine_data=train_pred_fine_data,
                                                     coarse_data=train_pred_coarse_data))
+        where_train_tp_l = self.get_where_tp_l(test=False, l=l, stage=stage)
         NEG_l = np.sum(where_train_tp_l * where_any_conditions_satisfied_on_train)
 
         return NEG_l
@@ -1511,7 +1512,6 @@ class EDCR:
                 self.apply_detection_rules(test=False, g=g)
 
             self.run_training_new_model_pipeline()
-
             self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{EDCR_epoch_num}'
@@ -1624,7 +1624,7 @@ if __name__ == '__main__':
                     loss='soft_marginal',
                     lr=0.0001,
                     num_epochs=20,
-                    include_inconsistency_constraint=True)
+                    include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline(EDCR_epoch_num=5)
