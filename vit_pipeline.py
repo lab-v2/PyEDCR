@@ -12,7 +12,7 @@ import data_preprocessing
 
 batch_size = 64
 scheduler_gamma = 0.9
-num_epochs = 5
+num_epochs = 1
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
@@ -353,7 +353,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                             device: torch.device,
                             test: bool,
                             print_results: bool = True) -> (list[int], list[int], list[int], list[int], float, float):
-    loader = loaders['test' if test else f'train_eval']
+    loader = loaders['test' if test else f'train']
     fine_tuner.to(device)
     fine_tuner.eval()
 
