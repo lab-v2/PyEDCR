@@ -12,7 +12,7 @@ import data_preprocessing
 
 batch_size = 64
 scheduler_gamma = 0.9
-num_epochs = 1
+num_epochs = 5
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
@@ -353,7 +353,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                             device: torch.device,
                             test: bool,
                             print_results: bool = True) -> (list[int], list[int], list[int], list[int], float, float):
-    loader = loaders['test' if test else f'train']
+    loader = loaders['test' if test else f'train_eval']
     fine_tuner.to(device)
     fine_tuner.eval()
 
@@ -1049,12 +1049,12 @@ if __name__ == '__main__':
     #                               loss='BCE',
     #                               pretrained_path='models/vit_b_16_BCE_lr1e-05.pth')
 
-    run_combined_evaluating_pipeline(test=False,
-                                     lrs=[0.0001],
-                                     loss='BCE',
-                                     pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
-
-    run_combined_evaluating_pipeline(test=True,
-                                     lrs=[0.0001],
-                                     loss='BCE',
-                                     pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
+    # run_combined_evaluating_pipeline(test=False,
+    #                                  lrs=[0.0001],
+    #                                  loss='BCE',
+    #                                  pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
+    #
+    # run_combined_evaluating_pipeline(test=True,
+    #                                  lrs=[0.0001],
+    #                                  loss='BCE',
+    #                                  pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
