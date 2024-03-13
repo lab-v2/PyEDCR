@@ -1623,7 +1623,7 @@ if __name__ == '__main__':
                     combined=True,
                     loss='BCE',
                     lr=0.0001,
-                    num_epochs=9,
+                    num_epochs=10,
                     include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
