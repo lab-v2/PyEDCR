@@ -1451,7 +1451,8 @@ class EDCR:
             train_g_predictions = train_fine_predictions if g.g_str == 'fine' else train_coarse_predictions
             self.pred_data['train']['post_detection'][g][examples_with_errors] = train_g_predictions
 
-    def apply_new_model_on_test(self):
+    def apply_new_model_on_test(self,
+                                print_results: bool = True):
         new_fine_predictions, new_coarse_predictions = (
             vit_pipeline.run_combined_evaluating_pipeline(test=True,
                                                           lrs=[self.lr],
@@ -1466,6 +1467,9 @@ class EDCR:
             self.pred_data['test']['post_detection'][g] = np.where(self.pred_data['test']['post_detection'][g] == -1,
                                                                    test_g_predictions,
                                                                    self.pred_data['test']['post_detection'][g])
+
+        if print_results:
+            self.print_metrics(test=test_bool, prior=False, stage='post_detection')
 
     def run_learning_pipeline(self,
                               EDCR_epoch_num: int):
@@ -1592,7 +1596,7 @@ if __name__ == '__main__':
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline(EDCR_epoch_num=5)
-        edcr.run_error_detection_application_pipeline(test=test_bool)
+        edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
         # edcr.apply_reversion_rules(g=gra)
