@@ -1043,8 +1043,8 @@ def run_combined_evaluating_pipeline(test: bool,
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    run_combined_fine_tuning_pipeline(lrs=[0.0001],
-                                      loss='BCE')
+    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
+    #                                   loss='BCE')
 
     run_combined_evaluating_pipeline(test=False,
                                      lrs=[0.0001],
