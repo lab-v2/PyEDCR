@@ -1621,9 +1621,9 @@ if __name__ == '__main__':
         edcr = EDCR(epsilon=eps,
                     main_model_name='vit_b_16',
                     combined=True,
-                    loss='soft_marginal',
+                    loss='BCE',
                     lr=0.0001,
-                    num_epochs=20,
+                    num_epochs=9,
                     include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
