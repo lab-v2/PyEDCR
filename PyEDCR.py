@@ -1624,7 +1624,7 @@ if __name__ == '__main__':
                     loss='soft_marginal',
                     lr=0.0001,
                     num_epochs=20,
-                    include_inconsistency_constraint=False)
+                    include_inconsistency_constraint=True)
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline(EDCR_epoch_num=5)
