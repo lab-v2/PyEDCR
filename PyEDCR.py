@@ -1430,7 +1430,7 @@ class EDCR:
 
         examples_with_errors = np.array(list(examples_with_errors))
 
-        print(f'Number of errors: {len(examples_with_errors)}')
+        print(f'\nNumber of errors: {len(examples_with_errors)}\n')
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             lrs=[0.5 * self.lr],
