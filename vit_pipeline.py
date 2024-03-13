@@ -265,9 +265,9 @@ def save_prediction_files(test: bool,
                 test_coarse_prediction)
 
         if fine_ground_truths is not None:
-            np.save(f"{test_str}_fine/{test_str}_true_fine.npy",
+            np.save(f"data/{test_str}_fine/{test_str}_true_fine.npy",
                     fine_ground_truths)
-            np.save(f"{test_str}_coarse/{test_str}_true_coarse.npy",
+            np.save(f"data/{test_str}_coarse/{test_str}_true_coarse.npy",
                     coarse_ground_truths)
     else:
         np.save(f"{individual_results_path}_{test_str}_{fine_tuners['fine']}"
