@@ -1046,7 +1046,7 @@ if __name__ == '__main__':
     # run_combined_fine_tuning_pipeline(lrs=[0.0001],
     #                                   loss='BCE')
 
-    run_combined_evaluating_pipeline(test=True,
+    run_combined_evaluating_pipeline(test=False,
                                      lrs=[0.0001],
                                      loss='BCE',
                                      pretrained_path='vit_b_16_lr0.0001_BCE.pth')
