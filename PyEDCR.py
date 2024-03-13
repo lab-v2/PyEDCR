@@ -277,14 +277,17 @@ class EDCR:
         self.T_test = np.load(pred_paths['test']['fine']).shape[0]
 
         self.pred_data = \
-            {test_or_train: {'original': {g: np.load(pred_paths[test_or_train][str(g)])[
+            {test_or_train: {'original': {g: np.load(pred_paths[test_or_train][g.g_str])[
                 self.K_test if test_or_train == 'test' else self.K_train]
                                           for g in data_preprocessing.granularities.values()},
-                             'post_detection': {g: np.load(pred_paths[test_or_train][str(g)])[
+                             'mid_learning': {g: np.load(pred_paths[test_or_train][g.g_str])[
+                                 self.K_test if test_or_train == 'test' else self.K_train]
+                                              for g in data_preprocessing.granularities.values()},
+                             'post_detection': {g: np.load(pred_paths[test_or_train][g.g_str])[
                                  self.K_test if test_or_train == 'test' else self.K_train]
                                                 for g in data_preprocessing.granularities.values()},
                              'post_correction': {
-                                 g: np.load(pred_paths[test_or_train][str(g)])[
+                                 g: np.load(pred_paths[test_or_train][g.g_str])[
                                      self.K_test if test_or_train == 'test' else self.K_train]
                                  for g in data_preprocessing.granularities.values()}}
              for test_or_train in ['test', 'train']}
@@ -1003,6 +1006,8 @@ class EDCR:
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
         altered_pred_granularity_data = self.get_predictions(test=test, g=g, stage=stage)
 
+        self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
+
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
             altered_pred_data_l = rule_g_l(pred_fine_data=pred_fine_data,
                                            pred_coarse_data=pred_coarse_data)
@@ -1424,7 +1429,6 @@ class EDCR:
 
         examples_with_errors = np.array(list(examples_with_errors))
 
-
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             lrs=[self.lr],
             combined=self.combined,
@@ -1444,9 +1448,11 @@ class EDCR:
                 debug=False,
                 evaluate_on_test=False,
                 Y_original_fine=
-                self.pred_data['train']['post_detection'][data_preprocessing.granularities[0]][examples_with_errors],
+                self.pred_data['train']['mid_learning'][data_preprocessing.granularities['fine']][
+                    examples_with_errors],
                 Y_original_coarse=
-                self.pred_data['train']['post_detection'][data_preprocessing.granularities[1]][examples_with_errors]
+                self.pred_data['train']['mid_learning'][data_preprocessing.granularities['coarse']][
+                    examples_with_errors]
             )
             print('#' * 100)
 
@@ -1492,10 +1498,10 @@ class EDCR:
             self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{EDCR_epoch_num}'
-            
+
             print(utils.blue_text('\n' + '#' * 100 +
-                                  '\n' + '#' * int((100-len(edcr_epoch_str))/2) + edcr_epoch_str +
-                                  '#' * (100 - int((100-len(edcr_epoch_str))/2) - len(edcr_epoch_str)) +
+                                  '\n' + '#' * int((100 - len(edcr_epoch_str)) / 2) + edcr_epoch_str +
+                                  '#' * (100 - int((100 - len(edcr_epoch_str)) / 2) - len(edcr_epoch_str)) +
                                   '\n' + '#' * 100 + '\n'))
 
         # self.learn_correction_rules(g=g)

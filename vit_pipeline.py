@@ -696,7 +696,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         for epoch in range(epochs):
             print(f"Current lr={optimizer.param_groups[0]['lr']}")
 
-            with context_handlers.TimeWrapper():
+            with ((context_handlers.TimeWrapper())):
                 total_running_loss = torch.Tensor([0.0]).to(device)
                 running_fine_loss = torch.Tensor([0.0]).to(device)
                 running_coarse_loss = torch.Tensor([0.0]).to(device)
@@ -766,12 +766,17 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
                         if batch_total_loss is not None and Y_original_fine is not None:
-                            Y_original_fine_one_hot = torch.nn.functional.one_hot(Y_original_fine, num_classes=len(
-                                data_preprocessing.fine_grain_classes_str))
-                            Y_original_coarse_one_hot = torch.nn.functional.one_hot(Y_original_coarse, num_classes=len(
-                                data_preprocessing.coarse_grain_classes_str))
+                            end_index = (batch_num + 1) * batch_size if batch_num + 1 < len(batches) else \
+                                                                    len(Y_original_fine) - 1
+                            Y_original_fine_one_hot = torch.nn.functional.one_hot(
+                                torch.tensor(Y_original_fine[batch_num * batch_size:end_index]).to(device),
+                                num_classes=len(data_preprocessing.fine_grain_classes_str))
+                            Y_original_coarse_one_hot = torch.nn.functional.one_hot(
+                                torch.tensor(Y_original_coarse[batch_num * batch_size:end_index]).to(device),
+                                num_classes=len(data_preprocessing.coarse_grain_classes_str))
 
-                            Y_original_combine = torch.cat(tensors=[Y_original_fine_one_hot, Y_original_coarse_one_hot],
+                            Y_original_combine = torch.cat(tensors=[Y_original_fine_one_hot,
+                                                                    Y_original_coarse_one_hot],
                                                            dim=1).float()
                             batch_total_loss -= original_prediction_weight * criterion(Y_pred, Y_original_combine)
 
