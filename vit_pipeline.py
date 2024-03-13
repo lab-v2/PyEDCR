@@ -846,15 +846,16 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                           test_coarse_prediction=test_coarse_predictions,
                                           loss=loss)
 
-        if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
-            np.save(f"{combined_results_path}test_fine_true.npy", test_fine_ground_truths)
-        if not os.path.exists(f"{combined_results_path}test_coarse_true.npy"):
-            np.save(f"{combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
+        if save_files:
+            if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
+                np.save(f"{combined_results_path}test_fine_true.npy", test_fine_ground_truths)
+            if not os.path.exists(f"{combined_results_path}test_coarse_true.npy"):
+                np.save(f"{combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
-        if loss.split('_')[0] == 'LTN':
-            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
-        else:
-            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}.pth")
+            if loss.split('_')[0] == 'LTN':
+                torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
+            else:
+                torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}.pth")
 
         return train_fine_predictions, train_coarse_predictions
 
