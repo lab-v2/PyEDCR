@@ -1043,13 +1043,13 @@ def run_combined_evaluating_pipeline(test: bool,
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
-    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
-    #                                   loss='BCE')
+    run_combined_fine_tuning_pipeline(lrs=[0.0001],
+                                      loss='BCE')
 
     run_combined_evaluating_pipeline(test=False,
                                      lrs=[0.0001],
                                      loss='BCE',
-                                     pretrained_path='vit_b_16_lr0.0001_BCE_.pth')
+                                     pretrained_path='vit_b_16_lr0.0001_BCE.pth')
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],
