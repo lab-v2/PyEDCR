@@ -1605,7 +1605,7 @@ if __name__ == '__main__':
         # precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
         # recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
 
-        edcr.print_metrics(test=test_bool, prior=False, stage='post_detection', print_inconsistencies=False)
+        edcr.print_metrics(test=test_bool, prior=False, stage='post_detection')
 
     # folder = "experiment_1"
     #
