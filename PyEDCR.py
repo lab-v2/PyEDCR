@@ -1433,14 +1433,14 @@ class EDCR:
         print(utils.red_text(f'\nNumber of errors: {len(examples_with_errors)}\n'))
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            lrs=[self.lr],
+            lrs=[2 * self.lr],
             combined=self.combined,
             debug=False,
             indices=examples_with_errors)
 
         with (context_handlers.ClearSession()):
             vit_pipeline.fine_tune_combined_model(
-                lrs=[self.lr],
+                lrs=[2 * self.lr],
                 fine_tuner=fine_tuners[0] if self.correction_model is None else self.correction_model,
                 device=devices[0],
                 loaders=loaders,
@@ -1629,7 +1629,7 @@ if __name__ == '__main__':
                     include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
-        edcr.run_learning_pipeline(EDCR_epoch_num=10)
+        edcr.run_learning_pipeline(EDCR_epoch_num=5)
         edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
