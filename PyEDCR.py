@@ -1450,12 +1450,12 @@ class EDCR:
                 save_files=False,
                 debug=False,
                 evaluate_on_test=False,
-                # Y_original_fine=
-                # self.pred_data['train']['mid_learning'][data_preprocessing.granularities['fine']][
-                #     examples_with_errors],
-                # Y_original_coarse=
-                # self.pred_data['train']['mid_learning'][data_preprocessing.granularities['coarse']][
-                #     examples_with_errors]
+                Y_original_fine=
+                self.pred_data['train']['mid_learning'][data_preprocessing.granularities['fine']][
+                    examples_with_errors],
+                Y_original_coarse=
+                self.pred_data['train']['mid_learning'][data_preprocessing.granularities['coarse']][
+                    examples_with_errors]
             )
             print('#' * 100)
 
