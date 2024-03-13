@@ -635,7 +635,6 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
     if not os.path.exists(f"{individual_results_path}test_true_coarse_individual.npy"):
         np.save(f"{individual_results_path}test_true_coarse_individual.npy", test_true_coarse_data)
 
-
 def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              fine_tuner: models.FineTuner,
                              device: torch.device,
@@ -648,7 +647,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              save_files: bool = True,
                              debug: bool = False,
                              evaluate_on_test: bool = True,
-                             Y_original: np.array = None):
+                             Y_original_fine: np.array = None,
+                             Y_original_coarse: np.array = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -765,8 +765,15 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
-                        if batch_total_loss is not None and Y_original is not None:
-                            batch_total_loss -= original_prediction_weight * criterion(Y_pred, Y_original)
+                        if batch_total_loss is not None and Y_original_fine is not None:
+                            Y_original_fine_one_hot = torch.nn.functional.one_hot(Y_original_fine, num_classes=len(
+                                data_preprocessing.fine_grain_classes_str))
+                            Y_original_coarse_one_hot = torch.nn.functional.one_hot(Y_original_coarse, num_classes=len(
+                                data_preprocessing.coarse_grain_classes_str))
+
+                            Y_original_combine = torch.cat(tensors=[Y_original_fine_one_hot, Y_original_coarse_one_hot],
+                                                           dim=1).float()
+                            batch_total_loss -= original_prediction_weight * criterion(Y_pred, Y_original_combine)
 
                         print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,

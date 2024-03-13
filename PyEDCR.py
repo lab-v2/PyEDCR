@@ -1424,6 +1424,7 @@ class EDCR:
 
         examples_with_errors = np.array(list(examples_with_errors))
 
+
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             lrs=[self.lr],
             combined=self.combined,
@@ -1432,7 +1433,7 @@ class EDCR:
 
         with (context_handlers.ClearSession()):
             train_fine_predictions, train_coarse_predictions = vit_pipeline.fine_tune_combined_model(
-                lrs=[self.lr],
+                lrs=[5 * self.lr],
                 fine_tuner=fine_tuners[0] if self.correction_model is None else self.correction_model,
                 device=devices[0],
                 loaders=loaders,
@@ -1441,7 +1442,12 @@ class EDCR:
                 loss=self.loss,
                 save_files=False,
                 debug=False,
-                evaluate_on_test=False)
+                evaluate_on_test=False,
+                Y_original_fine=
+                self.pred_data['train']['post_detection'][data_preprocessing.granularities[0]][examples_with_errors],
+                Y_original_coarse=
+                self.pred_data['train']['post_detection'][data_preprocessing.granularities[1]][examples_with_errors]
+            )
             print('#' * 100)
 
         if self.correction_model is None:
