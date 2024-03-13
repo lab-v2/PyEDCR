@@ -1475,12 +1475,15 @@ class EDCR:
                               EDCR_epoch_num: int):
         print('Started learning pipeline...\n')
 
+        self.print_metrics(test=False, prior=True)
         for EDCR_epoch in range(EDCR_epoch_num):
             for g in data_preprocessing.granularities.values():
                 self.learn_detection_rules(g=g)
                 self.apply_detection_rules(test=False, g=g)
 
             self.run_training_new_model_pipeline()
+
+            self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{EDCR_epoch_num}'
             
