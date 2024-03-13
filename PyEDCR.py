@@ -1437,7 +1437,7 @@ class EDCR:
 
         with (context_handlers.ClearSession()):
             train_fine_predictions, train_coarse_predictions = vit_pipeline.fine_tune_combined_model(
-                lrs=[2 * self.lr],
+                lrs=[self.lr],
                 fine_tuner=fine_tuners[0] if self.correction_model is None else self.correction_model,
                 device=devices[0],
                 loaders=loaders,
