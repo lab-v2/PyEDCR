@@ -985,10 +985,12 @@ def run_combined_evaluating_pipeline(test: bool,
                                      pretrained_fine_tuner: models.FineTuner = None,
                                      save_files: bool = True,
                                      debug: bool = utils.is_debug_mode(),
-                                     print_results: bool = True):
+                                     print_results: bool = True,
+                                     indices: np.array = None):
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
+    :param indices:
     :param print_results:
     :param pretrained_fine_tuner:
     :param test: True for test data, False for train data.
@@ -1011,6 +1013,7 @@ def run_combined_evaluating_pipeline(test: bool,
                  combined=True,
                  pretrained_path=pretrained_path,
                  debug=debug,
+                 indices=indices,
                  evaluation=True))
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,

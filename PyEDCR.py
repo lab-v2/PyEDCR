@@ -1465,7 +1465,8 @@ class EDCR:
                                                           loss=self.loss,
                                                           pretrained_fine_tuner=self.correction_model,
                                                           save_files=False,
-                                                          print_results=False))
+                                                          print_results=False,
+                                                          indices=examples_with_errors))
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['fine']][
             examples_with_errors] = fine_predictions
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['coarse']][
