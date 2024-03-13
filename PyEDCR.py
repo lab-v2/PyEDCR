@@ -7,6 +7,8 @@ import multiprocessing as mp
 import multiprocessing.managers
 import warnings
 import matplotlib.pyplot as plt
+import heapq
+import copy
 import random
 from itertools import combinations
 
@@ -756,10 +758,17 @@ class EDCR:
 
         return DC_l
 
+    def objective_function(self,
+                           l: data_preprocessing.Label,
+                           CC: set[(_Condition, data_preprocessing.Label)]):
+        return self.get_CON_l_CC(l=l, CC=CC) * self.get_CON_l_CC(l=l, CC=CC) * self.get_BOD_CC(CC)[0]
+
     def _CorrRuleLearn(self,
                        l: data_preprocessing.Label,
                        CC_all: set[(_Condition, data_preprocessing.Label)],
-                       shared_index: mp.managers.ValueProxy) -> \
+                       shared_index: mp.managers.ValueProxy,
+                       beam_width: int = 30,
+                       relaxation: int = 0.3) -> \
             (data_preprocessing.Label, [tuple[_Condition, data_preprocessing.Label]]):
         """Learns error correction rules for a specific label and granularity. These rules associate conditions
         with alternative labels that are more likely to be correct when those conditions are met.
@@ -769,37 +778,47 @@ class EDCR:
         :return: A set of condition-label pairs.
         """
         CC_l = set()
-        # CC_l_prime = CC_all.copy()
-        CC_l_prime = set(*c_l for c_l in combinations(CC_all.copy(), 2)
-                         if self.get_CON_l_CC(l=l, CC=c_l) > self.get_l_precision_and_recall(test=False, l=l)[0])
-        CC_sorted = sorted(CC_l_prime, key=lambda c_l: self.get_CON_l_CC(l=l, CC={c_l}))
+        beam = []
+        temp_beam = []
+        counter = 0
+        # Pre-calculate p_l for efficiency
+        p_l = self.get_l_precision_and_recall(test=False, l=l)[0]
 
-        with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
-            for cond_and_l in CC_sorted:
-                a = self.get_CON_l_CC(l=l, CC=CC_l.union({cond_and_l})) - self.get_CON_l_CC(l=l, CC=CC_l)
-                b = (self.get_CON_l_CC(l=l, CC=CC_l_prime.difference({cond_and_l})) -
-                     self.get_CON_l_CC(l=l, CC=CC_l_prime))
+        # Initialise the beam with the top beam_width candidates
+        for cond_and_l in heapq.nlargest(beam_width, CC_all,
+                                         key=lambda c_l: self.objective_function(l=l, CC={c_l})):
+            CC_candidate = {cond_and_l}
+            score = self.objective_function(l=l, CC=CC_candidate)
+            heapq.heappush(beam, (score, CC_candidate))
 
-                # randomized algorithm
-                a_prime = max(a, 0)
-                b_prime = max(b, 0)
-                P = a_prime / (a_prime + b_prime) if not (a_prime == 0 and b_prime == 0) else 1
+        while counter <= 10:
+            temp_beam = copy.copy(beam)
 
-                # if a >= b:
-                if ((not randomized) and a >= b) or (randomized and (random.random() < P)):
-                    CC_l = CC_l.union({cond_and_l})
-                else:
-                    CC_l_prime = CC_l_prime.difference({cond_and_l})
+            for _, CC_candidate in beam:
+                expanded_candidates = [
+                    CC_candidate.union({cond_and_l})
+                    for cond_and_l in CC_all.difference(CC_candidate)
+                ]
 
-                if utils.is_local():
-                    progress_bar.update(1)
+                # Evaluate and maintain the top-k candidates in the beam
+                for expanded_candidate in expanded_candidates:
+                    score = self.objective_function(l=l, CC=expanded_candidate)
+                    heapq.heappush(temp_beam, (score, expanded_candidate))
+                    if len(temp_beam) > beam_width:
+                        heapq.heappop(temp_beam)  # Keep only the top-k candidates
 
-        assert CC_l_prime == CC_l
+            beam = temp_beam
+            counter += 1
+
+        # Choose the best candidate from the final beam
+        best_CC_l = sorted(beam, key=lambda x: x[0], reverse=True)[0][1]
+        CC_l = best_CC_l
 
         p_l = self.get_l_precision_and_recall(test=False, l=l)[0]
         CON_CC_l = self.get_CON_l_CC(l=l, CC=CC_l)
+        POS_CC_l = self.get_BOD_CC(CC=CC_l)[0] * self.get_CON_l_CC(l=l, CC=CC_l)
 
-        print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={CON_CC_l}, '
+        print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={CON_CC_l}, POS_l_CC={POS_CC_l}, '
               f'p_l={p_l}\n')
 
         if CON_CC_l <= p_l:
@@ -1264,7 +1283,7 @@ class EDCR:
         for g in data_preprocessing.granularities.values():
             self.apply_correction_rules(test=test, g=g)
 
-        self.print_metrics(test=test, prior=False, stage='post_correction', print_inconsistencies=False)
+        self.print_metrics(test=test, prior=False, stage='post_correction', print_inconsistencies=True)
 
 
 def plot_per_class(ps,
