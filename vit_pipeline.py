@@ -863,7 +863,8 @@ def initiate(lrs: list[typing.Union[str, float]],
              combined: bool,
              pretrained_path: str = None,
              debug: bool = False,
-             indices: typing.Sequence = None):
+             indices: typing.Sequence = None,
+             evaluation: bool = None):
     """
     Initializes models, datasets, and devices for training.
 
@@ -927,7 +928,8 @@ def initiate(lrs: list[typing.Union[str, float]],
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size,
-                                             indices=indices)
+                                             indices=indices,
+                                             evaluation=evaluation)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of test images: {len(loaders['test'].dataset)}")
@@ -1008,7 +1010,8 @@ def run_combined_evaluating_pipeline(test: bool,
         initiate(lrs=lrs,
                  combined=True,
                  pretrained_path=pretrained_path,
-                 debug=debug))
+                 debug=debug,
+                 evaluation=True))
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
      fine_accuracy, coarse_accuracy) = evaluate_combined_model(

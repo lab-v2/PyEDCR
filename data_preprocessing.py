@@ -312,7 +312,8 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
 
 def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, IndividualImageFolderWithName]],
                 batch_size: int,
-                indices: typing.Sequence = None) -> dict[str, torch.utils.data.DataLoader]:
+                indices: typing.Sequence = None,
+                evaluation: bool = None) -> dict[str, torch.utils.data.DataLoader]:
     """
     Instantiates and returns train and test torch data loaders
 
@@ -331,7 +332,7 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
                                          train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train'],
                                      indices=indices),
         batch_size=batch_size,
-        shuffle=train_or_test_dataset == 'train')
+        shuffle=train_or_test_dataset == 'train' and not (evaluation is not None and evaluation))
         for train_or_test_dataset in ['train', 'train_eval', 'test']}
 
 

@@ -1436,7 +1436,7 @@ class EDCR:
             indices=examples_with_errors)
 
         with (context_handlers.ClearSession()):
-            train_fine_predictions, train_coarse_predictions = vit_pipeline.fine_tune_combined_model(
+            vit_pipeline.fine_tune_combined_model(
                 lrs=[self.lr],
                 fine_tuner=fine_tuners[0] if self.correction_model is None else self.correction_model,
                 device=devices[0],
@@ -1459,9 +1459,17 @@ class EDCR:
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
 
-        for g in data_preprocessing.granularities.values():
-            train_g_predictions = train_fine_predictions if g.g_str == 'fine' else train_coarse_predictions
-            self.pred_data['train']['post_detection'][g][examples_with_errors] = train_g_predictions
+        fine_predictions, coarse_predictions = (
+            vit_pipeline.run_combined_evaluating_pipeline(test=False,
+                                                          lrs=[self.lr],
+                                                          loss=self.loss,
+                                                          pretrained_fine_tuner=self.correction_model,
+                                                          save_files=False,
+                                                          print_results=False))
+        self.pred_data['train']['post_detection'][data_preprocessing.granularities['fine']][
+            examples_with_errors] = fine_predictions
+        self.pred_data['train']['post_detection'][data_preprocessing.granularities['coarse']][
+            examples_with_errors] = coarse_predictions
 
     def apply_new_model_on_test(self,
                                 print_results: bool = True):
