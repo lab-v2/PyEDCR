@@ -6,9 +6,7 @@ import numpy as np
 import multiprocessing as mp
 import multiprocessing.managers
 import warnings
-import matplotlib.pyplot as plt
 import random
-from itertools import combinations
 
 warnings.filterwarnings('ignore')
 
@@ -16,6 +14,7 @@ import utils
 import data_preprocessing
 import vit_pipeline
 import context_handlers
+import metrics
 
 randomized: bool = False
 
@@ -394,8 +393,8 @@ class EDCR:
             data_preprocessing.get_ground_truths(test=test, K=self.K_test if test else self.K_train, g=l.g))
         return np.where(data == l.index, 1, 0)
 
-    def get_where_label_is_l_in_data(self,
-                                     l: data_preprocessing.Label,
+    @staticmethod
+    def get_where_label_is_l_in_data(l: data_preprocessing.Label,
                                      test_pred_fine_data: np.array,
                                      test_pred_coarse_data: np.array) -> np.array:
         """ Retrieves indices of instances where the specified label is present.
@@ -658,7 +657,6 @@ class EDCR:
         """Calculate the number of train samples that satisfy any conditions for some set of condition.
 
         :param C: A set of `Condition` objects.
-        :param l: The label of interest.
         :return: The number of instances that are false negative and satisfying some conditions.
         """
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
@@ -798,57 +796,6 @@ class EDCR:
 
         return DC_l
 
-    def singleton_CorrRuleLearn(self,
-                                l: data_preprocessing.Label,
-                                CC_all: set[(_Condition, data_preprocessing.Label)]
-                                ):
-        p_l = self.get_l_precision_and_recall(test=False, l=l)[0]
-        CC_l = {cond_and_l for cond_and_l in CC_all if self.get_CON_l_CC(test=False, l=l, CC={cond_and_l}) > p_l}
-        return l, CC_l
-
-    def monotonic_CorrRuleLearn(self,
-                                l: data_preprocessing.Label,
-                                CC_all: set[(_Condition, data_preprocessing.Label)],
-                                shared_index: mp.managers.ValueProxy):
-        """Learns error detection rules for a specific label and granularity. These rules capture conditions
-                that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
-
-                :param shared_index:
-                :param CC_all:
-                :param l: The label of interest.
-                :return: A set of `Condition` representing the learned error detection rules.
-                """
-        CC_l = set()
-
-        P_l = self.get_l_precision_and_recall(test=False, l=l, stage='original')[0]
-
-        CC_star = {(cond_l, l_prime) for (cond_l, l_prime) in CC_all if self.get_CON_l_CC(test=False, l=l,
-                                                                                          CC={(cond_l, l_prime)}) > P_l}
-        # CC_star = CC_all
-
-        while CC_star != set():
-            best_score = -1
-            best_pair = None
-
-            for (cond_l, l_prime) in CC_star:
-                POS_l_CC = self.get_POS_l_CC(test=False, l=l, CC=CC_l.union({(cond_l, l_prime)}))
-                if POS_l_CC >= best_score:
-                    best_score = POS_l_CC
-                    best_pair = (cond_l, l_prime)
-
-            CC_l = CC_l.union({best_pair})
-            CC_star = {(cond_l, l_prime) for (cond_l, l_prime) in CC_all.difference(CC_l)
-                       if self.get_CON_l_CC(test=False, l=l, CC=CC_l.union({(cond_l, l_prime)})) > P_l}
-
-        CON_l_CC = self.get_CON_l_CC(test=False, l=l, CC=CC_l)
-        print(f'\n{l}: len(CC_l)={len(CC_l)}/{len(CC_all)}, CON_l_CC={CON_l_CC}, p_l={P_l}\n')
-
-        if not utils.is_local():
-            shared_index.value += 1
-            print(f'Completed {shared_index.value}/{len(data_preprocessing.get_labels(l.g).values())}')
-
-        return l, CC_l
-
     def _CorrRuleLearn(self,
                        l: data_preprocessing.Label,
                        CC_all: set[(_Condition, data_preprocessing.Label)],
@@ -862,15 +809,6 @@ class EDCR:
         :return: A set of condition-label pairs.
         """
         CC_l = set()
-
-        # CC_l_prime = set()
-        # n = 3
-        # n_combinations = combinations(CC_all.copy(), n)
-        #
-        # for combination in n_combinations:
-        #     combination: set
-        #     if self.get_CON_l_CC(l=l, CC=combination) > self.get_l_precision_and_recall(test=False, l=l)[0]:
-        #         CC_l_prime = CC_l_prime.union(combination)
 
         CC_l_prime = CC_all
         CC_sorted = sorted(CC_l_prime, key=lambda c_l: self.get_CON_l_CC(test=False, l=l, CC={c_l}))
@@ -933,42 +871,6 @@ class EDCR:
                 if utils.is_local():
                     progress_bar.update(1)
 
-    def learn_correction_rules_alt(self,
-                                   g: data_preprocessing.Granularity):
-        granularity_labels = data_preprocessing.get_labels(g).values()
-        candidates = {l: set() for l in granularity_labels}
-
-        for l in granularity_labels:
-            P_l = self.get_l_precision_and_recall(test=False, l=l, stage='original')[0]
-
-            for (cond, l_prime) in self.CC_all[g]:
-                CON_l_CC = self.get_CON_l_CC(test=False, l=l, CC={(cond, l_prime)})
-                if CON_l_CC > P_l:
-                    candidates[l] = candidates[l].union({(cond, l_prime)})
-
-        for l in granularity_labels:
-            for pair in candidates[l]:
-                curr_label = l
-                recall_increase_for_l = self.get_l_correction_rule_theoretical_recall_increase(test=False, l=l,
-                                                                                               CC_l={pair})
-                for l_prime in granularity_labels:
-                    if l_prime != l and pair in candidates[l_prime]:
-                        recall_increase_for_l_prime = self.get_l_correction_rule_theoretical_recall_increase(test=False,
-                                                                                                             l=l_prime,
-                                                                                                             CC_l={
-                                                                                                                 pair})
-                        if recall_increase_for_l_prime < recall_increase_for_l:
-                            candidates[l_prime] = candidates[l_prime].difference({pair})
-                        else:
-                            candidates[l] = candidates[l].difference({pair})
-                            curr_label = l_prime
-                            recall_increase_for_l = recall_increase_for_l_prime
-
-                # candidates[curr_label] = candidates[curr_label].difference({pair})
-
-        for l in granularity_labels:
-            self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=candidates[l])
-
     def learn_correction_rules(self,
                                g: data_preprocessing.Granularity):
 
@@ -985,7 +887,7 @@ class EDCR:
                      ) for l in granularity_labels]
 
         with mp.Pool(processes_num) as pool:
-            CC_ls = pool.starmap(func=self.monotonic_CorrRuleLearn,
+            CC_ls = pool.starmap(func=self._CorrRuleLearn,
                                  iterable=iterable)
 
         for l, CC_l in CC_ls:
@@ -1074,14 +976,7 @@ class EDCR:
               f'{precision_theory_holds_str}'
               )
 
-    def get_l_correction_rule_theoretical_recall_increase(self,
-                                                          test: bool,
-                                                          l: data_preprocessing.Label,
-                                                          CC_l: set[(_Condition, data_preprocessing.Label)]) -> float:
-        POS_CC_l = self.get_POS_l_CC(test=test, l=l, CC=CC_l)
-        denominator = np.sum(self.get_where_label_is_l(pred=False, test=True, l=l, stage='original'))
 
-        return POS_CC_l / denominator
 
     def print_how_many_not_assigned(self,
                                     test: bool,
@@ -1111,10 +1006,10 @@ class EDCR:
                                                                                       stage='post_correction')
 
             correction_rule_theoretical_precision_increase = (
-                self.get_l_correction_rule_theoretical_precision_increase(test=test, l=l))
+                metrics.get_l_correction_rule_theoretical_precision_increase(edcr=self, test=test, l=l))
             correction_rule_theoretical_recall_increase = (
-                self.get_l_correction_rule_theoretical_recall_increase(test=test, l=l,
-                                                                       CC_l=self.error_correction_rules[l].C_l))
+                metrics.get_l_correction_rule_theoretical_recall_increase(edcr=self, test=test, l=l,
+                                                                          CC_l=self.error_correction_rules[l].C_l))
 
             altered_pred_data_l = rule_g_l(
                 fine_data=self.pred_data[test_or_train]['post_correction'][data_preprocessing.granularities['fine']],
@@ -1183,244 +1078,6 @@ class EDCR:
                                                     self.pred_data[test_or_train]['original'][g],
                                                     pred_granularity_data)
 
-    def get_l_detection_rule_support(self,
-                                     test: bool,
-                                     l: data_preprocessing.Label) -> float:
-        if l not in self.error_detection_rules:
-            return 0
-
-        test_or_train = 'test' if test else 'train'
-
-        N_l = np.sum(self.get_where_label_is_l(pred=True, test=test, l=l))
-        r_l = self.error_detection_rules[l]
-        where_l_detection_rule_body_is_satisfied = (
-            r_l.get_where_body_is_satisfied(
-                pred_fine_data=self.pred_data[test_or_train]['original'][data_preprocessing.granularities['fine']],
-                pred_coarse_data=self.pred_data[test_or_train]['original'][data_preprocessing.granularities['coarse']]))
-        num_predicted_l_and_any_conditions_satisfied = np.sum(where_l_detection_rule_body_is_satisfied)
-        s_l = num_predicted_l_and_any_conditions_satisfied / N_l
-
-        assert s_l <= 1
-
-        return s_l
-
-    def get_l_detection_rule_confidence(self,
-                                        test: bool,
-                                        l: data_preprocessing.Label) -> float:
-        if l not in self.error_detection_rules:
-            return 0
-
-        test_or_train = 'test' if test else 'train'
-
-        r_l = self.error_detection_rules[l]
-        where_l_detection_rule_body_is_satisfied = (
-            r_l.get_where_body_is_satisfied(
-                pred_fine_data=self.pred_data[test_or_train]['original'][data_preprocessing.granularities['fine']],
-                pred_coarse_data=self.pred_data[test_or_train]['original'][data_preprocessing.granularities['coarse']]))
-        where_l_fp = self.get_where_fp_l(test=test, l=l)
-        where_head_and_body_is_satisfied = where_l_detection_rule_body_is_satisfied * where_l_fp
-
-        num_where_l_detection_rule_body_is_satisfied = np.sum(where_l_detection_rule_body_is_satisfied)
-
-        if num_where_l_detection_rule_body_is_satisfied == 0:
-            return 0
-
-        c_l = np.sum(where_head_and_body_is_satisfied) / num_where_l_detection_rule_body_is_satisfied
-        return c_l
-
-    def get_l_detection_rule_theoretical_precision_increase(self,
-                                                            test: bool,
-                                                            l: data_preprocessing.Label) -> float:
-        s_l = self.get_l_detection_rule_support(test=test, l=l)
-
-        if s_l == 0:
-            return 0
-
-        c_l = self.get_l_detection_rule_confidence(test=test, l=l)
-        p_l = self.get_l_precision_and_recall(l=l, test=test, stage='original')[0]
-
-        return s_l / (1 - s_l) * (c_l + p_l - 1)
-
-    def get_g_detection_rule_theoretical_precision_increase(self,
-                                                            test: bool,
-                                                            g: data_preprocessing.Granularity):
-        precision_increases = [self.get_l_detection_rule_theoretical_precision_increase(test=test, l=l)
-                               for l in data_preprocessing.get_labels(g).values()]
-        return np.mean(precision_increases)
-
-    def get_l_detection_rule_theoretical_recall_decrease(self,
-                                                         test: bool,
-                                                         l: data_preprocessing.Label) -> float:
-        c_l = self.get_l_detection_rule_confidence(test=test, l=l)
-        s_l = self.get_l_detection_rule_support(test=test, l=l)
-        p_l, r_l = self.get_l_precision_and_recall(l=l, test=test, stage='original')
-
-        return (1 - c_l) * s_l * r_l / p_l
-
-    def get_g_detection_rule_theoretical_recall_decrease(self,
-                                                         test: bool,
-                                                         g: data_preprocessing.Granularity):
-        recall_decreases = [self.get_l_detection_rule_theoretical_recall_decrease(test=test, l=l)
-                            for l in data_preprocessing.get_labels(g).values()]
-        return np.mean(recall_decreases)
-
-    def get_l_correction_rule_confidence(self,
-                                         test: bool,
-                                         l: data_preprocessing.Label,
-                                         pred_fine_data: np.array = None,
-                                         pred_coarse_data: np.array = None
-                                         ) -> float:
-        if l not in self.error_correction_rules:
-            return 0
-
-        test_or_train = 'test' if test else 'train'
-
-        r_l = self.error_correction_rules[l]
-        where_l_correction_rule_body_is_satisfied = (
-            r_l.get_where_body_is_satisfied(
-                fine_data=self.pred_data[test_or_train]['post_correction'][data_preprocessing.granularities['fine']]
-                if pred_fine_data is None else pred_fine_data,
-                coarse_data=self.pred_data[test_or_train]['post_correction'][data_preprocessing.granularities['coarse']]
-                if pred_coarse_data is None else pred_coarse_data))
-        where_l_gt = self.get_where_label_is_l(pred=False, test=test, l=l)
-
-        where_head_and_body_is_satisfied = where_l_correction_rule_body_is_satisfied * where_l_gt
-        num_where_l_correction_rule_body_is_satisfied = np.sum(where_l_correction_rule_body_is_satisfied)
-
-        if num_where_l_correction_rule_body_is_satisfied == 0:
-            return 0
-
-        c_l = np.sum(where_head_and_body_is_satisfied) / num_where_l_correction_rule_body_is_satisfied
-        return c_l
-
-    def check_g_correction_rule_precision_recall(self,
-                                                 test: bool,
-                                                 g: data_preprocessing.Granularity):
-
-        for l in data_preprocessing.get_labels(g).values():
-            c_l = self.get_l_correction_rule_confidence(test=test, l=l)
-            p_l = self.post_detection_test_precisions[g][l]
-            r_l = self.post_detection_test_recalls[g][l]
-            (p_l_new, r_l_new) = self.post_correction_test_precisions[g][l], self.post_correction_test_recalls[g][l]
-
-            try:
-                assert r_l_new >= r_l
-            except AssertionError:
-                print(f'class {l}: new recall: {r_l_new}, old recall: {r_l}, '
-                      f'diff: {r_l_new - r_l}')
-
-            try:
-                if c_l > p_l:
-                    assert p_l_new > p_l
-
-                if p_l_new > p_l:
-                    assert c_l > p_l
-            except AssertionError:
-                print(f'class {l}: new precision: {p_l_new}, old precision: {p_l}, '
-                      f'diff: {p_l_new - p_l}')
-                print(f'class {l}: confidence: {c_l}')
-
-    def get_l_correction_rule_support(self,
-                                      test: bool,
-                                      l: data_preprocessing.Label,
-                                      pred_fine_data: np.array = None,
-                                      pred_coarse_data: np.array = None
-                                      ) -> float:
-        if l not in self.error_correction_rules:
-            return 0
-
-        test_or_train = 'test' if test else 'train'
-
-        N_l = np.sum(self.get_where_label_is_l(pred=True, test=test, l=l, stage='post_correction')
-                     if (pred_fine_data is None and pred_coarse_data is None)
-                     else self.get_where_label_is_l_in_data(l=l,
-                                                            test_pred_fine_data=pred_fine_data,
-                                                            test_pred_coarse_data=pred_coarse_data))
-        if N_l == 0:
-            return 0
-
-        r_l = self.error_correction_rules[l]
-        where_rule_body_is_satisfied = (
-            r_l.get_where_body_is_satisfied(
-                fine_data=self.pred_data[test_or_train]['post_correction'][data_preprocessing.granularities['fine']]
-                if pred_fine_data is None else pred_fine_data,
-                coarse_data=self.pred_data[test_or_train]['post_correction'][
-                    data_preprocessing.granularities['coarse']]
-                if pred_coarse_data is None else pred_coarse_data))
-
-        s_l = np.sum(where_rule_body_is_satisfied) / N_l
-
-        return s_l
-
-    def get_l_correction_rule_theoretical_precision_increase(self,
-                                                             test: bool,
-                                                             l: data_preprocessing.Label) -> float:
-        c_l = self.get_l_correction_rule_confidence(test=test, l=l)
-        s_l = self.get_l_correction_rule_support(test=test, l=l)
-        p_l_prior_correction = self.get_l_precision_and_recall(l=l,
-                                                               test=test,
-                                                               stage='post_correction')[0]
-
-        return s_l * (c_l - p_l_prior_correction) / (1 + s_l)
-
-    def get_g_correction_rule_theoretical_precision_increase(self,
-                                                             test: bool,
-                                                             g: data_preprocessing.Granularity):
-        precision_increases = [self.get_l_correction_rule_theoretical_precision_increase(test=test, l=l)
-                               for l in data_preprocessing.get_labels(g).values()]
-        return np.mean(precision_increases)
-
-    def evaluate_and_print_g_detection_rule_precision_increase(self,
-                                                               test: bool,
-                                                               g: data_preprocessing.Granularity,
-                                                               threshold: float = 1e-5):
-        original_g_precisions = self.get_g_precision_and_recall(g=g, test=test, stage='original')[0]
-        post_detection_g_precisions = self.get_g_precision_and_recall(g=g, test=test, stage='post_detection')[0]
-
-        original_g_mean_precision = np.mean(list(original_g_precisions.values()))
-        post_detection_mean_precision = np.mean(list(post_detection_g_precisions.values()))
-
-        precision_diff = post_detection_mean_precision - original_g_mean_precision
-        detection_rule_theoretical_precision_increase = (
-            self.get_g_detection_rule_theoretical_precision_increase(test=test, g=g))
-        precision_theory_holds = abs(detection_rule_theoretical_precision_increase - precision_diff) < threshold
-        precision_theory_holds_str = utils.green_text('The theory holds!') if precision_theory_holds else (
-            utils.red_text('The theory does not hold!'))
-
-        print('\n' + '#' * 20 + f'post detection {g}-grain precision results' + '#' * 20)
-
-        print(f'{g}-grain new mean precision: {post_detection_mean_precision}, '
-              f'{g}-grain old mean precision: {original_g_mean_precision}, '
-              f'diff: {utils.blue_text(precision_diff)}\n'
-              f'theoretical precision increase: {utils.blue_text(detection_rule_theoretical_precision_increase)}\n'
-              f'{precision_theory_holds_str}'
-              )
-
-    def evaluate_and_print_g_detection_rule_recall_decrease(self,
-                                                            test: bool,
-                                                            g: data_preprocessing.Granularity,
-                                                            threshold: float = 1e-5):
-        original_g_recalls = self.get_g_precision_and_recall(g=g, test=test, stage='original')[1]
-        post_detection_recalls = self.get_g_precision_and_recall(g=g, test=test, stage='post_detection')[1]
-
-        original_g_mean_recall = np.mean(list(original_g_recalls.values()))
-        post_detection_g_mean_recall = np.mean(list(post_detection_recalls.values()))
-        recall_diff = post_detection_g_mean_recall - original_g_mean_recall
-
-        detection_rule_theoretical_recall_decrease = (
-            self.get_g_detection_rule_theoretical_recall_decrease(test=test, g=g))
-        recall_theory_holds = abs(abs(detection_rule_theoretical_recall_decrease) - abs(recall_diff)) < threshold
-        recall_theory_holds_str = utils.green_text('The theory holds!') if recall_theory_holds else (
-            utils.red_text('The theory does not hold!'))
-
-        print('\n' + '#' * 20 + f'post detection {g}-grain recall results' + '#' * 20)
-
-        print(f'{g}-grain new mean recall: {post_detection_g_mean_recall}, '
-              f'{g}-grain old mean recall: {original_g_mean_recall}, '
-              f'diff: {utils.blue_text(recall_diff)}\n'
-              f'theoretical recall decrease: -{utils.blue_text(detection_rule_theoretical_recall_decrease)}\n'
-              f'{recall_theory_holds_str}')
-
     def run_training_new_model_pipeline(self):
 
         examples_with_errors = set()
@@ -1433,14 +1090,14 @@ class EDCR:
         print(utils.red_text(f'\nNumber of errors: {len(examples_with_errors)}\n'))
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            lrs=[2 * self.lr],
+            lrs=[self.lr],
             combined=self.combined,
             debug=False,
             indices=examples_with_errors)
 
         with (context_handlers.ClearSession()):
             vit_pipeline.fine_tune_combined_model(
-                lrs=[self.lr / 10],
+                lrs=[self.lr],
                 fine_tuner=fine_tuners[0] if self.correction_model is None else self.correction_model,
                 device=devices[0],
                 loaders=loaders,
@@ -1463,7 +1120,7 @@ class EDCR:
             self.correction_model = fine_tuners[0]
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            lrs=[self.lr / 10],
+            lrs=[self.lr],
             combined=self.combined,
             debug=False,
             indices=examples_with_errors,
@@ -1535,8 +1192,8 @@ class EDCR:
             self.apply_detection_rules(test=test, g=g)
 
             if print_results:
-                self.evaluate_and_print_g_detection_rule_precision_increase(test=test, g=g)
-                self.evaluate_and_print_g_detection_rule_recall_decrease(test=test, g=g)
+                metrics.evaluate_and_print_g_detection_rule_precision_increase(edcr=self, test=test, g=g)
+                metrics.evaluate_and_print_g_detection_rule_recall_decrease(edcr=self, test=test, g=g)
                 self.print_how_many_not_assigned(test=test, g=g, stage='post_detection')
 
         if print_results:
@@ -1550,64 +1207,6 @@ class EDCR:
             self.apply_correction_rules(test=test, g=g)
 
         self.print_metrics(test=test, prior=False, stage='post_correction', print_inconsistencies=False)
-
-
-def plot_per_class(ps,
-                   rs,
-                   folder: str):
-    for g in data_preprocessing.granularities:
-        # plot all label per granularity:
-        for label in data_preprocessing.get_labels(g).values():
-            plt.plot(epsilons, [ps[g]['initial'][e][label] for e in epsilons],
-                     label='initial average precision')
-            plt.plot(epsilons, [ps[g]['pre_correction'][e][label] for e in epsilons],
-                     label='pre correction average precision')
-            plt.plot(epsilons, [ps[g]['post_correction'][e][label] for e in epsilons],
-                     label='post correction average precision')
-
-            plt.plot(epsilons, [rs[g]['initial'][e][label] for e in epsilons],
-                     label='initial average recall')
-            plt.plot(epsilons, [rs[g]['pre_correction'][e][label] for e in epsilons],
-                     label='pre correction average recall')
-            plt.plot(epsilons, [rs[g]['post_correction'][e][label] for e in epsilons],
-                     label='post correction average recall')
-
-            plt.legend()
-            plt.tight_layout()
-            plt.grid()
-            plt.title(f'{label}')
-            plt.savefig(f'figs/{folder}/{label}.png')
-            plt.clf()
-            plt.cla()
-
-
-def plot_all(ps,
-             rs,
-             folder: str):
-    for g in data_preprocessing.granularities:
-        # plot average precision recall per granularity:
-
-        plt.plot(epsilons, [np.mean(list(ps[g]['initial'][e].values())) for e in epsilons],
-                 label='initial average precision')
-        plt.plot(epsilons, [np.mean(list(ps[g]['pre_correction'][e].values())) for e in epsilons],
-                 label='pre correction average precision')
-        plt.plot(epsilons, [np.mean(list(ps[g]['post_correction'][e].values())) for e in epsilons],
-                 label='post correction average precision')
-
-        plt.plot(epsilons, [np.mean(list(rs[g]['initial'][e].values())) for e in epsilons],
-                 label='initial average precision')
-        plt.plot(epsilons, [np.mean(list(rs[g]['pre_correction'][e].values())) for e in epsilons],
-                 label='pre correction average precision')
-        plt.plot(epsilons, [np.mean(list(rs[g]['post_correction'][e].values())) for e in epsilons],
-                 label='post correction average precision')
-
-        plt.legend()
-        plt.tight_layout()
-        plt.grid()
-        plt.title(f'average precision recall for {g}')
-        plt.savefig(f'figs/{folder}/average_{g}.png')
-        plt.clf()
-        plt.cla()
 
 
 if __name__ == '__main__':

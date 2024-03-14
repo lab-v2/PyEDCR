@@ -360,3 +360,4 @@ coarse_grain_labels = {l: CoarseGrainLabel(l) for l in coarse_grain_classes_str}
 
 def get_labels(g: Granularity) -> dict[str, Label]:
     return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels
+
