@@ -4,6 +4,7 @@ import utils
 import numpy as np
 from sklearn.metrics import accuracy_score
 from tqdm import tqdm
+from itertools import product
 
 
 class EDCR_experiment(EDCR):
@@ -11,6 +12,7 @@ class EDCR_experiment(EDCR):
                      prediction: np.array,
                      g: data_preprocessing.Granularity):
         return accuracy_score(y_true=data_preprocessing.get_ground_truths(test=False,
+                                                                          K=self.K_train,
                                                                           g=g),
                               y_pred=prediction)
 
@@ -19,8 +21,11 @@ class EDCR_experiment(EDCR):
                                CC: set[(EDCR._Condition, data_preprocessing.Label)],
                                g: data_preprocessing.Granularity):
         Rule_CC_l = EDCR.ErrorCorrectionRule(l=l, CC_l=CC)
-        prediction_after_apply_rule = Rule_CC_l(fine_data=self.pred_data['train']['original']['fine'],
-                                                coarse_data=self.pred_data['train']['original']['coarse'])
+        prediction_after_apply_rule_mask = Rule_CC_l(fine_data=self.pred_data['train']['original']['fine'],
+                                                     coarse_data=self.pred_data['train']['original']['coarse'])
+        prediction_after_apply_rule = np.where(prediction_after_apply_rule_mask == -1,
+                                               self.pred_data['train']['original'][g],
+                                               prediction_after_apply_rule_mask)
         return self.get_accuracy(prediction=prediction_after_apply_rule,
                                  g=g)
 
@@ -33,17 +38,19 @@ class EDCR_experiment(EDCR):
         print(f'\nLearning {g}-grain error correction rules...')
 
         CC_ls = {l: set() for l in data_preprocessing.get_labels(g).values()}
-
-        for CC in tqdm(self.CC_all[g]):
-            max_score = 100
+        # CC_all =
+        CC_all = product(self.condition_datas[other_g], data_preprocessing.get_labels(g).values())
+        for CC in tqdm(CC_all):
+            max_score = 0
             assign_l = None
             for l in data_preprocessing.get_labels(g).values():
-                score = self.new_objective_function(l=l, CC=CC, g=g)
-                if score > max_score and self.get_BOD_CC(CC) != 0:
+                score = self.new_objective_function(l=l, CC={CC}, g=g)
+                if score > max_score and self.get_BOD_CC({CC}) != 0:
                     assign_l = l
                     max_score = score
 
-            CC_ls[assign_l] = CC_ls[assign_l].union({CC})
+            if assign_l is not None:
+                CC_ls[assign_l] = CC_ls[assign_l].union({CC})
 
         for l, CC_l in CC_ls.items():
             if len(CC_l):
@@ -54,17 +61,17 @@ class EDCR_experiment(EDCR):
 
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = True
+    test_bool = False
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
-        edcr = EDCR(epsilon=eps,
-                    main_model_name='vit_b_16',
-                    combined=True,
-                    loss='BCE',
-                    lr=0.0001,
-                    num_epochs=20,
-                    include_inconsistency_constraint=False)
+        edcr = EDCR_experiment(epsilon=eps,
+                               main_model_name='vit_b_16',
+                               combined=True,
+                               loss='BCE',
+                               lr=0.0001,
+                               num_epochs=20,
+                               include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()
