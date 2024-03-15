@@ -15,6 +15,7 @@ import data_preprocessing
 import vit_pipeline
 import context_handlers
 import metrics
+import condition
 
 randomized: bool = False
 
@@ -35,83 +36,6 @@ class EDCR:
         epsilon: Value using for constraint in getting rules
     """
 
-    class _Condition(typing.Hashable, typing.Callable, abc.ABC):
-        """Represents a condition that can be evaluated on an example.
-
-        When treated as a function, it takes an example (e.g., image, data) as input
-        and returns a value between 0 and 1 indicating whether the condition is satisfied.
-        A value of 0 means the condition is not met, while a value of 1 means it is fully met.
-        """
-
-        def __init__(self, *args, **kwargs):
-            pass
-
-        @abc.abstractmethod
-        def __call__(self, *args, **kwargs) -> typing.Union[bool, np.array]:
-            pass
-
-        @abc.abstractmethod
-        def __hash__(self):
-            pass
-
-        @abc.abstractmethod
-        def __eq__(self, other):
-            pass
-
-    class PredCondition(_Condition):
-        """Represents a condition based on a model's prediction of a specific class.
-
-        It evaluates to 1 if the model predicts the specified class for a given example,
-        and 0 otherwise.
-        """
-
-        def __init__(self,
-                     l: data_preprocessing.Label,
-                     secondary: bool = False):
-            """Initializes a PredCondition instance.
-
-            :param l: The target Label for which the condition is evaluated.
-            """
-            super().__init__()
-            self.l = l
-            self.secondary = secondary
-
-        def __call__(self,
-                     fine_data: np.array,
-                     coarse_data: np.array,
-                     secondary_fine_data: np.array,
-                     secondary_coarse_data: np.array,
-                     ) -> np.array:
-            granularity_data = (fine_data if not self.secondary else secondary_fine_data) \
-                if self.l.g == data_preprocessing.granularities['fine'] else \
-                (coarse_data if not self.secondary else secondary_coarse_data)
-            return np.where(granularity_data == self.l.index, 1, 0)
-
-        def __str__(self) -> str:
-            return f'pred_{self.l}'
-
-        def __hash__(self):
-            return self.l.__hash__()
-
-        def __eq__(self, other):
-            return self.__hash__() == other.__hash__()
-
-    class InconsistencyCondition(_Condition):
-        def __call__(self,
-                     fine_data: np.array,
-                     coarse_data: np.array) -> np.array:
-            values = []
-            for fine_prediction_index, coarse_prediction_index in zip(fine_data, coarse_data):
-                values += [int(data_preprocessing.fine_to_course_idx[fine_prediction_index] != coarse_prediction_index)]
-
-            return np.array(values)
-
-        def __hash__(self):
-            return hash('ConsistencyCondition')
-
-        def __eq__(self, other):
-            return self.__hash__() == other.__hash__()
-
     class Rule(typing.Callable, typing.Sized, abc.ABC):
         """Represents a rule for evaluating predictions based on conditions and labels.
 
@@ -121,7 +45,7 @@ class EDCR:
 
         def __init__(self,
                      l: data_preprocessing.Label,
-                     C_l: set[typing.Union[EDCR._Condition, tuple[EDCR._Condition, data_preprocessing.Label]]]):
+                     C_l: set[typing.Union[condition.Condition, tuple[condition.Condition, data_preprocessing.Label]]]):
             self.l = l
             self.C_l = C_l
 
@@ -152,7 +76,7 @@ class EDCR:
     class ErrorDetectionRule(Rule):
         def __init__(self,
                      l: data_preprocessing.Label,
-                     DC_l: set[EDCR._Condition]):
+                     DC_l: set[condition.Condition]):
             """Construct a detection rule for evaluating predictions based on conditions and labels.
 
             :param l: The label associated with the rule.
@@ -160,7 +84,7 @@ class EDCR:
             """
             super().__init__(l=l, C_l=DC_l)
             assert all(cond.l != self.l for cond in {cond_prime for cond_prime in self.C_l
-                                                     if isinstance(cond_prime, EDCR.PredCondition)})
+                                                     if isinstance(cond_prime, condition.PredCondition)})
 
         def get_where_body_is_satisfied(self,
                                         pred_fine_data: np.array,
@@ -211,13 +135,13 @@ class EDCR:
     class ErrorCorrectionRule(Rule):
         def __init__(self,
                      l: data_preprocessing.Label,
-                     CC_l: set[(EDCR._Condition, data_preprocessing.Label)]):
+                     CC_l: set[(condition.Condition, data_preprocessing.Label)]):
             """Construct a detection rule for evaluating predictions based on conditions and labels.
 
             :param l: The label associated with the rule.
             :param CC_l: The set of condition-class pair that define the rule.
             """
-            C_l = {(cond, l_prime) for cond, l_prime in CC_l if (isinstance(cond, EDCR.InconsistencyCondition)
+            C_l = {(cond, l_prime) for cond, l_prime in CC_l if (isinstance(cond, condition.InconsistencyCondition)
                                                                  or cond.l.g != l_prime.g
                                                                  or cond.secondary) and l_prime != l}
 
@@ -324,7 +248,7 @@ class EDCR:
                                  for g in data_preprocessing.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
-        self.condition_datas = {g: {EDCR.PredCondition(l=l, secondary=False)
+        self.condition_datas = {g: {condition.PredCondition(l=l, secondary=False)
                                     for l in data_preprocessing.get_labels(g).values()}
                                 for g in data_preprocessing.granularities.values()}
 
@@ -349,11 +273,11 @@ class EDCR:
 
             for g in data_preprocessing.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
-                    {EDCR.PredCondition(l=l, secondary=True) for l in data_preprocessing.get_labels(g).values()})
+                    {condition.PredCondition(l=l, secondary=True) for l in data_preprocessing.get_labels(g).values()})
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.granularities.values():
-                self.condition_datas[g] = self.condition_datas[g].union({EDCR.InconsistencyCondition()})
+                self.condition_datas[g] = self.condition_datas[g].union({condition.InconsistencyCondition()})
 
         self.CC_all = {g: set() for g in data_preprocessing.granularities.values()}
 
@@ -373,7 +297,7 @@ class EDCR:
 
         self.correction_model = None
 
-    def set_error_detection_rules(self, rules: typing.Dict[data_preprocessing.Label, {_Condition}]):
+    def set_error_detection_rules(self, rules: typing.Dict[data_preprocessing.Label, {condition.Condition}]):
         """
         Manually sets the error detection rule dictionary.
 
@@ -386,7 +310,7 @@ class EDCR:
 
     def set_error_correction_rules(self,
                                    rules: typing.Dict[
-                                       data_preprocessing.Label, {(_Condition, data_preprocessing.Label)}]):
+                                       data_preprocessing.Label, {(condition.Condition, data_preprocessing.Label)}]):
         """
         Manually sets the error correction rule dictionary.
 
@@ -398,11 +322,11 @@ class EDCR:
         self.error_correction_rules = error_correction_rules
 
     @staticmethod
-    def get_C_str(CC: set[_Condition]) -> str:
+    def get_C_str(CC: set[condition.Condition]) -> str:
         return '{' + ', '.join(str(obj) for obj in CC) + '}'
 
     @staticmethod
-    def get_CC_str(CC: set[(_Condition, data_preprocessing.Label)]) -> str:
+    def get_CC_str(CC: set[(condition.Condition, data_preprocessing.Label)]) -> str:
         return ('{' + ', '.join(['(' + ', '.join(item_repr) + ')' for item_repr in
                                  [[str(obj) for obj in item] for item in CC]]) + '}')
 
@@ -668,7 +592,7 @@ class EDCR:
         return p_g, r_g
 
     @staticmethod
-    def get_where_any_conditions_satisfied(C: set[_Condition],
+    def get_where_any_conditions_satisfied(C: set[condition.Condition],
                                            fine_data: np.array,
                                            coarse_data: np.array,
                                            secondary_fine_data: np.array,
@@ -695,7 +619,7 @@ class EDCR:
 
     def get_NEG_l_C(self,
                     l: data_preprocessing.Label,
-                    C: set[_Condition],
+                    C: set[condition.Condition],
                     stage: str = 'original') -> int:
         """Calculate the number of train samples that satisfy any of the conditions and are true positive.
 
@@ -721,7 +645,7 @@ class EDCR:
         return NEG_l
 
     def get_BOD_l_C(self,
-                    C: set[_Condition]) -> int:
+                    C: set[condition.Condition]) -> int:
         """Calculate the number of train samples that satisfy any conditions for some set of condition.
 
         :param C: A set of `Condition` objects.
@@ -742,7 +666,7 @@ class EDCR:
 
     def get_POS_l_C(self,
                     l: data_preprocessing.Label,
-                    C: set[_Condition],
+                    C: set[condition.Condition],
                     stage: str = 'original') -> int:
         """Calculate the number of train samples that satisfy any conditions for some set of condition
         and are false positive.
@@ -768,7 +692,7 @@ class EDCR:
         return POS_l
 
     def get_BOD_CC(self,
-                   CC: set[(_Condition, data_preprocessing.Label)]) -> (int, np.array):
+                   CC: set[(condition.Condition, data_preprocessing.Label)]) -> (int, np.array):
         """Calculate the number of train samples that satisfy the body of the 2nd rule for some set of condition
         class pair.
 
@@ -791,7 +715,7 @@ class EDCR:
     def get_POS_l_CC(self,
                      test: bool,
                      l: data_preprocessing.Label,
-                     CC: set[(_Condition, data_preprocessing.Label)]) -> int:
+                     CC: set[(condition.Condition, data_preprocessing.Label)]) -> int:
         """Calculate the number of samples that satisfy the body of the 2nd rule and head
         (ground truth is l) for a label l and some set of condition class pair.
 
@@ -818,7 +742,7 @@ class EDCR:
     def get_CON_l_CC(self,
                      test: bool,
                      l: data_preprocessing.Label,
-                     CC: set[(_Condition, data_preprocessing.Label)]) -> float:
+                     CC: set[(condition.Condition, data_preprocessing.Label)]) -> float:
         """Calculate the ratio of number of samples that satisfy the rule body and head with the ones
         that only satisfy the body, given a set of condition class pairs.
 
@@ -835,7 +759,7 @@ class EDCR:
         return CON_l_CC
 
     def DetRuleLearn(self,
-                     l: data_preprocessing.Label) -> set[_Condition]:
+                     l: data_preprocessing.Label) -> set[condition.Condition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
         that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
 
@@ -875,9 +799,9 @@ class EDCR:
 
     def _CorrRuleLearn(self,
                        l: data_preprocessing.Label,
-                       CC_all: set[(_Condition, data_preprocessing.Label)],
+                       CC_all: set[(condition.Condition, data_preprocessing.Label)],
                        shared_index: mp.managers.ValueProxy) -> \
-            (data_preprocessing.Label, [tuple[_Condition, data_preprocessing.Label]]):
+            (data_preprocessing.Label, [tuple[condition.Condition, data_preprocessing.Label]]):
         """Learns error correction rules for a specific label and granularity. These rules associate conditions
         with alternative labels that are more likely to be correct when those conditions are met.
 
@@ -942,7 +866,7 @@ class EDCR:
                     self.error_detection_rules[l] = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
 
                 for cond_l in DC_l:
-                    if not (isinstance(cond_l, EDCR.PredCondition) and cond_l.l == l):
+                    if not (isinstance(cond_l, condition.PredCondition) and cond_l.l == l):
                         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
                 if utils.is_local():
@@ -1163,7 +1087,8 @@ class EDCR:
 
         examples_with_errors = np.array(list(examples_with_errors))
 
-        print(utils.red_text(f'\nNumber of errors: {len(examples_with_errors)}\n'))
+        print(utils.red_text(f'\nNumber of errors: {len(examples_with_errors)} / '
+                             f'{self.get_predictions(test=False)[0].shape[0]}\n'))
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             lrs=[self.lr],
@@ -1303,6 +1228,7 @@ if __name__ == '__main__':
                     lr=0.0001,
                     num_epochs=20,
                     include_inconsistency_constraint=False,
+                    secondary_model_name='vit_b_16_soft_marginal'
                     )
         edcr.print_metrics(test=test_bool, prior=True)
 
