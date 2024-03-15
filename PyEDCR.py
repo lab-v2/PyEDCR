@@ -218,7 +218,8 @@ class EDCR:
             :param CC_l: The set of condition-class pair that define the rule.
             """
             C_l = {(cond, l_prime) for cond, l_prime in CC_l if (isinstance(cond, EDCR.InconsistencyCondition)
-                                                                 or cond.l.g != l_prime.g) and l_prime != l}
+                                                                 or cond.l.g != l_prime.g
+                                                                 or cond.secondary) and l_prime != l}
 
             super().__init__(l=l, C_l=C_l)
 
@@ -983,7 +984,8 @@ class EDCR:
         """
         stage = 'original' if self.correction_model is None else 'post_detection'
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
-        secondary_pred_fine_data, secondary_pred_coarse_data = self.get_predictions(test=test, secondary=True)
+        secondary_pred_fine_data, secondary_pred_coarse_data = (
+            self.get_predictions(test=test, secondary=True) if self.secondary_model_name is not None else None, None)
         altered_pred_granularity_data = self.get_predictions(test=test, g=g, stage=stage)
 
         self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
