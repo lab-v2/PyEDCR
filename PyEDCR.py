@@ -1043,7 +1043,7 @@ if __name__ == '__main__':
                     lr=0.0001,
                     num_epochs=20,
                     include_inconsistency_constraint=False,
-                    # secondary_model_name='vit_b_16_soft_marginal'
+                    secondary_model_name='vit_b_16_soft_marginal'
                     )
         edcr.print_metrics(test=test_bool, prior=True)
 
