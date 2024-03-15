@@ -59,10 +59,11 @@ class PredCondition(Condition):
         return np.where(granularity_data == self.l.index, 1, 0)
 
     def __str__(self) -> str:
-        return f'pred_{self.l}'
+        secondary_str = 'secondary_' if self.secondary else ''
+        return f'{secondary_str}pred_{self.l}'
 
     def __hash__(self):
-        return self.l.__hash__()
+        return hash(self.__str__())
 
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
