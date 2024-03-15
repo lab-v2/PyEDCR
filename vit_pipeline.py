@@ -11,15 +11,17 @@ import utils
 import data_preprocessing
 
 batch_size = 32
-scheduler_gamma = 0.1
-num_epochs = 20
+scheduler_gamma = 0.9
+num_epochs = 5
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 combined_results_path = fr'combined_results'
 individual_results_path = fr'individual_results'
 
-scheduler_step_size = 1
+scheduler_step_size = num_epochs
+original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
+                                  len(data_preprocessing.coarse_grain_classes_str))
 
 
 def get_filepath(model_name: typing.Union[str, models.FineTuner],
@@ -263,9 +265,9 @@ def save_prediction_files(test: bool,
                 test_coarse_prediction)
 
         if fine_ground_truths is not None:
-            np.save(f"{test_str}_fine/{test_str}_true_fine.npy",
+            np.save(f"data/{test_str}_fine/{test_str}_true_fine.npy",
                     fine_ground_truths)
-            np.save(f"{test_str}_coarse/{test_str}_true_coarse.npy",
+            np.save(f"data/{test_str}_coarse/{test_str}_true_coarse.npy",
                     coarse_ground_truths)
     else:
         np.save(f"{individual_results_path}_{test_str}_{fine_tuners['fine']}"
@@ -349,8 +351,9 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                             loaders: dict[str, torch.utils.data.DataLoader],
                             loss: str,
                             device: torch.device,
-                            test: bool) -> (list[int], list[int], list[int], list[int], float, float):
-    loader = loaders['test' if test else f'train_eval']
+                            test: bool,
+                            print_results: bool = True) -> (list[int], list[int], list[int], list[int], float, float):
+    loader = loaders['test' if test else f'train']
     fine_tuner.to(device)
     fine_tuner.eval()
 
@@ -359,6 +362,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
 
     fine_ground_truths = []
     coarse_ground_truths = []
+    fine_accuracy, coarse_accuracy = None, None
 
     print(f'Testing {fine_tuner} on {device}...')
 
@@ -385,13 +389,14 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
             fine_predictions += predicted_fine.tolist()
             coarse_predictions += predicted_coarse.tolist()
 
-    fine_accuracy, coarse_accuracy = (
-        get_and_print_metrics(pred_fine_data=fine_predictions,
-                              pred_coarse_data=coarse_predictions,
-                              loss=loss,
-                              true_fine_data=fine_ground_truths,
-                              true_coarse_data=coarse_ground_truths,
-                              test=test))
+    if print_results:
+        fine_accuracy, coarse_accuracy = (
+            get_and_print_metrics(pred_fine_data=fine_predictions,
+                                  pred_coarse_data=coarse_predictions,
+                                  loss=loss,
+                                  true_fine_data=fine_ground_truths,
+                                  true_coarse_data=coarse_ground_truths,
+                                  test=test))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
             fine_accuracy, coarse_accuracy)
@@ -426,7 +431,7 @@ def get_and_print_post_epoch_metrics(epoch: int,
         if running_fine_loss is not None else f'Training epoch total loss: {round(running_total_loss / num_batches, 2)}'
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done,\n'
-          f'{loss_str}'
+          # f'{loss_str}'
           f'\npost-epoch training fine accuracy: {round(training_fine_accuracy * 100, 2)}%'
           f', post-epoch fine f1: {round(training_fine_f1 * 100, 2)}%'
           f'\npost-epoch training coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
@@ -442,11 +447,11 @@ def print_post_batch_metrics(batch_num: int,
                              batch_total_loss: float = None):
     if batch_num > 0 and batch_num % 10 == 0:
         if batch_fine_grain_loss is not None:
-            print(f'Completed batch num {batch_num}/{num_batches}, '
+            print(f'\nCompleted batch num {batch_num}/{num_batches}, '
                   f'batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
                   f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}')
         else:
-            print(f'Completed batch num {batch_num}/{num_batches}, batch total loss: {round(batch_total_loss, 2)}')
+            print(f'\nCompleted batch num {batch_num}/{num_batches}, batch total loss: {round(batch_total_loss, 2)}')
 
 
 def get_fine_tuning_batches(train_loader: torch.utils.data.DataLoader,
@@ -642,11 +647,17 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              ltn_num_epochs: int = None,
                              beta: float = 0.1,
                              save_files: bool = True,
-                             debug: bool = False):
+                             debug: bool = False,
+                             evaluate_on_test: bool = True,
+                             Y_original_fine: np.array = None,
+                             Y_original_coarse: np.array = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
     num_batches = len(train_loader)
+
+    train_fine_predictions = None
+    train_coarse_predictions = None
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -680,14 +691,14 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         else:
             epochs = num_epochs
 
-        print(f'Fine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
+        print(f'\nFine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
               f'using lr={lr} on {device}...')
         print('#' * 100 + '\n')
 
         for epoch in range(epochs):
             print(f"Current lr={optimizer.param_groups[0]['lr']}")
 
-            with context_handlers.TimeWrapper():
+            with ((context_handlers.TimeWrapper())):
                 total_running_loss = torch.Tensor([0.0]).to(device)
                 running_fine_loss = torch.Tensor([0.0]).to(device)
                 running_coarse_loss = torch.Tensor([0.0]).to(device)
@@ -756,6 +767,21 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
+                        if batch_total_loss is not None and Y_original_fine is not None:
+                            end_index = (batch_num + 1) * batch_size if batch_num + 1 < num_batches else \
+                                len(Y_original_fine)
+                            Y_original_fine_one_hot = torch.nn.functional.one_hot(
+                                torch.tensor(Y_original_fine[batch_num * batch_size:end_index]).to(device),
+                                num_classes=len(data_preprocessing.fine_grain_classes_str))
+                            Y_original_coarse_one_hot = torch.nn.functional.one_hot(
+                                torch.tensor(Y_original_coarse[batch_num * batch_size:end_index]).to(device),
+                                num_classes=len(data_preprocessing.coarse_grain_classes_str))
+
+                            Y_original_combine = torch.cat(tensors=[Y_original_fine_one_hot,
+                                                                    Y_original_coarse_one_hot],
+                                                           dim=1).float()
+                            batch_total_loss -= original_prediction_weight * criterion(Y_pred, Y_original_combine)
+
                         print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,
                                                  batch_total_loss=batch_total_loss.item())
@@ -796,16 +822,18 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                 train_coarse_losses += [running_coarse_loss.item() / num_batches]
 
                 scheduler.step()
-                (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
-                 test_fine_accuracy, test_coarse_accuracy) = (
-                    evaluate_combined_model(fine_tuner=fine_tuner,
-                                            loaders=loaders,
-                                            loss=loss,
-                                            device=device,
-                                            test=True))
 
-                test_fine_accuracies += [test_fine_accuracy]
-                test_coarse_accuracies += [test_coarse_accuracy]
+                if evaluate_on_test:
+                    (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
+                     test_fine_accuracy, test_coarse_accuracy) = (
+                        evaluate_combined_model(fine_tuner=fine_tuner,
+                                                loaders=loaders,
+                                                loss=loss,
+                                                device=device,
+                                                test=True))
+
+                    test_fine_accuracies += [test_fine_accuracy]
+                    test_coarse_accuracies += [test_coarse_accuracy]
                 print('#' * 100)
 
                 if (epoch == num_epochs - 1) and save_files:
@@ -818,24 +846,31 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                           test_coarse_prediction=test_coarse_predictions,
                                           loss=loss)
 
-        if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
-            np.save(f"{combined_results_path}test_fine_true.npy", test_fine_ground_truths)
-        if not os.path.exists(f"{combined_results_path}test_coarse_true.npy"):
-            np.save(f"{combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
+        if save_files:
+            if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
+                np.save(f"{combined_results_path}test_fine_true.npy", test_fine_ground_truths)
+            if not os.path.exists(f"{combined_results_path}test_coarse_true.npy"):
+                np.save(f"{combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
-        if loss.split('_')[0] == 'LTN':
-            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
-        else:
-            torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}.pth")
+            if loss.split('_')[0] == 'LTN':
+                torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
+            else:
+                torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}.pth")
+
+        return train_fine_predictions, train_coarse_predictions
 
 
 def initiate(lrs: list[typing.Union[str, float]],
              combined: bool,
              pretrained_path: str = None,
-             debug: bool = False):
+             debug: bool = False,
+             indices: typing.Sequence = None,
+             evaluation: bool = None):
     """
     Initializes models, datasets, and devices for training.
 
+    :param evaluation:
+    :param indices:
     :param lrs: List of learning rates for the models.
     :param combined: Whether the model are individual or combine one.
     :param pretrained_path: Path to a pretrained model (optional).
@@ -851,7 +886,7 @@ def initiate(lrs: list[typing.Union[str, float]],
           f'Epochs num: {num_epochs}\n'
           f'Learning rates: {lrs}')
 
-    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets(cwd=cwd)
+    datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets()
 
     if combined:
         device = torch.device('cpu') if debug else (
@@ -894,7 +929,12 @@ def initiate(lrs: list[typing.Union[str, float]],
 
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(datasets=datasets,
-                                             batch_size=batch_size)
+                                             batch_size=batch_size,
+                                             indices=indices,
+                                             evaluation=evaluation)
+
+    print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
+          f"Total number of test images: {len(loaders['test'].dataset)}")
 
     return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
 
@@ -944,11 +984,17 @@ def run_combined_evaluating_pipeline(test: bool,
                                      lrs: list[typing.Union[str, float]],
                                      loss: str,
                                      pretrained_path: str = None,
+                                     pretrained_fine_tuner: models.FineTuner = None,
                                      save_files: bool = True,
-                                     debug: bool = utils.is_debug_mode()):
+                                     debug: bool = utils.is_debug_mode(),
+                                     print_results: bool = True,
+                                     indices: np.array = None):
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
+    :param indices:
+    :param print_results:
+    :param pretrained_fine_tuner:
     :param test: True for test data, False for train data.
     :param lrs: List of learning rates used during training.
     :param loss: The loss function used during training.
@@ -968,14 +1014,18 @@ def run_combined_evaluating_pipeline(test: bool,
         initiate(lrs=lrs,
                  combined=True,
                  pretrained_path=pretrained_path,
-                 debug=debug))
+                 debug=debug,
+                 indices=indices,
+                 evaluation=True))
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-     fine_accuracy, coarse_accuracy) = evaluate_combined_model(fine_tuner=fine_tuners[0],
-                                                               loaders=loaders,
-                                                               loss=loss,
-                                                               device=devices[0],
-                                                               test=test)
+     fine_accuracy, coarse_accuracy) = evaluate_combined_model(
+        fine_tuner=fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner,
+        loaders=loaders,
+        loss=loss,
+        device=devices[0],
+        test=test,
+        print_results=print_results)
 
     if save_files:
         save_prediction_files(test=test,
@@ -989,21 +1039,20 @@ def run_combined_evaluating_pipeline(test: bool,
                               coarse_ground_truths=coarse_ground_truths,
                               epoch=num_epochs)
 
+    return fine_predictions, coarse_predictions
+
 
 if __name__ == '__main__':
     # run_individual_fine_tuning_pipeline()
     # run_combined_fine_tuning_pipeline(lrs=[0.0001],
     #                                   loss='BCE')
-    # run_combined_testing_pipeline(lrs=[1e-6],
-    #                               loss='BCE',
-    #                               pretrained_path='models/vit_b_16_BCE_lr1e-05.pth')
 
     run_combined_evaluating_pipeline(test=False,
                                      lrs=[0.0001],
                                      loss='BCE',
-                                     pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
-
-    run_combined_evaluating_pipeline(test=True,
-                                     lrs=[0.0001],
-                                     loss='BCE',
-                                     pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
+                                     pretrained_path='vit_b_16_lr0.0001_BCE.pth')
+    #
+    # run_combined_evaluating_pipeline(test=True,
+    #                                  lrs=[0.0001],
+    #                                  loss='BCE',
+    #                                  pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')

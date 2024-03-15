@@ -278,7 +278,7 @@ class IndividualImageFolderWithName(torchvision.datasets.ImageFolder):
         return x, y, x_identifier
 
 
-def get_datasets(cwd: typing.Union[str, pathlib.Path],
+def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True) -> \
         (dict[str, typing.Union[CombinedImageFolderWithName, IndividualImageFolderWithName]], int, int):
     """
@@ -286,21 +286,19 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path],
 
     Parameters
     ----------
-        cwd: Path to the current working folder
-        combined: Whether the model is combining fine and coarse grain or not
+        :param cwd:
+        :param combined:
     """
 
-    data_dir = pathlib.Path.joinpath(cwd, '.')
-    datasets = {f'{train_or_test}': CombinedImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                                transform=get_dataset_transforms(
-                                                                    train_or_test=train_or_test))
-    if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                   transform=
-                                                   get_dataset_transforms(train_or_test=train_or_test))
-                for train_or_test in ['train', 'test']}
-
-    print(f"Total number of train images: {len(datasets['train'])}\n"
-          f"Total number of test images: {len(datasets['test'])}")
+    data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), '.')
+    datasets = {
+        f'{train_or_test}': CombinedImageFolderWithName(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
+                                                        transform=get_dataset_transforms(
+                                                            train_or_test=train_or_test))
+        if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
+                                                       transform=
+                                                       get_dataset_transforms(train_or_test=train_or_test))
+        for train_or_test in ['train', 'test']}
 
     classes = datasets['train'].classes
     assert classes == sorted(classes) == fine_grain_classes_str
@@ -312,20 +310,29 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path],
 
 
 def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, IndividualImageFolderWithName]],
-                batch_size: int) -> dict[str, torch.utils.data.DataLoader]:
+                batch_size: int,
+                indices: typing.Sequence = None,
+                evaluation: bool = None) -> dict[str, torch.utils.data.DataLoader]:
     """
     Instantiates and returns train and test torch data loaders
 
     Parameters
     ----------
-        datasets: Train and test datasets to use with the loaders
-        batch_size
+        :param evaluation:
+        :param datasets:
+        :param batch_size:
+        :param indices:
     """
 
     return {train_or_test_dataset: torch.utils.data.DataLoader(
-        dataset=datasets[train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train'],
+        dataset=datasets[train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train']
+        if indices is None or train_or_test_dataset != 'train'
+        else torch.utils.data.Subset(dataset=
+                                     datasets[
+                                         train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train'],
+                                     indices=indices),
         batch_size=batch_size,
-        shuffle=train_or_test_dataset == 'train')
+        shuffle=train_or_test_dataset == 'train' and (evaluation is None or not evaluation))
         for train_or_test_dataset in ['train', 'train_eval', 'test']}
 
 
@@ -352,3 +359,4 @@ coarse_grain_labels = {l: CoarseGrainLabel(l) for l in coarse_grain_classes_str}
 
 def get_labels(g: Granularity) -> dict[str, Label]:
     return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels
+
