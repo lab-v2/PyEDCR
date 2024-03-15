@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import abc
 import typing
 import numpy as np
 import multiprocessing as mp
@@ -15,7 +14,8 @@ import data_preprocessing
 import vit_pipeline
 import context_handlers
 import metrics
-import condition
+import conditions
+import rules
 
 randomized: bool = False
 
@@ -35,165 +35,6 @@ class EDCR:
         lr: Learning rate used during training.
         epsilon: Value using for constraint in getting rules
     """
-
-    class Rule(typing.Callable, typing.Sized, abc.ABC):
-        """Represents a rule for evaluating predictions based on conditions and labels.
-
-        :param l: The label associated with the rule.
-        :param C_l: The set of conditions that define the rule.
-        """
-
-        def __init__(self,
-                     l: data_preprocessing.Label,
-                     C_l: set[typing.Union[condition.Condition, tuple[condition.Condition, data_preprocessing.Label]]]):
-            self.l = l
-            self.C_l = C_l
-
-        def get_where_predicted_l(self,
-                                  data: np.array,
-                                  l_prime: data_preprocessing.Label = None) -> np.array:
-            return np.where(data == (self.l.index if l_prime is None else l_prime.index), 1, 0)
-
-        @abc.abstractmethod
-        def __call__(self,
-                     pred_fine_data: np.array,
-                     pred_coarse_data: np.array,
-                     secondary_pred_fine_data: np.array,
-                     secondary_pred_coarse_data: np.array) -> np.array:
-            pass
-
-        @abc.abstractmethod
-        def get_where_body_is_satisfied(self,
-                                        pred_fine_data: np.array,
-                                        pred_coarse_data: np.array,
-                                        secondary_pred_fine_data: np.array,
-                                        secondary_pred_coarse_data: np.array):
-            pass
-
-        def __len__(self):
-            return len(self.C_l)
-
-    class ErrorDetectionRule(Rule):
-        def __init__(self,
-                     l: data_preprocessing.Label,
-                     DC_l: set[condition.Condition]):
-            """Construct a detection rule for evaluating predictions based on conditions and labels.
-
-            :param l: The label associated with the rule.
-            :param DC_l: The set of conditions that define the rule.
-            """
-            super().__init__(l=l, C_l=DC_l)
-            assert all(cond.l != self.l for cond in {cond_prime for cond_prime in self.C_l
-                                                     if isinstance(cond_prime, condition.PredCondition)})
-
-        def get_where_body_is_satisfied(self,
-                                        pred_fine_data: np.array,
-                                        pred_coarse_data: np.array,
-                                        secondary_pred_fine_data: np.array,
-                                        secondary_pred_coarse_data: np.array
-                                        ) -> np.array:
-            test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
-                else pred_coarse_data
-            where_predicted_l = self.get_where_predicted_l(data=test_pred_granularity_data)
-            where_any_conditions_satisfied = (
-                EDCR.get_where_any_conditions_satisfied(C=self.C_l,
-                                                        fine_data=pred_fine_data,
-                                                        coarse_data=pred_coarse_data,
-                                                        secondary_fine_data=secondary_pred_fine_data,
-                                                        secondary_coarse_data=secondary_pred_coarse_data))
-            where_body_is_satisfied = where_predicted_l * where_any_conditions_satisfied
-
-            return where_body_is_satisfied
-
-        def __call__(self,
-                     pred_fine_data: np.array,
-                     pred_coarse_data: np.array,
-                     secondary_pred_fine_data: np.array,
-                     secondary_pred_coarse_data: np.array) -> np.array:
-            """Infer the detection rule based on the provided prediction data.
-
-            :param pred_fine_data: The fine-grained prediction data.
-            :param pred_coarse_data: The coarse-grained prediction data.
-            :return: modified prediction contains -1 at examples that have errors for a specific granularity as
-            derived from Label l.
-            """
-            test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
-                else pred_coarse_data
-            where_predicted_l_and_any_conditions_satisfied = (
-                self.get_where_body_is_satisfied(pred_fine_data=pred_fine_data,
-                                                 pred_coarse_data=pred_coarse_data,
-                                                 secondary_pred_fine_data=secondary_pred_fine_data,
-                                                 secondary_pred_coarse_data=secondary_pred_coarse_data))
-            altered_pred_data = np.where(where_predicted_l_and_any_conditions_satisfied == 1, -1,
-                                         test_pred_granularity_data)
-
-            return altered_pred_data
-
-        def __str__(self) -> str:
-            return '\n'.join(f'error_{self.l}(x) <- pred_{self.l}(x) ^ {cond}(x)' for cond in self.C_l)
-
-    class ErrorCorrectionRule(Rule):
-        def __init__(self,
-                     l: data_preprocessing.Label,
-                     CC_l: set[(condition.Condition, data_preprocessing.Label)]):
-            """Construct a detection rule for evaluating predictions based on conditions and labels.
-
-            :param l: The label associated with the rule.
-            :param CC_l: The set of condition-class pair that define the rule.
-            """
-            C_l = {(cond, l_prime) for cond, l_prime in CC_l if (isinstance(cond, condition.InconsistencyCondition)
-                                                                 or cond.l.g != l_prime.g
-                                                                 or cond.secondary) and l_prime != l}
-
-            super().__init__(l=l, C_l=C_l)
-
-        def get_where_body_is_satisfied(self,
-                                        pred_fine_data: np.array,
-                                        pred_coarse_data: np.array,
-                                        secondary_pred_fine_data: np.array,
-                                        secondary_pred_coarse_data: np.array) -> np.array:
-            test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
-                else pred_coarse_data
-
-            where_any_pair_satisfied = np.zeros_like(test_pred_granularity_data)
-
-            for cond, l_prime in self.C_l:
-                where_condition_satisfied = (
-                    EDCR.get_where_any_conditions_satisfied(C={cond},
-                                                            fine_data=pred_fine_data,
-                                                            coarse_data=pred_coarse_data,
-                                                            secondary_fine_data=secondary_pred_fine_data,
-                                                            secondary_coarse_data=secondary_pred_coarse_data))
-                where_predicted_l_prime = self.get_where_predicted_l(data=test_pred_granularity_data,
-                                                                     l_prime=l_prime)
-                where_pair_satisfied = where_condition_satisfied * where_predicted_l_prime
-                where_any_pair_satisfied |= where_pair_satisfied
-
-            return where_any_pair_satisfied
-
-        def __call__(self,
-                     pred_fine_data: np.array,
-                     pred_coarse_data: np.array,
-                     secondary_pred_fine_data: np.array,
-                     secondary_pred_coarse_data: np.array) -> np.array:
-            """Infer the correction rule based on the provided prediction data.
-
-            :param pred_fine_data: The fine-grained prediction data.
-            :param pred_coarse_data: The coarse-grained prediction data.
-            :return: new test prediction for a specific granularity as derived from Label l.
-            """
-            where_any_pair_satisfied = (
-                self.get_where_body_is_satisfied(pred_fine_data=pred_fine_data,
-                                                 pred_coarse_data=pred_coarse_data,
-                                                 secondary_pred_fine_data=secondary_pred_fine_data,
-                                                 secondary_pred_coarse_data=secondary_pred_coarse_data))
-
-            altered_pred_data = np.where(where_any_pair_satisfied == 1, self.l.index, -1)
-
-            return altered_pred_data
-
-        def __str__(self) -> str:
-            return '\n'.join(f'corr_{self.l}(x) <- {cond}(x) ^ pred_{l_prime}(x)' for (cond, l_prime) in self.C_l)
 
     def __init__(self,
                  main_model_name: str,
@@ -248,7 +89,7 @@ class EDCR:
                                  for g in data_preprocessing.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
-        self.condition_datas = {g: {condition.PredCondition(l=l, secondary=False)
+        self.condition_datas = {g: {conditions.PredCondition(l=l, secondary=False)
                                     for l in data_preprocessing.get_labels(g).values()}
                                 for g in data_preprocessing.granularities.values()}
 
@@ -273,11 +114,11 @@ class EDCR:
 
             for g in data_preprocessing.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
-                    {condition.PredCondition(l=l, secondary=True) for l in data_preprocessing.get_labels(g).values()})
+                    {conditions.PredCondition(l=l, secondary=True) for l in data_preprocessing.get_labels(g).values()})
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.granularities.values():
-                self.condition_datas[g] = self.condition_datas[g].union({condition.InconsistencyCondition()})
+                self.condition_datas[g] = self.condition_datas[g].union({conditions.InconsistencyCondition()})
 
         self.CC_all = {g: set() for g in data_preprocessing.granularities.values()}
 
@@ -292,41 +133,41 @@ class EDCR:
                                                                                           l=l,
                                                                                           stage='original'))
 
-        self.error_detection_rules: dict[data_preprocessing.Label, EDCR.ErrorDetectionRule] = {}
-        self.error_correction_rules: dict[data_preprocessing.Label, EDCR.ErrorCorrectionRule] = {}
+        self.error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
+        self.error_correction_rules: dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
 
         self.correction_model = None
 
-    def set_error_detection_rules(self, rules: typing.Dict[data_preprocessing.Label, {condition.Condition}]):
+    def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
         """
         Manually sets the error detection rule dictionary.
 
         :params rules: A dictionary mapping label instances to error detection rule objects.
         """
         error_detection_rules = {}
-        for label, DC_l in rules.items():
-            error_detection_rules[label] = EDCR.ErrorDetectionRule(label, DC_l)
+        for label, DC_l in input_rules.items():
+            error_detection_rules[label] = rules.ErrorDetectionRule(label, DC_l)
         self.error_detection_rules = error_detection_rules
 
     def set_error_correction_rules(self,
-                                   rules: typing.Dict[
-                                       data_preprocessing.Label, {(condition.Condition, data_preprocessing.Label)}]):
+                                   input_rules: typing.Dict[
+                                       data_preprocessing.Label, {(conditions.Condition, data_preprocessing.Label)}]):
         """
         Manually sets the error correction rule dictionary.
 
         :params rules: A dictionary mapping label instances to error detection rule objects.
         """
         error_correction_rules = {}
-        for label, CC_l in rules.items():
-            error_correction_rules[label] = EDCR.ErrorCorrectionRule(label, CC_l=CC_l)
+        for label, CC_l in input_rules.items():
+            error_correction_rules[label] = rules.ErrorCorrectionRule(label, CC_l=CC_l)
         self.error_correction_rules = error_correction_rules
 
     @staticmethod
-    def get_C_str(CC: set[condition.Condition]) -> str:
+    def get_C_str(CC: set[conditions.Condition]) -> str:
         return '{' + ', '.join(str(obj) for obj in CC) + '}'
 
     @staticmethod
-    def get_CC_str(CC: set[(condition.Condition, data_preprocessing.Label)]) -> str:
+    def get_CC_str(CC: set[(conditions.Condition, data_preprocessing.Label)]) -> str:
         return ('{' + ', '.join(['(' + ', '.join(item_repr) + ')' for item_repr in
                                  [[str(obj) for obj in item] for item in CC]]) + '}')
 
@@ -591,35 +432,9 @@ class EDCR:
 
         return p_g, r_g
 
-    @staticmethod
-    def get_where_any_conditions_satisfied(C: set[condition.Condition],
-                                           fine_data: np.array,
-                                           coarse_data: np.array,
-                                           secondary_fine_data: np.array,
-                                           secondary_coarse_data: np.array
-                                           ) -> np.array:
-        """Checks where any given conditions are satisfied.
-
-        :param secondary_fine_data:
-        :param secondary_coarse_data:
-        :param fine_data: Data that used for Condition having FineGrainLabel l
-        :param coarse_data: Data that used for Condition having CoarseGrainLabel l
-        :param C: A set of `Condition` objects.
-        :return: A NumPy array with True values if the example satisfy any conditions and False otherwise.
-        """
-        any_condition_satisfied = np.zeros_like(fine_data)
-
-        for cond in C:
-            any_condition_satisfied |= cond(fine_data=fine_data,
-                                            coarse_data=coarse_data,
-                                            secondary_fine_data=secondary_fine_data,
-                                            secondary_coarse_data=secondary_coarse_data)
-
-        return any_condition_satisfied
-
     def get_NEG_l_C(self,
                     l: data_preprocessing.Label,
-                    C: set[condition.Condition],
+                    C: set[conditions.Condition],
                     stage: str = 'original') -> int:
         """Calculate the number of train samples that satisfy any of the conditions and are true positive.
 
@@ -634,18 +449,18 @@ class EDCR:
             self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
 
         where_any_conditions_satisfied_on_train = (
-            self.get_where_any_conditions_satisfied(C=C,
-                                                    fine_data=train_pred_fine_data,
-                                                    coarse_data=train_pred_coarse_data,
-                                                    secondary_fine_data=secondary_train_pred_fine_data,
-                                                    secondary_coarse_data=secondary_train_pred_coarse_data))
+            rules.Rule.get_where_any_conditions_satisfied(C=C,
+                                                          fine_data=train_pred_fine_data,
+                                                          coarse_data=train_pred_coarse_data,
+                                                          secondary_fine_data=secondary_train_pred_fine_data,
+                                                          secondary_coarse_data=secondary_train_pred_coarse_data))
         where_train_tp_l = self.get_where_tp_l(test=False, l=l, stage=stage)
         NEG_l = np.sum(where_train_tp_l * where_any_conditions_satisfied_on_train)
 
         return NEG_l
 
     def get_BOD_l_C(self,
-                    C: set[condition.Condition]) -> int:
+                    C: set[conditions.Condition]) -> int:
         """Calculate the number of train samples that satisfy any conditions for some set of condition.
 
         :param C: A set of `Condition` objects.
@@ -655,18 +470,18 @@ class EDCR:
         secondary_train_pred_fine_data, secondary_train_pred_coarse_data = (
             self.get_predictions(test=False, secondary=True))
         where_any_conditions_satisfied_on_train = (
-            self.get_where_any_conditions_satisfied(C=C,
-                                                    fine_data=train_pred_fine_data,
-                                                    coarse_data=train_pred_coarse_data,
-                                                    secondary_fine_data=secondary_train_pred_fine_data,
-                                                    secondary_coarse_data=secondary_train_pred_coarse_data))
+            rules.Rule.get_where_any_conditions_satisfied(C=C,
+                                                          fine_data=train_pred_fine_data,
+                                                          coarse_data=train_pred_coarse_data,
+                                                          secondary_fine_data=secondary_train_pred_fine_data,
+                                                          secondary_coarse_data=secondary_train_pred_coarse_data))
         BOD_l = np.sum(where_any_conditions_satisfied_on_train)
 
         return BOD_l
 
     def get_POS_l_C(self,
                     l: data_preprocessing.Label,
-                    C: set[condition.Condition],
+                    C: set[conditions.Condition],
                     stage: str = 'original') -> int:
         """Calculate the number of train samples that satisfy any conditions for some set of condition
         and are false positive.
@@ -682,17 +497,17 @@ class EDCR:
             self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
 
         where_any_conditions_satisfied_on_train = (
-            self.get_where_any_conditions_satisfied(C=C,
-                                                    fine_data=train_pred_fine_data,
-                                                    coarse_data=train_pred_coarse_data,
-                                                    secondary_fine_data=secondary_train_pred_fine_data,
-                                                    secondary_coarse_data=secondary_train_pred_coarse_data))
+            rules.Rule.get_where_any_conditions_satisfied(C=C,
+                                                          fine_data=train_pred_fine_data,
+                                                          coarse_data=train_pred_coarse_data,
+                                                          secondary_fine_data=secondary_train_pred_fine_data,
+                                                          secondary_coarse_data=secondary_train_pred_coarse_data))
         POS_l = np.sum(where_was_wrong_with_respect_to_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
 
     def get_BOD_CC(self,
-                   CC: set[(condition.Condition, data_preprocessing.Label)]) -> (int, np.array):
+                   CC: set[(conditions.Condition, data_preprocessing.Label)]) -> (int, np.array):
         """Calculate the number of train samples that satisfy the body of the 2nd rule for some set of condition
         class pair.
 
@@ -715,7 +530,7 @@ class EDCR:
     def get_POS_l_CC(self,
                      test: bool,
                      l: data_preprocessing.Label,
-                     CC: set[(condition.Condition, data_preprocessing.Label)]) -> int:
+                     CC: set[(conditions.Condition, data_preprocessing.Label)]) -> int:
         """Calculate the number of samples that satisfy the body of the 2nd rule and head
         (ground truth is l) for a label l and some set of condition class pair.
 
@@ -742,7 +557,7 @@ class EDCR:
     def get_CON_l_CC(self,
                      test: bool,
                      l: data_preprocessing.Label,
-                     CC: set[(condition.Condition, data_preprocessing.Label)]) -> float:
+                     CC: set[(conditions.Condition, data_preprocessing.Label)]) -> float:
         """Calculate the ratio of number of samples that satisfy the rule body and head with the ones
         that only satisfy the body, given a set of condition class pairs.
 
@@ -759,7 +574,7 @@ class EDCR:
         return CON_l_CC
 
     def DetRuleLearn(self,
-                     l: data_preprocessing.Label) -> set[condition.Condition]:
+                     l: data_preprocessing.Label) -> set[conditions.Condition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
         that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
 
@@ -799,9 +614,9 @@ class EDCR:
 
     def _CorrRuleLearn(self,
                        l: data_preprocessing.Label,
-                       CC_all: set[(condition.Condition, data_preprocessing.Label)],
+                       CC_all: set[(conditions.Condition, data_preprocessing.Label)],
                        shared_index: mp.managers.ValueProxy) -> \
-            (data_preprocessing.Label, [tuple[condition.Condition, data_preprocessing.Label]]):
+            (data_preprocessing.Label, [tuple[conditions.Condition, data_preprocessing.Label]]):
         """Learns error correction rules for a specific label and granularity. These rules associate conditions
         with alternative labels that are more likely to be correct when those conditions are met.
 
@@ -863,10 +678,10 @@ class EDCR:
                 DC_l = self.DetRuleLearn(l=l)
 
                 if len(DC_l):
-                    self.error_detection_rules[l] = EDCR.ErrorDetectionRule(l=l, DC_l=DC_l)
+                    self.error_detection_rules[l] = rules.ErrorDetectionRule(l=l, DC_l=DC_l)
 
                 for cond_l in DC_l:
-                    if not (isinstance(cond_l, condition.PredCondition) and cond_l.l == l):
+                    if not (isinstance(cond_l, conditions.PredCondition) and cond_l.l == l):
                         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
                 if utils.is_local():
@@ -893,7 +708,7 @@ class EDCR:
 
         for l, CC_l in CC_ls:
             if len(CC_l):
-                self.error_correction_rules[l] = EDCR.ErrorCorrectionRule(l=l, CC_l=CC_l)
+                self.error_correction_rules[l] = rules.ErrorCorrectionRule(l=l, CC_l=CC_l)
             else:
                 print(utils.red_text('\n' + '#' * 10 + f' {l} does not have an error correction rule!\n'))
 
@@ -1017,7 +832,7 @@ class EDCR:
 
             altered_pred_data_l = rule_g_l(pred_fine_data=fine_data, pred_coarse_data=coarse_data,
                                            secondary_pred_fine_data=secondary_fine_data,
-                                           secondary_pred_coarse_data=secondary_coarse_data,)
+                                           secondary_pred_coarse_data=secondary_coarse_data, )
 
             self.pred_data[test_or_train]['post_correction'][g] = np.where(
                 # (collision_array != 1) &
