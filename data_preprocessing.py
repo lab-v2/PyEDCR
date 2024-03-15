@@ -288,7 +288,6 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
     ----------
         :param cwd:
         :param combined:
-        :param indices:
     """
 
     data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), '.')

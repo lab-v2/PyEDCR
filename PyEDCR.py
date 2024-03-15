@@ -82,9 +82,9 @@ class EDCR:
                      secondary_fine_data: np.array,
                      secondary_coarse_data: np.array,
                      ) -> np.array:
-            granularity_data = (fine_data if self.secondary else secondary_fine_data) \
+            granularity_data = (fine_data if not self.secondary else secondary_fine_data) \
                 if self.l.g == data_preprocessing.granularities['fine'] else \
-                (coarse_data if self.secondary else secondary_coarse_data)
+                (coarse_data if not self.secondary else secondary_coarse_data)
             return np.where(granularity_data == self.l.index, 1, 0)
 
         def __str__(self) -> str:
@@ -175,8 +175,8 @@ class EDCR:
                 EDCR.get_where_any_conditions_satisfied(C=self.C_l,
                                                         fine_data=pred_fine_data,
                                                         coarse_data=pred_coarse_data,
-                                                        secondary_pred_fine_data=secondary_pred_fine_data,
-                                                        secondary_pred_coarse_data=secondary_pred_coarse_data))
+                                                        secondary_fine_data=secondary_pred_fine_data,
+                                                        secondary_coarse_data=secondary_pred_coarse_data))
             where_body_is_satisfied = where_predicted_l * where_any_conditions_satisfied
 
             return where_body_is_satisfied
@@ -237,8 +237,8 @@ class EDCR:
                     EDCR.get_where_any_conditions_satisfied(C={cond},
                                                             fine_data=pred_fine_data,
                                                             coarse_data=pred_coarse_data,
-                                                            secondary_pred_fine_data=secondary_pred_fine_data,
-                                                            secondary_pred_coarse_data=secondary_pred_coarse_data))
+                                                            secondary_fine_data=secondary_pred_fine_data,
+                                                            secondary_coarse_data=secondary_pred_coarse_data))
                 where_predicted_l_prime = self.get_where_predicted_l(data=test_pred_granularity_data,
                                                                      l_prime=l_prime)
                 where_pair_satisfied = where_condition_satisfied * where_predicted_l_prime
@@ -280,12 +280,13 @@ class EDCR:
                  K_train: list[(int, int)] = None,
                  K_test: list[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
-                 secondary_model_name: str = False):
+                 secondary_model_name: str = None):
         self.main_model_name = main_model_name
         self.combined = combined
         self.loss = loss
         self.lr = lr
         self.epsilon = epsilon
+        self.secondary_model_name = secondary_model_name
 
         pred_paths: dict[str, dict] = {
             'test' if test else 'train': {g_str: vit_pipeline.get_filepath(model_name=main_model_name,
@@ -669,13 +670,13 @@ class EDCR:
     def get_where_any_conditions_satisfied(C: set[_Condition],
                                            fine_data: np.array,
                                            coarse_data: np.array,
-                                           secondary_pred_fine_data: np.array,
-                                           secondary_pred_coarse_data: np.array
+                                           secondary_fine_data: np.array,
+                                           secondary_coarse_data: np.array
                                            ) -> np.array:
         """Checks where any given conditions are satisfied.
 
-        :param secondary_pred_coarse_data:
-        :param secondary_pred_fine_data:
+        :param secondary_fine_data:
+        :param secondary_coarse_data:
         :param fine_data: Data that used for Condition having FineGrainLabel l
         :param coarse_data: Data that used for Condition having CoarseGrainLabel l
         :param C: A set of `Condition` objects.
@@ -684,9 +685,10 @@ class EDCR:
         any_condition_satisfied = np.zeros_like(fine_data)
 
         for cond in C:
-            any_condition_satisfied |= cond(fine_data=fine_data, coarse_data=coarse_data,
-                                            secondary_pred_fine_data=secondary_pred_fine_data,
-                                            secondary_pred_coarse_data=secondary_pred_coarse_data)
+            any_condition_satisfied |= cond(fine_data=fine_data,
+                                            coarse_data=coarse_data,
+                                            secondary_fine_data=secondary_fine_data,
+                                            secondary_coarse_data=secondary_coarse_data)
 
         return any_condition_satisfied
 
@@ -703,13 +705,15 @@ class EDCR:
         """
 
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
-        train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
+        secondary_train_pred_fine_data, secondary_train_pred_coarse_data = (
+            self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
 
         where_any_conditions_satisfied_on_train = (
             self.get_where_any_conditions_satisfied(C=C,
                                                     fine_data=train_pred_fine_data,
                                                     coarse_data=train_pred_coarse_data,
-                                                    ))
+                                                    secondary_fine_data=secondary_train_pred_fine_data,
+                                                    secondary_coarse_data=secondary_train_pred_coarse_data))
         where_train_tp_l = self.get_where_tp_l(test=False, l=l, stage=stage)
         NEG_l = np.sum(where_train_tp_l * where_any_conditions_satisfied_on_train)
 
@@ -728,7 +732,9 @@ class EDCR:
         where_any_conditions_satisfied_on_train = (
             self.get_where_any_conditions_satisfied(C=C,
                                                     fine_data=train_pred_fine_data,
-                                                    coarse_data=train_pred_coarse_data))
+                                                    coarse_data=train_pred_coarse_data,
+                                                    secondary_fine_data=secondary_train_pred_fine_data,
+                                                    secondary_coarse_data=secondary_train_pred_coarse_data))
         BOD_l = np.sum(where_any_conditions_satisfied_on_train)
 
         return BOD_l
@@ -747,10 +753,15 @@ class EDCR:
         """
         where_was_wrong_with_respect_to_l = self.get_where_fp_l(test=False, l=l, stage=stage)
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
+        secondary_train_pred_fine_data, secondary_train_pred_coarse_data = (
+            self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
+
         where_any_conditions_satisfied_on_train = (
             self.get_where_any_conditions_satisfied(C=C,
                                                     fine_data=train_pred_fine_data,
-                                                    coarse_data=train_pred_coarse_data))
+                                                    coarse_data=train_pred_coarse_data,
+                                                    secondary_fine_data=secondary_train_pred_fine_data,
+                                                    secondary_coarse_data=secondary_train_pred_coarse_data))
         POS_l = np.sum(where_was_wrong_with_respect_to_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
@@ -972,13 +983,16 @@ class EDCR:
         """
         stage = 'original' if self.correction_model is None else 'post_detection'
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
+        secondary_pred_fine_data, secondary_pred_coarse_data = self.get_predictions(test=test, secondary=True)
         altered_pred_granularity_data = self.get_predictions(test=test, g=g, stage=stage)
 
         self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
 
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
             altered_pred_data_l = rule_g_l(pred_fine_data=pred_fine_data,
-                                           pred_coarse_data=pred_coarse_data)
+                                           pred_coarse_data=pred_coarse_data,
+                                           secondary_pred_fine_data=secondary_pred_fine_data,
+                                           secondary_pred_coarse_data=secondary_pred_coarse_data)
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
         self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
@@ -1061,6 +1075,8 @@ class EDCR:
         test_or_train = 'test' if test else 'train'
         g_l_rules = {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}
 
+        secondary_fine_data, secondary_coarse_data = self.get_predictions(test=test, secondary=True)
+
         for l, rule_g_l in g_l_rules.items():
             previous_l_precision, previous_l_recall = self.get_l_precision_and_recall(l=l, test=test,
                                                                                       stage='post_correction')
@@ -1073,7 +1089,9 @@ class EDCR:
 
             fine_data, coarse_data = self.get_predictions(test=test, stage='post_correction')
 
-            altered_pred_data_l = rule_g_l(fine_data=fine_data, coarse_data=coarse_data)
+            altered_pred_data_l = rule_g_l(pred_fine_data=fine_data, pred_coarse_data=coarse_data,
+                                           secondary_pred_fine_data=secondary_fine_data,
+                                           secondary_pred_coarse_data=secondary_coarse_data,)
 
             self.pred_data[test_or_train]['post_correction'][g] = np.where(
                 # (collision_array != 1) &
@@ -1139,7 +1157,7 @@ class EDCR:
         examples_with_errors = set()
         for g in data_preprocessing.granularities.values():
             examples_with_errors = examples_with_errors.union(set(
-                np.where(self.get_predictions(test=False, g=g, stage='post_detections') == -1)[0]))
+                np.where(self.get_predictions(test=False, g=g, stage='post_detection') == -1)[0]))
 
         examples_with_errors = np.array(list(examples_with_errors))
 
@@ -1283,7 +1301,7 @@ if __name__ == '__main__':
                     lr=0.0001,
                     num_epochs=20,
                     include_inconsistency_constraint=False,
-                    secondary_model_name='vit_b_16_soft_marginal')
+                    )
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline(EDCR_epoch_num=5)
