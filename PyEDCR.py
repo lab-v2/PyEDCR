@@ -909,7 +909,8 @@ class EDCR:
             lrs=[self.lr],
             combined=self.combined,
             debug=False,
-            indices=examples_with_errors)
+            indices=examples_with_errors,
+            train_eval_split=0.8)
 
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
@@ -949,7 +950,7 @@ class EDCR:
             loaders=loaders,
             loss=self.loss,
             device=devices[0],
-            test=False,
+            split='train',
             print_results=False)
 
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['fine']][

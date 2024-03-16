@@ -2,7 +2,6 @@ import os
 import torch.utils.data
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-import pathlib
 import typing
 
 import context_handlers
@@ -351,9 +350,9 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                             loaders: dict[str, torch.utils.data.DataLoader],
                             loss: str,
                             device: torch.device,
-                            test: bool,
+                            split: str,
                             print_results: bool = True) -> (list[int], list[int], list[int], list[int], float, float):
-    loader = loaders['test' if test else f'train']
+    loader = loaders[split]
     fine_tuner.to(device)
     fine_tuner.eval()
 
@@ -396,7 +395,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                                   loss=loss,
                                   true_fine_data=fine_ground_truths,
                                   true_coarse_data=coarse_ground_truths,
-                                  test=test))
+                                  test=split == 'test'))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
             fine_accuracy, coarse_accuracy)
@@ -426,9 +425,9 @@ def get_and_print_post_epoch_metrics(epoch: int,
                                   labels=range(num_coarse_grain_classes),
                                   average='macro')
 
-    loss_str = (f'Training epoch total fine loss: {round(running_fine_loss / num_batches, 2)}'
-                f'\ntraining epoch total coarse loss: {round(running_coarse_loss / num_batches, 2)}') \
-        if running_fine_loss is not None else f'Training epoch total loss: {round(running_total_loss / num_batches, 2)}'
+    # loss_str = (f'Training epoch total fine loss: {round(running_fine_loss / num_batches, 2)}'
+    #             f'\ntraining epoch total coarse loss: {round(running_coarse_loss / num_batches, 2)}') \
+    #     if running_fine_loss is not None else f'Training epoch total loss: {round(running_total_loss / num_batches, 2)}'
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done,\n'
           # f'{loss_str}'
@@ -649,6 +648,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              save_files: bool = True,
                              debug: bool = False,
                              evaluate_on_test: bool = True,
+                             evaluate_on_train_eval: bool = True,
                              Y_original_fine: np.array = None,
                              Y_original_coarse: np.array = None):
     fine_tuner.to(device)
@@ -682,6 +682,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         test_fine_accuracies = []
         test_coarse_accuracies = []
 
+        train_eval_fine_accuracy, train_eval_coarse_accuracy = None, None
+
         if loss.split('_')[0] == 'LTN':
             import ltn
             import ltn_support
@@ -698,7 +700,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         for epoch in range(epochs):
             print(f"Current lr={optimizer.param_groups[0]['lr']}")
 
-            with ((context_handlers.TimeWrapper())):
+            with (((context_handlers.TimeWrapper()))):
                 total_running_loss = torch.Tensor([0.0]).to(device)
                 running_fine_loss = torch.Tensor([0.0]).to(device)
                 running_coarse_loss = torch.Tensor([0.0]).to(device)
@@ -830,10 +832,11 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                                 loaders=loaders,
                                                 loss=loss,
                                                 device=device,
-                                                test=True))
+                                                split='test'))
 
                     test_fine_accuracies += [test_fine_accuracy]
                     test_coarse_accuracies += [test_coarse_accuracy]
+
                 print('#' * 100)
 
                 if (epoch == num_epochs - 1) and save_files:
@@ -845,6 +848,23 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                           test_fine_prediction=test_fine_predictions,
                                           test_coarse_prediction=test_coarse_predictions,
                                           loss=loss)
+
+                if evaluate_on_train_eval:
+                    curr_train_eval_fine_accuracy, curr_train_eval_coarse_accuracy = (
+                        evaluate_combined_model(fine_tuner=fine_tuner,
+                                                loaders=loaders,
+                                                loss=loss,
+                                                device=device,
+                                                split='train_eval'))[-2:]
+                    if train_eval_fine_accuracy is not None and train_eval_coarse_accuracy is not None and \
+                            curr_train_eval_fine_accuracy < train_eval_fine_accuracy and \
+                            curr_train_eval_coarse_accuracy < train_eval_coarse_accuracy:
+                        print(utils.red_text('Early stopping!!!'))
+                        break
+
+                    train_eval_fine_accuracy = curr_train_eval_fine_accuracy
+                    train_eval_coarse_accuracy = curr_train_eval_coarse_accuracy
+
 
         if save_files:
             if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
@@ -865,10 +885,12 @@ def initiate(lrs: list[typing.Union[str, float]],
              pretrained_path: str = None,
              debug: bool = False,
              indices: typing.Sequence = None,
-             evaluation: bool = None):
+             evaluation: bool = None,
+             train_eval_split: float = None):
     """
     Initializes models, datasets, and devices for training.
 
+    :param train_eval_split:
     :param evaluation:
     :param indices:
     :param lrs: List of learning rates for the models.
@@ -930,8 +952,9 @@ def initiate(lrs: list[typing.Union[str, float]],
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size,
-                                             indices=indices,
-                                             evaluation=evaluation)
+                                             subset_indices=indices,
+                                             evaluation=evaluation,
+                                             train_eval_split=train_eval_split)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of test images: {len(loaders['test'].dataset)}")
@@ -980,7 +1003,7 @@ def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
             print('#' * 100)
 
 
-def run_combined_evaluating_pipeline(test: bool,
+def run_combined_evaluating_pipeline(split: str,
                                      lrs: list[typing.Union[str, float]],
                                      loss: str,
                                      pretrained_path: str = None,
@@ -992,10 +1015,10 @@ def run_combined_evaluating_pipeline(test: bool,
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
+    :param split:
     :param indices:
     :param print_results:
     :param pretrained_fine_tuner:
-    :param test: True for test data, False for train data.
     :param lrs: List of learning rates used during training.
     :param loss: The loss function used during training.
     :param pretrained_path: Path to a pre-trained model (optional).
@@ -1024,11 +1047,11 @@ def run_combined_evaluating_pipeline(test: bool,
         loaders=loaders,
         loss=loss,
         device=devices[0],
-        test=test,
+        split=split,
         print_results=print_results)
 
     if save_files:
-        save_prediction_files(test=test,
+        save_prediction_files(test=split == 'test',
                               fine_tuners=fine_tuners[0],
                               combined=True,
                               lrs=lrs[0],
@@ -1047,7 +1070,7 @@ if __name__ == '__main__':
     # run_combined_fine_tuning_pipeline(lrs=[0.0001],
     #                                   loss='BCE')
 
-    run_combined_evaluating_pipeline(test=False,
+    run_combined_evaluating_pipeline(split='train',
                                      lrs=[0.0001],
                                      loss='BCE',
                                      pretrained_path='vit_b_16_lr0.0001_BCE.pth')
