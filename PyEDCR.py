@@ -911,10 +911,13 @@ class EDCR:
             debug=False,
             indices=examples_with_errors)
 
+        if self.correction_model is None:
+            self.correction_model = fine_tuners[0]
+
         with (context_handlers.ClearSession()):
             vit_pipeline.fine_tune_combined_model(
                 lrs=[self.lr],
-                fine_tuner=fine_tuners[0] if self.correction_model is None else self.correction_model,
+                fine_tuner=self.correction_model,
                 device=devices[0],
                 loaders=loaders,
                 num_fine_grain_classes=num_fine_grain_classes,
@@ -932,8 +935,6 @@ class EDCR:
             )
             print('#' * 100)
 
-        if self.correction_model is None:
-            self.correction_model = fine_tuners[0]
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             lrs=[self.lr],
