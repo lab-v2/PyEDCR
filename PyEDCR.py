@@ -961,7 +961,7 @@ class EDCR:
     def apply_new_model_on_test(self,
                                 print_results: bool = True):
         new_fine_predictions, new_coarse_predictions = (
-            vit_pipeline.run_combined_evaluating_pipeline(test=True,
+            vit_pipeline.run_combined_evaluating_pipeline(split='test',
                                                           lrs=[self.lr],
                                                           loss=self.loss,
                                                           pretrained_fine_tuner=self.correction_model,
@@ -990,7 +990,7 @@ class EDCR:
                 self.apply_detection_rules(test=False, g=g)
 
             self.run_training_new_model_pipeline()
-            self.print_metrics(test=False, prior=False, stage='post_detection')
+            # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{EDCR_epoch_num}'
 
