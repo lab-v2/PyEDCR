@@ -192,3 +192,149 @@ class ErrorCorrectionRule(Rule):
 
     def __str__(self) -> str:
         return '\n'.join(f'corr_{self.l}(x) <- {cond}(x) ^ pred_{l_prime}(x)' for (cond, l_prime) in self.C_l)
+
+
+class Rule2(typing.Callable, typing.Sized, abc.ABC):
+    """Represents a rule for evaluating predictions based on conditions and labels.
+
+    :param l: The label associated with the rule.
+    :param C_l: The set of conditions that define the rule.
+    """
+
+    def __init__(self,
+                 l: data_preprocessing.Label,
+                 C_l: set[
+                     typing.Union[conditions.Condition, tuple[set[conditions.Condition], data_preprocessing.Label]]]):
+        self.l = l
+        self.C_l = C_l
+
+    def get_where_predicted_l(self,
+                              data: np.array,
+                              l_prime: data_preprocessing.Label = None) -> np.array:
+        return np.where(data == (self.l.index if l_prime is None else l_prime.index), 1, 0)
+
+    @abc.abstractmethod
+    def __call__(self,
+                 pred_fine_data: np.array,
+                 pred_coarse_data: np.array,
+                 secondary_pred_fine_data: np.array,
+                 secondary_pred_coarse_data: np.array) -> np.array:
+        pass
+
+    @abc.abstractmethod
+    def get_where_body_is_satisfied(self,
+                                    pred_fine_data: np.array,
+                                    pred_coarse_data: np.array,
+                                    secondary_pred_fine_data: np.array,
+                                    secondary_pred_coarse_data: np.array):
+        pass
+
+    @staticmethod
+    def get_where_any_conditions_satisfied(C: set[conditions.Condition],
+                                           fine_data: np.array,
+                                           coarse_data: np.array,
+                                           secondary_fine_data: np.array,
+                                           secondary_coarse_data: np.array
+                                           ) -> np.array:
+        """Checks where any given conditions are satisfied.
+
+        :param secondary_fine_data:
+        :param secondary_coarse_data:
+        :param fine_data: Data that used for Condition having FineGrainLabel l
+        :param coarse_data: Data that used for Condition having CoarseGrainLabel l
+        :param C: A set of `Condition` objects.
+        :return: A NumPy array with True values if the example satisfy any conditions and False otherwise.
+        """
+        any_condition_satisfied = np.zeros_like(fine_data)
+
+        for cond in C:
+            any_condition_satisfied |= cond(fine_data=fine_data,
+                                            coarse_data=coarse_data,
+                                            secondary_fine_data=secondary_fine_data,
+                                            secondary_coarse_data=secondary_coarse_data)
+
+        return any_condition_satisfied
+
+    def __len__(self):
+        return len(self.C_l)
+
+
+class ErrorCorrectionRule2(Rule2):
+    def __init__(self,
+                 l: data_preprocessing.Label,
+                 CC_l: set[(set[conditions.Condition], data_preprocessing.Label)]):
+        """Construct a detection rule for evaluating predictions based on conditions and labels.
+
+        :param l: The label associated with the rule.
+        :param CC_l: The set of condition-class pair that define the rule.
+        """
+
+        C_l = set()
+        for conds, l_prime in CC_l:
+            # Check for InconsistencyCondition or mismatching granularity
+            # has_inconsistency = any(isinstance(cond, conditions.InconsistencyCondition) for cond in conds)
+            mismatched_granularity = any(cond.l.g != l_prime.g for cond in conds) and l_prime != l
+
+            # Add to C_l if either condition is met
+            if mismatched_granularity:
+                C_l.add((conds, l_prime))
+
+        super().__init__(l=l, C_l=C_l)
+
+    def get_where_body_is_satisfied(self,
+                                    pred_fine_data: np.array,
+                                    pred_coarse_data: np.array,
+                                    secondary_pred_fine_data: np.array,
+                                    secondary_pred_coarse_data: np.array) -> np.array:
+        test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
+            else pred_coarse_data
+
+        where_any_pair_satisfied = np.zeros_like(test_pred_granularity_data)
+
+        for cond, l_prime in self.C_l:
+            where_condition_satisfied = (
+                self.get_where_any_conditions_satisfied(C=cond,
+                                                        fine_data=pred_fine_data,
+                                                        coarse_data=pred_coarse_data,
+                                                        secondary_fine_data=secondary_pred_fine_data,
+                                                        secondary_coarse_data=secondary_pred_coarse_data))
+            where_predicted_l_prime = self.get_where_predicted_l(data=test_pred_granularity_data,
+                                                                 l_prime=l_prime)
+            where_pair_satisfied = where_condition_satisfied * where_predicted_l_prime
+            where_any_pair_satisfied |= where_pair_satisfied
+
+        return where_any_pair_satisfied
+
+    def __call__(self,
+                 pred_fine_data: np.array,
+                 pred_coarse_data: np.array,
+                 secondary_pred_fine_data: np.array,
+                 secondary_pred_coarse_data: np.array) -> np.array:
+        """Infer the correction rule based on the provided prediction data.
+
+        :param pred_fine_data: The fine-grained prediction data.
+        :param pred_coarse_data: The coarse-grained prediction data.
+        :return: new test prediction for a specific granularity as derived from Label l.
+        """
+        where_any_pair_satisfied = (
+            self.get_where_body_is_satisfied(pred_fine_data=pred_fine_data,
+                                             pred_coarse_data=pred_coarse_data,
+                                             secondary_pred_fine_data=secondary_pred_fine_data,
+                                             secondary_pred_coarse_data=secondary_pred_coarse_data))
+
+        altered_pred_data = np.where(where_any_pair_satisfied == 1, self.l.index, -1)
+
+        return altered_pred_data
+
+    def __str__(self):
+        conditions_str = []
+        for cond_set, l_prime in self.C_l:
+            # Check if cond_set is a set (adjust for other iterable types if needed)
+            if isinstance(cond_set, set):
+                # Use set comprehension for concise condition representation
+                condition_str = " | ".join(f"{c}(x)" for c in cond_set)
+                conditions_str.append(f'corr_{self.l}(x) <- {condition_str} ^ pred_{l_prime}(x)')
+            else:
+                # Handle cases where cond_set isn't a set (optional, add logic as needed)
+                conditions_str.append(f'corr_{self.l}(x) <- {cond_set}(x) ^ pred_{l_prime}(x)')
+        return '\n'.join(conditions_str)
