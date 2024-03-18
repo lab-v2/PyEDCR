@@ -245,6 +245,7 @@ class Rule2(typing.Callable, typing.Sized, abc.ABC):
         :param C: A set of `Condition` objects.
         :return: A NumPy array with True values if the example satisfy any conditions and False otherwise.
         """
+        C = {C} if isinstance(C, conditions.Condition) else C
         all_condition_satisfied = np.ones_like(fine_data)
 
         for cond in C:
@@ -273,7 +274,10 @@ class ErrorCorrectionRule2(Rule2):
         for conds, l_prime in CC_l:
             # Check for InconsistencyCondition or mismatching granularity
             # has_inconsistency = any(isinstance(cond, conditions.InconsistencyCondition) for cond in conds)
-            mismatched_granularity = any(cond.l.g != l_prime.g for cond in conds) # and l_prime != l
+            if not isinstance(conds, conditions.PredCondition):
+                mismatched_granularity = any(cond.l.g != l_prime.g for cond in conds) # and l_prime != l
+            else:
+                mismatched_granularity = conds.l.g != l_prime.g # and l_prime != l
 
             # Add to C_l if either condition is met
             if mismatched_granularity:

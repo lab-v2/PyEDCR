@@ -71,6 +71,7 @@ class EDCR_experiment(EDCR):
         CC_ls = {l: set() for l in data_preprocessing.get_labels(g).values()}
         condition_pair = product([cond for cond in self.condition_datas[other_g] if not cond.secondary],
                                  [cond for cond in self.condition_datas[other_g] if cond.secondary])
+        # condition_pair = [cond for cond in self.condition_datas[other_g] if not cond.secondary]
         CC_all = product(condition_pair,
                          data_preprocessing.get_labels(g).values())
         for CC in tqdm(CC_all):
@@ -139,7 +140,7 @@ class EDCR_experiment(EDCR):
 
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = True
+    test_bool = False
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
