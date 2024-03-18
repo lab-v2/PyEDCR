@@ -230,7 +230,7 @@ class Rule2(typing.Callable, typing.Sized, abc.ABC):
         pass
 
     @staticmethod
-    def get_where_any_conditions_satisfied(C: set[conditions.Condition],
+    def get_where_all_conditions_satisfied(C: set[conditions.Condition],
                                            fine_data: np.array,
                                            coarse_data: np.array,
                                            secondary_fine_data: np.array,
@@ -245,15 +245,15 @@ class Rule2(typing.Callable, typing.Sized, abc.ABC):
         :param C: A set of `Condition` objects.
         :return: A NumPy array with True values if the example satisfy any conditions and False otherwise.
         """
-        any_condition_satisfied = np.zeros_like(fine_data)
+        all_condition_satisfied = np.ones_like(fine_data)
 
         for cond in C:
-            any_condition_satisfied |= cond(fine_data=fine_data,
+            all_condition_satisfied &= cond(fine_data=fine_data,
                                             coarse_data=coarse_data,
                                             secondary_fine_data=secondary_fine_data,
                                             secondary_coarse_data=secondary_coarse_data)
 
-        return any_condition_satisfied
+        return all_condition_satisfied
 
     def __len__(self):
         return len(self.C_l)
@@ -273,7 +273,7 @@ class ErrorCorrectionRule2(Rule2):
         for conds, l_prime in CC_l:
             # Check for InconsistencyCondition or mismatching granularity
             # has_inconsistency = any(isinstance(cond, conditions.InconsistencyCondition) for cond in conds)
-            mismatched_granularity = any(cond.l.g != l_prime.g for cond in conds) and l_prime != l
+            mismatched_granularity = any(cond.l.g != l_prime.g for cond in conds) # and l_prime != l
 
             # Add to C_l if either condition is met
             if mismatched_granularity:
@@ -293,7 +293,7 @@ class ErrorCorrectionRule2(Rule2):
 
         for cond, l_prime in self.C_l:
             where_condition_satisfied = (
-                self.get_where_any_conditions_satisfied(C=cond,
+                self.get_where_all_conditions_satisfied(C=cond,
                                                         fine_data=pred_fine_data,
                                                         coarse_data=pred_coarse_data,
                                                         secondary_fine_data=secondary_pred_fine_data,
@@ -330,9 +330,9 @@ class ErrorCorrectionRule2(Rule2):
         conditions_str = []
         for cond_set, l_prime in self.C_l:
             # Check if cond_set is a set (adjust for other iterable types if needed)
-            if isinstance(cond_set, set):
+            if isinstance(cond_set, set) or isinstance(cond_set, tuple):
                 # Use set comprehension for concise condition representation
-                condition_str = " | ".join(f"{c}(x)" for c in cond_set)
+                condition_str = " ^ ".join(f"{c}(x)" for c in cond_set)
                 conditions_str.append(f'corr_{self.l}(x) <- {condition_str} ^ pred_{l_prime}(x)')
             else:
                 # Handle cases where cond_set isn't a set (optional, add logic as needed)

@@ -139,7 +139,7 @@ class EDCR_experiment(EDCR):
 
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = False
+    test_bool = True
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
@@ -154,6 +154,5 @@ if __name__ == '__main__':
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()
-        # edcr.run_error_detection_application_pipeline(test=test_bool)
         for gra in data_preprocessing.granularities.values():
             edcr.apply_correction_rules(test=test_bool, g=gra)
