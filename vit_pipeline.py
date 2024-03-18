@@ -700,7 +700,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         for epoch in range(epochs):
             print(f"Current lr={optimizer.param_groups[0]['lr']}")
 
-            with (((context_handlers.TimeWrapper()))):
+            with context_handlers.TimeWrapper():
                 total_running_loss = torch.Tensor([0.0]).to(device)
                 running_fine_loss = torch.Tensor([0.0]).to(device)
                 running_coarse_loss = torch.Tensor([0.0]).to(device)
