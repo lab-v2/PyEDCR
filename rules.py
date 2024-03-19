@@ -81,7 +81,8 @@ class ErrorDetectionRule(Rule):
         """
         super().__init__(l=l, C_l=DC_l)
         assert all(cond.l != self.l for cond in {cond_prime for cond_prime in self.C_l
-                                                 if isinstance(cond_prime, conditions.PredCondition)})
+                                                 if isinstance(cond_prime, conditions.PredCondition)
+                                                 and not cond_prime.secondary})
 
     def get_where_body_is_satisfied(self,
                                     pred_fine_data: np.array,

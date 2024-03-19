@@ -681,7 +681,7 @@ class EDCR:
                     self.error_detection_rules[l] = rules.ErrorDetectionRule(l=l, DC_l=DC_l)
 
                 for cond_l in DC_l:
-                    if not (isinstance(cond_l, conditions.PredCondition) and cond_l.l == l):
+                    if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary) and cond_l.l == l):
                         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
                 if utils.is_local():
@@ -915,7 +915,7 @@ class EDCR:
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
 
-        with (context_handlers.ClearSession()):
+        with context_handlers.ClearSession():
             vit_pipeline.fine_tune_combined_model(
                 lrs=[self.lr],
                 fine_tuner=self.correction_model,
