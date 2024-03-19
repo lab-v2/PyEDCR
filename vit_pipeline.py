@@ -9,6 +9,8 @@ import context_handlers
 import models
 import utils
 import data_preprocessing
+import ltn
+import ltn_support
 
 batch_size = 32
 scheduler_gamma = 0.9
@@ -683,9 +685,6 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         test_coarse_accuracies = []
 
         if loss.split('_')[0] == 'LTN':
-            import ltn
-            import ltn_support
-
             epochs = ltn_num_epochs
             logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
         else:
@@ -756,8 +755,11 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                             if loss == 'LTN_BCE':
                                 criterion = torch.nn.BCEWithLogitsLoss()
 
-                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
-                                                                           Y_pred, Y_coarse_grain, Y_fine_grain)
+                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate=logits_to_predicate,
+                                                                           prediction=Y_pred,
+                                                                           labels_coarse=Y_coarse_grain,
+                                                                           labels_fine=Y_fine_grain,
+                                                                           )
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_combine)
 
                             if loss == "LTN_soft_marginal":

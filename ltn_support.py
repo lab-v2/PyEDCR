@@ -2,7 +2,7 @@
 import ltn
 import torch
 import data_preprocessing
-
+import numpy as np
 
 class LogitsToPredicate(torch.nn.Module):
     """
@@ -26,7 +26,7 @@ class LogitsToPredicate(torch.nn.Module):
 
 
 def compute_sat_normally(logits_to_predicate,
-                         prediction, labels_coarse, labels_fine):
+                         prediction, labels_coarse, labels_fine, granularity, DC_i):
     """
     compute satagg function for rules
     argument:
@@ -41,6 +41,7 @@ def compute_sat_normally(logits_to_predicate,
     """
     Not = ltn.Connective(ltn.fuzzy_ops.NotStandard())
     And = ltn.Connective(ltn.fuzzy_ops.AndProd())
+    Or = ltn.Connective(ltn.fuzzy_ops.OrProbSum())
     Implies = ltn.Connective(ltn.fuzzy_ops.ImpliesReichenbach())
     Forall = ltn.Quantifier(
         ltn.fuzzy_ops.AggregPMeanError(p=4), quantifier="f")
@@ -116,9 +117,21 @@ def compute_sat_normally(logits_to_predicate,
             if i != j:
                 sat_agg_list.append(Forall(x, Not(And(logits_to_predicate(x, l[i]), logits_to_predicate(x, l[j])))))
 
+    # Detection Rule: error_i(w) <- pred_i(w) and conj_DC_i(cond_j(w))
+    label_dict = fine_label_dict if granularity == 'fine' else coarse_label_dict
+    ground_truth = data_preprocessing.get_ground_truths(granularity)
+    for i in label_dict.values():
+        sat_agg_list.append(Forall(x, Implies(And(logits_to_predicate(x, l[i]),
+                                              Or(logits_to_predicate(x, l[j]) for j in DC_i)
+                                          )), And(Not(logits_to_predicate(x, ground_truth[i])), logits_to_predicate(x, l[i]))))
+
+    # Correction Rule:
+
+
     sat_agg = SatAgg(
         *sat_agg_list
     )
+
 
     return sat_agg
 
