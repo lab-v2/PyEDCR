@@ -648,7 +648,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              save_files: bool = True,
                              debug: bool = False,
                              evaluate_on_test: bool = True,
-                             evaluate_on_train_eval: bool = True,
+                             evaluate_on_train_eval: bool = False,
                              Y_original_fine: np.array = None,
                              Y_original_coarse: np.array = None):
     fine_tuner.to(device)
