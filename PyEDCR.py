@@ -910,7 +910,8 @@ class EDCR:
             combined=self.combined,
             debug=False,
             indices=examples_with_errors,
-            train_eval_split=0.8)
+            # train_eval_split=0.8
+        )
 
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
