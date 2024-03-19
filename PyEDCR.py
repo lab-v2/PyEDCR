@@ -727,7 +727,7 @@ class EDCR:
             self.get_predictions(test=test, secondary=True) if self.secondary_model_name is not None else None, None)
         altered_pred_granularity_data = self.get_predictions(test=test, g=g, stage=stage)
 
-        self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
+        # self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
 
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
             altered_pred_data_l = rule_g_l(pred_fine_data=pred_fine_data,
@@ -737,7 +737,6 @@ class EDCR:
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
         self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
-        # self.pred_data['test' if test else 'train']['post_correction'][g] = altered_pred_granularity_data
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
@@ -910,7 +909,7 @@ class EDCR:
             combined=self.combined,
             debug=False,
             indices=examples_with_errors,
-            pretrained_path='models/vit_b_16_BCE_lr0.0001.pth'
+            # pretrained_path='models/vit_b_16_BCE_lr0.0001.pth'
             # train_eval_split=0.8
         )
 
@@ -977,7 +976,6 @@ class EDCR:
             self.pred_data['test']['post_detection'][g] = np.where(old_test_g_predictions == -1,
                                                                    new_test_g_predictions,
                                                                    old_test_g_predictions)
-
         if print_results:
             self.print_metrics(test=test_bool, prior=False, stage='post_detection')
 
@@ -1050,8 +1048,7 @@ if __name__ == '__main__':
                     secondary_model_name='vit_b_16_soft_marginal'
                     )
         edcr.print_metrics(test=test_bool, prior=True)
-
-        edcr.run_learning_pipeline(EDCR_epoch_num=3)
+        edcr.run_learning_pipeline(EDCR_epoch_num=1)
         edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
@@ -1063,8 +1060,6 @@ if __name__ == '__main__':
         # recall_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_recalls[gra]
         # precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
         # recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
-
-        edcr.print_metrics(test=test_bool, prior=False, stage='post_detection')
 
     # folder = "experiment_1"
     #
