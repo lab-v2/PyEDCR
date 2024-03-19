@@ -11,7 +11,7 @@ import data_preprocessing
 
 batch_size = 16
 scheduler_gamma = 0.9
-num_epochs = 10
+num_epochs = 20
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
@@ -1073,7 +1073,8 @@ if __name__ == '__main__':
     run_combined_evaluating_pipeline(split='train',
                                      lrs=[0.0001],
                                      loss='BCE',
-                                     pretrained_path='vit_b_16_lr0.0001_BCE.pth')
+                                     pretrained_path='models/vit_b_16_BCE_lr0.0001.pth',
+                                     save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],

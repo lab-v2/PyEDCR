@@ -910,6 +910,7 @@ class EDCR:
             combined=self.combined,
             debug=False,
             indices=examples_with_errors,
+            pretrained_path='models/vit_b_16_BCE_lr0.0001.pth'
             # train_eval_split=0.8
         )
 
