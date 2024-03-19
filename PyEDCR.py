@@ -681,7 +681,7 @@ class EDCR:
                     self.error_detection_rules[l] = rules.ErrorDetectionRule(l=l, DC_l=DC_l)
 
                 for cond_l in DC_l:
-                    if not (isinstance(cond_l, conditions.PredCondition) and cond_l.l == l):
+                    if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary) and cond_l.l == l):
                         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
                 if utils.is_local():
@@ -909,12 +909,17 @@ class EDCR:
             lrs=[self.lr],
             combined=self.combined,
             debug=False,
-            indices=examples_with_errors)
+            indices=examples_with_errors,
+            # train_eval_split=0.8
+        )
 
-        with (context_handlers.ClearSession()):
+        if self.correction_model is None:
+            self.correction_model = fine_tuners[0]
+
+        with context_handlers.ClearSession():
             vit_pipeline.fine_tune_combined_model(
                 lrs=[self.lr],
-                fine_tuner=fine_tuners[0] if self.correction_model is None else self.correction_model,
+                fine_tuner=self.correction_model,
                 device=devices[0],
                 loaders=loaders,
                 num_fine_grain_classes=num_fine_grain_classes,
@@ -932,8 +937,6 @@ class EDCR:
             )
             print('#' * 100)
 
-        if self.correction_model is None:
-            self.correction_model = fine_tuners[0]
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             lrs=[self.lr],
@@ -948,7 +951,7 @@ class EDCR:
             loaders=loaders,
             loss=self.loss,
             device=devices[0],
-            test=False,
+            split='train',
             print_results=False)
 
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['fine']][
@@ -959,7 +962,7 @@ class EDCR:
     def apply_new_model_on_test(self,
                                 print_results: bool = True):
         new_fine_predictions, new_coarse_predictions = (
-            vit_pipeline.run_combined_evaluating_pipeline(test=True,
+            vit_pipeline.run_combined_evaluating_pipeline(split='test',
                                                           lrs=[self.lr],
                                                           loss=self.loss,
                                                           pretrained_fine_tuner=self.correction_model,
@@ -988,7 +991,7 @@ class EDCR:
                 self.apply_detection_rules(test=False, g=g)
 
             self.run_training_new_model_pipeline()
-            self.print_metrics(test=False, prior=False, stage='post_detection')
+            # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{EDCR_epoch_num}'
 
@@ -1043,11 +1046,11 @@ if __name__ == '__main__':
                     lr=0.0001,
                     num_epochs=20,
                     include_inconsistency_constraint=False,
-                    # secondary_model_name='vit_b_16_soft_marginal'
+                    secondary_model_name='vit_b_16_soft_marginal'
                     )
         edcr.print_metrics(test=test_bool, prior=True)
 
-        edcr.run_learning_pipeline(EDCR_epoch_num=5)
+        edcr.run_learning_pipeline(EDCR_epoch_num=3)
         edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
