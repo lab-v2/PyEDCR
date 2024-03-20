@@ -135,7 +135,7 @@ class EDCR_experiment(EDCR):
         cand = set()
         dummy_l = list(data_preprocessing.get_labels(g).values())[0]
         frac_correct_example_satisfy_cond_and_l = {}
-        for cond, l_prime in self.CC_all[g]:
+        for i, (cond, l_prime) in enumerate(self.CC_all[g]):
             dummy_rules = rules.ErrorCorrectionRule(l=dummy_l, CC_l={(cond, l_prime)})
             example_satisfy_cond_and_l = dummy_rules.get_where_body_is_satisfied(
                 pred_fine_data=self.pred_data['train']['original']['fine'],
@@ -167,6 +167,7 @@ class EDCR_experiment(EDCR):
                             cand.add(((cond, secondary_cond), l_prime))
                             used_cond_and_l.add(secondary_cond)
             cand.add(((*(dummy_cond.negatePredCondition for dummy_cond in used_cond_and_l), cond), l_prime))
+            print(f"finish {i}/{len(self.CC_all[g])}")
 
         self.CC_all[g] = cand
 
