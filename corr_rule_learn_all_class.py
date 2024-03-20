@@ -58,7 +58,31 @@ class EDCR_experiment(EDCR):
         prediction_after_apply_rule = np.where(prediction_after_apply_rule_mask == -1,
                                                self.pred_data['train']['original'][g],
                                                prediction_after_apply_rule_mask)
-        return self.get_accuracy(prediction=prediction_after_apply_rule, g=g)
+        num_example_satisfy_body = np.sum(np.where(prediction_after_apply_rule_mask != -1, 1, 0))
+        return num_example_satisfy_body, self.get_accuracy(prediction=prediction_after_apply_rule, g=g)
+
+    def get_label_maximize_ground_truth_from_condition(self,
+                                                       CC: set[(set[conditions.Condition], data_preprocessing.Label)],
+                                                       g: data_preprocessing.Granularity):
+        max_label = None
+        dummy_l = list(data_preprocessing.get_labels(g).values())[0]
+        Rule_CC_l = rules.ErrorCorrectionRule2(l=dummy_l, CC_l=CC)
+        prediction_after_apply_rule_mask = Rule_CC_l(
+            pred_fine_data=self.pred_data['train']['original']['fine'],
+            pred_coarse_data=self.pred_data['train']['original']['coarse'],
+            secondary_pred_fine_data=self.pred_data['secondary_model']['train']['fine'],
+            secondary_pred_coarse_data=self.pred_data['secondary_model']['train']['coarse']
+        )
+        # Filter out -1 values to focus on non-negative elements
+        unique_values, counts = np.unique(prediction_after_apply_rule_mask[prediction_after_apply_rule_mask != -1],
+                                          return_counts=True)
+
+        # Sort together by count (descending) and then by value (ascending)
+        sorted_data = sorted(zip(counts, unique_values), reverse=True)
+
+        # Extract the largest items (non-negative values)
+        largest_items = [item for count, item in sorted_data]
+        return max_label
 
     def learn_correction_rules(self,
                                g: data_preprocessing.Granularity):
@@ -69,22 +93,29 @@ class EDCR_experiment(EDCR):
         print(f'\nLearning {g}-grain error correction rules...')
 
         CC_ls = {l: set() for l in data_preprocessing.get_labels(g).values()}
-        # condition_pair = product([cond for cond in self.condition_datas[other_g] if not cond.secondary],
-        #                          [cond for cond in self.condition_datas[other_g] if cond.secondary])
-        condition_pair = [cond for cond in self.condition_datas[other_g] if cond.secondary]
-        CC_all = product(condition_pair,
-                         data_preprocessing.get_labels(g).values())
-        for CC in tqdm(CC_all):
-            max_score = 0
+        condition_pair = product([cond for cond in self.condition_datas[other_g] if not cond.secondary],
+                                 [cond for cond in self.condition_datas[other_g] if cond.secondary],
+                                 [cond for cond in self.condition_datas[g] if cond.secondary])
+        # condition_pair = [cond for cond in self.condition_datas[other_g] if cond.secondary]
+        unclassified_conditions = set()
+        CC_all = list(product(condition_pair,
+                              data_preprocessing.get_labels(g).values()))
+        for (conds, l_prime) in tqdm(CC_all):
+            max_score = self.get_accuracy(prediction=self.get_predictions(test=False, g=g), g=g)
             assign_l = None
             for l in data_preprocessing.get_labels(g).values():
-                score = self.new_objective_function(l=l, CC={CC}, g=g)
-                if score > max_score:
+                num_example_satisfy_body, score = self.new_objective_function(l=l, CC={(conds, l_prime)}, g=g)
+                if score >= max_score:
                     assign_l = l
                     max_score = score
 
+                if num_example_satisfy_body == 0:
+                    break
+
             if assign_l is not None:
-                CC_ls[assign_l] = CC_ls[assign_l].union({CC})
+                CC_ls[assign_l] = CC_ls[assign_l].union({(conds, l_prime)})
+            # else:
+            #     unclassified_conditions.add(conds)
 
         for l, CC_l in CC_ls.items():
             if len(CC_l):
@@ -124,7 +155,6 @@ class EDCR_experiment(EDCR):
                                            secondary_pred_coarse_data=secondary_coarse_data, )
 
             self.pred_data[test_or_train]['post_correction'][g] = np.where(
-                # (collision_array != 1) &
                 (altered_pred_data_l == l.index),
                 l.index,
                 self.get_predictions(test=test, g=g, stage='post_correction'))

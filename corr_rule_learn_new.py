@@ -100,6 +100,7 @@ class EDCR_experiment(EDCR):
                 expanded_candidates = [
                     CC_candidate.union({cond_and_l})
                     for cond_and_l in CC_all.difference(CC_candidate)
+                    if self.get
                 ]
 
                 # Evaluate and maintain the top-k candidates in the beam

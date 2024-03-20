@@ -277,10 +277,11 @@ class ErrorCorrectionRule2(Rule2):
         for conds, l_prime in CC_l:
             # Check for InconsistencyCondition or mismatching granularity
             # has_inconsistency = any(isinstance(cond, conditions.InconsistencyCondition) for cond in conds)
-            if not isinstance(conds, conditions.PredCondition) and not isinstance(conds, conditions.NegatePredCondition):
-                mismatched_granularity = any(cond.l.g != l_prime.g for cond in conds)  # and l_prime != l
+            if (not isinstance(conds, conditions.PredCondition)
+                    and not isinstance(conds, conditions.NegatePredCondition)):
+                mismatched_granularity = all(cond.l.g != l_prime.g for cond in conds if not cond.secondary)  # and l_prime != l
             else:
-                mismatched_granularity = conds.l.g != l_prime.g  # and l_prime != l
+                mismatched_granularity = conds.l.g != l_prime.g if not conds.secondary else True  # and l_prime != l
 
             # Add to C_l if either condition is met
             if mismatched_granularity:
