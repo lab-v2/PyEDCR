@@ -46,13 +46,15 @@ class EDCR:
                  K_train: list[(int, int)] = None,
                  K_test: list[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
-                 secondary_model_name: str = None):
+                 secondary_model_name: str = None,
+                 second_predictions: bool = False):
         self.main_model_name = main_model_name
         self.combined = combined
         self.loss = loss
         self.lr = lr
         self.epsilon = epsilon
         self.secondary_model_name = secondary_model_name
+        self.second_predictions = second_predictions
 
         pred_paths: dict[str, dict] = {
             'test' if test else 'train': {g_str: vit_pipeline.get_filepath(model_name=main_model_name,
@@ -89,7 +91,7 @@ class EDCR:
                                  for g in data_preprocessing.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
-        self.condition_datas = {g: {conditions.PredCondition(l=l, secondary=False)
+        self.condition_datas = {g: {conditions.PredCondition(l=l)
                                     for l in data_preprocessing.get_labels(g).values()}
                                 for g in data_preprocessing.granularities.values()}
 
@@ -114,7 +116,32 @@ class EDCR:
 
             for g in data_preprocessing.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
-                    {conditions.PredCondition(l=l, secondary=True) for l in data_preprocessing.get_labels(g).values()})
+                    {conditions.PredCondition(l=l, secondary_model=True)
+                     for l in data_preprocessing.get_labels(g).values()})
+
+        if second_predictions:
+            pred_paths['second_predictions'] = {
+                'test' if test else 'train': {g_str: vit_pipeline.get_filepath(model_name=main_model_name,
+                                                                               combined=combined,
+                                                                               test=test,
+                                                                               granularity=g_str,
+                                                                               loss=self.loss,
+                                                                               lr=lr,
+                                                                               pred=True,
+                                                                               epoch=num_epochs,
+                                                                               second_predictions=True)
+                                              for g_str in data_preprocessing.granularities_str}
+                for test in [True, False]}
+
+            self.pred_data['second_predictions'] = \
+                {test_or_train: {g: np.load(pred_paths['second_predictions'][test_or_train][g.g_str])
+                                 for g in data_preprocessing.granularities.values()}
+                 for test_or_train in ['test', 'train']}
+
+            for g in data_preprocessing.granularities.values():
+                self.condition_datas[g] = self.condition_datas[g].union(
+                    {conditions.PredCondition(l=l, second_predictions=True)
+                     for l in data_preprocessing.get_labels(g).values()})
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.granularities.values():
@@ -137,6 +164,9 @@ class EDCR:
         self.error_correction_rules: dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
 
         self.correction_model = None
+
+        print(f"Num of fine conditions: {len(self.condition_datas[data_preprocessing.granularities['fine']])}\n"
+              f"Num of coarse conditions: {len(self.condition_datas[data_preprocessing.granularities['coarse']])}\n")
 
     def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
         """
@@ -175,17 +205,25 @@ class EDCR:
                         test: bool,
                         g: data_preprocessing.Granularity = None,
                         stage: str = 'original',
-                        secondary: bool = False) -> typing.Union[np.array, tuple[np.array]]:
+                        secondary: bool = False,
+                        second_predictions: bool = False) -> typing.Union[np.array, tuple[np.array]]:
         """Retrieves prediction data based on specified test/train mode.
 
+        :param second_predictions:
         :param secondary:
         :param stage:
         :param g: The granularity level
         :param test: whether to get data from train or test set
         :return: Fine-grained and coarse-grained prediction data.
         """
-        pred_data = self.pred_data['test' if test else 'train'][stage] \
-            if not secondary else self.pred_data['secondary_model']['test' if test else 'train']
+        test_str = 'test' if test else 'train'
+
+        if secondary:
+            pred_data = self.pred_data['secondary_model'][test_str]
+        elif second_predictions:
+            pred_data = self.pred_data['second_predictions'][test_str]
+        else:
+            pred_data = self.pred_data[test_str][stage]
 
         if g is not None:
             return pred_data[g]
@@ -447,13 +485,17 @@ class EDCR:
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
         secondary_train_pred_fine_data, secondary_train_pred_coarse_data = (
             self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
+        second_train_pred_fine_data, second_train_pred_coarse_data = (
+            self.get_predictions(test=False, second_predictions=True)) if self.second_predictions else (None, None)
 
         where_any_conditions_satisfied_on_train = (
             rules.Rule.get_where_any_conditions_satisfied(C=C,
                                                           fine_data=train_pred_fine_data,
                                                           coarse_data=train_pred_coarse_data,
                                                           secondary_fine_data=secondary_train_pred_fine_data,
-                                                          secondary_coarse_data=secondary_train_pred_coarse_data))
+                                                          secondary_coarse_data=secondary_train_pred_coarse_data,
+                                                          second_predictions_fine_data=second_train_pred_fine_data,
+                                                          second_predictions_coarse_data=second_train_pred_coarse_data))
         where_train_tp_l = self.get_where_tp_l(test=False, l=l, stage=stage)
         NEG_l = np.sum(where_train_tp_l * where_any_conditions_satisfied_on_train)
 
@@ -468,13 +510,19 @@ class EDCR:
         """
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
         secondary_train_pred_fine_data, secondary_train_pred_coarse_data = (
-            self.get_predictions(test=False, secondary=True))
+            self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
+        second_train_pred_fine_data, second_train_pred_coarse_data = (
+            self.get_predictions(test=False, second_predictions=True)) if self.second_predictions else (None, None)
+
         where_any_conditions_satisfied_on_train = (
             rules.Rule.get_where_any_conditions_satisfied(C=C,
                                                           fine_data=train_pred_fine_data,
                                                           coarse_data=train_pred_coarse_data,
                                                           secondary_fine_data=secondary_train_pred_fine_data,
-                                                          secondary_coarse_data=secondary_train_pred_coarse_data))
+                                                          secondary_coarse_data=secondary_train_pred_coarse_data,
+                                                          second_predictions_fine_data=second_train_pred_fine_data,
+                                                          second_predictions_coarse_data=second_train_pred_coarse_data
+                                                          ))
         BOD_l = np.sum(where_any_conditions_satisfied_on_train)
 
         return BOD_l
@@ -495,13 +543,18 @@ class EDCR:
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
         secondary_train_pred_fine_data, secondary_train_pred_coarse_data = (
             self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
+        second_train_pred_fine_data, second_train_pred_coarse_data = (
+            self.get_predictions(test=False, second_predictions=True)) if self.second_predictions else (None, None)
 
         where_any_conditions_satisfied_on_train = (
             rules.Rule.get_where_any_conditions_satisfied(C=C,
                                                           fine_data=train_pred_fine_data,
                                                           coarse_data=train_pred_coarse_data,
                                                           secondary_fine_data=secondary_train_pred_fine_data,
-                                                          secondary_coarse_data=secondary_train_pred_coarse_data))
+                                                          secondary_coarse_data=secondary_train_pred_coarse_data,
+                                                          second_predictions_fine_data=second_train_pred_fine_data,
+                                                          second_predictions_coarse_data=second_train_pred_coarse_data
+                                                          ))
         POS_l = np.sum(where_was_wrong_with_respect_to_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
@@ -681,7 +734,8 @@ class EDCR:
                     self.error_detection_rules[l] = rules.ErrorDetectionRule(l=l, DC_l=DC_l)
 
                 for cond_l in DC_l:
-                    if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary) and cond_l.l == l):
+                    if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary_model)
+                            and cond_l.l == l):
                         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
                 if utils.is_local():
@@ -725,6 +779,9 @@ class EDCR:
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
         secondary_pred_fine_data, secondary_pred_coarse_data = (
             self.get_predictions(test=test, secondary=True) if self.secondary_model_name is not None else None, None)
+        second_train_pred_fine_data, second_train_pred_coarse_data = (
+            self.get_predictions(test=False, second_predictions=True)) if self.second_predictions else (None, None)
+
         altered_pred_granularity_data = self.get_predictions(test=test, g=g, stage=stage)
 
         # self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
@@ -733,7 +790,9 @@ class EDCR:
             altered_pred_data_l = rule_g_l(pred_fine_data=pred_fine_data,
                                            pred_coarse_data=pred_coarse_data,
                                            secondary_pred_fine_data=secondary_pred_fine_data,
-                                           secondary_pred_coarse_data=secondary_pred_coarse_data)
+                                           secondary_pred_coarse_data=secondary_pred_coarse_data,
+                                           second_predictions_fine_data=second_train_pred_fine_data,
+                                           second_predictions_coarse_data=second_train_pred_coarse_data)
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
         self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
@@ -815,7 +874,10 @@ class EDCR:
         test_or_train = 'test' if test else 'train'
         g_l_rules = {l: rule_l for l, rule_l in self.error_correction_rules.items() if l.g == g}
 
-        secondary_fine_data, secondary_coarse_data = self.get_predictions(test=test, secondary=True)
+        secondary_fine_data, secondary_coarse_data = self.get_predictions(test=test, secondary=True) \
+            if self.secondary_model_name is not None else (None, None)
+        second_train_pred_fine_data, second_train_pred_coarse_data = (
+            self.get_predictions(test=False, second_predictions=True)) if self.second_predictions else (None, None)
 
         for l, rule_g_l in g_l_rules.items():
             previous_l_precision, previous_l_recall = self.get_l_precision_and_recall(l=l, test=test,
@@ -831,7 +893,9 @@ class EDCR:
 
             altered_pred_data_l = rule_g_l(pred_fine_data=fine_data, pred_coarse_data=coarse_data,
                                            secondary_pred_fine_data=secondary_fine_data,
-                                           secondary_pred_coarse_data=secondary_coarse_data, )
+                                           secondary_pred_coarse_data=secondary_coarse_data,
+                                           second_predictions_fine_data=second_train_pred_fine_data,
+                                           second_predictions_coarse_data=second_train_pred_coarse_data)
 
             self.pred_data[test_or_train]['post_correction'][g] = np.where(
                 # (collision_array != 1) &
@@ -1045,7 +1109,8 @@ if __name__ == '__main__':
                     lr=0.0001,
                     num_epochs=20,
                     include_inconsistency_constraint=False,
-                    secondary_model_name='vit_b_16_soft_marginal'
+                    secondary_model_name='vit_b_16_soft_marginal',
+                    second_predictions=True
                     )
         edcr.print_metrics(test=test_bool, prior=True)
         edcr.run_learning_pipeline(EDCR_epoch_num=1)

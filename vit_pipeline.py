@@ -11,7 +11,7 @@ import data_preprocessing
 
 batch_size = 16
 scheduler_gamma = 0.9
-num_epochs = 1
+num_epochs = 20
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
@@ -30,10 +30,12 @@ def get_filepath(model_name: typing.Union[str, models.FineTuner],
                  loss: str,
                  lr: typing.Union[str, float],
                  pred: bool,
-                 epoch: int = None) -> str:
+                 epoch: int = None,
+                 second_predictions: bool = False) -> str:
     """
     Constructs the file path to the model output / ground truth data.
 
+    :param second_predictions:
     :param model_name: The name of the model or `FineTuner` object.
     :param combined: Whether the model are individual or combine one.
     :param test: Whether the data is getting from testing or training set.
@@ -48,8 +50,10 @@ def get_filepath(model_name: typing.Union[str, models.FineTuner],
     test_str = 'test' if test else 'train'
     pred_str = 'pred' if pred else 'true'
     combined_str = 'combined' if combined else 'individual'
+    second_prediction_str = '_second_prediction' if second_predictions else ''
 
-    return f"{combined_str}_results/{model_name}_{test_str}_{granularity}_{pred_str}_{loss}_lr{lr}{epoch_str}.npy"
+    return (f"{combined_str}_results/{model_name}_{test_str}_{granularity}_{pred_str}_{loss}_lr{lr}{epoch_str}"
+            f"{second_prediction_str}.npy")
 
 
 def print_num_inconsistencies(pred_fine_data: np.array,
@@ -224,10 +228,12 @@ def save_prediction_files(test: bool,
                           epoch: int = None,
                           loss: str = 'BCE',
                           fine_ground_truths: np.array = None,
-                          coarse_ground_truths: np.array = None):
+                          coarse_ground_truths: np.array = None,
+                          second_predictions: bool = False):
     """
     Saves prediction files and optional ground truth files.
 
+    :param second_predictions:
     :param test: True for test data, False for training data.
     :param fine_tuners: A single FineTuner object (for combined models) or a
                        dictionary of FineTuner objects (for individual models).
@@ -251,7 +257,8 @@ def save_prediction_files(test: bool,
                              loss=loss,
                              lr=lrs,
                              pred=True,
-                             epoch=epoch),
+                             epoch=epoch,
+                             second_predictions=second_predictions),
                 test_fine_prediction)
         np.save(get_filepath(model_name=fine_tuners,
                              combined=True,
@@ -260,7 +267,8 @@ def save_prediction_files(test: bool,
                              loss=loss,
                              lr=lrs,
                              pred=True,
-                             epoch=epoch),
+                             epoch=epoch,
+                             second_predictions=second_predictions),
                 test_coarse_prediction)
 
         if fine_ground_truths is not None:
@@ -351,13 +359,18 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                             loss: str,
                             device: torch.device,
                             split: str,
-                            print_results: bool = True) -> (list[int], list[int], list[int], list[int], float, float):
+                            print_results: bool = True,
+                            second_predictions: bool = False) -> (
+list[int], list[int], list[int], list[int], float, float):
     loader = loaders[split]
     fine_tuner.to(device)
     fine_tuner.eval()
 
     fine_predictions = []
     coarse_predictions = []
+
+    fine_second_predictions = []
+    coarse_second_predictions = []
 
     fine_ground_truths = []
     coarse_ground_truths = []
@@ -379,14 +392,25 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
             Y_pred_fine = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
             Y_pred_coarse = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
 
-            predicted_fine = torch.max(Y_pred_fine, 1)[1]
-            predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
+            # predicted_fine = torch.max(Y_pred_fine, 1)[1]
+            # predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
+
+            sorted_probs_fine = torch.sort(Y_pred_fine, descending=True)[1]
+            predicted_fine = sorted_probs_fine[:, 0]
+            second_largest_fine = sorted_probs_fine[:, 1]
+
+            sorted_probs_coarse = torch.sort(Y_pred_coarse, descending=True)[1]
+            predicted_coarse = sorted_probs_coarse[:, 0]
+            second_largest_coarse = sorted_probs_coarse[:, 1]
 
             fine_ground_truths += Y_true_fine.tolist()
             coarse_ground_truths += Y_true_coarse.tolist()
 
             fine_predictions += predicted_fine.tolist()
             coarse_predictions += predicted_coarse.tolist()
+
+            fine_second_predictions += second_largest_fine.tolist()
+            coarse_second_predictions += second_largest_coarse.tolist()
 
     if print_results:
         fine_accuracy, coarse_accuracy = (
@@ -396,6 +420,9 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                                   true_fine_data=fine_ground_truths,
                                   true_coarse_data=coarse_ground_truths,
                                   test=split == 'test'))
+    if second_predictions:
+        return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
+                fine_second_predictions, coarse_second_predictions, fine_accuracy, coarse_accuracy)
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
             fine_accuracy, coarse_accuracy)
@@ -851,11 +878,12 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                 if evaluate_on_train_eval:
                     curr_train_eval_fine_accuracy, curr_train_eval_coarse_accuracy = (
-                        evaluate_combined_model(fine_tuner=fine_tuner,
-                                                loaders=loaders,
-                                                loss=loss,
-                                                device=device,
-                                                split='train_eval'))[-2:]
+                                                                                         evaluate_combined_model(
+                                                                                             fine_tuner=fine_tuner,
+                                                                                             loaders=loaders,
+                                                                                             loss=loss,
+                                                                                             device=device,
+                                                                                             split='train_eval'))[-2:]
                     if train_eval_fine_accuracy is not None and train_eval_coarse_accuracy is not None and \
                             curr_train_eval_fine_accuracy < train_eval_fine_accuracy and \
                             curr_train_eval_coarse_accuracy < train_eval_coarse_accuracy:
@@ -864,7 +892,6 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                     train_eval_fine_accuracy = curr_train_eval_fine_accuracy
                     train_eval_coarse_accuracy = curr_train_eval_coarse_accuracy
-
 
         if save_files:
             if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
@@ -1011,10 +1038,12 @@ def run_combined_evaluating_pipeline(split: str,
                                      save_files: bool = True,
                                      debug: bool = utils.is_debug_mode(),
                                      print_results: bool = True,
-                                     indices: np.array = None):
+                                     indices: np.array = None,
+                                     second_predictions: bool = False):
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
+    :param second_predictions:
     :param split:
     :param indices:
     :param print_results:
@@ -1041,14 +1070,26 @@ def run_combined_evaluating_pipeline(split: str,
                  indices=indices,
                  evaluation=True))
 
-    (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-     fine_accuracy, coarse_accuracy) = evaluate_combined_model(
-        fine_tuner=fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner,
-        loaders=loaders,
-        loss=loss,
-        device=devices[0],
-        split=split,
-        print_results=print_results)
+    if second_predictions:
+        (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
+         fine_accuracy, coarse_accuracy) = evaluate_combined_model(
+            fine_tuner=fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner,
+            loaders=loaders,
+            loss=loss,
+            device=devices[0],
+            split=split,
+            print_results=print_results)
+    else:
+        (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
+         fine_second_predictions, coarse_second_predictions, fine_accuracy, coarse_accuracy) = (
+            evaluate_combined_model(
+                fine_tuner=fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner,
+                loaders=loaders,
+                loss=loss,
+                device=devices[0],
+                split=split,
+                print_results=print_results,
+                second_predictions=True))
 
     if save_files:
         save_prediction_files(test=split == 'test',
@@ -1061,6 +1102,18 @@ def run_combined_evaluating_pipeline(split: str,
                               fine_ground_truths=fine_ground_truths,
                               coarse_ground_truths=coarse_ground_truths,
                               epoch=num_epochs)
+        if second_predictions:
+            save_prediction_files(test=split == 'test',
+                                  fine_tuners=fine_tuners[0],
+                                  combined=True,
+                                  lrs=lrs[0],
+                                  loss=loss,
+                                  test_fine_prediction=fine_predictions,
+                                  test_coarse_prediction=coarse_predictions,
+                                  fine_ground_truths=fine_ground_truths,
+                                  coarse_ground_truths=coarse_ground_truths,
+                                  epoch=num_epochs,
+                                  second_predictions=True)
 
     return fine_predictions, coarse_predictions
 
@@ -1070,11 +1123,12 @@ if __name__ == '__main__':
     # run_combined_fine_tuning_pipeline(lrs=[0.0001],
     #                                   loss='BCE')
 
-    run_combined_evaluating_pipeline(split='train',
+    run_combined_evaluating_pipeline(split='test',
                                      lrs=[0.0001],
                                      loss='BCE',
                                      pretrained_path='models/vit_b_16_BCE_lr0.0001.pth',
-                                     save_files=True)
+                                     save_files=True,
+                                     second_predictions=True)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],

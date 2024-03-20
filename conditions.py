@@ -38,29 +38,48 @@ class PredCondition(Condition):
 
     def __init__(self,
                  l: data_preprocessing.Label,
-                 secondary: bool = False):
+                 secondary_model: bool = False,
+                 second_predictions: bool = False):
         """Initializes a PredCondition instance.
 
         :param l: The target Label for which the condition is evaluated.
         """
         super().__init__()
         self.l = l
-        self.secondary = secondary
+        self.secondary_model = secondary_model
+        self.second_predictions = second_predictions
 
     def __call__(self,
                  fine_data: np.array,
                  coarse_data: np.array,
                  secondary_fine_data: np.array,
                  secondary_coarse_data: np.array,
+                 second_predictions_fine_data: np.array,
+                 second_predictions_coarse_data: np.array,
                  ) -> np.array:
-        granularity_data = (fine_data if not self.secondary else secondary_fine_data) \
-            if self.l.g == data_preprocessing.granularities['fine'] else \
-            (coarse_data if not self.secondary else secondary_coarse_data)
+
+        if self.secondary_model:
+            if self.l.g == data_preprocessing.granularities['fine']:
+                granularity_data = secondary_fine_data
+            else:
+                granularity_data = secondary_coarse_data
+        elif self.second_predictions:
+            if self.l.g == data_preprocessing.granularities['fine']:
+                granularity_data = second_predictions_fine_data
+            else:
+                granularity_data = second_predictions_coarse_data
+        else:
+            if self.l.g == data_preprocessing.granularities['fine']:
+                granularity_data = fine_data
+            else:
+                granularity_data = coarse_data
+
         return np.where(granularity_data == self.l.index, 1, 0)
 
     def __str__(self) -> str:
-        secondary_str = 'secondary_' if self.secondary else ''
-        return f'{secondary_str}pred_{self.l}'
+        secondary_str = 'secondary_' if self.secondary_model else ''
+        second_prediction_str = '_second_prediction' if self.second_predictions else ''
+        return f'{secondary_str}pred_{self.l}{second_prediction_str}'
 
     def __hash__(self):
         return hash(self.__str__())
