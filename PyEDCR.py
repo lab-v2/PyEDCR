@@ -780,7 +780,7 @@ class EDCR:
         secondary_pred_fine_data, secondary_pred_coarse_data = (
             self.get_predictions(test=test, secondary=True) if self.secondary_model_name is not None else None, None)
         second_train_pred_fine_data, second_train_pred_coarse_data = (
-            self.get_predictions(test=False, second_predictions=True)) if self.second_predictions else (None, None)
+            self.get_predictions(test=test, second_predictions=True)) if self.second_predictions else (None, None)
 
         altered_pred_granularity_data = self.get_predictions(test=test, g=g, stage=stage)
 
@@ -877,7 +877,7 @@ class EDCR:
         secondary_fine_data, secondary_coarse_data = self.get_predictions(test=test, secondary=True) \
             if self.secondary_model_name is not None else (None, None)
         second_train_pred_fine_data, second_train_pred_coarse_data = (
-            self.get_predictions(test=False, second_predictions=True)) if self.second_predictions else (None, None)
+            self.get_predictions(test=test, second_predictions=True)) if self.second_predictions else (None, None)
 
         for l, rule_g_l in g_l_rules.items():
             previous_l_precision, previous_l_recall = self.get_l_precision_and_recall(l=l, test=test,
@@ -1113,7 +1113,7 @@ if __name__ == '__main__':
                     second_predictions=True
                     )
         edcr.print_metrics(test=test_bool, prior=True)
-        edcr.run_learning_pipeline(EDCR_epoch_num=3)
+        edcr.run_learning_pipeline(EDCR_epoch_num=1)
         edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
