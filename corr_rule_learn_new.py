@@ -79,6 +79,8 @@ class EDCR_experiment(EDCR):
         beam = []
         counter = 0
 
+        print(f"Start corr rule learn for class {l}")
+
         # Initialise the beam with the top beam_width candidates
         for cond_and_l in heapq.nlargest(
                 n=beam_width,
@@ -170,6 +172,8 @@ class EDCR_experiment(EDCR):
             print(f"finish {i}/{len(self.CC_all[g])}")
 
         self.CC_all[g] = cand
+
+        print(f"Retrieve {len(cand)} condition class pair")
 
         # Beam search part:
         granularity_labels = data_preprocessing.get_labels(g).values()
