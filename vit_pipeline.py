@@ -9,7 +9,7 @@ import models
 import utils
 import data_preprocessing
 
-batch_size = 16
+batch_size = 64
 scheduler_gamma = 0.9
 num_epochs = 2
 ltn_num_epochs = 5
