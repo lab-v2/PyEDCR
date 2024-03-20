@@ -687,6 +687,8 @@ class EDCR:
                 if utils.is_local():
                     progress_bar.update(1)
 
+        return DC_l
+
     def learn_correction_rules(self,
                                g: data_preprocessing.Granularity):
 
@@ -705,6 +707,8 @@ class EDCR:
         with mp.Pool(processes_num) as pool:
             CC_ls = pool.starmap(func=self._CorrRuleLearn,
                                  iterable=iterable)
+
+        return CC_ls
 
         for l, CC_l in CC_ls:
             if len(CC_l):

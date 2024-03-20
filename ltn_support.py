@@ -2,6 +2,7 @@
 import ltn
 import torch
 import data_preprocessing
+import conditions
 import numpy as np
 
 class LogitsToPredicate(torch.nn.Module):
@@ -26,7 +27,7 @@ class LogitsToPredicate(torch.nn.Module):
 
 
 def compute_sat_normally(logits_to_predicate,
-                         prediction, labels_coarse, labels_fine, granularity, DC_i):
+                         prediction, granularity, labels_fine, labels_coarse, DC_i, CC_i):
     """
     compute satagg function for rules
     argument:
@@ -53,6 +54,19 @@ def compute_sat_normally(logits_to_predicate,
     labels_fine = labels_fine.detach().to('cpu')
     labels_coarse = labels_coarse.detach().to('cpu') + len(data_preprocessing.fine_grain_classes_str)
 
+    fine_conditions_dict = {conditions.PredCondition(l): index for index, l in
+                            enumerate(data_preprocessing.fine_grain_labels)}
+
+    coarse_conditions_dict = {conditions.PredCondition(l): index for index, l in
+                            enumerate(data_preprocessing.coarse_grain_labels)}
+
+    if granularity == 'fine':
+        DC_i = np.array(fine_conditions_dict[cond] for cond in DC_i)
+        CC_i = np.array([fine_conditions_dict[q], labels_fine[r]] for q, r in CC_i)
+    else:
+        DC_i = np.array(coarse_conditions_dict[cond] for cond in DC_i)
+        CC_i = np.array([coarse_conditions_dict[q], labels_coarse[r]] for q, r in CC_i)
+
     # Define constant
     l = {}
     num_labels = len(data_preprocessing.fine_grain_classes_str) + len(data_preprocessing.coarse_grain_classes_str)
@@ -77,47 +91,47 @@ def compute_sat_normally(logits_to_predicate,
 
     # Coarse labels: for all x[i], x[i] -> l[i]
 
-    for i in coarse_label_dict.values():
-        if x_variables[i].value.numel() != 0:
-            sat_agg_label.append(
-                f'for all (coarse label) x[{i}], x[{i}] -> l[{i}]')
-            sat_agg_list.append(
-                Forall(x_variables[i], logits_to_predicate(x_variables[i], l[i])))
+    # for i in coarse_label_dict.values():
+    #     if x_variables[i].value.numel() != 0:
+    #         sat_agg_label.append(
+    #             f'for all (coarse label) x[{i}], x[{i}] -> l[{i}]')
+    #         sat_agg_list.append(
+    #             Forall(x_variables[i], logits_to_predicate(x_variables[i], l[i])))
+    #
+    # # Coarse Label: for all x[coarse], - {x[coarse] and x[different coarse]}
+    #
+    # for i in coarse_label_dict.values():
+    #     for j in coarse_label_dict.values():
+    #         if i != j:
+    #             sat_agg_list.append(Forall(x, Not(And(logits_to_predicate(x, l[i]), logits_to_predicate(x, l[j])))))
+    #
+    # # Rewrite the inconsistency code (Forall(x, Implies(P(x,coarse_label), Not(P(x,coarse_to_not_fine))))
+    # for i in coarse_label_dict.values():
+    #     for j in fine_label_dict.values():
+    #         corresponding_coarse_label = data_preprocessing.fine_to_course_idx[j] + len(fine_label_dict)
+    #         if (corresponding_coarse_label != i):
+    #             sat_agg_list.append(
+    #                 Forall(x,
+    #                        Implies(logits_to_predicate(x,l[i]),
+    #                                Not(logits_to_predicate(x,l[j]))
+    #                                )
+    #                         )
+    #             )
+    # # Fine labels: for all x[i], x[i] -> l[i]
+    #
+    # for i in fine_label_dict.values():
+    #     if x_variables[i].value.numel() != 0:
+    #         sat_agg_list.append(
+    #             Forall(x_variables[i], logits_to_predicate(x_variables[i], l[i])))
+    #
+    # # Coarse Label: for all x[coarse], - {x[coarse] and x[different coarse]}
+    #
+    # for i in fine_label_dict.values():
+    #     for j in fine_label_dict.values():
+    #         if i != j:
+    #             sat_agg_list.append(Forall(x, Not(And(logits_to_predicate(x, l[i]), logits_to_predicate(x, l[j])))))
 
-    # Coarse Label: for all x[coarse], - {x[coarse] and x[different coarse]}
-
-    for i in coarse_label_dict.values():
-        for j in coarse_label_dict.values():
-            if i != j:
-                sat_agg_list.append(Forall(x, Not(And(logits_to_predicate(x, l[i]), logits_to_predicate(x, l[j])))))
-
-    # Rewrite the inconsistency code (Forall(x, Implies(P(x,coarse_label), Not(P(x,coarse_to_not_fine))))
-    for i in coarse_label_dict.values():
-        for j in fine_label_dict.values():
-            corresponding_coarse_label = data_preprocessing.fine_to_course_idx[j] + len(fine_label_dict)
-            if (corresponding_coarse_label != i):
-                sat_agg_list.append(
-                    Forall(x,
-                           Implies(logits_to_predicate(x,l[i]), 
-                                   Not(logits_to_predicate(x,l[j]))
-                                   )
-                            )
-                )
-    # Fine labels: for all x[i], x[i] -> l[i]
-
-    for i in fine_label_dict.values():
-        if x_variables[i].value.numel() != 0:
-            sat_agg_list.append(
-                Forall(x_variables[i], logits_to_predicate(x_variables[i], l[i])))
-
-    # Coarse Label: for all x[coarse], - {x[coarse] and x[different coarse]}
-
-    for i in fine_label_dict.values():
-        for j in fine_label_dict.values():
-            if i != j:
-                sat_agg_list.append(Forall(x, Not(And(logits_to_predicate(x, l[i]), logits_to_predicate(x, l[j])))))
-
-    # Detection Rule: error_i(w) <- pred_i(w) and conj_DC_i(cond_j(w))
+    # Detection Rule: error_i(w) <- pred_i(w) and disj_DC_i(cond_j(w))
     label_dict = fine_label_dict if granularity == 'fine' else coarse_label_dict
     ground_truth = data_preprocessing.get_ground_truths(granularity)
     for i in label_dict.values():
@@ -125,8 +139,10 @@ def compute_sat_normally(logits_to_predicate,
                                               Or(logits_to_predicate(x, l[j]) for j in DC_i)
                                           )), And(Not(logits_to_predicate(x, ground_truth[i])), logits_to_predicate(x, l[i]))))
 
-    # Correction Rule:
-
+    # Correction Rule: corr_i(w) <- disj_CC_i(cond_q(w) and pred_r(w))
+    for i in label_dict.values():
+        sat_agg_list.append(Forall(x, Implies(Or(logits_to_predicate(x, l[q]), logits_to_predicate(x, l[r]))
+                                              for q, r in CC_i), logits_to_predicate(x, ground_truth[i])))
 
     sat_agg = SatAgg(
         *sat_agg_list

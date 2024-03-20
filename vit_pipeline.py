@@ -652,7 +652,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              evaluate_on_test: bool = True,
                              evaluate_on_train_eval: bool = False,
                              Y_original_fine: np.array = None,
-                             Y_original_coarse: np.array = None):
+                             Y_original_coarse: np.array = None,
+                             DC_i = None,
+                             CC_i = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -761,14 +763,15 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                                                            prediction=Y_pred,
                                                                            labels_coarse=Y_coarse_grain,
                                                                            labels_fine=Y_fine_grain,
-                                                                           )
+                                                                           DC_i=DC_i,
+                                                                           CC_i=CC_i)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_combine)
 
                             if loss == "LTN_soft_marginal":
                                 criterion = torch.nn.MultiLabelSoftMarginLoss()
 
                                 sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
-                                                                           Y_pred, Y_coarse_grain, Y_fine_grain)
+                                                                           Y_pred, Y_coarse_grain, Y_fine_grain, DC_i, CC_i)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
                         if batch_total_loss is not None and Y_original_fine is not None:
@@ -967,7 +970,9 @@ def initiate(lrs: list[typing.Union[str, float]],
 def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
                                       loss: str = 'BCE',
                                       save_files: bool = True,
-                                      debug: bool = utils.is_debug_mode()):
+                                      debug: bool = utils.is_debug_mode(),
+                                      DC_i = None,
+                                      CC_i = None):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(lrs=lrs,
                                                                                                combined=True,
                                                                                                debug=debug)
@@ -981,7 +986,9 @@ def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
                                      num_coarse_grain_classes=num_coarse_grain_classes,
                                      loss=loss,
                                      save_files=save_files,
-                                     debug=debug)
+                                     debug=debug,
+                                     DC_i=DC_i,
+                                     CC_i=CC_i)
             print('#' * 100)
 
 
@@ -1068,14 +1075,14 @@ def run_combined_evaluating_pipeline(split: str,
 
 
 if __name__ == '__main__':
-    # run_individual_fine_tuning_pipeline()
-    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
-    #                                   loss='BCE')
+    #run_individual_fine_tuning_pipeline()
+    run_combined_fine_tuning_pipeline(lrs=[0.0001],
+                                      loss='BCE')
 
-    run_combined_evaluating_pipeline(split='train',
-                                     lrs=[0.0001],
-                                     loss='BCE',
-                                     pretrained_path='vit_b_16_lr0.0001_BCE.pth')
+    # run_combined_evaluating_pipeline(split='train',
+    #                                  lrs=[0.0001],
+    #                                  loss='BCE',
+    #                                  pretrained_path='vit_b_16_lr0.0001_BCE.pth')
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],
