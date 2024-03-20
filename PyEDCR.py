@@ -735,7 +735,7 @@ class EDCR:
 
                 for cond_l in DC_l:
                     if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary_model)
-                            and cond_l.l == l):
+                            and (not cond_l.second_predictions) and cond_l.l == l):
                         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
                 if utils.is_local():
