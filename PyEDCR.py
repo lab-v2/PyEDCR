@@ -1107,7 +1107,7 @@ if __name__ == '__main__':
                     combined=True,
                     loss='BCE',
                     lr=0.0001,
-                    num_epochs=20,
+                    num_epochs=5,
                     include_inconsistency_constraint=False,
                     secondary_model_name='vit_b_16_soft_marginal',
                     second_predictions=True
