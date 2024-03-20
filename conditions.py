@@ -46,6 +46,7 @@ class PredCondition(Condition):
         super().__init__()
         self.l = l
         self.secondary = secondary
+        self.negatePredCondition = NegatePredCondition(l=l, secondary=secondary)
 
     def __call__(self,
                  fine_data: np.array,
@@ -82,6 +83,46 @@ class InconsistencyCondition(Condition):
 
     def __hash__(self):
         return hash('ConsistencyCondition')
+
+    def __eq__(self, other):
+        return self.__hash__() == other.__hash__()
+
+
+class NegatePredCondition(Condition):
+    """Represents a condition based on a model's prediction of a specific class.
+
+    It evaluates to 0 if the model predicts the specified class for a given example,
+    and 1 otherwise.
+    """
+
+    def __init__(self,
+                 l: data_preprocessing.Label,
+                 secondary: bool = False):
+        """Initializes a PredCondition instance.
+
+        :param l: The target Label for which the condition is evaluated.
+        """
+        super().__init__()
+        self.l = l
+        self.secondary = secondary
+
+    def __call__(self,
+                 fine_data: np.array,
+                 coarse_data: np.array,
+                 secondary_fine_data: np.array,
+                 secondary_coarse_data: np.array,
+                 ) -> np.array:
+        granularity_data = (fine_data if not self.secondary else secondary_fine_data) \
+            if self.l.g == data_preprocessing.granularities['fine'] else \
+            (coarse_data if not self.secondary else secondary_coarse_data)
+        return np.where(granularity_data != self.l.index, 1, 0)
+
+    def __str__(self) -> str:
+        secondary_str = 'secondary_' if self.secondary else ''
+        return f'not_{secondary_str}pred_{self.l}'
+
+    def __hash__(self):
+        return hash(self.__str__())
 
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
