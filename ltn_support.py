@@ -115,10 +115,6 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     train_true_coarse_batch = train_true_coarse_batch.detach().to('cpu')
 
     # Define constant: already done in data_preprocessing.py
-    cond_fine = ltn.Constant(original_train_pred_fine_batch)
-    cond_coarse = ltn.Constant(original_train_pred_coarse_batch)
-    cond_second_fine = ltn.Constant(original_secondary_train_pred_fine_batch)
-    cond_second_coarse = ltn.Constant(original_secondary_train_pred_coarse_batch)
 
     # Define variables
     x_variables = {}
