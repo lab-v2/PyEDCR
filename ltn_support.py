@@ -28,6 +28,41 @@ class LogitsToPredicate(torch.nn.Module):
         return out
 
 
+def pred_to_index(examples: np.array,
+                  prediction: np.array):
+    if examples.shape[0] != prediction.shape[0]:
+        raise ValueError("Input arrays must have the same number of elements in the first dimension.")
+
+    # Create a boolean mask for exact matches using broadcasting
+    mask = np.equal(prediction, examples[:, None]).all(axis=0)
+
+    # Return the indices of True elements in the mask
+    return np.where(mask)[0]
+
+
+def conds_predicate(examples: np.array,
+                    prediction: np.array,
+                    cond_fine_data: np.array,
+                    cond_coarse_data: np.array,
+                    cond_second_fine_data: np.array,
+                    cond_second_coarse_data: np.array,
+                    conds: set[conditions.Condition]):
+    any_condition_satisfied = np.zeros_like(cond_fine_data)
+    for cond in conds:
+        any_condition_satisfied |= cond(fine_data=cond_fine_data,
+                                        coarse_data=cond_coarse_data,
+                                        secondary_fine_data=cond_second_fine_data,
+                                        secondary_coarse_data=cond_second_coarse_data)
+    return any_condition_satisfied[pred_to_index(examples=examples,
+                                                 prediction=prediction)]
+
+
+def true_predicate(examples: np.array,
+                   prediction: np.array,
+                   true_data: np.array):
+    index = pred_to_index(examples, prediction)
+    return 1.0 if examples[index] == true_data[index] else 0.0
+
 
 def compute_sat_normally(logits_to_predicate: torch.nn.Module,
                          train_pred_fine_batch: np.array,
@@ -49,10 +84,11 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
 
     return:
       sat_agg: sat_agg for all the rules
-
     """
     g_fine = data_preprocessing.granularities['fine']
     g_coarse = data_preprocessing.granularities['coarse']
+
+    # Define predicate
     Not = ltn.Connective(ltn.fuzzy_ops.NotStandard())
     And = ltn.Connective(ltn.fuzzy_ops.AndProd())
     Or = ltn.Connective(ltn.fuzzy_ops.OrProbSum())
@@ -60,15 +96,29 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     Forall = ltn.Quantifier(
         ltn.fuzzy_ops.AggregPMeanError(p=4), quantifier="f")
     SatAgg = ltn.fuzzy_ops.SatAgg()
+    Conds_predicate = ltn.Predicate(func=lambda x, prediction, DC_l: conds_predicate(
+        examples=x,
+        prediction=prediction,
+        cond_fine_data=original_train_pred_fine_batch,
+        cond_coarse_data=original_train_pred_coarse_batch,
+        cond_second_fine_data=original_secondary_train_pred_fine_batch,
+        cond_second_coarse_data=original_secondary_train_pred_coarse_batch,
+        conds=DC_l)
+                                    )
+    True_predicate = ltn.Predicate(func=lambda x, prediction, train_true_batch: true_predicate(
+        examples=x,
+        prediction=prediction,
+        true_data=train_true_batch)
+    )
 
     train_true_fine_batch = train_true_fine_batch.detach().to('cpu')
     train_true_coarse_batch = train_true_coarse_batch.detach().to('cpu')
 
     # Define constant: already done in data_preprocessing.py
-    cond_fine = ltn.Variable("cond_fine", original_train_pred_fine_batch)
-    cond_coarse = ltn.Variable("cond_coarse", original_train_pred_coarse_batch)
-    cond_second_fine = ltn.Variable("cond_second_fine", original_secondary_train_pred_fine_batch)
-    cond_second_coarse = ltn.Variable("cond_second_coarse", original_secondary_train_pred_coarse_batch)
+    cond_fine = ltn.Constant(original_train_pred_fine_batch)
+    cond_coarse = ltn.Constant(original_train_pred_coarse_batch)
+    cond_second_fine = ltn.Constant(original_secondary_train_pred_fine_batch)
+    cond_second_coarse = ltn.Constant(original_secondary_train_pred_coarse_batch)
 
     # Define variables
     x_variables = {}
@@ -77,10 +127,10 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
 
     for l in data_preprocessing.get_labels(g=g_fine).values():
         x_variables[l] = ltn.Variable(
-            str(l), train_true_fine_batch[train_true_fine_batch == l.index])
+            str(l), train_pred_fine_batch[train_pred_fine_batch == l.index])
     for l in data_preprocessing.get_labels(g=g_coarse).values():
         x_variables[l] = ltn.Variable(
-            str(l), train_true_coarse_batch[train_true_coarse_batch == l.index])
+            str(l), train_pred_coarse_batch[train_pred_coarse_batch == l.index])
 
     sat_agg_list = []
     sat_agg_label = []
@@ -89,21 +139,28 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     # error_i(w) = pred_i(w) and not(true_i(w))
 
     for l in data_preprocessing.get_labels(g_fine).values():
-        sat_agg_list.append(Forall(x_fine,
-                                   Implies(
-                                       And(logits_to_predicate(x_fine, l.ltn_constant),
-                                                  Or(logits_to_predicate(x_fine, l_prime.ltn_constant)
-                                                     for l_prime in error_detection_rules[l].)),
-                                       And(
-                                           Not(logits_to_predicate(x, train_true_fine_batch[])),
-                                           logits_to_predicate(x_fine, l[i]))
-                                   )
-                                   ))
+        sat_agg_list.append(
+            Forall(x_fine,
+                   Implies(
+                       And(logits_to_predicate(x_fine, l.ltn_constant),
+                           Conds_predicate(x_fine, original_train_pred_fine_batch, error_detection_rules[l].C_l)),
+                       And(
+                           Not(true_predicate(x_fine, original_train_pred_fine_batch, train_true_fine_batch[l])),
+                           logits_to_predicate(x_fine, l.ltn_constant))
+                   )
+                   ))
 
-    # Correction Rule: corr_i(w) <- disj_CC_i(cond_q(w) and pred_r(w))
-    for i in label_dict.values():
-        sat_agg_list.append(Forall(x, Implies(Or(logits_to_predicate(x, l[q]), logits_to_predicate(x, l[r]))
-                                              for q, r in CC_i), logits_to_predicate(x, ground_truth[i])))
+    for l in data_preprocessing.get_labels(g_coarse).values():
+        sat_agg_list.append(
+            Forall(x_coarse,
+                   Implies(
+                       And(logits_to_predicate(x_coarse, l.ltn_constant),
+                           Conds_predicate(x_coarse, original_train_pred_coarse_batch, error_detection_rules[l].C_l)),
+                       And(
+                           Not(true_predicate(x_coarse, original_train_pred_coarse_batch, train_true_coarse_batch[l])),
+                           logits_to_predicate(x_coarse, l.ltn_constant))
+                   )
+                   ))
 
     sat_agg = SatAgg(
         *sat_agg_list
