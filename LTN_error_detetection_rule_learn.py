@@ -8,12 +8,11 @@ import numpy as np
 
 from PyEDCR import EDCR
 import data_preprocessing
-import utils
-import conditions
-import rules
 import vit_pipeline
 import typing
 
+num_fine_grain_classes = len(data_preprocessing.fine_grain_classes_str)
+num_coarse_grain_classes = len(data_preprocessing.coarse_grain_classes_str)
 
 class EDCR_LTN_experiment(EDCR):
     def __init__(self,
@@ -181,7 +180,8 @@ class EDCR_LTN_experiment(EDCR):
                         del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
 
                     training_fine_accuracy, training_coarse_accuracy = (
-                        get_and_print_post_epoch_metrics(epoch=epoch,
+                        vit_pipeline.get_and_print_post_epoch_metrics(
+                                                         epoch=epoch,
                                                          running_fine_loss=running_fine_loss.item(),
                                                          running_coarse_loss=running_coarse_loss.item(),
                                                          num_batches=num_batches,
@@ -205,18 +205,18 @@ class EDCR_LTN_experiment(EDCR):
                         (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions,
                          test_coarse_predictions,
                          test_fine_accuracy, test_coarse_accuracy) = (
-                            evaluate_combined_model(fine_tuner=fine_tuner,
-                                                    loaders=loaders,
-                                                    loss=loss,
-                                                    device=device,
-                                                    test=True))
+                            vit_pipeline.evaluate_combined_model(fine_tuner=fine_tuner,
+                                                                 loaders=loaders,
+                                                                 loss=loss,
+                                                                 device=device))
 
                         test_fine_accuracies += [test_fine_accuracy]
                         test_coarse_accuracies += [test_coarse_accuracy]
                     print('#' * 100)
 
-                    if (epoch == num_epochs - 1) and save_files:
-                        save_prediction_files(test=False,
+                    if (epoch == vit_pipeline.num_epochs - 1) and save_files:
+                        vit_pipeline.save_prediction_files(
+                                              test=False,
                                               fine_tuners=fine_tuner,
                                               combined=True,
                                               lrs=lr,
@@ -226,10 +226,10 @@ class EDCR_LTN_experiment(EDCR):
                                               loss=loss)
 
             if save_files:
-                if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
-                    np.save(f"{combined_results_path}test_fine_true.npy", test_fine_ground_truths)
-                if not os.path.exists(f"{combined_results_path}test_coarse_true.npy"):
-                    np.save(f"{combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
+                if not os.path.exists(f"{vit_pipeline.combined_results_path}test_fine_true.npy"):
+                    np.save(f"{vit_pipeline.combined_results_path}test_fine_true.npy", test_fine_ground_truths)
+                if not os.path.exists(f"{vit_pipeline.combined_results_path}test_coarse_true.npy"):
+                    np.save(f"{vit_pipeline.combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
                 if loss.split('_')[0] == 'LTN':
                     torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")

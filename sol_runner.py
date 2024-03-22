@@ -11,7 +11,7 @@ def run():
         edcr = PyEDCR.EDCR(epsilon=eps,
                            main_model_name='vit_b_16',
                            combined=True,
-                           loss='LTN_BCE',
+                           loss='BCE',
                            lr=0.0001,
                            num_epochs=20,
                            include_inconsistency_constraint=False)
@@ -26,4 +26,6 @@ def run():
                                                            DC_i=DC_i,
                                                            CC_i=CC_i)
 
+if __name__ == '__main__':
+    run()
 

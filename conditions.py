@@ -50,8 +50,8 @@ class PredCondition(Condition):
     def __call__(self,
                  fine_data: np.array,
                  coarse_data: np.array,
-                 secondary_fine_data: np.array,
-                 secondary_coarse_data: np.array,
+                 secondary_fine_data: np.array=None,
+                 secondary_coarse_data: np.array=None,
                  ) -> np.array:
         granularity_data = (fine_data if not self.secondary else secondary_fine_data) \
             if self.l.g == data_preprocessing.granularities['fine'] else \
