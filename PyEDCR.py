@@ -1110,8 +1110,7 @@ if __name__ == '__main__':
                     num_epochs=20,
                     include_inconsistency_constraint=False,
                     secondary_model_name='vit_b_16_soft_marginal',
-                    second_predictions=True
-                    )
+                    second_predictions=True)
         edcr.print_metrics(test=test_bool, prior=True)
         edcr.run_learning_pipeline(EDCR_epoch_num=10)
         edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)

@@ -360,8 +360,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                             device: torch.device,
                             split: str,
                             print_results: bool = True,
-                            second_predictions: bool = False) -> (
-list[int], list[int], list[int], list[int], float, float):
+                            second_predictions: bool = False) -> (list[int], list[int], list[int], list[int], float, float):
     loader = loaders[split]
     fine_tuner.to(device)
     fine_tuner.eval()

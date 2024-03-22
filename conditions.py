@@ -78,7 +78,8 @@ class PredCondition(Condition):
 
     def __str__(self) -> str:
         secondary_str = 'secondary_' if self.secondary_model else ''
-        return f'{secondary_str}pred_{self.l}'
+        second_prediction_str = '_second_prediction' if self.second_predictions else ''
+        return f'{secondary_str}pred_{self.l}{second_prediction_str}'
 
     def __hash__(self):
         return hash(self.__str__())
