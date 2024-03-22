@@ -761,7 +761,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                                 sat_agg = ltn_support.compute_sat_normally(logits_to_predicate=logits_to_predicate,
                                                                            prediction=Y_pred,
-                                                                           labels_coarse=Y_coarse_grain,
+                                                                           train_true_coarse_batch=Y_coarse_grain,
                                                                            labels_fine=Y_fine_grain,
                                                                            DC_i=DC_i,
                                                                            CC_i=CC_i)

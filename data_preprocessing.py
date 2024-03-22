@@ -7,6 +7,7 @@ import torch.utils.data
 import pathlib
 import typing
 import abc
+import ltn
 
 from typing import List
 
@@ -124,6 +125,7 @@ class Label(typing.Hashable, abc.ABC):
         self._l_str = l_str
         self._index = index
         self._g = None
+        self.ltn_constant = None
 
     def __str__(self):
         return self._l_str
@@ -151,6 +153,9 @@ class FineGrainLabel(Label):
         assert l_str in fine_grain_classes_str
         self.__correct_coarse = fine_to_coarse[l_str]
         self._g = granularities['fine']
+        one_hot = torch.zeros(len(fine_grain_classes_str))
+        one_hot[self.index] = 1.0
+        self.ltn_constant = ltn.Constant(one_hot, trainable=True)
 
     @classmethod
     def with_index(cls,
@@ -169,6 +174,9 @@ class CoarseGrainLabel(Label):
         assert l_str in coarse_grain_classes_str
         self.correct_fine = coarse_to_fine[l_str]
         self._g = granularities['coarse']
+        one_hot = torch.zeros(len(fine_grain_classes_str))
+        one_hot[self.index] = 1.0
+        self.ltn_constant = ltn.Constant(one_hot, trainable=True)
 
     @classmethod
     def with_index(cls,
