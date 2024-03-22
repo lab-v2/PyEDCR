@@ -1112,7 +1112,7 @@ if __name__ == '__main__':
                     secondary_model_name='vit_b_16_soft_marginal',
                     second_predictions=True)
         edcr.print_metrics(test=test_bool, prior=True)
-        edcr.run_learning_pipeline(EDCR_epoch_num=3)
+        edcr.run_learning_pipeline(EDCR_epoch_num=20)
         edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
