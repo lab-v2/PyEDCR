@@ -1,7 +1,7 @@
 # Logic Tensor Network
 import ltn
 import torch
-import data_preprocessing
+import data_processing
 
 
 class LogitsToPredicate(torch.nn.Module):

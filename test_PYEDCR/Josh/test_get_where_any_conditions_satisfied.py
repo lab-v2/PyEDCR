@@ -38,7 +38,7 @@ def run_tests():
     K = [(0, 9)]
     test = TestWhereAnyConditionsSatisfied(epsilon=0.1, K_train=K, K_test=K)
 
-    train_pred_fine_data, train_pred_coarse_data = test.edcr.get_predictions(test=False)
+    train_pred_fine_data, train_pred_coarse_data = get_predictions(test=False)
 
     test.run(C={pred_Tornado, pred_BMP_1},
              fine_data=train_pred_fine_data,
@@ -68,7 +68,7 @@ def run_tests():
     test.run_edge_cases(fine_data=train_pred_fine_data,
                         coarse_data=train_pred_coarse_data)
 
-    test_pred_fine_data, test_pred_coarse_data = test.edcr.get_predictions(test=True)
+    test_pred_fine_data, test_pred_coarse_data = get_predictions(test=True)
 
     test.run(C={pred_Tornado, pred_BMP_1},
              fine_data=test_pred_fine_data,
@@ -102,7 +102,7 @@ def run_tests():
 
     test = TestWhereAnyConditionsSatisfied(epsilon=0.1, K_train=K, K_test=K)
 
-    train_pred_fine_data, train_pred_coarse_data = test.edcr.get_predictions(test=False)
+    train_pred_fine_data, train_pred_coarse_data = get_predictions(test=False)
 
     test.run(C={pred_Tornado, pred_BMP_1},
              fine_data=train_pred_fine_data,
@@ -132,7 +132,7 @@ def run_tests():
     test.run_edge_cases(fine_data=train_pred_fine_data,
                         coarse_data=train_pred_coarse_data)
 
-    test_pred_fine_data, test_pred_coarse_data = test.edcr.get_predictions(test=True)
+    test_pred_fine_data, test_pred_coarse_data = get_predictions(test=True)
 
     test.run(C={pred_Tornado, pred_BMP_1},
              fine_data=test_pred_fine_data,
@@ -166,7 +166,7 @@ def run_tests():
 
     test = TestWhereAnyConditionsSatisfied(epsilon=0.1, K_train=K, K_test=K)
 
-    train_pred_fine_data, train_pred_coarse_data = test.edcr.get_predictions(test=False)
+    train_pred_fine_data, train_pred_coarse_data = get_predictions(test=False)
 
     test.run(C={pred_Tornado, pred_BMP_1},
              fine_data=train_pred_fine_data,
@@ -196,7 +196,7 @@ def run_tests():
     test.run_edge_cases(fine_data=train_pred_fine_data,
                         coarse_data=train_pred_coarse_data)
 
-    test_pred_fine_data, test_pred_coarse_data = test.edcr.get_predictions(test=True)
+    test_pred_fine_data, test_pred_coarse_data = get_predictions(test=True)
 
     test.run(C={pred_Tornado, pred_BMP_1},
              fine_data=test_pred_fine_data,

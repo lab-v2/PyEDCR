@@ -778,7 +778,7 @@ class EDCR:
         stage = 'original' if self.correction_model is None else 'post_detection'
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
         secondary_pred_fine_data, secondary_pred_coarse_data = (
-            self.get_predictions(test=test, secondary=True) if self.secondary_model_name is not None else (None, None))
+            self.get_predictions(test=test, secondary=True) if self.secondary_model_name is not None else None, None)
         second_train_pred_fine_data, second_train_pred_coarse_data = (
             self.get_predictions(test=test, second_predictions=True)) if self.second_predictions else (None, None)
 

@@ -94,8 +94,7 @@ class ErrorDetectionRule(Rule):
         super().__init__(l=l, C_l=DC_l)
         assert all(cond.l != self.l for cond in {cond_prime for cond_prime in self.C_l
                                                  if isinstance(cond_prime, conditions.PredCondition)
-                                                 and not cond_prime.secondary_model
-                                                 and not cond_prime.second_predictions})
+                                                 and not cond_prime.secondary_model})
 
     def get_where_body_is_satisfied(self,
                                     pred_fine_data: np.array,
@@ -165,8 +164,7 @@ class ErrorCorrectionRule(Rule):
         """
         C_l = {(cond, l_prime) for cond, l_prime in CC_l if (isinstance(cond, conditions.InconsistencyCondition)
                                                              or cond.l.g != l_prime.g
-                                                             or cond.secondary_model
-                                                             or cond.second_predictions) and l_prime != l}
+                                                             or cond.secondary_model) and l_prime != l}
 
         super().__init__(l=l, C_l=C_l)
 

@@ -9,9 +9,9 @@ import models
 import utils
 import data_preprocessing
 
-batch_size = 32
+batch_size = 64
 scheduler_gamma = 0.9
-num_epochs = 1
+num_epochs = 2
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
@@ -979,9 +979,8 @@ def initiate(lrs: list[typing.Union[str, float]],
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size,
-                                             subset_indices=indices,
-                                             evaluation=evaluation,
-                                             train_eval_split=train_eval_split)
+                                             indices=indices,
+                                             evaluation=evaluation)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of test images: {len(loaders['test'].dataset)}")

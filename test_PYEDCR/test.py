@@ -7,7 +7,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 import utils
-import data_preprocessing
+import data_processing
 from PyEDCR import EDCR
 
 g_fine, g_coarse = data_preprocessing.granularities.values()

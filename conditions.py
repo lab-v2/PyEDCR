@@ -57,7 +57,7 @@ class PredCondition(Condition):
                  second_predictions_fine_data: np.array,
                  second_predictions_coarse_data: np.array,
                  ) -> np.array:
-
+        
         if self.secondary_model:
             if self.l.g == data_preprocessing.granularities['fine']:
                 granularity_data = secondary_fine_data
@@ -78,8 +78,7 @@ class PredCondition(Condition):
 
     def __str__(self) -> str:
         secondary_str = 'secondary_' if self.secondary_model else ''
-        second_prediction_str = '_second_prediction' if self.second_predictions else ''
-        return f'{secondary_str}pred_{self.l}{second_prediction_str}'
+        return f'{secondary_str}pred_{self.l}'
 
     def __hash__(self):
         return hash(self.__str__())

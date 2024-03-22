@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 
 import vit_pipeline
 import utils
-import data_preprocessing
+import data_processing
 import context_handlers
 
 figs_folder = 'figs/'

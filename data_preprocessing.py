@@ -311,47 +311,29 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
 
 def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, IndividualImageFolderWithName]],
                 batch_size: int,
-                subset_indices: typing.Sequence = None,
-                evaluation: bool = None,
-                train_eval_split: float = None) -> dict[str, torch.utils.data.DataLoader]:
+                indices: typing.Sequence = None,
+                evaluation: bool = None) -> dict[str, torch.utils.data.DataLoader]:
     """
     Instantiates and returns train and test torch data loaders
 
     Parameters
     ----------
-        :param train_eval_split:
         :param evaluation:
         :param datasets:
         :param batch_size:
-        :param subset_indices:
+        :param indices:
     """
-    loaders = {}
 
-    for dataset_type in ['train', 'test'] + (['train_eval'] if train_eval_split is not None else []):
-        relevant_dataset = datasets[dataset_type if dataset_type != 'train_eval' else 'train']
-        loader_dataset = relevant_dataset if subset_indices is None or dataset_type == 'test' \
-            else torch.utils.data.Subset(dataset=relevant_dataset,
-                                         indices=subset_indices)
-
-        if train_eval_split is not None:
-            dataset_size = len(loader_dataset)
-            all_indices = list(range(dataset_size))
-            train_size = int(train_eval_split * dataset_size)
-
-            if dataset_type == 'train':
-                loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
-                                                         indices=all_indices[:train_size])
-            elif dataset_type == 'train_eval':
-                loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
-                                                         indices=all_indices[train_size:])
-
-        shuffle = dataset_type == 'train' and (evaluation is None or not evaluation)
-
-        loaders[dataset_type] = torch.utils.data.DataLoader(
-            dataset=loader_dataset,
-            batch_size=batch_size,
-            shuffle=shuffle)
-    return loaders
+    return {train_or_test_dataset: torch.utils.data.DataLoader(
+        dataset=datasets[train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train']
+        if indices is None or train_or_test_dataset != 'train'
+        else torch.utils.data.Subset(dataset=
+                                     datasets[
+                                         train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train'],
+                                     indices=indices),
+        batch_size=batch_size,
+        shuffle=train_or_test_dataset == 'train' and (evaluation is None or not evaluation))
+        for train_or_test_dataset in ['train', 'train_eval', 'test']}
 
 
 def get_one_hot_encoding(arr: np.array) -> np.array:
@@ -377,3 +359,4 @@ coarse_grain_labels = {l: CoarseGrainLabel(l) for l in coarse_grain_classes_str}
 
 def get_labels(g: Granularity) -> dict[str, Label]:
     return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels
+

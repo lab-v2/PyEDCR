@@ -225,13 +225,3 @@ def evaluate_and_print_g_detection_rule_recall_decrease(edcr,
           f'diff: {utils.blue_text(recall_diff)}\n'
           f'theoretical recall decrease: -{utils.blue_text(detection_rule_theoretical_recall_decrease)}\n'
           f'{recall_theory_holds_str}')
-
-
-def get_l_correction_rule_theoretical_recall_increase(edcr,
-                                                      test: bool,
-                                                      l: data_preprocessing.Label,
-                                                      CC_l: set) -> float:
-    POS_CC_l = edcr.get_POS_l_CC(test=test, l=l, CC=CC_l)
-    denominator = np.sum(edcr.get_where_label_is_l(pred=False, test=True, l=l, stage='original'))
-
-    return POS_CC_l / denominator

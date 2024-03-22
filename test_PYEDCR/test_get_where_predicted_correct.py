@@ -1,5 +1,5 @@
 from PyEDCR import EDCR
-import data_preprocessing
+import data_processing
 import warnings
 import numpy as np
 import utils
