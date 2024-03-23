@@ -35,7 +35,7 @@ class EDCR_LTN_experiment(EDCR):
                          include_inconsistency_constraint=include_inconsistency_constraint,
                          secondary_model_name=secondary_model_name)
 
-        self.batch_size = 32
+        self.batch_size = 4
         self.scheduler_gamma = 0.9
         self.num_epochs = 5
         self.ltn_num_epochs = 5
@@ -87,18 +87,16 @@ class EDCR_LTN_experiment(EDCR):
         print('#' * 100 + '\n')
 
         for epoch in range(epochs):
-            with (((context_handlers.TimeWrapper()))):
-                total_running_loss = torch.Tensor([0.0]).to(device)
-                running_fine_loss = torch.Tensor([0.0]).to(device)
-                running_coarse_loss = torch.Tensor([0.0]).to(device)
+            with context_handlers.TimeWrapper():
+                total_running_loss = 0.0
+                running_fine_loss = 0.0
+                running_coarse_loss = 0.0
 
                 train_fine_predictions = []
                 train_coarse_predictions = []
 
                 train_fine_ground_truths = []
                 train_coarse_ground_truths = []
-
-                # TODO: modify vit_pipeline.get_fine_tuning_batches to get indices of the example X
 
                 batches = vit_pipeline.get_fine_tuning_batches(train_loader=train_loader,
                                                                num_batches=num_batches,
@@ -107,11 +105,11 @@ class EDCR_LTN_experiment(EDCR):
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
                         X, Y_fine_grain, Y_coarse_grain, indices = (
-                            batch[0].to(device), batch[1].to(device), batch[3].to(device), batch[4].to(device))
+                            batch[0].to(device), batch[1].to(device), batch[3].to(device), batch[4])
 
                         # slice the condition from the indices you get above
-                        original_train_pred_fine_batch = self.pred_data['original']['train']['fine'][indices]
-                        original_train_pred_coarse_batch = self.pred_data['original']['train']['fine'][indices]
+                        original_train_pred_fine_batch = self.pred_data['train']['original']['fine'][indices]
+                        original_train_pred_coarse_batch = self.pred_data['train']['original']['fine'][indices]
                         original_secondary_train_pred_fine_batch = self.pred_data['secondary_model']['train']['fine'][indices]
                         original_secondary_train_pred_coarse_batch = self.pred_data['secondary_model']['train']['coarse'][indices]
 
@@ -133,7 +131,6 @@ class EDCR_LTN_experiment(EDCR):
                         if loss == 'LTN_BCE':
                             criterion = torch.nn.BCEWithLogitsLoss()
 
-                            # TODO: fill in the rest of the argument
                             sat_agg = ltn_support.compute_sat_normally(
                                 logits_to_predicate=logits_to_predicate,
                                 train_pred_fine_batch=Y_pred_fine_grain,
@@ -151,8 +148,18 @@ class EDCR_LTN_experiment(EDCR):
                         if loss == "LTN_soft_marginal":
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
-                            sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
-                                                                       Y_pred, Y_coarse_grain, Y_fine_grain)
+                            sat_agg = ltn_support.compute_sat_normally(
+                                logits_to_predicate=logits_to_predicate,
+                                train_pred_fine_batch=Y_pred_fine_grain,
+                                train_pred_coarse_batch=Y_pred_coarse_grain,
+                                train_true_fine_batch=Y_fine_grain,
+                                train_true_coarse_batch=Y_coarse_grain,
+                                original_train_pred_fine_batch=original_train_pred_fine_batch,
+                                original_train_pred_coarse_batch=original_train_pred_coarse_batch,
+                                original_secondary_train_pred_fine_batch=original_secondary_train_pred_fine_batch,
+                                original_secondary_train_pred_coarse_batch=original_secondary_train_pred_coarse_batch,
+                                error_detection_rules=self.error_detection_rules
+                            )
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (
                                 criterion(Y_pred, Y_combine))
 
