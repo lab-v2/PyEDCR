@@ -141,7 +141,7 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
                        And(logits_to_predicate(x_fine, l.ltn_constant),
                            Conds_predicate(x_fine, original_train_pred_fine_batch, error_detection_rules[l].C_l)),
                        And(
-                           Not(true_predicate(x_fine, original_train_pred_fine_batch, train_true_fine_batch[l])),
+                           Not(True_predicate(x_fine, original_train_pred_fine_batch, train_true_fine_batch[l])),
                            logits_to_predicate(x_fine, l.ltn_constant))
                    )
                    ))
@@ -153,7 +153,7 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
                        And(logits_to_predicate(x_coarse, l.ltn_constant),
                            Conds_predicate(x_coarse, original_train_pred_coarse_batch, error_detection_rules[l].C_l)),
                        And(
-                           Not(true_predicate(x_coarse, original_train_pred_coarse_batch, train_true_coarse_batch[l])),
+                           Not(True_predicate(x_coarse, original_train_pred_coarse_batch, train_true_coarse_batch[l])),
                            logits_to_predicate(x_coarse, l.ltn_constant))
                    )
                    ))

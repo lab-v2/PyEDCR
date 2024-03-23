@@ -891,7 +891,8 @@ def initiate(lrs: list[typing.Union[str, float]],
              debug: bool = False,
              indices: typing.Sequence = None,
              evaluation: bool = None,
-             train_eval_split: float = None):
+             train_eval_split: float = None,
+             get_indices: bool = None):
     """
     Initializes models, datasets, and devices for training.
 
@@ -959,7 +960,8 @@ def initiate(lrs: list[typing.Union[str, float]],
                                              batch_size=batch_size,
                                              subset_indices=indices,
                                              evaluation=evaluation,
-                                             train_eval_split=train_eval_split)
+                                             train_eval_split=train_eval_split,
+                                             get_indices=get_indices)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of test images: {len(loaders['test'].dataset)}")

@@ -11,8 +11,6 @@ import data_preprocessing
 import vit_pipeline
 import typing
 
-num_fine_grain_classes = len(data_preprocessing.fine_grain_classes_str)
-num_coarse_grain_classes = len(data_preprocessing.coarse_grain_classes_str)
 
 class EDCR_LTN_experiment(EDCR):
     def __init__(self,
@@ -49,6 +47,7 @@ class EDCR_LTN_experiment(EDCR):
         self.scheduler_step_size = num_epochs
         self.original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
                                                len(data_preprocessing.coarse_grain_classes_str))
+        self.loss = 'LTN_BCE'
 
     def fine_tune_combined_model(self,
                                  fine_tuner: models.FineTuner,
@@ -57,11 +56,7 @@ class EDCR_LTN_experiment(EDCR):
                                  loss: str,
                                  ltn_num_epochs: int = None,
                                  beta: float = 0.1,
-                                 save_files: bool = True,
-                                 debug: bool = False,
-                                 evaluate_on_test: bool = True,
-                                 Y_original_fine: np.array = None,
-                                 Y_original_coarse: np.array = None):
+                                 debug: bool = False):
         fine_tuner.to(device)
         fine_tuner.train()
         train_loader = loaders['train']
@@ -84,12 +79,6 @@ class EDCR_LTN_experiment(EDCR):
         train_fine_accuracies = []
         train_coarse_accuracies = []
 
-        test_fine_ground_truths = []
-        test_coarse_ground_truths = []
-
-        test_fine_accuracies = []
-        test_coarse_accuracies = []
-
         epochs = ltn_num_epochs
         logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
@@ -98,7 +87,7 @@ class EDCR_LTN_experiment(EDCR):
         print('#' * 100 + '\n')
 
         for epoch in range(epochs):
-            with ((context_handlers.TimeWrapper())):
+            with (((context_handlers.TimeWrapper()))):
                 total_running_loss = torch.Tensor([0.0]).to(device)
                 running_fine_loss = torch.Tensor([0.0]).to(device)
                 running_coarse_loss = torch.Tensor([0.0]).to(device)
@@ -117,15 +106,15 @@ class EDCR_LTN_experiment(EDCR):
 
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
-                        X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(
-                            device)
+                        X, Y_fine_grain, Y_coarse_grain, indices = (
+                            batch[0].to(device), batch[1].to(device), batch[3].to(device), batch[4].to(device))
 
-                        # TODO: slice the condition from the indices you get above
-                        # Hint: condition can get from self.pred_data[original][train][...]
-                        train_pred_fine_batch = self.pred_data['original']['train'][...]
-                        train_pred_coarse_batch = ...
-                        secondary_train_pred_fine_batch = ...
-                        ...
+                        # slice the condition from the indices you get above
+                        original_train_pred_fine_batch = self.pred_data['original']['train']['fine'][indices]
+                        original_train_pred_coarse_batch = self.pred_data['original']['train']['fine'][indices]
+                        original_secondary_train_pred_fine_batch = self.pred_data['secondary_model']['train']['fine'][indices]
+                        original_secondary_train_pred_coarse_batch = self.pred_data['secondary_model']['train']['coarse'][indices]
+
                         Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
                             data_preprocessing.fine_grain_classes_str))
                         Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
@@ -134,10 +123,12 @@ class EDCR_LTN_experiment(EDCR):
                         Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
                         optimizer.zero_grad()
 
-                        # TODO: get Y_pred
                         # currently we have many option to get prediction, depend on whether fine_tuner predict
                         # fine / coarse or both
                         Y_pred = fine_tuner(X)
+
+                        Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
+                        Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
 
                         if loss == 'LTN_BCE':
                             criterion = torch.nn.BCEWithLogitsLoss()
@@ -145,8 +136,14 @@ class EDCR_LTN_experiment(EDCR):
                             # TODO: fill in the rest of the argument
                             sat_agg = ltn_support.compute_sat_normally(
                                 logits_to_predicate=logits_to_predicate,
-                                train_pred_fine_batch=train_pred_fine_batch,
-                                original_secondary_train_pred_fine_batch=secondary_train_pred_fine_batch,
+                                train_pred_fine_batch=Y_pred_fine_grain,
+                                train_pred_coarse_batch=Y_pred_coarse_grain,
+                                train_true_fine_batch=Y_fine_grain,
+                                train_true_coarse_batch=Y_coarse_grain,
+                                original_train_pred_fine_batch=original_train_pred_fine_batch,
+                                original_train_pred_coarse_batch=original_train_pred_coarse_batch,
+                                original_secondary_train_pred_fine_batch=original_secondary_train_pred_fine_batch,
+                                original_secondary_train_pred_coarse_batch=original_secondary_train_pred_coarse_batch,
                                 error_detection_rules=self.error_detection_rules
                             )
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_combine)
@@ -177,66 +174,33 @@ class EDCR_LTN_experiment(EDCR):
                         train_fine_ground_truths += Y_fine_grain.tolist()
                         train_coarse_ground_truths += Y_coarse_grain.tolist()
 
-                        del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
+                        del X, Y_fine_grain, Y_coarse_grain, indices, Y_pred_fine_grain, Y_pred_coarse_grain
 
-                    training_fine_accuracy, training_coarse_accuracy = (
-                        vit_pipeline.get_and_print_post_epoch_metrics(
-                                                         epoch=epoch,
-                                                         running_fine_loss=running_fine_loss.item(),
-                                                         running_coarse_loss=running_coarse_loss.item(),
-                                                         num_batches=num_batches,
-                                                         train_fine_ground_truth=np.array(train_fine_ground_truths),
-                                                         train_fine_prediction=np.array(train_fine_predictions),
-                                                         train_coarse_ground_truth=np.array(train_coarse_ground_truths),
-                                                         train_coarse_prediction=np.array(train_coarse_predictions),
-                                                         num_fine_grain_classes=num_fine_grain_classes,
-                                                         num_coarse_grain_classes=num_coarse_grain_classes))
+                training_fine_accuracy, training_coarse_accuracy = (
+                    vit_pipeline.get_and_print_post_epoch_metrics(
+                        epoch=epoch,
+                        running_fine_loss=running_fine_loss.item(),
+                        running_coarse_loss=running_coarse_loss.item(),
+                        num_batches=num_batches,
+                        train_fine_ground_truth=np.array(train_fine_ground_truths),
+                        train_fine_prediction=np.array(train_fine_predictions),
+                        train_coarse_ground_truth=np.array(train_coarse_ground_truths),
+                        train_coarse_prediction=np.array(train_coarse_predictions),
+                        num_fine_grain_classes=len(data_preprocessing.fine_grain_classes_str),
+                        num_coarse_grain_classes=len(data_preprocessing.coarse_grain_classes_str)))
 
-                    train_fine_accuracies += [training_fine_accuracy]
-                    train_coarse_accuracies += [training_coarse_accuracy]
+                train_fine_accuracies += [training_fine_accuracy]
+                train_coarse_accuracies += [training_coarse_accuracy]
 
-                    train_total_losses += [total_running_loss.item() / num_batches]
-                    train_fine_losses += [running_fine_loss.item() / num_batches]
-                    train_coarse_losses += [running_coarse_loss.item() / num_batches]
+                train_total_losses += [total_running_loss.item() / num_batches]
+                train_fine_losses += [running_fine_loss.item() / num_batches]
+                train_coarse_losses += [running_coarse_loss.item() / num_batches]
 
-                    scheduler.step()
+                scheduler.step()
 
-                    if evaluate_on_test:
-                        (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions,
-                         test_coarse_predictions,
-                         test_fine_accuracy, test_coarse_accuracy) = (
-                            vit_pipeline.evaluate_combined_model(fine_tuner=fine_tuner,
-                                                                 loaders=loaders,
-                                                                 loss=loss,
-                                                                 device=device))
+                print('#' * 100)
 
-                        test_fine_accuracies += [test_fine_accuracy]
-                        test_coarse_accuracies += [test_coarse_accuracy]
-                    print('#' * 100)
-
-                    if (epoch == vit_pipeline.num_epochs - 1) and save_files:
-                        vit_pipeline.save_prediction_files(
-                                              test=False,
-                                              fine_tuners=fine_tuner,
-                                              combined=True,
-                                              lrs=lr,
-                                              epoch=epoch,
-                                              test_fine_prediction=test_fine_predictions,
-                                              test_coarse_prediction=test_coarse_predictions,
-                                              loss=loss)
-
-            if save_files:
-                if not os.path.exists(f"{vit_pipeline.combined_results_path}test_fine_true.npy"):
-                    np.save(f"{vit_pipeline.combined_results_path}test_fine_true.npy", test_fine_ground_truths)
-                if not os.path.exists(f"{vit_pipeline.combined_results_path}test_coarse_true.npy"):
-                    np.save(f"{vit_pipeline.combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
-
-                if loss.split('_')[0] == 'LTN':
-                    torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
-                else:
-                    torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}.pth")
-
-            return train_fine_predictions, train_coarse_predictions
+        return train_fine_predictions, train_coarse_predictions
 
     def run_learning_pipeline(self,
                               EDCR_epoch_num=0):
@@ -244,10 +208,44 @@ class EDCR_LTN_experiment(EDCR):
         self.print_metrics(test=False, prior=True)
 
         for g in data_preprocessing.granularities.values():
-            self.learn_correction_rules(g=g)
+            self.learn_detection_rules(g=g)
 
         print('\nRule learning completed\n')
 
+        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+            vit_pipeline.initiate(lrs=[self.lr],
+                                  combined=self.combined,
+                                  debug=False,
+                                  get_indices=True))
+
+        if self.correction_model is None:
+            self.correction_model = fine_tuners[0]
+
+        for fine_tuner in fine_tuners:
+            print(f'Initiating {fine_tuner}')
+
+            with context_handlers.ClearSession():
+                self.fine_tune_combined_model(fine_tuner=self.correction_model,
+                                              device=devices[0],
+                                              loaders=loaders,
+                                              loss=self.loss,
+                                              ltn_num_epochs=self.ltn_num_epochs,
+                                              )
+                print('#' * 100)
+
+    def run_evaluating_pipeline(self):
+        _, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+            vit_pipeline.initiate(lrs=[self.lr],
+                                  combined=self.combined,
+                                  debug=False,))
+        (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
+         fine_accuracy, coarse_accuracy) = vit_pipeline.evaluate_combined_model(
+            fine_tuner=self.correction_model,
+            loaders=loaders,
+            loss=self.loss,
+            device=devices[0],
+            split='train',
+            print_results=False)
 
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
@@ -266,5 +264,4 @@ if __name__ == '__main__':
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()
-        for gra in data_preprocessing.granularities.values():
-            edcr.apply_correction_rules(test=test_bool, g=gra)
+        edcr.run_evaluating_pipeline()
