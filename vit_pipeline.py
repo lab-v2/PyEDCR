@@ -11,7 +11,7 @@ import data_preprocessing
 import ltn
 import ltn_support
 
-batch_size = 16
+batch_size = 4
 scheduler_gamma = 0.9
 num_epochs = 10
 ltn_num_epochs = 5
@@ -653,8 +653,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              evaluate_on_train_eval: bool = False,
                              Y_original_fine: np.array = None,
                              Y_original_coarse: np.array = None,
-                             DC_i = None,
-                             CC_i = None):
+                             DC_i=None,
+                             CC_i=None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -771,7 +771,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                 criterion = torch.nn.MultiLabelSoftMarginLoss()
 
                                 sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
-                                                                           Y_pred, Y_coarse_grain, Y_fine_grain, DC_i, CC_i)
+                                                                           Y_pred, Y_coarse_grain, Y_fine_grain, DC_i,
+                                                                           CC_i)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
 
                         if batch_total_loss is not None and Y_original_fine is not None:
@@ -856,11 +857,12 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                 if evaluate_on_train_eval:
                     curr_train_eval_fine_accuracy, curr_train_eval_coarse_accuracy = (
-                        evaluate_combined_model(fine_tuner=fine_tuner,
-                                                loaders=loaders,
-                                                loss=loss,
-                                                device=device,
-                                                split='train_eval'))[-2:]
+                                                                                         evaluate_combined_model(
+                                                                                             fine_tuner=fine_tuner,
+                                                                                             loaders=loaders,
+                                                                                             loss=loss,
+                                                                                             device=device,
+                                                                                             split='train_eval'))[-2:]
                     if train_eval_fine_accuracy is not None and train_eval_coarse_accuracy is not None and \
                             curr_train_eval_fine_accuracy < train_eval_fine_accuracy and \
                             curr_train_eval_coarse_accuracy < train_eval_coarse_accuracy:
@@ -869,7 +871,6 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                     train_eval_fine_accuracy = curr_train_eval_fine_accuracy
                     train_eval_coarse_accuracy = curr_train_eval_coarse_accuracy
-
 
         if save_files:
             if not os.path.exists(f"{combined_results_path}test_fine_true.npy"):
@@ -885,14 +886,17 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         return train_fine_predictions, train_coarse_predictions
 
 
-def initiate(lrs: list[typing.Union[str, float]],
-             combined: bool,
-             pretrained_path: str = None,
-             debug: bool = False,
-             indices: typing.Sequence = None,
-             evaluation: bool = None,
-             train_eval_split: float = None,
-             get_indices: bool = None):
+def initiate(
+
+        combined: bool,
+        pretrained_path: str = None,
+        debug: bool = False,
+        indices: typing.Sequence = None,
+        evaluation: bool = None,
+        train_eval_split: float = None,
+        get_indices: bool = None,
+        batch_len: int = None,
+        lrs: list[typing.Union[str, float]] = None):
     """
     Initializes models, datasets, and devices for training.
 
@@ -911,8 +915,7 @@ def initiate(lrs: list[typing.Union[str, float]],
              - num_coarse_grain_classes: The number of coarse-grained classes.
     """
     print(f'Models: {vit_model_names}\n'
-          f'Epochs num: {num_epochs}\n'
-          f'Learning rates: {lrs}')
+          f'Epochs num: {num_epochs}\n')
 
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets()
 
@@ -957,7 +960,7 @@ def initiate(lrs: list[typing.Union[str, float]],
 
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(datasets=datasets,
-                                             batch_size=batch_size,
+                                             batch_size=batch_len if batch_len is not None else batch_size,
                                              subset_indices=indices,
                                              evaluation=evaluation,
                                              train_eval_split=train_eval_split,
@@ -973,8 +976,8 @@ def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
                                       loss: str = 'BCE',
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode(),
-                                      DC_i = None,
-                                      CC_i = None):
+                                      DC_i=None,
+                                      CC_i=None):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(lrs=lrs,
                                                                                                combined=True,
                                                                                                debug=debug)
@@ -1077,7 +1080,7 @@ def run_combined_evaluating_pipeline(split: str,
 
 
 if __name__ == '__main__':
-    #run_individual_fine_tuning_pipeline()
+    # run_individual_fine_tuning_pipeline()
     run_combined_fine_tuning_pipeline(lrs=[0.0001],
                                       loss='BCE')
 

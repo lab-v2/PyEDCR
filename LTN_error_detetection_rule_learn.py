@@ -23,7 +23,8 @@ class EDCR_LTN_experiment(EDCR):
                  K_train: list[(int, int)] = None,
                  K_test: list[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
-                 secondary_model_name: str = None):
+                 secondary_model_name: str = None,
+                 pretrained_path: str = None):
         super().__init__(main_model_name=main_model_name,
                          combined=combined,
                          loss=loss,
@@ -48,22 +49,19 @@ class EDCR_LTN_experiment(EDCR):
         self.original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
                                                len(data_preprocessing.coarse_grain_classes_str))
         self.loss = 'LTN_BCE'
+        self.pretrain_path = pretrained_path
 
     def fine_tune_combined_model(self,
                                  fine_tuner: models.FineTuner,
                                  device: torch.device,
                                  loaders: dict[str, torch.utils.data.DataLoader],
                                  loss: str,
-                                 ltn_num_epochs: int = None,
                                  beta: float = 0.1,
                                  debug: bool = False):
         fine_tuner.to(device)
         fine_tuner.train()
         train_loader = loaders['train']
         num_batches = len(train_loader)
-
-        train_fine_predictions = None
-        train_coarse_predictions = None
 
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                      lr=self.lr)
@@ -73,24 +71,18 @@ class EDCR_LTN_experiment(EDCR):
                                                     gamma=self.scheduler_gamma)
 
         train_total_losses = []
-        train_fine_losses = []
-        train_coarse_losses = []
 
         train_fine_accuracies = []
         train_coarse_accuracies = []
-
-        epochs = ltn_num_epochs
         logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
-        print(f'\nFine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
+        print(f'\nFine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {self.num_epochs} epochs '
               f'using lr={self.lr} on {device}...')
         print('#' * 100 + '\n')
 
-        for epoch in range(epochs):
+        for epoch in range(self.num_epochs):
             with context_handlers.TimeWrapper():
                 total_running_loss = 0.0
-                running_fine_loss = 0.0
-                running_coarse_loss = 0.0
 
                 train_fine_predictions = []
                 train_coarse_predictions = []
@@ -108,10 +100,14 @@ class EDCR_LTN_experiment(EDCR):
                             batch[0].to(device), batch[1].to(device), batch[3].to(device), batch[4])
 
                         # slice the condition from the indices you get above
-                        original_train_pred_fine_batch = self.pred_data['train']['original']['fine'][indices]
-                        original_train_pred_coarse_batch = self.pred_data['train']['original']['fine'][indices]
-                        original_secondary_train_pred_fine_batch = self.pred_data['secondary_model']['train']['fine'][indices]
-                        original_secondary_train_pred_coarse_batch = self.pred_data['secondary_model']['train']['coarse'][indices]
+                        original_train_pred_fine_batch = torch.tensor(
+                            self.pred_data['train']['original']['fine'][indices])
+                        original_train_pred_coarse_batch = torch.tensor(
+                            self.pred_data['train']['original']['fine'][indices])
+                        original_secondary_train_pred_fine_batch = torch.tensor(
+                            self.pred_data['secondary_model']['train']['fine'][indices])
+                        original_secondary_train_pred_coarse_batch = torch.tensor(
+                            self.pred_data['secondary_model']['train']['coarse'][indices])
 
                         Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
                             data_preprocessing.fine_grain_classes_str))
@@ -183,11 +179,11 @@ class EDCR_LTN_experiment(EDCR):
 
                         del X, Y_fine_grain, Y_coarse_grain, indices, Y_pred_fine_grain, Y_pred_coarse_grain
 
+                        break
+
                 training_fine_accuracy, training_coarse_accuracy = (
                     vit_pipeline.get_and_print_post_epoch_metrics(
                         epoch=epoch,
-                        running_fine_loss=running_fine_loss.item(),
-                        running_coarse_loss=running_coarse_loss.item(),
                         num_batches=num_batches,
                         train_fine_ground_truth=np.array(train_fine_ground_truths),
                         train_fine_prediction=np.array(train_fine_predictions),
@@ -199,9 +195,7 @@ class EDCR_LTN_experiment(EDCR):
                 train_fine_accuracies += [training_fine_accuracy]
                 train_coarse_accuracies += [training_coarse_accuracy]
 
-                train_total_losses += [total_running_loss.item() / num_batches]
-                train_fine_losses += [running_fine_loss.item() / num_batches]
-                train_coarse_losses += [running_coarse_loss.item() / num_batches]
+                train_total_losses += [total_running_loss / num_batches]
 
                 scheduler.step()
 
@@ -220,10 +214,12 @@ class EDCR_LTN_experiment(EDCR):
         print('\nRule learning completed\n')
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            vit_pipeline.initiate(lrs=[self.lr],
-                                  combined=self.combined,
-                                  debug=False,
-                                  get_indices=True))
+            vit_pipeline.initiate(
+                batch_len=self.batch_size,
+                combined=self.combined,
+                pretrained_path=self.pretrain_path,
+                debug=False,
+                get_indices=True))
 
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
@@ -232,19 +228,19 @@ class EDCR_LTN_experiment(EDCR):
             print(f'Initiating {fine_tuner}')
 
             with context_handlers.ClearSession():
-                self.fine_tune_combined_model(fine_tuner=self.correction_model,
-                                              device=devices[0],
-                                              loaders=loaders,
-                                              loss=self.loss,
-                                              ltn_num_epochs=self.ltn_num_epochs,
-                                              )
+                self.fine_tune_combined_model(
+                    fine_tuner=self.correction_model,
+                    device=devices[0],
+                    loaders=loaders,
+                    loss=self.loss,
+                )
                 print('#' * 100)
 
     def run_evaluating_pipeline(self):
         _, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
             vit_pipeline.initiate(lrs=[self.lr],
                                   combined=self.combined,
-                                  debug=False,))
+                                  debug=False, ))
         (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
          fine_accuracy, coarse_accuracy) = vit_pipeline.evaluate_combined_model(
             fine_tuner=self.correction_model,
@@ -254,9 +250,11 @@ class EDCR_LTN_experiment(EDCR):
             split='train',
             print_results=False)
 
+
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
     test_bool = False
+    main_pretrained_path = None
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
@@ -267,7 +265,8 @@ if __name__ == '__main__':
                                    lr=0.0001,
                                    num_epochs=20,
                                    include_inconsistency_constraint=False,
-                                   secondary_model_name='vit_b_16_soft_marginal')
+                                   secondary_model_name='vit_b_16_soft_marginal',
+                                   pretrained_path=main_pretrained_path)
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()

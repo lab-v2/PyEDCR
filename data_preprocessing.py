@@ -174,7 +174,7 @@ class CoarseGrainLabel(Label):
         assert l_str in coarse_grain_classes_str
         self.correct_fine = coarse_to_fine[l_str]
         self._g = granularities['coarse']
-        one_hot = torch.zeros(len(fine_grain_classes_str))
+        one_hot = torch.zeros(len(coarse_grain_classes_str))
         one_hot[self.index] = 1.0
         self.ltn_constant = ltn.Constant(one_hot, trainable=True)
 
