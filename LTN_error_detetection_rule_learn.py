@@ -39,7 +39,6 @@ class EDCR_LTN_experiment(EDCR):
         self.batch_size = 4
         self.scheduler_gamma = 0.9
         self.num_epochs = 5
-        self.ltn_num_epochs = 5
         self.vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
         self.combined_results_path = fr'combined_results'
@@ -181,8 +180,6 @@ class EDCR_LTN_experiment(EDCR):
 
                         del X, Y_fine_grain, Y_coarse_grain, indices, Y_pred_fine_grain, Y_pred_coarse_grain
 
-                        break
-
                 training_fine_accuracy, training_coarse_accuracy = (
                     vit_pipeline.get_and_print_post_epoch_metrics(
                         epoch=epoch,
@@ -240,9 +237,11 @@ class EDCR_LTN_experiment(EDCR):
 
     def run_evaluating_pipeline(self):
         _, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            vit_pipeline.initiate(lrs=[self.lr],
+            vit_pipeline.initiate(batch_len=self.batch_size,
+                                  lrs=[self.lr],
                                   combined=self.combined,
-                                  debug=False, ))
+                                  debug=False,
+                                  evaluation=True))
         (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
          fine_accuracy, coarse_accuracy) = vit_pipeline.evaluate_combined_model(
             fine_tuner=self.correction_model,
@@ -256,7 +255,7 @@ class EDCR_LTN_experiment(EDCR):
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
     test_bool = False
-    main_pretrained_path = None
+    main_pretrained_path = "/home/ngocbach/PyEDCR/models/vit_b_16_BCE_lr0.0001.pth"
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)

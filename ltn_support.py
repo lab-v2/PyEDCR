@@ -45,18 +45,22 @@ def conds_predicate(examples: torch.tensor,
                     cond_coarse_data: torch.tensor,
                     cond_second_fine_data: torch.tensor,
                     cond_second_coarse_data: torch.tensor,
-                    conds: set[conditions.Condition]):
-    any_condition_satisfied = torch.zeros_like(cond_fine_data)
+                    conds: set[conditions.Condition],
+                    device: torch.device):
+    any_condition_satisfied = torch.zeros_like(cond_fine_data).detach().to('cpu')
     for cond in conds:
-        any_condition_satisfied |= cond(fine_data=cond_fine_data,
-                                        coarse_data=cond_coarse_data,
-                                        secondary_fine_data=cond_second_fine_data,
-                                        secondary_coarse_data=cond_second_coarse_data)
-    return any_condition_satisfied
+        any_condition_satisfied |= torch.tensor(cond(fine_data=cond_fine_data.detach().to('cpu').numpy(),
+                                                     coarse_data=cond_coarse_data.detach().to('cpu').numpy(),
+                                                     secondary_fine_data=cond_second_fine_data.detach().to(
+                                                         'cpu').numpy(),
+                                                     secondary_coarse_data=cond_second_coarse_data.detach().to(
+                                                         'cpu').numpy()))
+    return any_condition_satisfied.to(device)
 
 
 def true_predicate(examples: torch.tensor,
-                   true_data: torch.tensor):
+                   true_data: torch.tensor,
+                   device: torch.device):
     # Ensure shapes are compatible
     assert examples.shape[0] == true_data.shape[0], "Prediction and true_data must have the same batch size."
 
@@ -65,7 +69,7 @@ def true_predicate(examples: torch.tensor,
 
     # Compare the predicted indices with the true labels, resulting in a boolean tensor
     # Convert booleans to 1.0 and 0.0 using torch.float for consistency
-    return torch.where(pred_indices == true_data[0], 1., 0.)
+    return torch.where(pred_indices == true_data[0], 1., 0.).to(device)
 
 
 def compute_sat_normally(logits_to_predicate: torch.nn.Module,
@@ -102,7 +106,6 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
         ltn.fuzzy_ops.AggregPMeanError(p=4), quantifier="f")
     SatAgg = ltn.fuzzy_ops.SatAgg()
 
-
     # Cond predicate l: 1 if example satisfy any cond in DC_l and 0 otherwise]
     Conds_predicate = {}
     for l in (list(data_preprocessing.get_labels(g_fine).values()) +
@@ -114,12 +117,14 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
             cond_coarse_data=original_train_pred_coarse_batch,
             cond_second_fine_data=original_secondary_train_pred_fine_batch,
             cond_second_coarse_data=original_secondary_train_pred_coarse_batch,
-            conds=error_detection_rules[l].C_l))
+            conds=error_detection_rules[l].C_l,
+            device=device))
 
     True_predicate = ltn.Predicate(func=lambda x, train_true_batch: true_predicate(
         examples=x,
-        true_data=train_true_batch)
-    )
+        true_data=train_true_batch,
+        device=device)
+                                   )
 
     # Define constant: already done in data_preprocessing.py
     pred_fine_data = ltn.Constant(train_pred_fine_batch)
@@ -136,7 +141,6 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
         one_hot = torch.zeros(len(data_preprocessing.coarse_grain_classes_str))
         one_hot[l.index] = 1.0
         label_one_hot[l] = ltn.Constant(one_hot.to(device))
-
 
     # Define variables
     x_variables = {}
