@@ -77,7 +77,8 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
                          original_train_pred_coarse_batch: torch.tensor,
                          original_secondary_train_pred_fine_batch: torch.tensor,
                          original_secondary_train_pred_coarse_batch: torch.tensor,
-                         error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule]):
+                         error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule],
+                         device: torch.device):
     """
     compute satagg function for rules
     argument:
@@ -148,11 +149,11 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
         sat_agg_list.append(
             Forall(x_fine,
                    Implies(
-                       And(logits_to_predicate(x_fine, l.ltn_constant),
+                       And(logits_to_predicate(x_fine, l.ltn_constant.to(device)),
                            Conds_predicate[l](x_fine, pred_fine_data)),
                        And(
                            Not(True_predicate(x_fine, true_fine_data)),
-                           logits_to_predicate(x_fine, l.ltn_constant))
+                           logits_to_predicate(x_fine, l.ltn_constant.to(device)))
                    )
                    ))
 
@@ -160,11 +161,11 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
         sat_agg_list.append(
             Forall(x_coarse,
                    Implies(
-                       And(logits_to_predicate(x_coarse, l.ltn_constant),
+                       And(logits_to_predicate(x_coarse, l.ltn_constant.to(device)),
                            Conds_predicate[l](x_coarse, pred_coarse_data)),
                        And(
                            Not(True_predicate(x_coarse, true_coarse_data)),
-                           logits_to_predicate(x_coarse, l.ltn_constant))
+                           logits_to_predicate(x_coarse, l.ltn_constant.to(device)))
                    )
                    ))
 

@@ -137,7 +137,8 @@ class EDCR_LTN_experiment(EDCR):
                                 original_train_pred_coarse_batch=original_train_pred_coarse_batch,
                                 original_secondary_train_pred_fine_batch=original_secondary_train_pred_fine_batch,
                                 original_secondary_train_pred_coarse_batch=original_secondary_train_pred_coarse_batch,
-                                error_detection_rules=self.error_detection_rules
+                                error_detection_rules=self.error_detection_rules,
+                                device=device
                             )
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_combine)
 
@@ -155,6 +156,7 @@ class EDCR_LTN_experiment(EDCR):
                                 original_secondary_train_pred_fine_batch=original_secondary_train_pred_fine_batch,
                                 original_secondary_train_pred_coarse_batch=original_secondary_train_pred_coarse_batch,
                                 error_detection_rules=self.error_detection_rules
+                                device=device
                             )
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (
                                 criterion(Y_pred, Y_combine))
