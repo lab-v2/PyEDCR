@@ -138,6 +138,10 @@ class Label(typing.Hashable, abc.ABC):
     def g(self):
         return self._g
 
+    def add_tensor_to_device(self,
+                             device):
+        pass
+
     def __hash__(self):
         return hash(f'{self.g}_{self._l_str}')
 
@@ -153,9 +157,9 @@ class FineGrainLabel(Label):
         assert l_str in fine_grain_classes_str
         self.__correct_coarse = fine_to_coarse[l_str]
         self._g = granularities['fine']
-        one_hot = torch.zeros(len(fine_grain_classes_str))
-        one_hot[self.index] = 1.0
-        self.ltn_constant = ltn.Constant(one_hot, trainable=True)
+        self.one_hot = torch.zeros(len(fine_grain_classes_str))
+        self.one_hot[self.index] = 1.0
+
 
     @classmethod
     def with_index(cls,
@@ -165,6 +169,9 @@ class FineGrainLabel(Label):
 
         return instance
 
+    def add_tensor_to_device(self,
+                             device: torch.device,):
+        self.ltn_constant = ltn.Constant(self.one_hot.to(device), trainable=True)
 
 class CoarseGrainLabel(Label):
     def __init__(self,

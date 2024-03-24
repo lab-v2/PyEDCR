@@ -124,8 +124,8 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     # Define constant: already done in data_preprocessing.py
     pred_fine_data = ltn.Constant(train_pred_fine_batch)
     pred_coarse_data = ltn.Constant(train_pred_coarse_batch)
-    true_fine_data = ltn.Constant(train_true_fine_batch.detach().to('cpu'))
-    true_coarse_data = ltn.Constant(train_true_coarse_batch.detach().to('cpu'))
+    true_fine_data = ltn.Constant(train_true_fine_batch)
+    true_coarse_data = ltn.Constant(train_true_coarse_batch)
 
     # Define variables
     x_variables = {}
@@ -149,11 +149,11 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
         sat_agg_list.append(
             Forall(x_fine,
                    Implies(
-                       And(logits_to_predicate(x_fine, l.ltn_constant.to(device)),
+                       And(logits_to_predicate(x_fine, l.ltn_constant),
                            Conds_predicate[l](x_fine, pred_fine_data)),
                        And(
                            Not(True_predicate(x_fine, true_fine_data)),
-                           logits_to_predicate(x_fine, l.ltn_constant.to(device)))
+                           logits_to_predicate(x_fine, l.ltn_constant))
                    )
                    ))
 
@@ -161,11 +161,11 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
         sat_agg_list.append(
             Forall(x_coarse,
                    Implies(
-                       And(logits_to_predicate(x_coarse, l.ltn_constant.to(device)),
+                       And(logits_to_predicate(x_coarse, l.ltn_constant),
                            Conds_predicate[l](x_coarse, pred_coarse_data)),
                        And(
                            Not(True_predicate(x_coarse, true_coarse_data)),
-                           logits_to_predicate(x_coarse, l.ltn_constant.to(device)))
+                           logits_to_predicate(x_coarse, l.ltn_constant))
                    )
                    ))
 
