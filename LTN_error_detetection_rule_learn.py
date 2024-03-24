@@ -223,17 +223,15 @@ class EDCR_LTN_experiment(EDCR):
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
 
-        for fine_tuner in fine_tuners:
-            print(f'Initiating {fine_tuner}')
+        with context_handlers.ClearSession():
+            self.fine_tune_combined_model(
+                fine_tuner=self.correction_model,
+                device=devices[0],
+                loaders=loaders,
+                loss=self.loss,
+            )
 
-            with context_handlers.ClearSession():
-                self.fine_tune_combined_model(
-                    fine_tuner=self.correction_model,
-                    device=devices[0],
-                    loaders=loaders,
-                    loss=self.loss,
-                )
-                print('#' * 100)
+        print('#' * 100)
 
     def run_evaluating_pipeline(self):
         _, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (

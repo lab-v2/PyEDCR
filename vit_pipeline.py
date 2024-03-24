@@ -11,7 +11,7 @@ import data_preprocessing
 import ltn
 import ltn_support
 
-batch_size = 4
+batch_size = 128
 scheduler_gamma = 0.9
 num_epochs = 10
 ltn_num_epochs = 5
