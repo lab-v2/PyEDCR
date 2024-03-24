@@ -138,10 +138,6 @@ class Label(typing.Hashable, abc.ABC):
     def g(self):
         return self._g
 
-    def add_tensor_to_device(self,
-                             device):
-        pass
-
     def __hash__(self):
         return hash(f'{self.g}_{self._l_str}')
 
@@ -157,8 +153,6 @@ class FineGrainLabel(Label):
         assert l_str in fine_grain_classes_str
         self.__correct_coarse = fine_to_coarse[l_str]
         self._g = granularities['fine']
-        self.one_hot = torch.zeros(len(fine_grain_classes_str))
-        self.one_hot[self.index] = 1.0
 
     @classmethod
     def with_index(cls,
@@ -167,10 +161,6 @@ class FineGrainLabel(Label):
         instance = cls(l_str=l)
 
         return instance
-
-    def add_tensor_to_device(self,
-                             device: torch.device, ):
-        self.ltn_constant = ltn.Constant(self.one_hot.to(device), trainable=True)
 
 
 class CoarseGrainLabel(Label):
@@ -181,8 +171,6 @@ class CoarseGrainLabel(Label):
         assert l_str in coarse_grain_classes_str
         self.correct_fine = coarse_to_fine[l_str]
         self._g = granularities['coarse']
-        self.one_hot = torch.zeros(len(coarse_grain_classes_str))
-        self.one_hot[self.index] = 1.0
 
     @classmethod
     def with_index(cls,
@@ -191,10 +179,6 @@ class CoarseGrainLabel(Label):
         instance = cls(l_str=l)
 
         return instance
-
-    def add_tensor_to_device(self,
-                             device: torch.device, ):
-        self.ltn_constant = ltn.Constant(self.one_hot.to(device), trainable=True)
 
 
 def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],

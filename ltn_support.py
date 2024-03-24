@@ -126,6 +126,17 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     pred_coarse_data = ltn.Constant(train_pred_coarse_batch)
     true_fine_data = ltn.Constant(train_true_fine_batch)
     true_coarse_data = ltn.Constant(train_true_coarse_batch)
+    label_one_hot = {}
+    for l in data_preprocessing.get_labels(g_fine).values():
+        one_hot = torch.zeros(len(data_preprocessing.fine_grain_classes_str))
+        one_hot[l.index] = 1.0
+        label_one_hot[l] = ltn.Constant(one_hot.to(device))
+
+    for l in data_preprocessing.get_labels(g_coarse).values():
+        one_hot = torch.zeros(len(data_preprocessing.coarse_grain_classes_str))
+        one_hot[l.index] = 1.0
+        label_one_hot[l] = ltn.Constant(one_hot.to(device))
+
 
     # Define variables
     x_variables = {}
@@ -149,11 +160,11 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
         sat_agg_list.append(
             Forall(x_fine,
                    Implies(
-                       And(logits_to_predicate(x_fine, l.ltn_constant),
+                       And(logits_to_predicate(x_fine, label_one_hot[l]),
                            Conds_predicate[l](x_fine, pred_fine_data)),
                        And(
                            Not(True_predicate(x_fine, true_fine_data)),
-                           logits_to_predicate(x_fine, l.ltn_constant))
+                           logits_to_predicate(x_fine, label_one_hot[l]))
                    )
                    ))
 
@@ -161,11 +172,11 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
         sat_agg_list.append(
             Forall(x_coarse,
                    Implies(
-                       And(logits_to_predicate(x_coarse, l.ltn_constant),
+                       And(logits_to_predicate(x_coarse, label_one_hot[l]),
                            Conds_predicate[l](x_coarse, pred_coarse_data)),
                        And(
                            Not(True_predicate(x_coarse, true_coarse_data)),
-                           logits_to_predicate(x_coarse, l.ltn_constant))
+                           logits_to_predicate(x_coarse, label_one_hot[l]))
                    )
                    ))
 
