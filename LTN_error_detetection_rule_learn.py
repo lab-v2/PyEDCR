@@ -10,6 +10,7 @@ from PyEDCR import EDCR
 import data_preprocessing
 import vit_pipeline
 import typing
+import config
 
 
 class EDCR_LTN_experiment(EDCR):
@@ -24,7 +25,7 @@ class EDCR_LTN_experiment(EDCR):
                  K_test: list[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
-                 pretrained_path: str = None):
+                 config=None):
         super().__init__(main_model_name=main_model_name,
                          combined=combined,
                          loss=loss,
@@ -36,7 +37,7 @@ class EDCR_LTN_experiment(EDCR):
                          include_inconsistency_constraint=include_inconsistency_constraint,
                          secondary_model_name=secondary_model_name)
 
-        self.batch_size = 4
+        self.batch_size = 128
         self.scheduler_gamma = 0.9
         self.num_epochs = 5
         self.vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
@@ -48,7 +49,7 @@ class EDCR_LTN_experiment(EDCR):
         self.original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
                                                len(data_preprocessing.coarse_grain_classes_str))
         self.loss = 'LTN_BCE'
-        self.pretrain_path = pretrained_path
+        self.pretrain_path = config.main_pretrained_path
 
     def fine_tune_combined_model(self,
                                  fine_tuner: models.FineTuner,
@@ -246,26 +247,27 @@ class EDCR_LTN_experiment(EDCR):
             loaders=loaders,
             loss=self.loss,
             device=devices[0],
-            split='train',
-            print_results=False)
+            split='test',
+            print_results=True)
 
 
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
     test_bool = False
-    main_pretrained_path = "/home/ngocbach/PyEDCR/models/vit_b_16_BCE_lr0.0001.pth"
+    main_pretrained_path = config
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
-        edcr = EDCR_LTN_experiment(epsilon=eps,
-                                   main_model_name='vit_b_16',
-                                   combined=True,
-                                   loss='BCE',
-                                   lr=0.0001,
-                                   num_epochs=20,
-                                   include_inconsistency_constraint=False,
-                                   secondary_model_name='vit_b_16_soft_marginal',
-                                   pretrained_path=main_pretrained_path)
+        edcr = EDCR_LTN_experiment(
+            epsilon=eps,
+            main_model_name=config.vit_model_name,
+            combined=config.combined,
+            loss=config.loss,
+            lr=config.lr,
+            num_epochs=config.num_epochs,
+            include_inconsistency_constraint=config.include_inconsistency_constraint,
+            secondary_model_name=config.secondary_model_name,
+            config=config)
         edcr.print_metrics(test=test_bool, prior=True)
 
         edcr.run_learning_pipeline()

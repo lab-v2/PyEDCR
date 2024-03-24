@@ -10,19 +10,20 @@ import utils
 import data_preprocessing
 import ltn
 import ltn_support
+import config
 
-batch_size = 128
-scheduler_gamma = 0.9
-num_epochs = 10
-ltn_num_epochs = 5
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
+# Use the configuration variables:
+batch_size = config.batch_size
+scheduler_gamma = config.scheduler_gamma
+num_epochs = config.num_epochs
+ltn_num_epochs = config.ltn_num_epochs
+vit_model_names = config.vit_model_names
 
-combined_results_path = fr'combined_results'
-individual_results_path = fr'individual_results'
+combined_results_path = config.combined_results_path
+individual_results_path = config.individual_results_path
 
-scheduler_step_size = num_epochs
-original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
-                                  len(data_preprocessing.coarse_grain_classes_str))
+scheduler_step_size = config.scheduler_step_size
+original_prediction_weight = config.original_prediction_weight
 
 
 def get_filepath(model_name: typing.Union[str, models.FineTuner],
