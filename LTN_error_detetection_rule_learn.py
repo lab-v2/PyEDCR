@@ -101,13 +101,13 @@ class EDCR_LTN_experiment(EDCR):
 
                         # slice the condition from the indices you get above
                         original_train_pred_fine_batch = torch.tensor(
-                            self.pred_data['train']['original']['fine'][indices])
+                            self.pred_data['train']['original']['fine'][indices]).to(device)
                         original_train_pred_coarse_batch = torch.tensor(
-                            self.pred_data['train']['original']['fine'][indices])
+                            self.pred_data['train']['original']['fine'][indices]).to(device)
                         original_secondary_train_pred_fine_batch = torch.tensor(
-                            self.pred_data['secondary_model']['train']['fine'][indices])
+                            self.pred_data['secondary_model']['train']['fine'][indices]).to(device)
                         original_secondary_train_pred_coarse_batch = torch.tensor(
-                            self.pred_data['secondary_model']['train']['coarse'][indices])
+                            self.pred_data['secondary_model']['train']['coarse'][indices]).to(device)
 
                         Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
                             data_preprocessing.fine_grain_classes_str))
