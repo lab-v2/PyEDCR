@@ -16,8 +16,9 @@ import context_handlers
 import metrics
 import conditions
 import rules
+import config
 
-randomized: bool = False
+randomized: bool = config.randomized
 
 
 class EDCR:

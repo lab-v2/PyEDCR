@@ -14,7 +14,7 @@ K_test = None   # Number of example for testing
 # Model and Loss Configuration
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']][0]
 combined = True  # Whether to train a combined model for fine and coarse grain classification
-loss = 'BCE'  # Loss function (e.g., 'BCE' for Binary Cross-Entropy)
+loss = 'LTN_BCE'  # Loss function (e.g., 'BCE' for Binary Cross-Entropy)
 lr = 0.0001  # Initial learning rate
 
 # Additional Training Options
@@ -31,3 +31,6 @@ main_pretrained_path = "/home/ngocbach/PyEDCR/models/vit_b_16_BCE_lr0.0001.pth" 
 # Data Preprocessing Information (assuming data_preprocessing.py exists)
 original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
                                   len(data_preprocessing.coarse_grain_classes_str))  # Weight for original prediction in combined loss
+
+# Config for PyEDCR
+randomized = False

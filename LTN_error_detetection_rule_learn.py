@@ -37,18 +37,10 @@ class EDCR_LTN_experiment(EDCR):
                          include_inconsistency_constraint=include_inconsistency_constraint,
                          secondary_model_name=secondary_model_name)
 
-        self.batch_size = 128
-        self.scheduler_gamma = 0.9
-        self.num_epochs = 5
-        self.vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
-
-        self.combined_results_path = fr'combined_results'
-        self.individual_results_path = fr'individual_results'
-
+        self.batch_size = config.batch_size
+        self.scheduler_gamma = config.scheduler_gamma
+        self.num_epochs = config.num_epochs
         self.scheduler_step_size = num_epochs
-        self.original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
-                                               len(data_preprocessing.coarse_grain_classes_str))
-        self.loss = 'LTN_BCE'
         self.pretrain_path = config.main_pretrained_path
 
     def fine_tune_combined_model(self,
