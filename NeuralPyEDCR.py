@@ -155,39 +155,28 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
 
-    for eps in epsilons:
-        print('#' * 25 + f'eps = {eps}' + '#' * 50)
-        edcr = NeuralPyEDCR(epsilon=eps,
-                            main_model_name='vit_b_16',
-                            combined=True,
-                            loss='BCE',
-                            lr=0.0001,
-                            original_num_epochs=20,
-                            include_inconsistency_constraint=False,
-                            secondary_model_name='vit_b_16_soft_marginal',
-                            lower_predictions_indices=[2, 3, 4, 5],
-                            EDCR_num_epochs=3,
-                            neural_num_epochs=5)
-        edcr.print_metrics(test=True, prior=True)
-        edcr.run_learning_pipeline()
-        edcr.run_error_detection_application_pipeline(test=True, print_results=False)
-        edcr.apply_new_model_on_test()
-        # edcr.run_error_correction_application_pipeline(test=test_bool)
-        # edcr.apply_reversion_rules(g=gra)
-
-        # precision_dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
-        # recall_dict[gra]['initial'][epsilon] = edcr.original_test_recalls[gra]
-        # precision_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_precisions[gra]
-        # recall_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_recalls[gra]
-        # precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
-        # recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
-
-    # folder = "experiment_1"
-    #
-    # if not os.path.exists(f'figs/{folder}'):
-    #     os.mkdir(f'figs/{folder}')
-    #
-    # plot_per_class(ps=precision_dict,
-    #                rs=recall_dict,
-    #                folder="experiment_1")
-    # plot_all(precision_dict, recall_dict, "experiment_1")
+    for EDCR_num_epochs in [3, 5, 8, 10]:
+        for neural_num_epochs in [2, 4, 6]:
+            for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
+                print('\n' + '#' * 100 + '\n' +
+                      utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}'
+                                      f'neural_num_epochs = {neural_num_epochs}'
+                                      f'lower_predictions_indices = {lower_predictions_indices}')
+                      + '\n' + '#' * 100 + '\n')
+                for eps in epsilons:
+                    print('#' * 25 + f'eps = {eps}' + '#' * 50)
+                    edcr = NeuralPyEDCR(epsilon=eps,
+                                        main_model_name='vit_b_16',
+                                        combined=True,
+                                        loss='BCE',
+                                        lr=0.0001,
+                                        original_num_epochs=20,
+                                        include_inconsistency_constraint=False,
+                                        secondary_model_name='vit_b_16_soft_marginal',
+                                        lower_predictions_indices=lower_predictions_indices,
+                                        EDCR_num_epochs=EDCR_num_epochs,
+                                        neural_num_epochs=neural_num_epochs)
+                    edcr.print_metrics(test=True, prior=True)
+                    edcr.run_learning_pipeline()
+                    edcr.run_error_detection_application_pipeline(test=True, print_results=False)
+                    edcr.apply_new_model_on_test()
