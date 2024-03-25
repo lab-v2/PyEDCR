@@ -93,8 +93,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             evaluation=True,
             num_epochs=self.neural_num_epochs)
 
-        (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-         fine_accuracy, coarse_accuracy) = vit_pipeline.evaluate_combined_model(
+        evaluation_return_values = vit_pipeline.evaluate_combined_model(
             fine_tuner=self.correction_model,
             loaders=loaders,
             loss=self.loss,
@@ -103,9 +102,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print_results=False)
 
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['fine']][
-            examples_with_errors] = fine_predictions
+            examples_with_errors] = evaluation_return_values[2]
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['coarse']][
-            examples_with_errors] = coarse_predictions
+            examples_with_errors] = evaluation_return_values[3]
 
     def apply_new_model_on_test(self,
                                 print_results: bool = True):
