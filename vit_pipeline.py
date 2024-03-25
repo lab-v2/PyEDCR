@@ -292,7 +292,7 @@ def save_binary_prediction_files(test: bool,
                                  l: data_preprocessing.Label,
                                  epoch: int = None,
                                  loss: str = 'BCE',
-                                 ground_truths: np.array = None, ):
+                                 ground_truths: np.array = None):
     """
     Saves prediction files and optional ground truth files.
 
@@ -317,7 +317,7 @@ def save_binary_prediction_files(test: bool,
                          epoch=epoch),
             predictions)
 
-    np.save(f"data/{test_str}_fine/{test_str}_true_{l}.npy",
+    np.save(f"data/{test_str}_{l.g.g_str}/binary_true.npy",
             ground_truths)
 
 
@@ -902,14 +902,13 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                                               loaders=loaders,
                                               device=device,
                                               split='test'))
-
                 print('#' * 100)
 
                 if (epoch == num_epochs - 1) and save_files:
                     save_binary_prediction_files(test=False,
                                                  fine_tuners=fine_tuner,
                                                  lrs=lr,
-                                                 epoch=epoch,
+                                                 epoch=num_epochs,
                                                  loss=loss,
                                                  l=l,
                                                  predictions=train_predictions)
@@ -1394,7 +1393,7 @@ if __name__ == '__main__':
 
     run_g_binary_fine_tuning_pipeline(g=data_preprocessing.granularities['fine'],
                                       lrs=[0.0001],
-                                      num_epochs=1,
+                                      num_epochs=5,
                                       save_files=True)
 
     # run_combined_evaluating_pipeline(split='train',
