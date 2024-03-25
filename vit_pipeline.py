@@ -178,15 +178,16 @@ def get_and_print_binary_metrics(pred_data: np.array,
     accuracy, f1, precision, recall = get_binary_metrics(pred_data=pred_data,
                                                          true_data=true_data)
     prior_str = 'prior' if prior else 'post'
+    test_str = 'Test' if test else 'Train'
 
     print('#' * 100 + '\n' + (f'Main model name: {utils.blue_text(model_name)} ' if model_name != '' else '') +
           f"with {utils.blue_text(loss)} loss on the {utils.blue_text('test' if test else 'train')} dataset\n" +
           (f'with lr={utils.blue_text(lr)}\n' if lr != '' else '') +
-          f'\n{prior_str} accuracy: {utils.green_text(round(accuracy * 100, 2))}%'
-          f' {prior_str} macro f1: {utils.green_text(round(f1 * 100, 2))}%'
-          f'\n {prior_str}  macro precision: '
+          f'\n{test_str} {prior_str} accuracy: {utils.green_text(round(accuracy * 100, 2))}%'
+          f' {test_str} {prior_str} macro f1: {utils.green_text(round(f1 * 100, 2))}%'
+          f'\n {test_str} {prior_str}  macro precision: '
           f'{utils.green_text(round(precision * 100, 2))}%'
-          f',  {prior_str} macro recall: {utils.green_text(round(recall * 100, 2))}%\n'
+          f',  {test_str} {prior_str} macro recall: {utils.green_text(round(recall * 100, 2))}%\n'
           )
 
     return accuracy, f1, precision, recall
@@ -587,7 +588,7 @@ def get_and_print_post_epoch_binary_metrics(epoch: int,
                            labels=[0, 1],
                            average='macro')
 
-    print(f'\nEpoch {epoch + 1}/{num_epochs} done,\n'
+    print(f'\nEpoch {epoch + 1}/{num_epochs} done'
           f'\npost-epoch training accuracy: {round(training_accuracy * 100, 2)}%'
           f', post-epoch f1: {round(training_f1 * 100, 2)}%\n')
 
