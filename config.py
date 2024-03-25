@@ -4,17 +4,17 @@ import data_preprocessing
 
 # Training Parameters
 batch_size = 128
-num_epochs = 10
+num_epochs = 20
 ltn_num_epochs = 5  # Number of epochs for LTN training (if applicable)
 scheduler_gamma = 0.9  # Learning rate scheduler gamma value
-scheduler_step_size = num_epochs  # Number of epochs after which to decay learning rate
+scheduler_step_size = 1  # Number of epochs after which to decay learning rate
 K_train = None  # Number of example for training
 K_test = None   # Number of example for testing
 
 # Model and Loss Configuration
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']][0]
 combined = True  # Whether to train a combined model for fine and coarse grain classification
-loss = 'LTN_BCE'  # Loss function (e.g., 'BCE' for Binary Cross-Entropy)
+loss = 'BCE'  # Loss function (e.g., 'BCE' for Binary Cross-Entropy)
 lr = 0.0001  # Initial learning rate
 
 # Additional Training Options

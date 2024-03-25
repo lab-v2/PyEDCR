@@ -39,7 +39,7 @@ class EDCR_LTN_experiment(EDCR):
 
         self.batch_size = config.batch_size
         self.scheduler_gamma = config.scheduler_gamma
-        self.num_epochs = config.num_epochs
+        self.num_epochs = config.ltn_num_epochs
         self.scheduler_step_size = num_epochs
         self.pretrain_path = config.main_pretrained_path
 
@@ -116,7 +116,7 @@ class EDCR_LTN_experiment(EDCR):
                         Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
                         Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
 
-                        if loss == 'LTN_BCE':
+                        if loss == 'BCE':
                             criterion = torch.nn.BCEWithLogitsLoss()
 
                             sat_agg = ltn_support.compute_sat_normally(
@@ -134,7 +134,7 @@ class EDCR_LTN_experiment(EDCR):
                             )
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_combine)
 
-                        if loss == "LTN_soft_marginal":
+                        if loss == "soft_marginal":
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
                             sat_agg = ltn_support.compute_sat_normally(
@@ -252,7 +252,7 @@ if __name__ == '__main__':
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
         edcr = EDCR_LTN_experiment(
             epsilon=eps,
-            main_model_name=config.vit_model_name,
+            main_model_name=config.vit_model_names,
             combined=config.combined,
             loss=config.loss,
             lr=config.lr,
