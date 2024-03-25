@@ -36,7 +36,7 @@ class EDCR:
                  combined: bool,
                  loss: str,
                  lr: typing.Union[str, float],
-                 num_epochs: int,
+                 original_num_epochs: int,
                  epsilon: typing.Union[str, float],
                  K_train: list[(int, int)] = None,
                  K_test: list[(int, int)] = None,
@@ -47,6 +47,7 @@ class EDCR:
         self.combined = combined
         self.loss = loss
         self.lr = lr
+        self.num_epochs = original_num_epochs
         self.epsilon = epsilon
         self.secondary_model_name = secondary_model_name
         self.lower_predictions_indices = lower_predictions_indices
@@ -59,7 +60,7 @@ class EDCR:
                                                                            loss=loss,
                                                                            lr=lr,
                                                                            pred=True,
-                                                                           epoch=num_epochs)
+                                                                           epoch=original_num_epochs)
                                           for g_str in data_preprocessing.granularities_str}
             for test in [True, False]}
 
@@ -100,7 +101,7 @@ class EDCR:
                                                                                loss=secondary_loss,
                                                                                lr=lr,
                                                                                pred=True,
-                                                                               epoch=num_epochs)
+                                                                               epoch=original_num_epochs)
                                               for g_str in data_preprocessing.granularities_str}
                 for test in [True, False]}
 
@@ -126,7 +127,7 @@ class EDCR:
                                                       loss=self.loss,
                                                       lr=lr,
                                                       pred=True,
-                                                      epoch=num_epochs,
+                                                      epoch=original_num_epochs,
                                                       lower_prediction_index=lower_prediction_index)
                      for g_str in data_preprocessing.granularities_str}
                 for test in [True, False]}
@@ -686,7 +687,7 @@ if __name__ == '__main__':
                     combined=True,
                     loss='BCE',
                     lr=0.0001,
-                    num_epochs=20,
+                    original_num_epochs=20,
                     include_inconsistency_constraint=False,
                     secondary_model_name='vit_b_16_soft_marginal',
                     lower_predictions_indices=[2, 3, 4, 5])

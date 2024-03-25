@@ -70,7 +70,7 @@ class Test:
                          combined=True,
                          loss='BCE',
                          lr=0.0001,
-                         num_epochs=20,
+                         original_num_epochs=20,
                          epsilon=epsilon,
                          K_train=K_train,
                          K_test=K_test)

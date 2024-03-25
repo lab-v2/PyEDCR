@@ -12,7 +12,7 @@ def run():
                            combined=True,
                            loss='BCE',
                            lr=0.0001,
-                           num_epochs=20,
+                           original_num_epochs=20,
                            include_inconsistency_constraint=False)
         edcr.print_metrics(test=test_bool, prior=True)
 
