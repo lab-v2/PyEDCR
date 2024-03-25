@@ -252,7 +252,7 @@ if __name__ == '__main__':
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
         edcr = EDCR_LTN_experiment(
             epsilon=eps,
-            main_model_name=config.vit_model_names,
+            main_model_name=config.vit_model_names[0],
             combined=config.combined,
             loss=config.loss,
             lr=config.lr,
