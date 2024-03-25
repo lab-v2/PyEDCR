@@ -366,7 +366,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
                             device: torch.device,
                             split: str,
                             print_results: bool = True,
-                            lower_predictions_indices: list[int] = None) -> \
+                            lower_predictions_indices: list[int] = []) -> \
         (list[int], list[int], list[int], list[int], float, float):
     loader = loaders[split]
     fine_tuner.to(device)
@@ -410,13 +410,12 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
             fine_predictions += predicted_fine.tolist()
             coarse_predictions += predicted_coarse.tolist()
 
-            if lower_predictions_indices is not None:
-                for lower_predictions_index in lower_predictions_indices:
-                    curr_lower_prediction_fine = sorted_probs_fine[:, lower_predictions_index - 1]
-                    curr_lower_prediction_coarse = sorted_probs_coarse[:, lower_predictions_index - 1]
+            for lower_predictions_index in lower_predictions_indices:
+                curr_lower_prediction_fine = sorted_probs_fine[:, lower_predictions_index - 1]
+                curr_lower_prediction_coarse = sorted_probs_coarse[:, lower_predictions_index - 1]
 
-                    fine_lower_predictions[lower_predictions_index] += curr_lower_prediction_fine.tolist()
-                    coarse_lower_predictions[lower_predictions_index] += curr_lower_prediction_coarse.tolist()
+                fine_lower_predictions[lower_predictions_index] += curr_lower_prediction_fine.tolist()
+                coarse_lower_predictions[lower_predictions_index] += curr_lower_prediction_coarse.tolist()
 
     if print_results:
         fine_accuracy, coarse_accuracy = (
@@ -1056,7 +1055,7 @@ def run_combined_evaluating_pipeline(split: str,
                                      debug: bool = utils.is_debug_mode(),
                                      print_results: bool = True,
                                      indices: np.array = None,
-                                     lower_predictions_indices: list[int] = None):
+                                     lower_predictions_indices: list[int] = []):
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
