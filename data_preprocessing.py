@@ -219,7 +219,6 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
     def find_classes(self, directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
         classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir() and
                          not entry.name.startswith('.'))
-        print(classes)
         if not classes:
             raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
 
