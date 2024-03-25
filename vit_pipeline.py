@@ -579,7 +579,8 @@ def evaluate_binary_model(l: data_preprocessing.Label,
 def get_and_print_post_epoch_binary_metrics(epoch: int,
                                             num_epochs: int,
                                             train_ground_truths: np.array,
-                                            train_predictions: np.array
+                                            train_predictions: np.array,
+                                            total_running_loss: float
                                             ):
     training_accuracy = accuracy_score(y_true=train_ground_truths,
                                        y_pred=train_predictions)
@@ -589,6 +590,7 @@ def get_and_print_post_epoch_binary_metrics(epoch: int,
                            average='macro')
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done'
+          f'\nMean loss across epochs: {round(total_running_loss / (epoch + 1), 2)}'
           f'\npost-epoch training accuracy: {round(training_accuracy * 100, 2)}%'
           f', post-epoch f1: {round(training_f1 * 100, 2)}%\n')
 
@@ -890,7 +892,9 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                     epoch=epoch,
                     num_epochs=num_epochs,
                     train_predictions=train_predictions,
-                    train_ground_truths=train_ground_truths)
+                    train_ground_truths=train_ground_truths,
+                    total_running_loss=total_running_loss.item()
+                )
 
                 if evaluate_on_test:
                     test_ground_truths, test_predictions, test_accuracy = (
@@ -1162,7 +1166,8 @@ def get_imbalance_weights(l: data_preprocessing.Label,
     negative_class_weight = l_examples_num / train_images_num
     positive_class_weight = 1 - negative_class_weight
     weight = [negative_class_weight, positive_class_weight]
-    print(f'\nWeight of positive class: {positive_class_weight}, '
+    print(f'\nl={l}:\n'
+          f'weight of positive class: {positive_class_weight}, '
           f'weight of negative class: {negative_class_weight}\n')
 
     return weight
@@ -1402,9 +1407,9 @@ def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
 
 
 if __name__ == '__main__':
-    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
-    #                                   num_epochs=20,
-    #                                   loss='BCE')
+    run_combined_fine_tuning_pipeline(lrs=[0.0001],
+                                      num_epochs=20,
+                                      loss='BCE')
 
     for g in data_preprocessing.granularities.values():
         run_g_binary_fine_tuning_pipeline(g=g,
