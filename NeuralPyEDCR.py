@@ -166,8 +166,8 @@ if __name__ == '__main__':
                             include_inconsistency_constraint=False,
                             secondary_model_name='vit_b_16_soft_marginal',
                             lower_predictions_indices=[2, 3, 4, 5],
-                            EDCR_num_epochs=4,
-                            neural_num_epochs=4)
+                            EDCR_num_epochs=3,
+                            neural_num_epochs=5)
         edcr.print_metrics(test=True, prior=True)
         edcr.run_learning_pipeline()
         edcr.run_error_detection_application_pipeline(test=True, print_results=False)
