@@ -1105,7 +1105,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                 if evaluate_on_test:
                     (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
-                     test_fine_accuracy, test_coarse_accuracy) = (
+                     test_fine_lower_predictions, test_coarse_lower_predictions, test_fine_accuracy,
+                     test_coarse_accuracy) = (
                         evaluate_combined_model(fine_tuner=fine_tuner,
                                                 loaders=loaders,
                                                 loss=loss,
