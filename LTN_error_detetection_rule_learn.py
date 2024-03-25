@@ -83,6 +83,9 @@ class EDCR_LTN_experiment(EDCR):
                 train_fine_ground_truths = []
                 train_coarse_ground_truths = []
 
+                all_Y_pred_fine = []
+                all_Y_pred_coarse = []
+
                 batches = vit_pipeline.get_fine_tuning_batches(train_loader=train_loader,
                                                                num_batches=num_batches,
                                                                debug=debug)
@@ -116,6 +119,9 @@ class EDCR_LTN_experiment(EDCR):
 
                         Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
                         Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
+
+                        all_Y_pred_fine.append(Y_pred_fine_grain)
+                        all_Y_pred_coarse.append(Y_pred_coarse_grain)
 
                         if loss == 'BCE':
                             criterion = torch.nn.BCEWithLogitsLoss()
@@ -190,6 +196,29 @@ class EDCR_LTN_experiment(EDCR):
 
                 train_total_losses += [total_running_loss / num_batches]
 
+                Y_pred_fine = torch.cat(all_Y_pred_fine, dim=0).to(device)
+                Y_pred_coarse = torch.cat(all_Y_pred_coarse, dim=0).to(device)
+
+                ltn_support.compute_sat_testing_value(
+                    logits_to_predicate=logits_to_predicate,
+                    train_pred_fine_batch=Y_pred_fine,
+                    train_pred_coarse_batch=Y_pred_coarse,
+                    train_true_fine_batch=torch.tensor(
+                        data_preprocessing.train_true_fine_data).to(device),
+                    train_true_coarse_batch=torch.tensor(
+                        data_preprocessing.train_true_coarse_data).to(device),
+                    original_train_pred_fine_batch=torch.tensor(
+                        self.pred_data['train']['original']['fine']).to(device),
+                    original_train_pred_coarse_batch=torch.tensor(
+                        self.pred_data['train']['original']['coarse']).to(device),
+                    original_secondary_train_pred_fine_batch=torch.tensor(
+                        self.pred_data['secondary_model']['train']['fine']).to(device),
+                    original_secondary_train_pred_coarse_batch=torch.tensor(
+                        self.pred_data['secondary_model']['train']['coarse']).to(device),
+                    error_detection_rules=self.error_detection_rules,
+                    device=device
+                )
+
                 scheduler.step()
 
                 print('#' * 100)
@@ -248,7 +277,7 @@ class EDCR_LTN_experiment(EDCR):
 
         print(f'Testing {self.correction_model} on {device}...')
 
-        all_Y_pred_fine= []
+        all_Y_pred_fine = []
         all_Y_pred_coarse = []
 
         with torch.no_grad():
@@ -294,14 +323,20 @@ class EDCR_LTN_experiment(EDCR):
             logits_to_predicate=logits_to_predicate,
             train_pred_fine_batch=Y_pred_fine,
             train_pred_coarse_batch=Y_pred_coarse,
-            train_true_fine_batch=data_preprocessing.train_true_fine_data,
-            train_true_coarse_batch=data_preprocessing.train_true_coarse_data,
-            original_train_pred_fine_batch=torch.tensor(self.pred_data['train']['original']['fine']),
-            original_train_pred_coarse_batch=torch.tensor(self.pred_data['train']['original']['coarse']),
-            original_secondary_train_pred_fine_batch=torch.tensor(self.pred_data['secondary_model']['train']['fine']),
-            original_secondary_train_pred_coarse_batch=torch.tensor(self.pred_data['secondary_model']['train']['coarse']),
+            train_true_fine_batch=torch.tensor(
+                data_preprocessing.train_true_fine_data).to(device),
+            train_true_coarse_batch=torch.tensor(
+                data_preprocessing.train_true_coarse_data).to(device),
+            original_train_pred_fine_batch=torch.tensor(
+                self.pred_data['train']['original']['fine']).to(device),
+            original_train_pred_coarse_batch=torch.tensor(
+                self.pred_data['train']['original']['coarse']).to(device),
+            original_secondary_train_pred_fine_batch=torch.tensor(
+                self.pred_data['secondary_model']['train']['fine']).to(device),
+            original_secondary_train_pred_coarse_batch=torch.tensor(
+                self.pred_data['secondary_model']['train']['coarse']).to(device),
             error_detection_rules=self.error_detection_rules,
-            device=torch.device('cpu')
+            device=device
         )
 
 
