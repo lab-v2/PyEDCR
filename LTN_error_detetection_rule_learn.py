@@ -208,13 +208,13 @@ class EDCR_LTN_experiment(EDCR):
                     train_true_coarse_batch=torch.tensor(
                         data_preprocessing.train_true_coarse_data).to(device),
                     original_train_pred_fine_batch=torch.tensor(
-                        self.pred_data['train']['original']['fine']).to(device),
+                        self.pred_data['test']['original']['fine']).to(device),
                     original_train_pred_coarse_batch=torch.tensor(
-                        self.pred_data['train']['original']['coarse']).to(device),
+                        self.pred_data['test']['original']['coarse']).to(device),
                     original_secondary_train_pred_fine_batch=torch.tensor(
-                        self.pred_data['secondary_model']['train']['fine']).to(device),
+                        self.pred_data['secondary_model']['test']['fine']).to(device),
                     original_secondary_train_pred_coarse_batch=torch.tensor(
-                        self.pred_data['secondary_model']['train']['coarse']).to(device),
+                        self.pred_data['secondary_model']['test']['coarse']).to(device),
                     error_detection_rules=self.error_detection_rules,
                     device=device
                 )

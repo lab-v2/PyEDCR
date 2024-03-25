@@ -311,7 +311,7 @@ def compute_sat_testing_value(logits_to_predicate: torch.nn.Module,
                    ))
         sat_agg_list.append(confidence_score)
         sat_agg_average_score += confidence_score.value.detach().item()
-    print(f'for all w in operational data, i in fine grain classes, rule \n'
+    print(f'for all w in operational data, i in coarse grain classes, rule \n'
           f'pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w)) \n'
           f'has average score {sat_agg_average_score / len(data_preprocessing.coarse_grain_classes_str)}')
 
