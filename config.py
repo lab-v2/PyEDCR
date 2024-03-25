@@ -9,6 +9,7 @@ lr = 0.0001  # Initial learning rate
 scheduler_gamma = 0.9  # Learning rate scheduler gamma value
 scheduler_step_size = 1  # Number of epochs after which to decay learning rate
 loss = 'BCE'  # Loss function (e.g., 'BCE' for Binary Cross-Entropy)
+beta = 0.1  # weight for LTN: higher beta -> higher weight to LTN
 
 num_epochs = 20
 K_train = None  # Number of example for training
