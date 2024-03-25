@@ -870,7 +870,6 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
 
                         criterion = torch.nn.BCEWithLogitsLoss(weight=weight)
 
-
                         batch_total_loss = criterion(Y_pred, Y_one_hot)
 
                         print_post_batch_metrics(batch_num=batch_num,
@@ -1240,13 +1239,25 @@ def initiate(lrs: list[typing.Union[str, float]],
                                              indices=indices,
                                              evaluation=evaluation)
 
-    print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
-          f"Total number of test images: {len(loaders['test'].dataset)}")
+    train_images_num = len(loaders['train'].dataset)
+    test_images_num = len(loaders['test'].dataset)
+
+    print(f"Total number of train images: {train_images_num}\n"
+          f"Total number of test images: {test_images_num}")
 
     if l is None:
         return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
     else:
-        return fine_tuners, loaders, devices
+        g_ground_truth = data_preprocessing.train_true_fine_data if l.g.g_str == 'fine' \
+            else data_preprocessing.train_true_coarse_data
+        l_examples_num = np.sum(np.where(g_ground_truth == l.index, 1, 0))
+        positive_class_weight = l_examples_num / train_images_num
+        negative_class_weight = 1 - positive_class_weight
+        weight = [negative_class_weight, positive_class_weight]
+        print(f'\nWeight of positive class: {positive_class_weight}, '
+              f'weight of negative class: {negative_class_weight}\n')
+
+        return fine_tuners, loaders, devices, weight
 
 
 def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
@@ -1365,11 +1376,10 @@ def run_combined_evaluating_pipeline(split: str,
 def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
                                       lrs: list[typing.Union[str, float]],
                                       num_epochs: int,
-                                      weight: list[float],
                                       save_files: bool = True):
     for l in data_preprocessing.get_labels(g=g).values():
-        fine_tuners, loaders, devices = initiate(lrs=lrs,
-                                                 l=l)
+        fine_tuners, loaders, devices, weight = initiate(lrs=lrs,
+                                                         l=l)
         for fine_tuner in fine_tuners:
             with context_handlers.ClearSession():
                 fine_tune_binary_model(l=l,
@@ -1390,10 +1400,9 @@ if __name__ == '__main__':
 
     for g in data_preprocessing.granularities.values():
         run_g_binary_fine_tuning_pipeline(g=g,
-                                          lrs=[0.1],
+                                          lrs=[0.0001],
                                           num_epochs=10,
-                                          save_files=True,
-                                          weight=[0.1, 0.9])
+                                          save_files=True)
 
     # run_combined_evaluating_pipeline(split='train',
     #                                  lrs=[0.0001],
