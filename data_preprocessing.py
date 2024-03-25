@@ -27,7 +27,7 @@ test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
 test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
 
 train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
-train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')\
+train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
 
 num_fine_grain_classes = len(fine_grain_classes_str)
 num_coarse_grain_classes = len(coarse_grain_classes_str)
@@ -215,7 +215,22 @@ def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose
          ])
 
 
-class CombinedImageFolderWithName(torchvision.datasets.ImageFolder):
+def find_classes(directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
+    classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir() and
+                     not entry.__str__().startswith('.'))
+    if not classes:
+        raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
+
+    class_to_idx = {cls_name: index for index, cls_name in enumerate(classes)}
+    return classes, class_to_idx
+
+
+class EDCRImageFolder(torchvision.datasets.ImageFolder):
+    def find_classes(self, directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
+        return find_classes(directory)
+
+
+class CombinedImageFolderWithName(EDCRImageFolder):
     """
     Subclass of torchvision.datasets for a combined coarse and fine grain models that returns an image with its filename
     """
@@ -247,7 +262,7 @@ class CombinedImageFolderWithName(torchvision.datasets.ImageFolder):
         return x, y_fine_grain, x_identifier, y_coarse_grain
 
 
-class BinaryImageFolderWithName(torchvision.datasets.ImageFolder):
+class BinaryImageFolder(EDCRImageFolder):
     """
     Subclass of torchvision.datasets for a binary classifier that returns an image with its filename
     """
@@ -282,7 +297,7 @@ class BinaryImageFolderWithName(torchvision.datasets.ImageFolder):
         return x, y
 
 
-class IndividualImageFolderWithName(torchvision.datasets.ImageFolder):
+class IndividualImageFolderWithName(EDCRImageFolder):
     """
     Subclass of torchvision.datasets for individual coarse or fine grain models that returns an image with its filename
     """
@@ -331,9 +346,9 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
     data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), '.')
 
     datasets = {
-        f'{train_or_test}': BinaryImageFolderWithName(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
-                                                      transform=get_dataset_transforms(train_or_test=train_or_test),
-                                                      l=binary_label)
+        f'{train_or_test}': BinaryImageFolder(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
+                                              transform=get_dataset_transforms(train_or_test=train_or_test),
+                                              l=binary_label)
         if binary_label is not None else
         (CombinedImageFolderWithName(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
                                      transform=get_dataset_transforms(
@@ -343,9 +358,7 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                                                         get_dataset_transforms(train_or_test=train_or_test)))
         for train_or_test in ['train', 'test']}
 
-
     return datasets
-
 
 
 def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
