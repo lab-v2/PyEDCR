@@ -1392,10 +1392,11 @@ if __name__ == '__main__':
     #                                   num_epochs=20,
     #                                   loss='BCE')
 
-    run_g_binary_fine_tuning_pipeline(g=data_preprocessing.granularities['fine'],
-                                      lrs=[0.0001],
-                                      num_epochs=5,
-                                      save_files=True)
+    for g in data_preprocessing.granularities.values():
+        run_g_binary_fine_tuning_pipeline(g=g,
+                                          lrs=[0.0001],
+                                          num_epochs=10,
+                                          save_files=True)
 
     # run_combined_evaluating_pipeline(split='train',
     #                                  lrs=[0.0001],
