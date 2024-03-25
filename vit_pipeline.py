@@ -317,7 +317,7 @@ def save_binary_prediction_files(test: bool,
                          epoch=epoch),
             predictions)
 
-    np.save(f"data/{test_str}_{l.g.g_str}/binary_true.npy",
+    np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
             ground_truths)
 
 
