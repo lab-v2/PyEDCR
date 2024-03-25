@@ -51,8 +51,10 @@ def get_filepath(model_name: typing.Union[str, models.FineTuner],
     pred_str = 'pred' if pred else 'true'
     combined_str = 'combined' if combined else 'individual'
     lower_prediction_index_str = f'_lower_{lower_prediction_index}' if lower_prediction_index is not None else ''
+    lower_prediction_folder_str = 'lower_prediction/' if lower_prediction_index is not None else ''
 
-    return (f"{combined_str}_results/{model_name}_{test_str}_{granularity}_{pred_str}_{loss}_lr{lr}{epoch_str}"
+    return (f"{combined_str}_results/{lower_prediction_folder_str}"
+            f"{model_name}_{test_str}_{granularity}_{pred_str}_{loss}_lr{lr}{epoch_str}"
             f"{lower_prediction_index_str}.npy")
 
 

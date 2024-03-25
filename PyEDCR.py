@@ -696,10 +696,10 @@ if __name__ == '__main__':
                     include_inconsistency_constraint=False,
                     secondary_model_name='vit_b_16_soft_marginal',
                     lower_predictions_indices=[2, 3, 4, 5])
-        edcr.print_metrics(test=test_bool, prior=True)
-        edcr.run_learning_pipeline(EDCR_epoch_num=20)
-        edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
-        edcr.apply_new_model_on_test()
+        # edcr.print_metrics(test=test_bool, prior=True)
+        # edcr.run_learning_pipeline(EDCR_epoch_num=20)
+        # edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
+        # edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)
         # edcr.apply_reversion_rules(g=gra)
 
