@@ -50,12 +50,11 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print(utils.red_text(f'\nNumber of errors: {len(examples_with_errors)} / '
                              f'{self.get_predictions(test=False)[0].shape[0]}\n'))
 
-        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
+        fine_tuners, loaders, devices = vit_pipeline.initiate(
             lrs=[self.lr],
             combined=self.combined,
             debug=False,
-            indices=examples_with_errors,
-            num_epochs=self.neural_num_epochs
+            indices=examples_with_errors
             # pretrained_path='models/vit_b_16_BCE_lr0.0001.pth'
             # train_eval_split=0.8
         )
@@ -69,8 +68,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 fine_tuner=self.correction_model,
                 device=devices[0],
                 loaders=loaders,
-                num_fine_grain_classes=num_fine_grain_classes,
-                num_coarse_grain_classes=num_coarse_grain_classes,
                 loss=self.loss,
                 save_files=False,
                 debug=False,
@@ -90,8 +87,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             combined=self.combined,
             debug=False,
             indices=examples_with_errors,
-            evaluation=True,
-            num_epochs=self.neural_num_epochs)
+            evaluation=True)
 
         evaluation_return_values = vit_pipeline.evaluate_combined_model(
             fine_tuner=self.correction_model,

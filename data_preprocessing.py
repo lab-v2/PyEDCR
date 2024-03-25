@@ -27,7 +27,10 @@ test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
 test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
 
 train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
-train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
+train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')\
+
+num_fine_grain_classes = len(fine_grain_classes_str)
+num_coarse_grain_classes = len(coarse_grain_classes_str)
 
 
 def is_monotonic(input_arr: np.array) -> bool:
@@ -229,9 +232,7 @@ class CombinedImageFolderWithName(torchvision.datasets.ImageFolder):
         """
 
         path, y_fine_grain = self.samples[index]
-
         y_coarse_grain = fine_to_course_idx[y_fine_grain]
-
         x = self.loader(path)
 
         if self.transform is not None:
@@ -244,6 +245,41 @@ class CombinedImageFolderWithName(torchvision.datasets.ImageFolder):
         x_identifier = f'{folder_path}/{name}'
 
         return x, y_fine_grain, x_identifier, y_coarse_grain
+
+
+class BinaryImageFolderWithName(torchvision.datasets.ImageFolder):
+    """
+    Subclass of torchvision.datasets for a binary classifier that returns an image with its filename
+    """
+
+    def __init__(self,
+                 root: str,
+                 l: Label,
+                 transform: typing.Optional[typing.Callable] = None):
+        super().__init__(root=root,
+                         transform=transform,
+                         target_transform=lambda y: int(y == l.index))
+
+    def __getitem__(self,
+                    index: int) -> (torch.tensor, int, str):
+        """
+        Returns one image from the dataset
+
+        Parameters
+        ----------
+
+        index: Index of the image in the dataset
+        """
+
+        path, y = self.samples[index]
+        x = self.loader(path)
+
+        if self.transform is not None:
+            x = self.transform(x)
+
+        y = self.target_transform(y)
+
+        return x, y
 
 
 class IndividualImageFolderWithName(torchvision.datasets.ImageFolder):
@@ -279,37 +315,40 @@ class IndividualImageFolderWithName(torchvision.datasets.ImageFolder):
 
 
 def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
-                 combined: bool = True) -> \
-        (dict[str, typing.Union[CombinedImageFolderWithName, IndividualImageFolderWithName]], int, int):
+                 combined: bool = True,
+                 binary_label: Label = None) -> \
+        (dict[str, torchvision.datasets.ImageFolder], int, int):
     """
     Instantiates and returns train and test datasets
 
     Parameters
     ----------
+        :param binary_label:
         :param cwd:
         :param combined:
     """
 
     data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), '.')
+
     datasets = {
-        f'{train_or_test}': CombinedImageFolderWithName(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
-                                                        transform=get_dataset_transforms(
-                                                            train_or_test=train_or_test))
-        if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                       transform=
-                                                       get_dataset_transforms(train_or_test=train_or_test))
+        f'{train_or_test}': BinaryImageFolderWithName(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
+                                                      transform=get_dataset_transforms(train_or_test=train_or_test),
+                                                      l=binary_label)
+        if binary_label is not None else
+        (CombinedImageFolderWithName(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
+                                     transform=get_dataset_transforms(
+                                         train_or_test=train_or_test))
+         if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
+                                                        transform=
+                                                        get_dataset_transforms(train_or_test=train_or_test)))
         for train_or_test in ['train', 'test']}
 
-    classes = datasets['train'].classes
-    assert classes == sorted(classes) == fine_grain_classes_str
 
-    num_fine_grain_classes = len(classes)
-    num_coarse_grain_classes = len(coarse_grain_classes_str)
-
-    return datasets, num_fine_grain_classes, num_coarse_grain_classes
+    return datasets
 
 
-def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, IndividualImageFolderWithName]],
+
+def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
                 batch_size: int,
                 indices: typing.Sequence = None,
                 evaluation: bool = None) -> dict[str, torch.utils.data.DataLoader]:
