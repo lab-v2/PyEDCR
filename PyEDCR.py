@@ -15,8 +15,6 @@ import conditions
 import rules
 
 
-
-
 class EDCR:
     """
     Performs error detection and correction based on model predictions.
@@ -92,7 +90,7 @@ class EDCR:
                                     for l in data_preprocessing.get_labels(g).values()}
                                 for g in data_preprocessing.granularities.values()}
 
-        if secondary_model_name is not None:
+        if self.secondary_model_name is not None:
             secondary_loss = secondary_model_name.split(f'{main_model_name}_')[1]
             pred_paths['secondary_model'] = {
                 'test' if test else 'train': {g_str: vit_pipeline.get_filepath(model_name=main_model_name,
@@ -116,7 +114,7 @@ class EDCR:
                     {conditions.PredCondition(l=l, secondary_model=True)
                      for l in data_preprocessing.get_labels(g).values()})
 
-        for lower_prediction_index in lower_predictions_indices:
+        for lower_prediction_index in self.lower_predictions_indices:
             lower_prediction_key = f'lower_{lower_prediction_index}'
 
             pred_paths[lower_prediction_key] = {
@@ -202,19 +200,16 @@ class EDCR:
 
         if secondary:
             pred_data = self.pred_data['secondary_model'][test_str]
-            if g is not None:
-                return pred_data[g]
         elif lower_predictions:
-            pred_data = {f'lower_{lower_prediction_index}':
-                             self.pred_data[f'lower_{lower_prediction_index}'][test_str]
-                         for lower_prediction_index in self.lower_predictions_indices}
-            if g is not None:
-                return {f'lower_{lower_prediction_index}': pred_data[f'lower_{lower_prediction_index}'][g]
-                        for lower_prediction_index in self.lower_predictions_indices}
+            pred_data = {g: {f'lower_{lower_prediction_index}': self.pred_data[
+                f'lower_{lower_prediction_index}'][test_str][g]
+                             for lower_prediction_index in self.lower_predictions_indices}
+                         for g in data_preprocessing.granularities.values()}
         else:
             pred_data = self.pred_data[test_str][stage]
-            if g is not None:
-                return pred_data[g]
+
+        if g is not None:
+            return pred_data[g]
 
         pred_fine_data, pred_coarse_data = [pred_data[g] for g in data_preprocessing.granularities.values()]
 
@@ -475,7 +470,7 @@ class EDCR:
             self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
         lower_train_pred_fine_data, lower_train_pred_coarse_data = (
             self.get_predictions(test=False, lower_predictions=True)) \
-            if self.lower_predictions_indices is not None else (None, None)
+            if len(self.lower_predictions_indices) else (None, None)
 
         where_any_conditions_satisfied_on_train = (
             rules.Rule.get_where_any_conditions_satisfied(C=C,
@@ -502,7 +497,7 @@ class EDCR:
             self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
         lower_train_pred_fine_data, lower_train_pred_coarse_data = (
             self.get_predictions(test=False, lower_predictions=True)) \
-            if self.lower_predictions_indices is not None else (None, None)
+            if len(self.lower_predictions_indices) else (None, None)
 
         where_any_conditions_satisfied_on_train = (
             rules.Rule.get_where_any_conditions_satisfied(C=C,
@@ -535,7 +530,7 @@ class EDCR:
             self.get_predictions(test=False, secondary=True)) if self.secondary_model_name is not None else (None, None)
         lower_train_pred_fine_data, lower_train_pred_coarse_data = (
             self.get_predictions(test=False, lower_predictions=True)) \
-            if self.lower_predictions_indices is not None else (None, None)
+            if len(self.lower_predictions_indices) else (None, None)
 
         where_any_conditions_satisfied_on_train = (
             rules.Rule.get_where_any_conditions_satisfied(C=C,
@@ -604,7 +599,7 @@ class EDCR:
 
                 for cond_l in DC_l:
                     if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary_model)
-                            and (not cond_l.second_predictions) and cond_l.l == l):
+                            and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
                         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
                 if utils.is_local():
@@ -625,7 +620,7 @@ class EDCR:
             self.get_predictions(test=test, secondary=True) if self.secondary_model_name is not None else None, None)
         lower_train_pred_fine_data, lower_train_pred_coarse_data = (
             self.get_predictions(test=False, lower_predictions=True)) \
-            if self.lower_predictions_indices is not None else (None, None)
+            if len(self.lower_predictions_indices) else (None, None)
 
         altered_pred_granularity_data = self.get_predictions(test=test, g=g, stage=stage)
 
@@ -674,7 +669,6 @@ class EDCR:
 
         if print_results:
             self.print_metrics(test=test, prior=False, stage='post_detection', print_inconsistencies=False)
-
 
 
 if __name__ == '__main__':

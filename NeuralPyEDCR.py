@@ -1,4 +1,5 @@
 import numpy as np
+import typing
 
 import data_preprocessing
 import PyEDCR
@@ -8,6 +9,35 @@ import context_handlers
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
+    def __init__(self,
+                 main_model_name: str,
+                 combined: bool,
+                 loss: str,
+                 lr: typing.Union[str, float],
+                 num_epochs: int,
+                 epsilon: typing.Union[str, float],
+                 EDCR_num_epochs: int,
+                 neural_num_epochs: int,
+                 K_train: list[(int, int)] = None,
+                 K_test: list[(int, int)] = None,
+                 include_inconsistency_constraint: bool = False,
+                 secondary_model_name: str = None,
+                 lower_predictions_indices: list[int] = []
+                 ):
+        super(NeuralPyEDCR, self).__init__(main_model_name=main_model_name,
+                                           combined=combined,
+                                           loss=loss,
+                                           lr=lr,
+                                           num_epochs=num_epochs,
+                                           epsilon=epsilon,
+                                           K_train=K_train,
+                                           K_test=K_test,
+                                           include_inconsistency_constraint=include_inconsistency_constraint,
+                                           secondary_model_name=secondary_model_name,
+                                           lower_predictions_indices=lower_predictions_indices)
+        self.EDCR_num_epochs = EDCR_num_epochs
+        self.neural_num_epochs = neural_num_epochs
+
     def run_training_new_model_pipeline(self):
 
         examples_with_errors = set()
@@ -25,6 +55,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             combined=self.combined,
             debug=False,
             indices=examples_with_errors,
+            num_epochs=self.neural_num_epochs
             # pretrained_path='models/vit_b_16_BCE_lr0.0001.pth'
             # train_eval_split=0.8
         )
@@ -44,6 +75,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 save_files=False,
                 debug=False,
                 evaluate_on_test=False,
+                num_epochs=self.neural_num_epochs
                 # Y_original_fine=
                 # self.pred_data['train']['mid_learning'][data_preprocessing.granularities['fine']][
                 #     examples_with_errors],
@@ -58,7 +90,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             combined=self.combined,
             debug=False,
             indices=examples_with_errors,
-            evaluation=True)
+            evaluation=True,
+            num_epochs=self.neural_num_epochs)
 
         (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
          fine_accuracy, coarse_accuracy) = vit_pipeline.evaluate_combined_model(
@@ -80,7 +113,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             vit_pipeline.run_combined_evaluating_pipeline(split='test',
                                                           lrs=[self.lr],
                                                           loss=self.loss,
-                                                          input_num_epochs=20,
+                                                          num_epochs=self.neural_num_epochs,
                                                           pretrained_fine_tuner=self.correction_model,
                                                           save_files=False,
                                                           print_results=False))
@@ -95,12 +128,11 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         if print_results:
             self.print_metrics(test=True, prior=False, stage='post_detection')
 
-    def run_learning_pipeline(self,
-                              EDCR_epoch_num: int):
+    def run_learning_pipeline(self):
         print('Started learning pipeline...\n')
         self.print_metrics(test=False, prior=True)
 
-        for EDCR_epoch in range(EDCR_epoch_num):
+        for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.granularities.values():
                 self.learn_detection_rules(g=g)
                 self.apply_detection_rules(test=False, g=g)
@@ -108,7 +140,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             self.run_training_new_model_pipeline()
             # self.print_metrics(test=False, prior=False, stage='post_detection')
 
-            edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{EDCR_epoch_num}'
+            edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
 
             print(utils.blue_text('\n' + '#' * 100 +
                                   '\n' + '#' * int((100 - len(edcr_epoch_str)) / 2) + edcr_epoch_str +
@@ -134,9 +166,11 @@ if __name__ == '__main__':
                             num_epochs=20,
                             include_inconsistency_constraint=False,
                             secondary_model_name='vit_b_16_soft_marginal',
-                            lower_predictions_indices=[2, 3, 4, 5])
+                            lower_predictions_indices=[2, 3, 4, 5],
+                            EDCR_num_epochs=20,
+                            neural_num_epochs=2)
         edcr.print_metrics(test=True, prior=True)
-        edcr.run_learning_pipeline(EDCR_epoch_num=20)
+        edcr.run_learning_pipeline()
         edcr.run_error_detection_application_pipeline(test=True, print_results=False)
         edcr.apply_new_model_on_test()
         # edcr.run_error_correction_application_pipeline(test=test_bool)

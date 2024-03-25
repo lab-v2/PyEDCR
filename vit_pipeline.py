@@ -11,14 +11,12 @@ import data_preprocessing
 
 batch_size = 64
 scheduler_gamma = 0.9
-num_epochs = 2
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 combined_results_path = fr'combined_results'
 individual_results_path = fr'individual_results'
 
-scheduler_step_size = num_epochs
 original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
                                   len(data_preprocessing.coarse_grain_classes_str))
 
@@ -434,7 +432,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
 
 
 def get_and_print_post_epoch_metrics(epoch: int,
-                                     # num_batches: int,
+                                     num_epochs: int,
                                      train_fine_ground_truth: np.array,
                                      train_fine_prediction: np.array,
                                      train_coarse_ground_truth: np.array,
@@ -505,6 +503,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
                                 loaders: dict[str, torch.utils.data.DataLoader],
                                 num_fine_grain_classes: int,
                                 num_coarse_grain_classes: int,
+                                num_epochs: int,
                                 fine_lr: float = 1e-4,
                                 coarse_lr: float = 1e-4,
                                 save_files: bool = True,
@@ -526,12 +525,12 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
     coarse_optimizer = torch.optim.Adam(params=coarse_fine_tuner.parameters(),
                                         lr=coarse_lr)
 
-    fine_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=fine_optimizer,
-                                                     step_size=scheduler_step_size,
-                                                     gamma=scheduler_gamma)
-    coarse_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=coarse_optimizer,
-                                                       step_size=scheduler_step_size,
-                                                       gamma=scheduler_gamma)
+    # fine_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=fine_optimizer,
+    #                                                  step_size=scheduler_step_size,
+    #                                                  gamma=scheduler_gamma)
+    # coarse_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=coarse_optimizer,
+    #                                                    step_size=scheduler_step_size,
+    #                                                    gamma=scheduler_gamma)
 
     train_fine_losses = []
     train_fine_accuracies = []
@@ -613,6 +612,7 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
 
             training_fine_accuracy, training_coarse_accuracy = (
                 get_and_print_post_epoch_metrics(epoch=epoch,
+                                                 num_epochs=num_epochs,
                                                  # running_fine_loss=running_fine_loss,
                                                  # running_coarse_loss=running_coarse_loss,
                                                  # num_batches=num_batches,
@@ -629,8 +629,8 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             train_fine_losses += [running_fine_loss / num_batches]
             train_coarse_losses += [running_coarse_loss / num_batches]
 
-            fine_scheduler.step()
-            coarse_scheduler.step()
+            # fine_scheduler.step()
+            # coarse_scheduler.step()
 
             (test_true_fine_data, test_true_coarse_data, test_pred_fine_data, test_pred_coarse_data,
              test_fine_accuracy, test_coarse_accuracy) = (
@@ -677,7 +677,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              num_fine_grain_classes: int,
                              num_coarse_grain_classes: int,
                              loss: str,
-                             # input_ltn_num_epochs: int = None,
+                             num_epochs: int,
                              beta: float = 0.1,
                              save_files: bool = True,
                              debug: bool = False,
@@ -697,9 +697,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                      lr=lr)
 
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
-                                                    step_size=scheduler_step_size,
-                                                    gamma=scheduler_gamma)
+        # scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
+        #                                             step_size=scheduler_step_size,
+        #                                             gamma=scheduler_gamma)
 
         alpha = num_fine_grain_classes / (num_fine_grain_classes + num_coarse_grain_classes)
 
@@ -840,6 +840,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                 training_fine_accuracy, training_coarse_accuracy = (
                     get_and_print_post_epoch_metrics(epoch=epoch,
+                                                     num_epochs=num_epochs,
                                                      # running_fine_loss=running_fine_loss.item(),
                                                      # running_coarse_loss=running_coarse_loss.item(),
                                                      # num_batches=num_batches,
@@ -857,7 +858,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                 train_fine_losses += [running_fine_loss.item() / num_batches]
                 train_coarse_losses += [running_coarse_loss.item() / num_batches]
 
-                scheduler.step()
+                # scheduler.step()
 
                 if evaluate_on_test:
                     (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
@@ -916,18 +917,16 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
 def initiate(lrs: list[typing.Union[str, float]],
              combined: bool,
-             input_num_epochs: int,
+             num_epochs: int,
              pretrained_path: str = None,
              debug: bool = False,
              indices: typing.Sequence = None,
-             evaluation: bool = None,
-             train_eval_split: float = None
+             evaluation: bool = None
              ):
     """
     Initializes models, datasets, and devices for training.
 
-    :param input_num_epochs:
-    :param train_eval_split:
+    :param num_epochs:
     :param evaluation:
     :param indices:
     :param lrs: List of learning rates for the models.
@@ -942,7 +941,7 @@ def initiate(lrs: list[typing.Union[str, float]],
              - num_coarse_grain_classes: The number of coarse-grained classes.
     """
     print(f'Models: {vit_model_names}\n'
-          f'Epochs num: {input_num_epochs}\n'
+          f'Epochs num: {num_epochs}\n'
           f'Learning rates: {lrs}')
 
     datasets, num_fine_grain_classes, num_coarse_grain_classes = data_preprocessing.get_datasets()
@@ -999,14 +998,14 @@ def initiate(lrs: list[typing.Union[str, float]],
 
 
 def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
-                                      input_num_epochs: int,
+                                      num_epochs: int,
                                       loss: str = 'BCE',
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
         initiate(lrs=lrs,
                  combined=True,
-                 input_num_epochs=input_num_epochs,
+                 num_epochs=num_epochs,
                  debug=debug))
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
@@ -1017,19 +1016,20 @@ def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
                                      num_fine_grain_classes=num_fine_grain_classes,
                                      num_coarse_grain_classes=num_coarse_grain_classes,
                                      loss=loss,
+                                     num_epochs=num_epochs,
                                      save_files=save_files,
                                      debug=debug)
             print('#' * 100)
 
 
 def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
-                                        input_num_epochs: int,
+                                        num_epochs: int,
                                         save_files: bool = True,
                                         debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
         initiate(lrs=lrs,
                  combined=False,
-                 input_num_epochs=input_num_epochs,
+                 num_epochs=num_epochs,
                  debug=debug))
 
     for fine_tuner in fine_tuners:
@@ -1041,6 +1041,7 @@ def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
                                         loaders=loaders,
                                         num_fine_grain_classes=num_fine_grain_classes,
                                         num_coarse_grain_classes=num_coarse_grain_classes,
+                                        num_epochs=num_epochs,
                                         save_files=save_files)
             print('#' * 100)
 
@@ -1048,7 +1049,7 @@ def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
 def run_combined_evaluating_pipeline(split: str,
                                      lrs: list[typing.Union[str, float]],
                                      loss: str,
-                                     input_num_epochs: int,
+                                     num_epochs: int,
                                      pretrained_path: str = None,
                                      pretrained_fine_tuner: models.FineTuner = None,
                                      save_files: bool = True,
@@ -1059,7 +1060,7 @@ def run_combined_evaluating_pipeline(split: str,
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
-    :param input_num_epochs:
+    :param num_epochs:
     :param lower_predictions_indices:
     :param split:
     :param indices:
@@ -1082,7 +1083,7 @@ def run_combined_evaluating_pipeline(split: str,
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
         initiate(lrs=lrs,
                  combined=True,
-                 input_num_epochs=input_num_epochs,
+                 num_epochs=num_epochs,
                  pretrained_path=pretrained_path,
                  debug=debug,
                  indices=indices,
@@ -1109,7 +1110,7 @@ def run_combined_evaluating_pipeline(split: str,
                               test_coarse_prediction=coarse_predictions,
                               fine_ground_truths=fine_ground_truths,
                               coarse_ground_truths=coarse_ground_truths,
-                              epoch=input_num_epochs,
+                              epoch=num_epochs,
                               fine_lower_predictions=fine_lower_predictions,
                               coarse_lower_predictions=coarse_lower_predictions)
 
@@ -1121,10 +1122,10 @@ if __name__ == '__main__':
     # run_combined_fine_tuning_pipeline(lrs=[0.0001],
     #                                   loss='BCE')
 
-    run_combined_evaluating_pipeline(split='test',
+    run_combined_evaluating_pipeline(split='train',
                                      lrs=[0.0001],
                                      loss='BCE',
-                                     input_num_epochs=20,
+                                     num_epochs=20,
                                      pretrained_path='models/vit_b_16_BCE_lr0.0001.pth',
                                      save_files=True,
                                      lower_predictions_indices=[2, 3, 4, 5])
