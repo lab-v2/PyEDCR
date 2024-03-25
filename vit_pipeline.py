@@ -1408,9 +1408,9 @@ def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline(lrs=[0.0001],
-                                      num_epochs=20,
-                                      loss='BCE')
+    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
+    #                                   num_epochs=20,
+    #                                   loss='BCE')
 
     for g in data_preprocessing.granularities.values():
         run_g_binary_fine_tuning_pipeline(g=g,
