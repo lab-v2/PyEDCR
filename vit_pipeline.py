@@ -79,6 +79,31 @@ def print_num_inconsistencies(pred_fine_data: np.array,
           f'({utils.red_text(round(inconsistencies / len(pred_fine_data) * 100, 2))}%)\n')
 
 
+def get_binary_metrics(pred_data: np.array,
+                       true_data: np.array):
+    """
+    Calculates and returns performance metrics for fine and coarse granularities.
+    :return: A tuple containing the accuracy, F1, precision, and recall metrics
+             for both fine and coarse granularities.
+    """
+    accuracy = accuracy_score(y_true=pred_data,
+                              y_pred=true_data)
+    f1 = f1_score(y_true=pred_data,
+                  y_pred=true_data,
+                  labels=[0, 1],
+                  average='macro')
+    precision = precision_score(y_true=pred_data,
+                                y_pred=true_data,
+                                labels=[0, 1],
+                                average='macro')
+    recall = recall_score(y_true=pred_data,
+                          y_pred=true_data,
+                          labels=[0, 1],
+                          average='macro')
+
+    return accuracy, f1, precision, recall
+
+
 def get_metrics(pred_fine_data: np.array,
                 pred_coarse_data: np.array,
                 true_fine_data: np.array,
@@ -129,6 +154,42 @@ def get_metrics(pred_fine_data: np.array,
 def get_change_str(change: typing.Union[float, str]):
     return '' if change == '' else (utils.red_text(f'({round(change, 2)}%)') if change < 0
                                     else utils.green_text(f'(+{round(change, 2)}%)'))
+
+
+def get_and_print_binary_metrics(pred_data: np.array,
+                                 loss: str,
+                                 true_data: np.array,
+                                 test: bool,
+                                 prior: bool = True,
+                                 model_name: str = '',
+                                 lr: typing.Union[str, float] = ''):
+    """
+    Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
+
+    :param true_data:
+    :param pred_data:
+    :param loss: The loss function used during training.
+    :param test: True for test data, False for training data.
+    :param prior:
+    :param model_name: The name of the model (optional).
+    :param lr: The learning rate used during training (optional).
+    :return: fine_accuracy, coarse_accuracy
+    """
+    accuracy, f1, precision, recall = get_binary_metrics(pred_data=pred_data,
+                                                         true_data=true_data)
+    prior_str = 'prior' if prior else 'post'
+
+    print('#' * 100 + '\n' + (f'Main model name: {utils.blue_text(model_name)} ' if model_name != '' else '') +
+          f"with {utils.blue_text(loss)} loss on the {utils.blue_text('test' if test else 'train')} dataset\n" +
+          (f'with lr={utils.blue_text(lr)}\n' if lr != '' else '') +
+          f'\n{prior_str} accuracy: {utils.green_text(round(accuracy * 100, 2))}%'
+          f' {prior_str} macro f1: {utils.green_text(round(f1 * 100, 2))}%'
+          f'\n {prior_str}  macro precision: '
+          f'{utils.green_text(round(precision * 100, 2))}%'
+          f',  {prior_str} macro recall: {utils.green_text(round(recall * 100, 2))}%\n'
+          )
+
+    return accuracy, f1, precision, recall
 
 
 def get_and_print_metrics(pred_fine_data: np.array,
@@ -231,17 +292,13 @@ def save_binary_prediction_files(test: bool,
                                  l: data_preprocessing.Label,
                                  epoch: int = None,
                                  loss: str = 'BCE',
-                                 ground_truths: np.array = None,
-                                 fine_lower_predictions: dict[int, list] = None,
-                                 coarse_lower_predictions: dict[int, list] = None):
+                                 ground_truths: np.array = None, ):
     """
     Saves prediction files and optional ground truth files.
 
     :param l:
     :param ground_truths:
     :param predictions:
-    :param coarse_lower_predictions:
-    :param fine_lower_predictions:
     :param test: True for test data, False for training data.
     :param fine_tuners: A single FineTuner object (for combined models) or a
                        dictionary of FineTuner objects (for individual models).
@@ -488,6 +545,7 @@ def evaluate_binary_model(l: data_preprocessing.Label,
 
     predictions = []
     ground_truths = []
+    accuracy = 0
 
     print(utils.blue_text(f'Evaluating binary {fine_tuner} with l={l} on {split} using {device}...'))
 
@@ -508,13 +566,32 @@ def evaluate_binary_model(l: data_preprocessing.Label,
             ground_truths += Y.tolist()
             predictions += predicted.tolist()
 
-    accuracy = accuracy_score(y_true=ground_truths,
-                              y_pred=predictions)
-
     if print_results:
-        print(f'\nTest accuracy: {round(accuracy * 100, 2)}%\n')
+        accuracy, f1, precision, recall = get_and_print_binary_metrics(pred_data=predictions,
+                                                                       loss='BCE',
+                                                                       true_data=ground_truths,
+                                                                       test=split == 'test')
 
     return ground_truths, predictions, accuracy
+
+
+def get_and_print_post_epoch_binary_metrics(epoch: int,
+                                            num_epochs: int,
+                                            train_ground_truths: np.array,
+                                            train_predictions: np.array
+                                            ):
+    training_accuracy = accuracy_score(y_true=train_ground_truths,
+                                       y_pred=train_predictions)
+    training_f1 = f1_score(y_true=train_ground_truths,
+                           y_pred=train_predictions,
+                           labels=[0, 1],
+                           average='macro')
+
+    print(f'\nEpoch {epoch + 1}/{num_epochs} done,\n'
+          f'\npost-epoch training accuracy: {round(training_accuracy * 100, 2)}%'
+          f', post-epoch f1: {round(training_f1 * 100, 2)}%\n')
+
+    return training_accuracy, training_f1
 
 
 def get_and_print_post_epoch_metrics(epoch: int,
@@ -812,10 +889,11 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
 
                         del X, Y, Y_pred
 
-                post_batch_accuracy = accuracy_score(y_true=train_ground_truths,
-                                                     y_pred=train_predictions)
-                print(f'\nEpoch {epoch + 1}/{num_epochs} done\npost-epoch training fine accuracy: '
-                      f'{round(post_batch_accuracy * 100, 2)}%\n')
+                training_accuracy, training_f1 = get_and_print_post_epoch_binary_metrics(
+                    epoch=epoch,
+                    num_epochs=num_epochs,
+                    train_predictions=train_predictions,
+                    train_ground_truths=train_ground_truths)
 
                 if evaluate_on_test:
                     test_ground_truths, test_predictions, test_accuracy = (
