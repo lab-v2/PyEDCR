@@ -215,19 +215,16 @@ def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose
          ])
 
 
-def find_classes(directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
-    classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir() and
-                     not entry.__str__().startswith('.'))
-    if not classes:
-        raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
-
-    class_to_idx = {cls_name: index for index, cls_name in enumerate(classes)}
-    return classes, class_to_idx
-
-
 class EDCRImageFolder(torchvision.datasets.ImageFolder):
     def find_classes(self, directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
-        return find_classes(directory)
+        classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir() and
+                         not entry.__str__().startswith('.'))
+        print(classes)
+        if not classes:
+            raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
+
+        class_to_idx = {cls_name: index for index, cls_name in enumerate(classes)}
+        return classes, class_to_idx
 
 
 class CombinedImageFolderWithName(EDCRImageFolder):
