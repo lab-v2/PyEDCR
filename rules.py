@@ -52,13 +52,13 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
                                            coarse_data: np.array,
                                            secondary_fine_data: np.array,
                                            secondary_coarse_data: np.array,
-                                           second_predictions_fine_data: np.array,
-                                           second_predictions_coarse_data: np.array,
+                                           lower_predictions_fine_data: np.array,
+                                           lower_predictions_coarse_data: np.array,
                                            ) -> np.array:
         """Checks where any given conditions are satisfied.
 
-        :param second_predictions_coarse_data:
-        :param second_predictions_fine_data:
+        :param lower_predictions_coarse_data:
+        :param lower_predictions_fine_data:
         :param secondary_fine_data:
         :param secondary_coarse_data:
         :param fine_data: Data that used for Condition having FineGrainLabel l
@@ -73,8 +73,8 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
                                             coarse_data=coarse_data,
                                             secondary_fine_data=secondary_fine_data,
                                             secondary_coarse_data=secondary_coarse_data,
-                                            second_predictions_fine_data=second_predictions_fine_data,
-                                            second_predictions_coarse_data=second_predictions_coarse_data)
+                                            lower_predictions_fine_data=lower_predictions_fine_data,
+                                            lower_predictions_coarse_data=lower_predictions_coarse_data)
 
         return any_condition_satisfied
 
@@ -101,8 +101,8 @@ class ErrorDetectionRule(Rule):
                                     pred_coarse_data: np.array,
                                     secondary_pred_fine_data: np.array,
                                     secondary_pred_coarse_data: np.array,
-                                    second_predictions_fine_data: np.array,
-                                    second_predictions_coarse_data: np.array,
+                                    lower_predictions_fine_data: np.array,
+                                    lower_predictions_coarse_data: np.array,
                                     ) -> np.array:
         test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
             else pred_coarse_data
@@ -113,8 +113,8 @@ class ErrorDetectionRule(Rule):
                                                     coarse_data=pred_coarse_data,
                                                     secondary_fine_data=secondary_pred_fine_data,
                                                     secondary_coarse_data=secondary_pred_coarse_data,
-                                                    second_predictions_fine_data=second_predictions_fine_data,
-                                                    second_predictions_coarse_data=second_predictions_coarse_data))
+                                                    lower_predictions_fine_data=lower_predictions_fine_data,
+                                                    lower_predictions_coarse_data=lower_predictions_coarse_data))
         where_body_is_satisfied = where_predicted_l * where_any_conditions_satisfied
 
         return where_body_is_satisfied
@@ -124,8 +124,8 @@ class ErrorDetectionRule(Rule):
                  pred_coarse_data: np.array,
                  secondary_pred_fine_data: np.array,
                  secondary_pred_coarse_data: np.array,
-                 second_predictions_fine_data: np.array,
-                 second_predictions_coarse_data: np.array,
+                 lower_predictions_fine_data: dict,
+                 lower_predictions_coarse_data: dict,
                  ) -> np.array:
         """Infer the detection rule based on the provided prediction data.
 
@@ -141,8 +141,8 @@ class ErrorDetectionRule(Rule):
                                              pred_coarse_data=pred_coarse_data,
                                              secondary_pred_fine_data=secondary_pred_fine_data,
                                              secondary_pred_coarse_data=secondary_pred_coarse_data,
-                                             second_predictions_fine_data=second_predictions_fine_data,
-                                             second_predictions_coarse_data=second_predictions_coarse_data
+                                             lower_predictions_fine_data=lower_predictions_fine_data,
+                                             lower_predictions_coarse_data=lower_predictions_coarse_data
                                              ))
         altered_pred_data = np.where(where_predicted_l_and_any_conditions_satisfied == 1, -1,
                                      test_pred_granularity_data)
@@ -173,8 +173,8 @@ class ErrorCorrectionRule(Rule):
                                     pred_coarse_data: np.array,
                                     secondary_pred_fine_data: np.array,
                                     secondary_pred_coarse_data: np.array,
-                                    second_predictions_fine_data: np.array,
-                                    second_predictions_coarse_data: np.array,
+                                    lower_predictions_fine_data: dict,
+                                    lower_predictions_coarse_data: dict,
                                     ) -> np.array:
         test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
             else pred_coarse_data
@@ -188,8 +188,8 @@ class ErrorCorrectionRule(Rule):
                                                         coarse_data=pred_coarse_data,
                                                         secondary_fine_data=secondary_pred_fine_data,
                                                         secondary_coarse_data=secondary_pred_coarse_data,
-                                                        second_predictions_fine_data=second_predictions_fine_data,
-                                                        second_predictions_coarse_data=second_predictions_coarse_data
+                                                        lower_predictions_fine_data=lower_predictions_fine_data,
+                                                        lower_predictions_coarse_data=lower_predictions_coarse_data
                                                         ))
             where_predicted_l_prime = self.get_where_predicted_l(data=test_pred_granularity_data,
                                                                  l_prime=l_prime)
@@ -203,8 +203,8 @@ class ErrorCorrectionRule(Rule):
                  pred_coarse_data: np.array,
                  secondary_pred_fine_data: np.array,
                  secondary_pred_coarse_data: np.array,
-                 second_predictions_fine_data: np.array,
-                 second_predictions_coarse_data: np.array,
+                 lower_predictions_fine_data: dict,
+                 lower_predictions_coarse_data: dict,
                  ) -> np.array:
         """Infer the correction rule based on the provided prediction data.
 
@@ -217,8 +217,8 @@ class ErrorCorrectionRule(Rule):
                                              pred_coarse_data=pred_coarse_data,
                                              secondary_pred_fine_data=secondary_pred_fine_data,
                                              secondary_pred_coarse_data=secondary_pred_coarse_data,
-                                             second_predictions_fine_data=second_predictions_fine_data,
-                                             second_predictions_coarse_data=second_predictions_coarse_data
+                                             lower_predictions_fine_data=lower_predictions_fine_data,
+                                             lower_predictions_coarse_data=lower_predictions_coarse_data
                                              ))
 
         altered_pred_data = np.where(where_any_pair_satisfied == 1, self.l.index, -1)

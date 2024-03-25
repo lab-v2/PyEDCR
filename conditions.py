@@ -39,7 +39,7 @@ class PredCondition(Condition):
     def __init__(self,
                  l: data_preprocessing.Label,
                  secondary_model: bool = False,
-                 second_predictions: bool = False):
+                 lower_prediction_index: int = None):
         """Initializes a PredCondition instance.
 
         :param l: The target Label for which the condition is evaluated.
@@ -47,15 +47,15 @@ class PredCondition(Condition):
         super().__init__()
         self.l = l
         self.secondary_model = secondary_model
-        self.second_predictions = second_predictions
+        self.lower_prediction_index = lower_prediction_index
 
     def __call__(self,
                  fine_data: np.array,
                  coarse_data: np.array,
                  secondary_fine_data: np.array,
                  secondary_coarse_data: np.array,
-                 second_predictions_fine_data: np.array,
-                 second_predictions_coarse_data: np.array,
+                 lower_predictions_fine_data: dict,
+                 lower_predictions_coarse_data: dict,
                  ) -> np.array:
         
         if self.secondary_model:
@@ -63,11 +63,11 @@ class PredCondition(Condition):
                 granularity_data = secondary_fine_data
             else:
                 granularity_data = secondary_coarse_data
-        elif self.second_predictions:
+        elif self.lower_prediction_index is not None:
             if self.l.g == data_preprocessing.granularities['fine']:
-                granularity_data = second_predictions_fine_data
+                granularity_data = lower_predictions_fine_data
             else:
-                granularity_data = second_predictions_coarse_data
+                granularity_data = lower_predictions_coarse_data
         else:
             if self.l.g == data_preprocessing.granularities['fine']:
                 granularity_data = fine_data
@@ -78,8 +78,9 @@ class PredCondition(Condition):
 
     def __str__(self) -> str:
         secondary_str = 'secondary_' if self.secondary_model else ''
-        second_prediction_str = '_second_prediction' if self.second_predictions else ''
-        return f'{secondary_str}pred_{self.l}{second_prediction_str}'
+        lower_prediction_index_str = f'_lower{self.lower_prediction_index}' \
+            if self.lower_prediction_index is not None else ''
+        return f'{secondary_str}pred_{self.l}{lower_prediction_index_str}'
 
     def __hash__(self):
         return hash(self.__str__())

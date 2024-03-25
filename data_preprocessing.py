@@ -30,8 +30,8 @@ train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
 train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
 
 
-def is_monotonic(arr: np.array) -> bool:
-    return np.all(arr[:-1] <= arr[1:])
+def is_monotonic(input_arr: np.array) -> bool:
+    return np.all(input_arr[:-1] <= input_arr[1:])
 
 
 def expand_ranges(tuples):
@@ -58,8 +58,8 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
     indices as values
     """
 
-    fine_to_coarse = {}
-    fine_to_course_idx = {}
+    output_fine_to_coarse = {}
+    output_fine_to_course_idx = {}
     training_df = dataframes_by_sheet['Training']
 
     assert (set(training_df['Fine-Grain Ground Truth'].unique().tolist()).intersection(fine_grain_classes_str)
@@ -72,10 +72,10 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
         coarse_grain_class = curr_fine_grain_training_data['Course-Grain Ground Truth'].iloc[0]
         coarse_grain_class_idx = coarse_grain_classes_str.index(coarse_grain_class)
 
-        fine_to_coarse[fine_grain_class] = coarse_grain_class
-        fine_to_course_idx[fine_grain_class_idx] = coarse_grain_class_idx
+        output_fine_to_coarse[fine_grain_class] = coarse_grain_class
+        output_fine_to_course_idx[fine_grain_class_idx] = coarse_grain_class_idx
 
-    return fine_to_coarse, fine_to_course_idx
+    return output_fine_to_coarse, output_fine_to_course_idx
 
 
 fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
@@ -336,8 +336,8 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
         for train_or_test_dataset in ['train', 'train_eval', 'test']}
 
 
-def get_one_hot_encoding(arr: np.array) -> np.array:
-    return np.eye(np.max(arr) + 1)[arr].T
+def get_one_hot_encoding(injput_arr: np.array) -> np.array:
+    return np.eye(np.max(injput_arr) + 1)[injput_arr].T
 
 
 for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
@@ -359,4 +359,3 @@ coarse_grain_labels = {l: CoarseGrainLabel(l) for l in coarse_grain_classes_str}
 
 def get_labels(g: Granularity) -> dict[str, Label]:
     return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels
-
