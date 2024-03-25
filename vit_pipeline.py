@@ -30,7 +30,9 @@ def get_filepath(model_name: typing.Union[str, models.FineTuner],
                  loss: str,
                  lr: typing.Union[str, float],
                  pred: bool,
-                 epoch: int = None) -> str:
+                 epoch: int = None,
+                 binary_classifier: bool = None,
+                 l: data_preprocessing.Label = None) -> str:
     """
     Constructs the file path to the model output / ground truth data.
 
@@ -48,6 +50,9 @@ def get_filepath(model_name: typing.Union[str, models.FineTuner],
     test_str = 'test' if test else 'train'
     pred_str = 'pred' if pred else 'true'
     combined_str = 'combined' if combined else 'individual'
+    if binary_classifier and l:
+        # TODO: add file path to the binary classifier
+        pass
 
     return f"{combined_str}_results/{model_name}_{test_str}_{granularity}_{pred_str}_{loss}_lr{lr}{epoch_str}.npy"
 

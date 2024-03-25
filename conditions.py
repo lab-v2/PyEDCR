@@ -38,7 +38,8 @@ class PredCondition(Condition):
 
     def __init__(self,
                  l: data_preprocessing.Label,
-                 secondary: bool = False):
+                 secondary: bool = False,
+                 binary: bool = False):
         """Initializes a PredCondition instance.
 
         :param l: The target Label for which the condition is evaluated.
@@ -46,19 +47,27 @@ class PredCondition(Condition):
         super().__init__()
         self.l = l
         self.secondary = secondary
+        self.binary = binary
 
     def __call__(self,
                  fine_data: np.array,
                  coarse_data: np.array,
                  secondary_fine_data: np.array,
                  secondary_coarse_data: np.array,
+                 binary_data: dict[data_preprocessing.Label, np.array]
                  ) -> np.array:
+        if self.binary:
+            if binary_data is None:
+                raise ValueError("binary data is None while using binary condition")
+            return binary_data[self.l]
         granularity_data = (fine_data if not self.secondary else secondary_fine_data) \
             if self.l.g == data_preprocessing.granularities['fine'] else \
             (coarse_data if not self.secondary else secondary_coarse_data)
         return np.where(granularity_data == self.l.index, 1, 0)
 
     def __str__(self) -> str:
+        if self.binary:
+            return f'binary_pred_{self.l}'
         secondary_str = 'secondary_' if self.secondary else ''
         return f'{secondary_str}pred_{self.l}'
 
