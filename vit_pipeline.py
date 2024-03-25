@@ -1394,7 +1394,7 @@ if __name__ == '__main__':
 
     for g in data_preprocessing.granularities.values():
         run_g_binary_fine_tuning_pipeline(g=g,
-                                          lrs=[0.001],
+                                          lrs=[0.1],
                                           num_epochs=10,
                                           save_files=True)
 
