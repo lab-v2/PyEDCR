@@ -833,14 +833,15 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                            fine_tuner: models.FineTuner,
                            device: torch.device,
                            loaders: dict[str, torch.utils.data.DataLoader],
-                           loss: str,
                            num_epochs: int,
+                           weight: list[float],
                            save_files: bool = True,
                            evaluate_on_test: bool = True):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
     num_batches = len(train_loader)
+    weight = torch.tensor(weight).to(device)
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -867,12 +868,8 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                         optimizer.zero_grad()
                         Y_pred = fine_tuner(X)
 
-                        if loss == "BCE":
-                            criterion = torch.nn.BCEWithLogitsLoss()
-                        elif loss == "CE":
-                            criterion = torch.nn.CrossEntropyLoss()
-                        elif loss == "soft_marginal":
-                            criterion = torch.nn.MultiLabelSoftMarginLoss()
+                        criterion = torch.nn.BCEWithLogitsLoss(weight=weight)
+
 
                         batch_total_loss = criterion(Y_pred, Y_one_hot)
 
@@ -910,7 +907,6 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                                                  fine_tuners=fine_tuner,
                                                  lrs=lr,
                                                  epoch=num_epochs,
-                                                 loss=loss,
                                                  l=l,
                                                  predictions=train_predictions)
 
@@ -1369,7 +1365,7 @@ def run_combined_evaluating_pipeline(split: str,
 def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
                                       lrs: list[typing.Union[str, float]],
                                       num_epochs: int,
-                                      loss: str = 'BCE',
+                                      weight: list[float],
                                       save_files: bool = True):
     for l in data_preprocessing.get_labels(g=g).values():
         fine_tuners, loaders, devices = initiate(lrs=lrs,
@@ -1381,9 +1377,9 @@ def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
                                        fine_tuner=fine_tuner,
                                        device=devices[0],
                                        loaders=loaders,
-                                       loss=loss,
                                        num_epochs=num_epochs,
-                                       save_files=save_files)
+                                       save_files=save_files,
+                                       weight=weight)
                 print('#' * 100)
 
 
@@ -1396,7 +1392,8 @@ if __name__ == '__main__':
         run_g_binary_fine_tuning_pipeline(g=g,
                                           lrs=[0.1],
                                           num_epochs=10,
-                                          save_files=True)
+                                          save_files=True,
+                                          weight=[0.1, 0.9])
 
     # run_combined_evaluating_pipeline(split='train',
     #                                  lrs=[0.0001],
