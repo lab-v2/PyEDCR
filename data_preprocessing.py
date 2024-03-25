@@ -272,27 +272,6 @@ class BinaryImageFolder(EDCRImageFolder):
                          transform=transform,
                          target_transform=lambda y: int(y == l.index))
 
-    def __getitem__(self,
-                    index: int) -> (torch.tensor, int, str):
-        """
-        Returns one image from the dataset
-
-        Parameters
-        ----------
-
-        index: Index of the image in the dataset
-        """
-
-        path, y = self.samples[index]
-        x = self.loader(path)
-
-        if self.transform is not None:
-            x = self.transform(x)
-
-        y = self.target_transform(y)
-
-        return x, y
-
 
 class IndividualImageFolderWithName(EDCRImageFolder):
     """
