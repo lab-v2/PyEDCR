@@ -863,7 +863,7 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
                         X, Y = batch[0].to(device), batch[1].to(device)
-                        Y_one_hot = torch.nn.functional.one_hot(Y, num_classes=2)
+                        Y_one_hot = torch.nn.functional.one_hot(Y, num_classes=2).float()
                         optimizer.zero_grad()
                         Y_pred = fine_tuner(X)
 
@@ -874,7 +874,7 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                         elif loss == "soft_marginal":
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
-                        batch_total_loss = criterion(Y_pred, Y_one_hot.float())
+                        batch_total_loss = criterion(Y_pred, Y_one_hot)
 
                         print_post_batch_metrics(batch_num=batch_num,
                                                  num_batches=num_batches,
