@@ -11,6 +11,7 @@ import data_preprocessing
 import vit_pipeline
 import typing
 import config
+import utils
 
 
 class EDCR_LTN_experiment(EDCR):
@@ -233,14 +234,75 @@ class EDCR_LTN_experiment(EDCR):
                                   combined=self.combined,
                                   debug=False,
                                   evaluation=True))
-        (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-         fine_accuracy, coarse_accuracy) = vit_pipeline.evaluate_combined_model(
-            fine_tuner=self.correction_model,
-            loaders=loaders,
-            loss=self.loss,
-            device=devices[0],
-            split='test',
-            print_results=True)
+
+        device = devices[0]
+        loader = loaders['test']
+        self.correction_model.to(device)
+        self.correction_model.eval()
+
+        fine_predictions = []
+        coarse_predictions = []
+
+        fine_ground_truths = []
+        coarse_ground_truths = []
+
+        print(f'Testing {self.correction_model} on {device}...')
+
+        all_Y_pred_fine= []
+        all_Y_pred_coarse = []
+
+        with torch.no_grad():
+            if utils.is_local():
+                from tqdm import tqdm
+                gen = tqdm(enumerate(loader), total=len(loader))
+            else:
+                gen = enumerate(loader)
+
+            for i, data in gen:
+                X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
+
+                Y_pred = self.correction_model(X)
+                Y_pred_fine = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
+                Y_pred_coarse = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
+
+                all_Y_pred_fine.append(Y_pred_fine)
+                all_Y_pred_coarse.append(Y_pred_coarse)
+
+                predicted_fine = torch.max(Y_pred_fine, 1)[1]
+                predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
+
+                fine_ground_truths += Y_true_fine.tolist()
+                coarse_ground_truths += Y_true_coarse.tolist()
+
+                fine_predictions += predicted_fine.tolist()
+                coarse_predictions += predicted_coarse.tolist()
+
+        fine_accuracy, coarse_accuracy = (
+            vit_pipeline.get_and_print_metrics(pred_fine_data=fine_predictions,
+                                               pred_coarse_data=coarse_predictions,
+                                               loss=self.loss,
+                                               true_fine_data=fine_ground_truths,
+                                               true_coarse_data=coarse_ground_truths,
+                                               test=True))
+
+        Y_pred_fine = torch.cat(all_Y_pred_fine, dim=0)
+        Y_pred_coarse = torch.cat(all_Y_pred_coarse, dim=0)
+
+        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
+
+        ltn_support.compute_sat_testing_value(
+            logits_to_predicate=logits_to_predicate,
+            train_pred_fine_batch=Y_pred_fine,
+            train_pred_coarse_batch=Y_pred_coarse,
+            train_true_fine_batch=data_preprocessing.train_true_fine_data,
+            train_true_coarse_batch=data_preprocessing.train_true_coarse_data,
+            original_train_pred_fine_batch=torch.tensor(self.pred_data['train']['original']['fine']),
+            original_train_pred_coarse_batch=torch.tensor(self.pred_data['train']['original']['coarse']),
+            original_secondary_train_pred_fine_batch=torch.tensor(self.pred_data['secondary_model']['train']['fine']),
+            original_secondary_train_pred_coarse_batch=torch.tensor(self.pred_data['secondary_model']['train']['coarse']),
+            error_detection_rules=self.error_detection_rules,
+            device=torch.device('cpu')
+        )
 
 
 if __name__ == '__main__':
