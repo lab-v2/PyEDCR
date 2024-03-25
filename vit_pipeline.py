@@ -1316,8 +1316,8 @@ if __name__ == '__main__':
 
     run_g_binary_fine_tuning_pipeline(g=data_preprocessing.granularities['fine'],
                                       lrs=[0.0001],
-                                      num_epochs=20,
-                                      save_files=False)
+                                      num_epochs=1,
+                                      save_files=True)
 
     # run_combined_evaluating_pipeline(split='train',
     #                                  lrs=[0.0001],
