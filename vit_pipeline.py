@@ -287,8 +287,8 @@ def get_and_print_metrics(pred_fine_data: np.array,
 
 
 def save_binary_prediction_files(test: bool,
-                                 fine_tuners: typing.Union[models.FineTuner, dict[str, models.FineTuner]],
-                                 lrs: typing.Union[str, float, dict[str, typing.Union[str, float]]],
+                                 fine_tuner: typing.Union[models.FineTuner, dict[str, models.FineTuner]],
+                                 lr: typing.Union[str, float],
                                  predictions: np.array,
                                  l: data_preprocessing.Label,
                                  epoch: int = None,
@@ -301,25 +301,26 @@ def save_binary_prediction_files(test: bool,
     :param ground_truths:
     :param predictions:
     :param test: True for test data, False for training data.
-    :param fine_tuners: A single FineTuner object (for combined models) or a
-                       dictionary of FineTuner objects (for individual models).
-    :param lrs: The learning rate(s) used during training.
+    :param fine_tuner: A single FineTuner object (for combined models).
+    :param lr: The learning rate used during training.
     :param epoch: The epoch number (optional).
     :param loss: The loss function used during training (optional).
     """
     test_str = 'test' if test else 'train'
 
-    np.save(get_filepath(model_name=fine_tuners,
+    np.save(get_filepath(model_name=fine_tuner,
                          l=l,
                          test=test,
                          loss=loss,
-                         lr=lrs,
+                         lr=lr,
                          pred=True,
                          epoch=epoch),
             predictions)
 
     np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
             ground_truths)
+    torch.save(fine_tuner.state_dict(),
+               f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
 
 
 def save_prediction_files(test: bool,
@@ -907,8 +908,8 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
 
         if save_files:
             save_binary_prediction_files(test=False,
-                                         fine_tuners=fine_tuner,
-                                         lrs=lr,
+                                         fine_tuner=fine_tuner,
+                                         lr=lr,
                                          epoch=num_epochs,
                                          l=l,
                                          predictions=train_predictions,
@@ -1425,12 +1426,12 @@ def evaluate_binary_models(g_str: str,
                                            lr=lrs,
                                            pred=True,
                                            epoch=num_epochs))
-        print(f'{l}:{np.sum(np.where(predictions == 1, 1, 0))}')
-        # ground_truths = np.where(g_ground_truth == l.index, 1, 0)
-        # get_and_print_binary_metrics(pred_data=predictions,
-        #                              loss=loss,
-        #                              true_data=ground_truths,
-        #                              test=test)
+        # print(f'{l}:{np.sum(np.where(predictions == 1, 1, 0))}')
+        ground_truths = np.where(g_ground_truth == l.index, 1, 0)
+        get_and_print_binary_metrics(pred_data=predictions,
+                                     loss=loss,
+                                     true_data=ground_truths,
+                                     test=test)
 
 
 
@@ -1446,13 +1447,13 @@ if __name__ == '__main__':
                                           num_epochs=10,
                                           save_files=True)
 
-    # evaluate_binary_models(model_name='vit_b_16',
-    #                        g_str='fine',
-    #                        test=False,
-    #                        lrs=0.0001,
-    #                        num_epochs=10,
-    #                        loss='BCE'
-    #                        )
+    evaluate_binary_models(model_name='vit_b_16',
+                           g_str='fine',
+                           test=False,
+                           lrs=0.0001,
+                           num_epochs=10,
+                           loss='BCE'
+                           )
     # run_combined_evaluating_pipeline(split='train',
     #                                  lrs=[0.0001],
     #                                  loss='BCE',
