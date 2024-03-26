@@ -1443,7 +1443,7 @@ if __name__ == '__main__':
     for g in data_preprocessing.granularities.values():
         run_g_binary_fine_tuning_pipeline(g=g,
                                           lrs=[0.0001],
-                                          num_epochs=1,
+                                          num_epochs=10,
                                           save_files=True)
 
     # evaluate_binary_models(model_name='vit_b_16',
