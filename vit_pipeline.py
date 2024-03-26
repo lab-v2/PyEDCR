@@ -911,7 +911,8 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                                                  lrs=lr,
                                                  epoch=num_epochs,
                                                  l=l,
-                                                 predictions=train_predictions)
+                                                 predictions=train_predictions,
+                                                 ground_truths=train_ground_truths)
 
         return train_predictions
 
@@ -1407,6 +1408,33 @@ def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
                 print('#' * 100)
 
 
+def evaluate_binary_models(g_str: str,
+                           test: bool,
+                           model_name: str,
+                           lrs: typing.Union[float, list[float]],
+                           num_epochs: int,
+                           loss: str = 'BCE'
+                           ):
+    g_ground_truth = data_preprocessing.train_true_fine_data if g_str == 'fine' \
+        else data_preprocessing.train_true_coarse_data
+    for l in data_preprocessing.get_labels(g=data_preprocessing.granularities[g_str]).values():
+        predictions = np.load(get_filepath(model_name=model_name,
+                                           l=l,
+                                           test=test,
+                                           loss=loss,
+                                           lr=lrs,
+                                           pred=True,
+                                           epoch=num_epochs))
+        print(f'{l}:{np.sum(np.where(predictions == 1, 1, 0))}')
+        # ground_truths = np.where(g_ground_truth == l.index, 1, 0)
+        # get_and_print_binary_metrics(pred_data=predictions,
+        #                              loss=loss,
+        #                              true_data=ground_truths,
+        #                              test=test)
+
+
+
+
 if __name__ == '__main__':
     # run_combined_fine_tuning_pipeline(lrs=[0.0001],
     #                                   num_epochs=20,
@@ -1418,6 +1446,13 @@ if __name__ == '__main__':
                                           num_epochs=10,
                                           save_files=True)
 
+    evaluate_binary_models(model_name='vit_b_16',
+                           g_str='fine',
+                           test=False,
+                           lrs=0.0001,
+                           num_epochs=10,
+                           loss='BCE'
+                           )
     # run_combined_evaluating_pipeline(split='train',
     #                                  lrs=[0.0001],
     #                                  loss='BCE',
