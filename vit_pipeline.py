@@ -9,7 +9,7 @@ import models
 import utils
 import data_preprocessing
 
-batch_size = 512
+batch_size = 256
 scheduler_gamma = 0.9
 ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
