@@ -843,7 +843,7 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
     fine_tuner.train()
     train_loader = loaders['train']
     num_batches = len(train_loader)
-    weight = torch.tensor(weight).to(device)
+    weight = torch.tensor(weight).float().to(device)
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -905,14 +905,14 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                                               split='test'))
                 print('#' * 100)
 
-                if (epoch == num_epochs - 1) and save_files:
-                    save_binary_prediction_files(test=False,
-                                                 fine_tuners=fine_tuner,
-                                                 lrs=lr,
-                                                 epoch=num_epochs,
-                                                 l=l,
-                                                 predictions=train_predictions,
-                                                 ground_truths=train_ground_truths)
+        if save_files:
+            save_binary_prediction_files(test=False,
+                                         fine_tuners=fine_tuner,
+                                         lrs=lr,
+                                         epoch=num_epochs,
+                                         l=l,
+                                         predictions=train_predictions,
+                                         ground_truths=train_ground_truths)
 
         return train_predictions
 
@@ -1443,7 +1443,7 @@ if __name__ == '__main__':
     for g in data_preprocessing.granularities.values():
         run_g_binary_fine_tuning_pipeline(g=g,
                                           lrs=[0.0001],
-                                          num_epochs=10,
+                                          num_epochs=1,
                                           save_files=True)
 
     # evaluate_binary_models(model_name='vit_b_16',
