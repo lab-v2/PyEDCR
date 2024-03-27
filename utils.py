@@ -2,8 +2,8 @@ import os
 import sys
 import pathlib
 import datetime
-from typing import Union
-from math import floor
+import math
+import typing
 
 
 def format_seconds(seconds: int):
@@ -19,11 +19,11 @@ def format_seconds(seconds: int):
 
     # Create the formatted string
     if hours > 0:
-        return f"{floor(hours)} hour{'s' if hours > 1 else ''}"
+        return f"{math.floor(hours)} hour{'s' if hours > 1 else ''}"
     elif minutes > 0:
-        return f"{floor(minutes)} minute{'s' if minutes > 1 else ''}"
+        return f"{math.floor(minutes)} minute{'s' if minutes > 1 else ''}"
     else:
-        return f"{floor(seconds)} second{'s' if seconds > 1 else ''}"
+        return f"{math.floor(seconds)} second{'s' if seconds > 1 else ''}"
 
 
 # Function to create a directory if it doesn't exist
@@ -60,13 +60,13 @@ def colored_text(color: str):
     return lambda s: f"\033[9{index}m{s}\033[0m"
 
 
-def green_text(s: Union[str, float]) -> str:
+def green_text(s: typing.Union[str, float]) -> str:
     return colored_text('green')(s)
 
 
-def red_text(s: Union[str, float]) -> str:
+def red_text(s: typing.Union[str, float]) -> str:
     return colored_text('red')(s)
 
 
-def blue_text(s: Union[str, float]) -> str:
+def blue_text(s: typing.Union[str, float]) -> str:
     return colored_text('blue')(s)

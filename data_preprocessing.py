@@ -33,6 +33,7 @@ num_fine_grain_classes = len(fine_grain_classes_str)
 num_coarse_grain_classes = len(coarse_grain_classes_str)
 
 
+
 def is_monotonic(input_arr: np.array) -> bool:
     return np.all(input_arr[:-1] <= input_arr[1:])
 

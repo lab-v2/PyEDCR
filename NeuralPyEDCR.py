@@ -6,6 +6,8 @@ import PyEDCR
 import utils
 import vit_pipeline
 import context_handlers
+import neural_fine_tuning
+import neural_evaluation
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
@@ -63,7 +65,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             self.correction_model = fine_tuners[0]
 
         with context_handlers.ClearSession():
-            vit_pipeline.fine_tune_combined_model(
+            neural_fine_tuning.fine_tune_combined_model(
                 lrs=[self.lr],
                 fine_tuner=self.correction_model,
                 device=devices[0],
@@ -89,7 +91,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             indices=examples_with_errors,
             evaluation=True)
 
-        evaluation_return_values = vit_pipeline.evaluate_combined_model(
+        evaluation_return_values = neural_evaluation.evaluate_combined_model(
             fine_tuner=self.correction_model,
             loaders=loaders,
             loss=self.loss,
@@ -105,7 +107,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
     def apply_new_model_on_test(self,
                                 print_results: bool = True):
         new_fine_predictions, new_coarse_predictions = (
-            vit_pipeline.run_combined_evaluating_pipeline(split='test',
+            neural_evaluation.run_combined_evaluating_pipeline(split='test',
                                                           lrs=[self.lr],
                                                           loss=self.loss,
                                                           num_epochs=self.neural_num_epochs,

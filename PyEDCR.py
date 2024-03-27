@@ -8,11 +8,12 @@ warnings.filterwarnings('ignore')
 
 import utils
 import data_preprocessing
-import vit_pipeline
+import neural_metrics
 import context_handlers
-import metrics
+import symbolic_metrics
 import conditions
 import rules
+import models
 
 
 class EDCR:
@@ -53,14 +54,14 @@ class EDCR:
         self.lower_predictions_indices = lower_predictions_indices
 
         pred_paths: dict[str, dict] = {
-            'test' if test else 'train': {g_str: vit_pipeline.get_filepath(model_name=main_model_name,
-                                                                           combined=combined,
-                                                                           test=test,
-                                                                           granularity=g_str,
-                                                                           loss=loss,
-                                                                           lr=lr,
-                                                                           pred=True,
-                                                                           epoch=original_num_epochs)
+            'test' if test else 'train': {g_str: models.get_filepath(model_name=main_model_name,
+                                                                     combined=combined,
+                                                                     test=test,
+                                                                     granularity=g_str,
+                                                                     loss=loss,
+                                                                     lr=lr,
+                                                                     pred=True,
+                                                                     epoch=original_num_epochs)
                                           for g_str in data_preprocessing.granularities_str}
             for test in [True, False]}
 
@@ -94,14 +95,14 @@ class EDCR:
         if self.secondary_model_name is not None:
             secondary_loss = secondary_model_name.split(f'{main_model_name}_')[1]
             pred_paths['secondary_model'] = {
-                'test' if test else 'train': {g_str: vit_pipeline.get_filepath(model_name=main_model_name,
-                                                                               combined=combined,
-                                                                               test=test,
-                                                                               granularity=g_str,
-                                                                               loss=secondary_loss,
-                                                                               lr=lr,
-                                                                               pred=True,
-                                                                               epoch=original_num_epochs)
+                'test' if test else 'train': {g_str: models.get_filepath(model_name=main_model_name,
+                                                                         combined=combined,
+                                                                         test=test,
+                                                                         granularity=g_str,
+                                                                         loss=secondary_loss,
+                                                                         lr=lr,
+                                                                         pred=True,
+                                                                         epoch=original_num_epochs)
                                               for g_str in data_preprocessing.granularities_str}
                 for test in [True, False]}
 
@@ -120,15 +121,15 @@ class EDCR:
 
             pred_paths[lower_prediction_key] = {
                 'test' if test else 'train':
-                    {g_str: vit_pipeline.get_filepath(model_name=main_model_name,
-                                                      combined=combined,
-                                                      test=test,
-                                                      granularity=g_str,
-                                                      loss=self.loss,
-                                                      lr=lr,
-                                                      pred=True,
-                                                      epoch=original_num_epochs,
-                                                      lower_prediction_index=lower_prediction_index)
+                    {g_str: models.get_filepath(model_name=main_model_name,
+                                                combined=combined,
+                                                test=test,
+                                                granularity=g_str,
+                                                loss=self.loss,
+                                                lr=lr,
+                                                pred=True,
+                                                epoch=original_num_epochs,
+                                                lower_prediction_index=lower_prediction_index)
                      for g_str in data_preprocessing.granularities_str}
                 for test in [True, False]}
 
@@ -276,19 +277,19 @@ class EDCR:
         true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.K_test) if test \
             else data_preprocessing.get_ground_truths(test=test, K=self.K_train)
 
-        vit_pipeline.get_and_print_metrics(pred_fine_data=pred_fine_data,
-                                           pred_coarse_data=pred_coarse_data,
-                                           loss=self.loss,
-                                           true_fine_data=true_fine_data,
-                                           true_coarse_data=true_coarse_data,
-                                           test=test,
-                                           prior=prior,
-                                           combined=self.combined,
-                                           model_name=self.main_model_name,
-                                           lr=self.lr,
-                                           print_inconsistencies=print_inconsistencies,
-                                           original_pred_fine_data=original_pred_fine_data,
-                                           original_pred_coarse_data=original_pred_coarse_data)
+        neural_metrics.get_and_print_metrics(pred_fine_data=pred_fine_data,
+                                             pred_coarse_data=pred_coarse_data,
+                                             loss=self.loss,
+                                             true_fine_data=true_fine_data,
+                                             true_coarse_data=true_coarse_data,
+                                             test=test,
+                                             prior=prior,
+                                             combined=self.combined,
+                                             model_name=self.main_model_name,
+                                             lr=self.lr,
+                                             print_inconsistencies=print_inconsistencies,
+                                             original_pred_fine_data=original_pred_fine_data,
+                                             original_pred_coarse_data=original_pred_coarse_data)
 
     def get_where_predicted_correct(self,
                                     test: bool,
@@ -664,8 +665,8 @@ class EDCR:
             self.apply_detection_rules(test=test, g=g)
 
             if print_results:
-                metrics.evaluate_and_print_g_detection_rule_precision_increase(edcr=self, test=test, g=g)
-                metrics.evaluate_and_print_g_detection_rule_recall_decrease(edcr=self, test=test, g=g)
+                symbolic_metrics.evaluate_and_print_g_detection_rule_precision_increase(edcr=self, test=test, g=g)
+                symbolic_metrics.evaluate_and_print_g_detection_rule_recall_decrease(edcr=self, test=test, g=g)
                 self.print_how_many_not_assigned(test=test, g=g, stage='post_detection')
 
         if print_results:

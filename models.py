@@ -1,7 +1,10 @@
 import re
 import abc
 import torch
-import torchvision
+import typing
+
+import data_preprocessing
+
 
 
 class FineTuner(torch.nn.Module, abc.ABC):
@@ -99,3 +102,42 @@ class VITFineTuner(FineTuner):
 
     def __str__(self):
         return self.vit_model_name
+
+
+def get_filepath(model_name: typing.Union[str, FineTuner],
+                 test: bool,
+                 loss: str,
+                 lr: typing.Union[str, float],
+                 pred: bool,
+                 combined: bool = True,
+                 l: data_preprocessing.Label = None,
+                 epoch: int = None,
+                 granularity: str = None,
+                 lower_prediction_index: int = None) -> str:
+    """
+    Constructs the file path to the model output / ground truth data.
+
+    :param l:
+    :param lower_prediction_index:
+    :param model_name: The name of the model or `FineTuner` object.
+    :param combined: Whether the model are individual or combine one.
+    :param test: Whether the data is getting from testing or training set.
+    :param granularity: The granularity level.
+    :param loss: The loss function used during training.
+    :param lr: The learning rate used during training.
+    :param pred: Whether the data is a prediction from neural or ground truth
+    :param epoch: The epoch number (optional, only for training data).
+    :return: The generated file path.
+    """
+    epoch_str = f'_e{epoch - 1}' if epoch is not None else ''
+    granularity_str = f'_{granularity}' if granularity is not None else ''
+    test_str = 'test' if test else 'train'
+    pred_str = 'pred' if pred else 'true'
+    combined_str = 'binary' if l is not None else ('combined' if combined else 'individual')
+    lower_prediction_index_str = f'_lower_{lower_prediction_index}' if lower_prediction_index is not None else ''
+    lower_prediction_folder_str = 'lower_prediction/' if lower_prediction_index is not None else ''
+    l_str = f'_{l}' if l is not None else ''
+
+    return (f"{combined_str}_results/{lower_prediction_folder_str}"
+            f"{model_name}_{test_str}{granularity_str}_{pred_str}_{loss}_lr{lr}{epoch_str}"
+            f"{lower_prediction_index_str}{l_str}.npy")
