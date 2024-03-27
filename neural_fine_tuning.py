@@ -194,43 +194,6 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
         np.save(f"{vit_pipeline.individual_results_path}test_true_coarse_individual.npy", test_true_coarse_data)
 
 
-def save_binary_prediction_files(test: bool,
-                                 fine_tuner: typing.Union[models.FineTuner, dict[str, models.FineTuner]],
-                                 lr: typing.Union[str, float],
-                                 predictions: np.array,
-                                 l: data_preprocessing.Label,
-                                 epoch: int = None,
-                                 loss: str = 'BCE',
-                                 ground_truths: np.array = None):
-    """
-    Saves prediction files and optional ground truth files.
-
-    :param l:
-    :param ground_truths:
-    :param predictions:
-    :param test: True for test data, False for training data.
-    :param fine_tuner: A single FineTuner object (for combined models).
-    :param lr: The learning rate used during training.
-    :param epoch: The epoch number (optional).
-    :param loss: The loss function used during training (optional).
-    """
-    test_str = 'test' if test else 'train'
-
-    np.save(models.get_filepath(model_name=fine_tuner,
-                                l=l,
-                                test=test,
-                                loss=loss,
-                                lr=lr,
-                                pred=True,
-                                epoch=epoch),
-            predictions)
-
-    np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
-            ground_truths)
-    torch.save(fine_tuner.state_dict(),
-               f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
-
-
 def fine_tune_binary_model(l: data_preprocessing.Label,
                            lrs: list[typing.Union[str, float]],
                            fine_tuner: models.FineTuner,
@@ -245,6 +208,7 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
     train_loader = loaders['train']
     num_batches = len(train_loader)
     weight = torch.tensor(weight).float().to(device)
+    loss = 'BCE'
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -302,18 +266,19 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                         neural_evaluation.evaluate_binary_model(l=l,
                                                                 fine_tuner=fine_tuner,
                                                                 loaders=loaders,
+                                                                loss=loss,
                                                                 device=device,
                                                                 split='test'))
                 print('#' * 100)
 
         if save_files:
-            save_binary_prediction_files(test=False,
-                                         fine_tuner=fine_tuner,
-                                         lr=lr,
-                                         epoch=num_epochs,
-                                         l=l,
-                                         predictions=train_predictions,
-                                         ground_truths=train_ground_truths)
+            vit_pipeline.save_binary_prediction_files(test=False,
+                                                      fine_tuner=fine_tuner,
+                                                      lr=lr,
+                                                      epoch=num_epochs,
+                                                      l=l,
+                                                      predictions=train_predictions,
+                                                      ground_truths=train_ground_truths)
 
         return train_predictions
 
@@ -636,9 +601,9 @@ def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline(lrs=[0.0001],
-                                      num_epochs=20,
-                                      loss='BCE')
+    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
+    #                                   num_epochs=20,
+    #                                   loss='BCE')
 
     for g in data_preprocessing.granularities.values():
         run_g_binary_fine_tuning_pipeline(g=g,

@@ -95,6 +95,43 @@ def save_prediction_files(test: bool,
         #             fine_ground_truths)
 
 
+def save_binary_prediction_files(test: bool,
+                                 fine_tuner: typing.Union[models.FineTuner, dict[str, models.FineTuner]],
+                                 lr: typing.Union[str, float],
+                                 predictions: np.array,
+                                 l: data_preprocessing.Label,
+                                 epoch: int = None,
+                                 loss: str = 'BCE',
+                                 ground_truths: np.array = None):
+    """
+    Saves prediction files and optional ground truth files.
+
+    :param l:
+    :param ground_truths:
+    :param predictions:
+    :param test: True for test data, False for training data.
+    :param fine_tuner: A single FineTuner object (for combined models).
+    :param lr: The learning rate used during training.
+    :param epoch: The epoch number (optional).
+    :param loss: The loss function used during training (optional).
+    """
+    test_str = 'test' if test else 'train'
+
+    np.save(models.get_filepath(model_name=fine_tuner,
+                                l=l,
+                                test=test,
+                                loss=loss,
+                                lr=lr,
+                                pred=True,
+                                epoch=epoch),
+            predictions)
+
+    np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
+            ground_truths)
+    torch.save(fine_tuner.state_dict(),
+               f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
+
+
 def get_imbalance_weights(l: data_preprocessing.Label,
                           train_images_num: int) -> list[float]:
     g_ground_truth = data_preprocessing.train_true_fine_data if l.g.g_str == 'fine' \

@@ -1,6 +1,7 @@
 import re
 import abc
 import torch
+import torchvision
 import typing
 
 import data_preprocessing
@@ -46,8 +47,8 @@ class VITFineTuner(FineTuner):
         """
         super().__init__(num_classes=num_classes)
         self.vit_model_name = vit_model_name
+        vit_model = getattr(torchvision.models, vit_model_name)
 
-        vit_model = eval(f'torchvision.models.{self.vit_model_name}')
         vit_weights = eval(
             f"torchvision.models.ViT_{'_'.join([s.upper() for s in self.vit_model_name.split('vit_')[-1].split('_')])}"
             f"_Weights.DEFAULT")

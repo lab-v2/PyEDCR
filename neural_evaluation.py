@@ -151,6 +151,7 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
 def evaluate_binary_model(l: data_preprocessing.Label,
                           fine_tuner: models.FineTuner,
                           loaders: dict[str, torch.utils.data.DataLoader],
+                          loss: str,
                           device: torch.device,
                           split: str,
                           print_results: bool = True) -> \
@@ -184,7 +185,7 @@ def evaluate_binary_model(l: data_preprocessing.Label,
 
     if print_results:
         accuracy, f1, precision, recall = neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
-                                                                                      loss='BCE',
+                                                                                      loss=loss,
                                                                                       true_data=ground_truths,
                                                                                       test=split == 'test')
 
@@ -261,13 +262,53 @@ def run_combined_evaluating_pipeline(split: str,
     return fine_predictions, coarse_predictions
 
 
+def run_binary_evaluating_pipeline(l: data_preprocessing.Label,
+                                   split: str,
+                                   lrs: list[typing.Union[str, float]],
+                                   loss: str,
+                                   num_epochs: int,
+                                   pretrained_path: str = None,
+                                   pretrained_fine_tuner: models.FineTuner = None,
+                                   save_files: bool = True,
+                                   debug: bool = utils.is_debug_mode(),
+                                   print_results: bool = True):
+    fine_tuners, loaders, devices, weight = (
+        vit_pipeline.initiate(l=l,
+                              lrs=lrs,
+                              pretrained_path=pretrained_path,
+                              debug=debug,
+                              evaluation=True))
+
+    fine_tuner = fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner
+
+    (ground_truths, predictions, accuracy) = (
+        evaluate_binary_model(
+            l=l,
+            fine_tuner=fine_tuner,
+            loaders=loaders,
+            loss=loss,
+            device=devices[0],
+            split=split,
+            print_results=print_results))
+
+    if save_files:
+        vit_pipeline.save_binary_prediction_files(test=False,
+                                                  fine_tuner=fine_tuner,
+                                                  lr=lrs[0],
+                                                  epoch=num_epochs,
+                                                  l=l,
+                                                  predictions=predictions,
+                                                  ground_truths=ground_truths)
+
+    return predictions, accuracy
+
+
 def evaluate_binary_models_from_files(g_str: str,
                                       test: bool,
                                       model_name: str,
                                       lrs: typing.Union[float, list[float]],
                                       num_epochs: int,
-                                      loss: str = 'BCE'
-                                      ):
+                                      loss: str = 'BCE'):
     g_ground_truth = data_preprocessing.train_true_fine_data if g_str == 'fine' \
         else data_preprocessing.train_true_coarse_data
     for l in data_preprocessing.get_labels(g=data_preprocessing.granularities[g_str]).values():
@@ -297,13 +338,21 @@ if __name__ == '__main__':
     #                                       num_epochs=10,
     #                                       save_files=True)
 
-    evaluate_binary_models_from_files(model_name='vit_b_16',
-                                      g_str='fine',
-                                      test=False,
-                                      lrs=0.0001,
-                                      num_epochs=10,
-                                      loss='BCE'
-                                      )
+    # evaluate_binary_models_from_files(model_name='vit_b_16',
+    #                                   g_str='fine',
+    #                                   test=False,
+    #                                   lrs=0.0001,
+    #                                   num_epochs=10,
+    #                                   loss='BCE'
+    #                                   )
+
+    run_binary_evaluating_pipeline(l=data_preprocessing.fine_grain_labels[data_preprocessing.fine_grain_classes_str[0]],
+                                   split='train',
+                                   lrs=[0.0001],
+                                   loss='BCE',
+                                   num_epochs=10,
+                                   pretrained_path=
+                                   'models/binary_models/binary_2S19_MSTA_vit_b_16_lr0.0001_loss_BCE_e10.pth')
 
     # run_combined_evaluating_pipeline(split='train',
     #                                  lrs=[0.0001],
