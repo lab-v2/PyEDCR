@@ -1390,23 +1390,27 @@ def run_combined_evaluating_pipeline(split: str,
 
 
 def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
-                                      lrs: list[typing.Union[str, float]],
+                                      lr: float,
                                       num_epochs: int,
                                       save_files: bool = True):
     for l in data_preprocessing.get_labels(g=g).values():
-        fine_tuners, loaders, devices, weight = initiate(lrs=lrs,
+
+        fine_tuners, loaders, devices, weight = initiate(lrs=[lr],
                                                          l=l)
-        for fine_tuner in fine_tuners:
-            with context_handlers.ClearSession():
-                fine_tune_binary_model(l=l,
-                                       lrs=lrs,
-                                       fine_tuner=fine_tuner,
-                                       device=devices[0],
-                                       loaders=loaders,
-                                       num_epochs=num_epochs,
-                                       save_files=save_files,
-                                       weight=weight)
-                print('#' * 100)
+        if not os.path.exists(f"models/binary_models/binary_{l}_{fine_tuners}_lr{lr}_loss_BCE_e{num_epochs - 1}.pth"):
+            for fine_tuner in fine_tuners:
+                with context_handlers.ClearSession():
+                    fine_tune_binary_model(l=l,
+                                           lrs=lrs,
+                                           fine_tuner=fine_tuner,
+                                           device=devices[0],
+                                           loaders=loaders,
+                                           num_epochs=num_epochs,
+                                           save_files=save_files,
+                                           weight=weight)
+                    print('#' * 100)
+        else:
+            print(f'Skipping {l}')
 
 
 def evaluate_binary_models(g_str: str,
@@ -1443,7 +1447,7 @@ if __name__ == '__main__':
 
     for g in data_preprocessing.granularities.values():
         run_g_binary_fine_tuning_pipeline(g=g,
-                                          lrs=[0.0001],
+                                          lr=0.0001,
                                           num_epochs=10,
                                           save_files=True)
 
