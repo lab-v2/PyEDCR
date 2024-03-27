@@ -1401,7 +1401,7 @@ def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
             for fine_tuner in fine_tuners:
                 with context_handlers.ClearSession():
                     fine_tune_binary_model(l=l,
-                                           lrs=lrs,
+                                           lrs=[lr],
                                            fine_tuner=fine_tuner,
                                            device=devices[0],
                                            loaders=loaders,
