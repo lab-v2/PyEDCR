@@ -30,8 +30,8 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
                  pred_coarse_data: np.array,
                  secondary_pred_fine_data: np.array,
                  secondary_pred_coarse_data: np.array,
-                 second_predictions_fine_data: np.array,
-                 second_predictions_coarse_data: np.array,
+                 lower_predictions_fine_data: np.array,
+                 lower_predictions_coarse_data: np.array,
                  ) -> np.array:
         pass
 
@@ -41,8 +41,8 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
                                     pred_coarse_data: np.array,
                                     secondary_pred_fine_data: np.array,
                                     secondary_pred_coarse_data: np.array,
-                                    second_predictions_fine_data: np.array,
-                                    second_predictions_coarse_data: np.array,
+                                    lower_predictions_fine_data: np.array,
+                                    lower_predictions_coarse_data: np.array,
                                     ):
         pass
 
