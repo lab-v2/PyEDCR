@@ -1398,7 +1398,7 @@ def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
         fine_tuners, loaders, devices, weight = initiate(lrs=[lr],
                                                          l=l)
         if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_{fine_tuners[0]}_lr{lr}_"
-                              f"loss_BCE_e{num_epochs - 1}.pth"):
+                              f"loss_BCE_e{num_epochs}.pth"):
             for fine_tuner in fine_tuners:
                 with context_handlers.ClearSession():
                     fine_tune_binary_model(l=l,
