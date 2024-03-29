@@ -966,7 +966,7 @@ def initiate(
                                              get_indices=get_indices)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
-          f"Total number of eval images: {len(loaders['eval'].dataset)}"
+          f"Total number of eval images: {len(loaders['train_eval'].dataset)}"
           f"Total number of test images: {len(loaders['test'].dataset)}")
 
     return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
