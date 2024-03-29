@@ -194,6 +194,14 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
         np.save(f"{vit_pipeline.individual_results_path}test_true_coarse_individual.npy", test_true_coarse_data)
 
 
+def print_fine_tuning_initialization(fine_tuner: models.FineTuner,
+                                     num_epochs: int,
+                                     lr: float,
+                                     device: torch.device):
+    print(f'\nFine-tuning {fine_tuner} with {utils.format_integer(len(fine_tuner))} '
+          f'parameters for {num_epochs} epochs using lr={lr} on {device}...')
+
+
 def fine_tune_binary_model(l: data_preprocessing.Label,
                            lrs: list[typing.Union[str, float]],
                            fine_tuner: models.FineTuner,
@@ -214,8 +222,11 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                      lr=lr)
 
-        print(f'\nFine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {num_epochs} epochs '
-              f'using lr={lr} on {device}...')
+        print_fine_tuning_initialization(fine_tuner=fine_tuner,
+                                         num_epochs=num_epochs,
+                                         lr=lr,
+                                         device=device)
+
         print('#' * 100 + '\n')
 
         for epoch in range(num_epochs):
@@ -339,8 +350,10 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         else:
             epochs = num_epochs
 
-        print(f'\nFine-tuning {fine_tuner} with {len(fine_tuner)} parameters for {epochs} epochs '
-              f'using lr={lr} on {device}...')
+        print_fine_tuning_initialization(fine_tuner=fine_tuner,
+                                         num_epochs=num_epochs,
+                                         lr=lr,
+                                         device=device)
         print('#' * 100 + '\n')
 
         for epoch in range(epochs):
@@ -533,14 +546,16 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         return train_fine_predictions, train_coarse_predictions
 
 
-def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
+def run_g_binary_fine_tuning_pipeline(vit_model_names: list[str],
+                                      g: data_preprocessing.Granularity,
                                       lr: float,
                                       num_epochs: int,
                                       save_files: bool = True):
     for l in data_preprocessing.get_labels(g=g).values():
         if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
                               f"loss_BCE_e{num_epochs}.pth"):
-            fine_tuners, loaders, devices, weight = vit_pipeline.initiate(lrs=[lr],
+            fine_tuners, loaders, devices, weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
+                                                                          lrs=[lr],
                                                                           l=l)
             for fine_tuner in fine_tuners:
                 with context_handlers.ClearSession():
@@ -557,13 +572,15 @@ def run_g_binary_fine_tuning_pipeline(g: data_preprocessing.Granularity,
             print(f'Skipping {l}')
 
 
-def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
+def run_combined_fine_tuning_pipeline(vit_model_names: list[str],
+                                      lrs: list[typing.Union[str, float]],
                                       num_epochs: int,
                                       loss: str = 'BCE',
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        vit_pipeline.initiate(lrs=lrs,
+        vit_pipeline.initiate(vit_model_names=vit_model_names,
+                              lrs=lrs,
                               combined=True,
                               debug=debug))
     for fine_tuner in fine_tuners:
@@ -579,12 +596,14 @@ def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
             print('#' * 100)
 
 
-def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
+def run_individual_fine_tuning_pipeline(vit_model_names: list[str],
+                                        lrs: list[typing.Union[str, float]],
                                         num_epochs: int,
                                         save_files: bool = True,
                                         debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices = (
-        vit_pipeline.initiate(lrs=lrs,
+        vit_pipeline.initiate(vit_model_names=vit_model_names,
+                              lrs=lrs,
                               combined=False,
                               debug=debug))
 
@@ -601,12 +620,13 @@ def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
 
 
 if __name__ == '__main__':
-    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
-    #                                   num_epochs=20,
-    #                                   loss='BCE')
+    run_combined_fine_tuning_pipeline(vit_model_names=['vit_l_16'],
+                                      lrs=[0.0001],
+                                      num_epochs=20,
+                                      loss='BCE')
 
-    for g in data_preprocessing.granularities.values():
-        run_g_binary_fine_tuning_pipeline(g=g,
-                                          lr=0.0001,
-                                          num_epochs=10,
-                                          save_files=True)
+    # for g in data_preprocessing.granularities.values():
+    #     run_g_binary_fine_tuning_pipeline(g=g,
+    #                                       lr=0.0001,
+    #                                       num_epochs=10,
+    #                                       save_files=True)

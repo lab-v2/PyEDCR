@@ -14,7 +14,7 @@ individual_results_path = fr'individual_results'
 batch_size = 256
 scheduler_gamma = 0.9
 ltn_num_epochs = 5
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
+# vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 
 def save_prediction_files(test: bool,
@@ -147,7 +147,8 @@ def get_imbalance_weights(l: data_preprocessing.Label,
     return weight
 
 
-def initiate(lrs: list[typing.Union[str, float]],
+def initiate(vit_model_names: list[str],
+             lrs: list[typing.Union[str, float]],
              combined: bool = True,
              l: data_preprocessing.Label = None,
              pretrained_path: str = None,
@@ -157,6 +158,7 @@ def initiate(lrs: list[typing.Union[str, float]],
     """
     Initializes models, datasets, and devices for training.
 
+    :param vit_model_names:
     :param l:
     :param evaluation:
     :param indices:

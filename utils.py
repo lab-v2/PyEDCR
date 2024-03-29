@@ -70,3 +70,27 @@ def red_text(s: typing.Union[str, float]) -> str:
 
 def blue_text(s: typing.Union[str, float]) -> str:
     return colored_text('blue')(s)
+
+
+def format_integer(n):
+    if n == 0:
+        return "0"
+
+    # Extracting the sign
+    sign = "-" if n < 0 else ""
+    n = abs(n)
+
+    # Finding 'a' and 'b'
+    b = 0
+    while n >= 10:
+        n /= 10
+        b += 1
+    a = int(n)
+
+    # Constructing the string representation
+    if b == 0:
+        return f"{sign}{a}"
+    else:
+        return f"{sign}{a} * 10^{b}"
+
+
