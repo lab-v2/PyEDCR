@@ -44,7 +44,7 @@ class EDCR_LTN_experiment(EDCR):
         self.scheduler_step_size = num_epochs
         self.pretrain_path = config.main_pretrained_path
         self.beta = config.beta
-        self.correction_model = []
+        self.correction_model = {}
         self.num_models = 5
 
     def fine_tune_combined_model(self,

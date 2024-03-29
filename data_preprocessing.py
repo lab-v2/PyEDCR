@@ -311,6 +311,19 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
     return datasets, num_fine_grain_classes, num_coarse_grain_classes
 
 
+class DatasetWithIndices(torch.utils.data.Dataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
+        self.indices = np.arange(len(dataset))
+
+    def __getitem__(self, index):
+        x, y_fine_grain, x_identifier, y_coarse_grain = self.dataset[index]
+        return x, y_fine_grain, x_identifier, y_coarse_grain, self.indices[index]
+
+    def __len__(self):
+        return len(self.dataset)
+
+
 def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, IndividualImageFolderWithName]],
                 batch_size: int,
                 subset_indices: typing.Sequence = None,
@@ -334,24 +347,10 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
     for dataset_type in ['train', 'test'] + (['train_eval'] if train_eval_split is not None else []):
         relevant_dataset = datasets[dataset_type if dataset_type != 'train_eval' else 'train']
         if get_indices:
-            # Create a custom Dataset to return indices
-            class DatasetWithIndices(torch.utils.data.Dataset):
-                def __init__(self, dataset):
-                    self.dataset = dataset
-                    self.indices = np.arange(len(dataset))
-
-                def __getitem__(self, index):
-                    x, y_fine_grain, x_identifier, y_coarse_grain = self.dataset[index]
-                    return x, y_fine_grain, x_identifier, y_coarse_grain, self.indices[index]
-
-                def __len__(self):
-                    return len(self.dataset)
-
-            loader_dataset = DatasetWithIndices(relevant_dataset)
-        else:
-            loader_dataset = relevant_dataset if subset_indices is None or dataset_type == 'test' \
-                else torch.utils.data.Subset(dataset=relevant_dataset,
-                                             indices=subset_indices)
+            relevant_dataset = DatasetWithIndices(relevant_dataset)
+        loader_dataset = relevant_dataset if subset_indices is None or dataset_type == 'test' \
+            else torch.utils.data.Subset(dataset=relevant_dataset,
+                                         indices=subset_indices)
 
         if train_eval_split is not None:
             dataset_size = len(loader_dataset)
