@@ -911,12 +911,7 @@ class EDCR:
                              f'{self.get_predictions(test=False)[0].shape[0]}\n'))
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            lrs=[self.lr],
-            combined=self.combined,
-            debug=False,
-            indices=examples_with_errors,
-            # train_eval_split=0.8
-        )
+            combined=self.combined, debug=False, indices=examples_with_errors, lrs=[self.lr])
 
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
@@ -944,11 +939,7 @@ class EDCR:
 
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            lrs=[self.lr],
-            combined=self.combined,
-            debug=False,
-            indices=examples_with_errors,
-            evaluation=True)
+            combined=self.combined, debug=False, indices=examples_with_errors, evaluation=True, lrs=[self.lr])
 
         (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
          fine_accuracy, coarse_accuracy) = vit_pipeline.evaluate_combined_model(

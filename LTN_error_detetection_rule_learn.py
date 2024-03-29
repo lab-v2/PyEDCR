@@ -331,12 +331,8 @@ class EDCR_LTN_experiment(EDCR):
         print('\nRule learning completed\n')
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            vit_pipeline.initiate(
-                batch_len=self.batch_size,
-                combined=self.combined,
-                pretrained_path=self.pretrain_path,
-                debug=False,
-                get_indices=True))
+            vit_pipeline.initiate(combined=self.combined, pretrained_path=self.pretrain_path, debug=False,
+                                  get_indices=True))
 
         self.correction_model[model_index] = fine_tuners[0]
 
@@ -353,11 +349,7 @@ class EDCR_LTN_experiment(EDCR):
     def run_evaluating_pipeline(self,
                                 model_index: int):
         _, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            vit_pipeline.initiate(batch_len=self.batch_size,
-                                  lrs=[self.lr],
-                                  combined=self.combined,
-                                  debug=False,
-                                  evaluation=True))
+            vit_pipeline.initiate(combined=self.combined, debug=False, evaluation=True, lrs=[self.lr]))
 
         _, _, fine_predictions, coarse_prediction = self.evaluate_combine_model(
             fine_tuner=self.correction_model[model_index],

@@ -888,7 +888,6 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
 
 def initiate(
-
         combined: bool,
         pretrained_path: str = None,
         debug: bool = False,
@@ -896,7 +895,6 @@ def initiate(
         evaluation: bool = None,
         train_eval_split: float = None,
         get_indices: bool = None,
-        batch_len: int = None,
         lrs: list[typing.Union[str, float]] = None):
     """
     Initializes models, datasets, and devices for training.
@@ -961,13 +959,14 @@ def initiate(
 
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(datasets=datasets,
-                                             batch_size=batch_len if batch_len is not None else batch_size,
+                                             batch_size=batch_size,
                                              subset_indices=indices,
                                              evaluation=evaluation,
                                              train_eval_split=train_eval_split,
                                              get_indices=get_indices)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
+          f"Total number of eval images: {len(loaders['eval'].dataset)}"
           f"Total number of test images: {len(loaders['test'].dataset)}")
 
     return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
@@ -979,9 +978,8 @@ def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
                                       debug: bool = utils.is_debug_mode(),
                                       DC_i=None,
                                       CC_i=None):
-    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(lrs=lrs,
-                                                                                               combined=True,
-                                                                                               debug=debug)
+    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=True,
+                                                                                               debug=debug, lrs=lrs)
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
             fine_tune_combined_model(lrs=lrs,
@@ -1001,9 +999,8 @@ def run_combined_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
 def run_individual_fine_tuning_pipeline(lrs: list[typing.Union[str, float]],
                                         save_files: bool = True,
                                         debug: bool = utils.is_debug_mode()):
-    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(lrs=lrs,
-                                                                                               combined=False,
-                                                                                               debug=debug)
+    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = initiate(combined=False,
+                                                                                               debug=debug, lrs=lrs)
 
     for fine_tuner in fine_tuners:
         print(f'Initiating {fine_tuner}')
@@ -1049,12 +1046,8 @@ def run_combined_evaluating_pipeline(split: str,
              - coarse_accuracy: Coarse-grained accuracy score.
     """
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        initiate(lrs=lrs,
-                 combined=True,
-                 pretrained_path=pretrained_path,
-                 debug=debug,
-                 indices=indices,
-                 evaluation=True))
+        initiate(combined=True, pretrained_path=pretrained_path, debug=debug, indices=indices, evaluation=True,
+                 lrs=lrs))
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
      fine_accuracy, coarse_accuracy) = evaluate_combined_model(
