@@ -354,7 +354,7 @@ if __name__ == '__main__':
                                      lrs=[0.0001],
                                      loss='BCE',
                                      num_epochs=20,
-                                     pretrained_path='vit_l_16_BCE_lr0.0001.pth',
+                                     pretrained_path='vit_l_16_lr0.0001_BCE.pth',
                                      save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
