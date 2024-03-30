@@ -192,7 +192,8 @@ def evaluate_binary_model(l: data_preprocessing.Label,
     return ground_truths, predictions, accuracy
 
 
-def run_combined_evaluating_pipeline(split: str,
+def run_combined_evaluating_pipeline(model_name: str,
+                                     split: str,
                                      lrs: list[typing.Union[str, float]],
                                      loss: str,
                                      num_epochs: int,
@@ -206,6 +207,7 @@ def run_combined_evaluating_pipeline(split: str,
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
+    :param model_name:
     :param num_epochs:
     :param lower_predictions_indices:
     :param split:
@@ -227,7 +229,8 @@ def run_combined_evaluating_pipeline(split: str,
              - coarse_accuracy: Coarse-grained accuracy score.
     """
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        vit_pipeline.initiate(lrs=lrs,
+        vit_pipeline.initiate(vit_model_names=[model_name],
+                              lrs=lrs,
                               combined=True,
                               pretrained_path=pretrained_path,
                               debug=debug,
@@ -262,7 +265,8 @@ def run_combined_evaluating_pipeline(split: str,
     return fine_predictions, coarse_predictions
 
 
-def run_binary_evaluating_pipeline(l: data_preprocessing.Label,
+def run_binary_evaluating_pipeline(model_name: str,
+                                   l: data_preprocessing.Label,
                                    split: str,
                                    lrs: list[typing.Union[str, float]],
                                    loss: str,
@@ -273,7 +277,8 @@ def run_binary_evaluating_pipeline(l: data_preprocessing.Label,
                                    debug: bool = utils.is_debug_mode(),
                                    print_results: bool = True):
     fine_tuners, loaders, devices, weight = (
-        vit_pipeline.initiate(l=l,
+        vit_pipeline.initiate(vit_model_names=[model_name],
+                              l=l,
                               lrs=lrs,
                               pretrained_path=pretrained_path,
                               debug=debug,
@@ -344,7 +349,8 @@ if __name__ == '__main__':
     #                                pretrained_path=
     #                                'models/binary_models/binary_2S19_MSTA_vit_b_16_lr0.0001_loss_BCE_e10.pth')
 
-    run_combined_evaluating_pipeline(split='test',
+    run_combined_evaluating_pipeline(model_name='vit_l_16',
+                                     split='test',
                                      lrs=[0.0001],
                                      loss='BCE',
                                      num_epochs=20,
