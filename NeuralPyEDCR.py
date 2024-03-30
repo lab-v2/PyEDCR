@@ -171,7 +171,7 @@ if __name__ == '__main__':
                                     lr=0.0001,
                                     original_num_epochs=20,
                                     include_inconsistency_constraint=False,
-                                    secondary_model_name='vit_l_16_soft_marginal',
+                                    secondary_model_name='vit_l_16_BCE',
                                     # lower_predictions_indices=lower_predictions_indices,
                                     EDCR_num_epochs=EDCR_num_epochs,
                                     neural_num_epochs=neural_num_epochs)
