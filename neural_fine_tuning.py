@@ -505,7 +505,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
 
                 print('#' * 100)
 
-                if (epoch == num_epochs - 1) and save_files:
+                if (epoch == num_epochs) and save_files:
                     vit_pipeline.save_prediction_files(test=False,
                                                        fine_tuners=fine_tuner,
                                                        combined=True,
