@@ -93,7 +93,7 @@ class EDCR:
                                 for g in data_preprocessing.granularities.values()}
 
         if self.secondary_model_name is not None:
-            secondary_loss = secondary_model_name.split(f'{main_model_name}_')[1]
+            secondary_loss = secondary_model_name.split('_')[-1]
             pred_paths['secondary_model'] = {
                 'test' if test else 'train': {g_str: models.get_filepath(model_name=main_model_name,
                                                                          combined=combined,
