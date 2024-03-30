@@ -622,7 +622,7 @@ def run_individual_fine_tuning_pipeline(vit_model_names: list[str],
 if __name__ == '__main__':
     run_combined_fine_tuning_pipeline(vit_model_names=['vit_l_16'],
                                       lrs=[0.0001],
-                                      num_epochs=15,
+                                      num_epochs=1,
                                       loss='BCE')
 
     # for g in data_preprocessing.granularities.values():
