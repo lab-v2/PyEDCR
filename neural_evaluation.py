@@ -328,16 +328,6 @@ def evaluate_binary_models_from_files(g_str: str,
 
 
 if __name__ == '__main__':
-    # run_combined_fine_tuning_pipeline(lrs=[0.0001],
-    #                                   num_epochs=20,
-    #                                   loss='BCE')
-
-    # for g in data_preprocessing.granularities.values():
-    #     run_g_binary_fine_tuning_pipeline(g=g,
-    #                                       lr=0.0001,
-    #                                       num_epochs=10,
-    #                                       save_files=True)
-
     # evaluate_binary_models_from_files(model_name='vit_b_16',
     #                                   g_str='fine',
     #                                   test=False,
@@ -346,21 +336,20 @@ if __name__ == '__main__':
     #                                   loss='BCE'
     #                                   )
 
-    run_binary_evaluating_pipeline(l=data_preprocessing.fine_grain_labels[data_preprocessing.fine_grain_classes_str[0]],
-                                   split='train',
-                                   lrs=[0.0001],
-                                   loss='BCE',
-                                   num_epochs=10,
-                                   pretrained_path=
-                                   'models/binary_models/binary_2S19_MSTA_vit_b_16_lr0.0001_loss_BCE_e10.pth')
+    # run_binary_evaluating_pipeline(l=data_preprocessing.fine_grain_labels[data_preprocessing.fine_grain_classes_str[0]],
+    #                                split='train',
+    #                                lrs=[0.0001],
+    #                                loss='BCE',
+    #                                num_epochs=10,
+    #                                pretrained_path=
+    #                                'models/binary_models/binary_2S19_MSTA_vit_b_16_lr0.0001_loss_BCE_e10.pth')
 
-    # run_combined_evaluating_pipeline(split='train',
-    #                                  lrs=[0.0001],
-    #                                  loss='BCE',
-    #                                  num_epochs=20,
-    #                                  pretrained_path='models/vit_b_16_BCE_lr0.0001.pth',
-    #                                  save_files=True,
-    #                                  lower_predictions_indices=[2, 3, 4, 5])
+    run_combined_evaluating_pipeline(split='test',
+                                     lrs=[0.0001],
+                                     loss='BCE',
+                                     num_epochs=20,
+                                     pretrained_path='vit_l_16_BCE_lr0.0001.pth',
+                                     save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],

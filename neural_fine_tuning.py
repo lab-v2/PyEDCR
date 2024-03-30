@@ -539,9 +539,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                 np.save(f"{vit_pipeline.combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
             if loss.split('_')[0] == 'LTN':
-                torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
+                torch.save(fine_tuner.state_dict(), f"models/{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
             else:
-                torch.save(fine_tuner.state_dict(), f"{fine_tuner}_lr{lr}_{loss}.pth")
+                torch.save(fine_tuner.state_dict(), f"models/{fine_tuner}_lr{lr}_{loss}.pth")
 
         return train_fine_predictions, train_coarse_predictions
 
