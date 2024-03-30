@@ -52,7 +52,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print(utils.red_text(f'\nNumber of errors: {len(examples_with_errors)} / '
                              f'{self.get_predictions(test=False)[0].shape[0]}\n'))
 
-        fine_tuners, loaders, devices = vit_pipeline.initiate(
+        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             lrs=[self.lr],
             combined=self.combined,
             debug=False,
@@ -107,7 +107,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
     def apply_new_model_on_test(self,
                                 print_results: bool = True):
         new_fine_predictions, new_coarse_predictions = (
-            neural_evaluation.run_combined_evaluating_pipeline(split='test',
+            neural_evaluation.run_combined_evaluating_pipeline(model_name='vit_b_16',
+                                                               split='test',
                                                                lrs=[self.lr],
                                                                loss=self.loss,
                                                                num_epochs=self.neural_num_epochs,
