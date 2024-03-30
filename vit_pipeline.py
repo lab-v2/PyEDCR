@@ -14,6 +14,8 @@ individual_results_path = fr'individual_results'
 batch_size = 64
 scheduler_gamma = 0.9
 ltn_num_epochs = 5
+
+
 # vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 
@@ -147,8 +149,8 @@ def get_imbalance_weights(l: data_preprocessing.Label,
     return weight
 
 
-def initiate(vit_model_names: list[str],
-             lrs: list[typing.Union[str, float]],
+def initiate(lrs: list[typing.Union[str, float]],
+             vit_model_names: list[str] = ['vit_b_16'],
              combined: bool = True,
              l: data_preprocessing.Label = None,
              pretrained_path: str = None,
