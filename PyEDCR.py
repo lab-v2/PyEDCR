@@ -506,7 +506,8 @@ class EDCR:
                                                           secondary_fine_data=secondary_train_pred_fine_data,
                                                           secondary_coarse_data=secondary_train_pred_coarse_data,
                                                           lower_predictions_fine_data=lower_train_pred_fine_data,
-                                                          lower_predictions_coarse_data=lower_train_pred_coarse_data))
+                                                          lower_predictions_coarse_data=lower_train_pred_coarse_data,
+                                                          binary_data={}))
         where_train_tp_l = self.get_where_tp_l(test=False, l=l, stage=stage)
         NEG_l = np.sum(where_train_tp_l * where_any_conditions_satisfied_on_train)
 
@@ -533,7 +534,8 @@ class EDCR:
                                                           secondary_fine_data=secondary_train_pred_fine_data,
                                                           secondary_coarse_data=secondary_train_pred_coarse_data,
                                                           lower_predictions_fine_data=lower_train_pred_fine_data,
-                                                          lower_predictions_coarse_data=lower_train_pred_coarse_data
+                                                          lower_predictions_coarse_data=lower_train_pred_coarse_data,
+                                                          binary_data={}
                                                           ))
         BOD_l = np.sum(where_any_conditions_satisfied_on_train)
 
@@ -566,8 +568,8 @@ class EDCR:
                                                           secondary_fine_data=secondary_train_pred_fine_data,
                                                           secondary_coarse_data=secondary_train_pred_coarse_data,
                                                           lower_predictions_fine_data=lower_train_pred_fine_data,
-                                                          lower_predictions_coarse_data=lower_train_pred_coarse_data
-                                                          ))
+                                                          lower_predictions_coarse_data=lower_train_pred_coarse_data,
+                                                          binary_data={}))
         POS_l = np.sum(where_was_wrong_with_respect_to_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
