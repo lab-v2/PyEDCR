@@ -350,7 +350,7 @@ if __name__ == '__main__':
     #                                'models/binary_models/binary_2S19_MSTA_vit_b_16_lr0.0001_loss_BCE_e10.pth')
 
     run_combined_evaluating_pipeline(model_name='vit_l_16',
-                                     split='test',
+                                     split='train',
                                      lrs=[0.0001],
                                      loss='BCE',
                                      num_epochs=20,
