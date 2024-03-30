@@ -193,14 +193,14 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
 
 
 def compute_sat_testing_value(logits_to_predicate: torch.nn.Module,
-                              train_pred_fine_batch: torch.tensor,
-                              train_pred_coarse_batch: torch.tensor,
-                              train_true_fine_batch: torch.tensor,
-                              train_true_coarse_batch: torch.tensor,
-                              original_train_pred_fine_batch: torch.tensor,
-                              original_train_pred_coarse_batch: torch.tensor,
-                              original_secondary_train_pred_fine_batch: torch.tensor,
-                              original_secondary_train_pred_coarse_batch: torch.tensor,
+                              pred_fine_batch: torch.tensor,
+                              pred_coarse_batch: torch.tensor,
+                              true_fine_batch: torch.tensor,
+                              true_coarse_batch: torch.tensor,
+                              original_pred_fine_batch: torch.tensor,
+                              original_pred_coarse_batch: torch.tensor,
+                              original_secondary_pred_fine_batch: torch.tensor,
+                              original_secondary_pred_coarse_batch: torch.tensor,
                               error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule],
                               device: torch.device):
     """
@@ -233,24 +233,24 @@ def compute_sat_testing_value(logits_to_predicate: torch.nn.Module,
         Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction: conds_predicate(
             examples=x,
             prediction=prediction,
-            cond_fine_data=original_train_pred_fine_batch,
-            cond_coarse_data=original_train_pred_coarse_batch,
-            cond_second_fine_data=original_secondary_train_pred_fine_batch,
-            cond_second_coarse_data=original_secondary_train_pred_coarse_batch,
+            cond_fine_data=original_pred_fine_batch,
+            cond_coarse_data=original_pred_coarse_batch,
+            cond_second_fine_data=original_secondary_pred_fine_batch,
+            cond_second_coarse_data=original_secondary_pred_coarse_batch,
             conds=error_detection_rules[l].C_l,
             device=device))
 
-    True_predicate = ltn.Predicate(func=lambda x, train_true_batch: true_predicate(
+    True_predicate = ltn.Predicate(func=lambda x, true_batch: true_predicate(
         examples=x,
-        true_data=train_true_batch,
+        true_data=true_batch,
         device=device)
                                    )
 
     # Define constant: already done in data_preprocessing.py
-    pred_fine_data = ltn.Constant(train_pred_fine_batch)
-    pred_coarse_data = ltn.Constant(train_pred_coarse_batch)
-    true_fine_data = ltn.Constant(train_true_fine_batch)
-    true_coarse_data = ltn.Constant(train_true_coarse_batch)
+    pred_fine_data = ltn.Constant(pred_fine_batch)
+    pred_coarse_data = ltn.Constant(pred_coarse_batch)
+    true_fine_data = ltn.Constant(true_fine_batch)
+    true_coarse_data = ltn.Constant(true_coarse_batch)
     label_one_hot = {}
     for l in data_preprocessing.get_labels(g_fine).values():
         one_hot = torch.zeros(len(data_preprocessing.fine_grain_classes_str))
@@ -264,15 +264,15 @@ def compute_sat_testing_value(logits_to_predicate: torch.nn.Module,
 
     # Define variables
     x_variables = {}
-    x_fine = ltn.Variable("x_fine", train_pred_fine_batch)
-    x_coarse = ltn.Variable("x_coarse", train_pred_coarse_batch)
+    x_fine = ltn.Variable("x_fine", pred_fine_batch)
+    x_coarse = ltn.Variable("x_coarse", pred_coarse_batch)
 
     for l in data_preprocessing.get_labels(g=g_fine).values():
         x_variables[l] = ltn.Variable(
-            str(l), train_pred_fine_batch[train_pred_fine_batch == l.index])
+            str(l), pred_fine_batch[pred_fine_batch == l.index])
     for l in data_preprocessing.get_labels(g=g_coarse).values():
         x_variables[l] = ltn.Variable(
-            str(l), train_pred_coarse_batch[train_pred_coarse_batch == l.index])
+            str(l), pred_coarse_batch[pred_coarse_batch == l.index])
 
     sat_agg_list = []
     sat_agg_average_score = 0
