@@ -27,8 +27,8 @@ def save_prediction_files(test: bool,
                           loss: str = 'BCE',
                           fine_ground_truths: np.array = None,
                           coarse_ground_truths: np.array = None,
-                          fine_lower_predictions: dict[int, list] = [],
-                          coarse_lower_predictions: dict[int, list] = None):
+                          fine_lower_predictions: dict[int, list] = {},
+                          coarse_lower_predictions: dict[int, list] = {}):
     """
     Saves prediction files and optional ground truth files.
 
