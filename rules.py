@@ -54,9 +54,13 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
                                            secondary_coarse_data: np.array,
                                            lower_predictions_fine_data: np.array,
                                            lower_predictions_coarse_data: np.array,
+                                           binary_data: dict[data_preprocessing.Label, np.array],
                                            ) -> np.array:
         """Checks where any given conditions are satisfied.
 
+        :param lower_predictions_coarse_data:
+        :param lower_predictions_fine_data:
+        :param binary_data:
         :param lower_predictions_coarse_data:
         :param lower_predictions_fine_data:
         :param secondary_fine_data:
@@ -74,7 +78,8 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
                                             secondary_fine_data=secondary_fine_data,
                                             secondary_coarse_data=secondary_coarse_data,
                                             lower_predictions_fine_data=lower_predictions_fine_data,
-                                            lower_predictions_coarse_data=lower_predictions_coarse_data)
+                                            lower_predictions_coarse_data=lower_predictions_coarse_data,
+                                            binary_data=binary_data)
 
         return any_condition_satisfied
 
@@ -103,6 +108,7 @@ class ErrorDetectionRule(Rule):
                                     secondary_pred_coarse_data: np.array,
                                     lower_predictions_fine_data: np.array,
                                     lower_predictions_coarse_data: np.array,
+                                    binary_data: dict[data_preprocessing.Label, np.array] = None
                                     ) -> np.array:
         test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
             else pred_coarse_data
@@ -114,7 +120,8 @@ class ErrorDetectionRule(Rule):
                                                     secondary_fine_data=secondary_pred_fine_data,
                                                     secondary_coarse_data=secondary_pred_coarse_data,
                                                     lower_predictions_fine_data=lower_predictions_fine_data,
-                                                    lower_predictions_coarse_data=lower_predictions_coarse_data))
+                                                    lower_predictions_coarse_data=lower_predictions_coarse_data,
+                                                    binary_data=binary_data))
         where_body_is_satisfied = where_predicted_l * where_any_conditions_satisfied
 
         return where_body_is_satisfied
@@ -126,7 +133,7 @@ class ErrorDetectionRule(Rule):
                  secondary_pred_coarse_data: np.array,
                  lower_predictions_fine_data: dict,
                  lower_predictions_coarse_data: dict,
-                 ) -> np.array:
+                 binary_data: dict[data_preprocessing.Label, np.array] = None) -> np.array:
         """Infer the detection rule based on the provided prediction data.
 
         :param pred_fine_data: The fine-grained prediction data.
@@ -142,8 +149,8 @@ class ErrorDetectionRule(Rule):
                                              secondary_pred_fine_data=secondary_pred_fine_data,
                                              secondary_pred_coarse_data=secondary_pred_coarse_data,
                                              lower_predictions_fine_data=lower_predictions_fine_data,
-                                             lower_predictions_coarse_data=lower_predictions_coarse_data
-                                             ))
+                                             lower_predictions_coarse_data=lower_predictions_coarse_data,
+                                             binary_data=binary_data))
         altered_pred_data = np.where(where_predicted_l_and_any_conditions_satisfied == 1, -1,
                                      test_pred_granularity_data)
 
@@ -175,7 +182,7 @@ class ErrorCorrectionRule(Rule):
                                     secondary_pred_coarse_data: np.array,
                                     lower_predictions_fine_data: dict,
                                     lower_predictions_coarse_data: dict,
-                                    ) -> np.array:
+                                    binary_data: dict[data_preprocessing.Label, np.array] = None) -> np.array:
         test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
             else pred_coarse_data
 
@@ -189,7 +196,8 @@ class ErrorCorrectionRule(Rule):
                                                         secondary_fine_data=secondary_pred_fine_data,
                                                         secondary_coarse_data=secondary_pred_coarse_data,
                                                         lower_predictions_fine_data=lower_predictions_fine_data,
-                                                        lower_predictions_coarse_data=lower_predictions_coarse_data
+                                                        lower_predictions_coarse_data=lower_predictions_coarse_data,
+                                                        binary_data=binary_data
                                                         ))
             where_predicted_l_prime = self.get_where_predicted_l(data=test_pred_granularity_data,
                                                                  l_prime=l_prime)
@@ -225,5 +233,15 @@ class ErrorCorrectionRule(Rule):
 
         return altered_pred_data
 
-    def __str__(self) -> str:
-        return '\n'.join(f'corr_{self.l}(x) <- {cond}(x) ^ pred_{l_prime}(x)' for (cond, l_prime) in self.C_l)
+    def __str__(self):
+        conditions_str = []
+        for cond_set, l_prime in self.C_l:
+            # Check if cond_set is a set (adjust for other iterable types if needed)
+            if isinstance(cond_set, set) or isinstance(cond_set, tuple):
+                # Use set comprehension for concise condition representation
+                condition_str = " ^ ".join(f"{c}(x)" for c in cond_set)
+                conditions_str.append(f'corr_{self.l}(x) <- {condition_str} ^ pred_{l_prime}(x)')
+            else:
+                # Handle cases where cond_set isn't a set (optional, add logic as needed)
+                conditions_str.append(f'corr_{self.l}(x) <- {cond_set}(x) ^ pred_{l_prime}(x)')
+        return '\n'.join(conditions_str)

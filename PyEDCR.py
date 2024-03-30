@@ -291,6 +291,31 @@ class EDCR:
                                              original_pred_fine_data=original_pred_fine_data,
                                              original_pred_coarse_data=original_pred_coarse_data)
 
+        # Calculate boolean masks for each condition
+        correct_coarse_incorrect_fine = np.logical_and(pred_coarse_data == true_coarse_data,
+                                                       pred_fine_data != true_fine_data)
+        incorrect_coarse_correct_fine = np.logical_and(pred_coarse_data != true_coarse_data,
+                                                       pred_fine_data == true_fine_data)
+        incorrect_both = np.logical_and(pred_coarse_data != true_coarse_data, pred_fine_data != true_fine_data)
+        correct_both = np.logical_and(pred_coarse_data == true_coarse_data,
+                                      pred_fine_data == true_fine_data)  # for completeness
+
+        # Calculate total number of examples
+        total_examples = len(pred_coarse_data) # Assuming shapes are compatible
+
+        fractions = {
+            'correct_coarse_incorrect_fine': np.sum(correct_coarse_incorrect_fine) / total_examples,
+            'incorrect_coarse_correct_fine': np.sum(incorrect_coarse_correct_fine) / total_examples,
+            'incorrect_both': np.sum(incorrect_both) / total_examples,
+            'correct_both': np.sum(correct_both) / total_examples
+        }
+
+        print(f"fraction of error associate with each type: \n",
+              f"correct_coarse_incorrect_fine: {round(fractions['correct_coarse_incorrect_fine'], 2)} \n",
+              f"incorrect_coarse_correct_fine: {round(fractions['incorrect_coarse_correct_fine'], 2)} \n",
+              f"incorrect_both: {round(fractions['incorrect_both'], 2)} \n",
+              f"correct_both: {round(fractions['correct_both'], 2)} \n")
+
     def get_where_predicted_correct(self,
                                     test: bool,
                                     g: data_preprocessing.Granularity,
