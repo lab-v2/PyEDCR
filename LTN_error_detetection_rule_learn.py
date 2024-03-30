@@ -227,7 +227,7 @@ class EDCR_LTN_experiment(EDCR):
 
         print('\nRule learning completed\n')
 
-        print('\nStarted train and eval LTN model pipeline...\n')
+        print(f'\nStarted train and eval LTN model {model_index}...\n')
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
             vit_pipeline.initiate(combined=self.combined, pretrained_path=self.pretrain_path, debug=False,
@@ -249,7 +249,7 @@ class EDCR_LTN_experiment(EDCR):
 
                 self.fine_tune_and_evaluate_combined_model(
                     fine_tuner=self.correction_model[model_index],
-                    device=torch.device('cpu'),
+                    device=devices[0],
                     loaders=loaders,
                     loss=self.loss,
                     epoch=epoch,
@@ -260,7 +260,7 @@ class EDCR_LTN_experiment(EDCR):
 
                 training_fine_accuracy, training_coarse_accuracy, _, _ = self.fine_tune_and_evaluate_combined_model(
                     fine_tuner=self.correction_model[model_index],
-                    device=torch.device('cpu'),
+                    device=devices[0],
                     loaders=loaders,
                     loss=self.loss,
                     epoch=epoch,
@@ -276,18 +276,21 @@ class EDCR_LTN_experiment(EDCR):
                 if epoch >= 6 and slicing_window_last <= slicing_window_before_last:
                     break
 
-        print('finish train and eval ')
+        print('\nfinish train and eval!\n')
 
         print('#' * 100)
 
     def run_evaluating_pipeline(self,
                                 model_index: int):
+
+        print(f'\nStarted testing LTN model {model_index}...\n')
+
         _, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
             vit_pipeline.initiate(combined=self.combined, debug=False, evaluation=True, lrs=[self.lr], get_indices=True))
 
         _, _, fine_predictions, coarse_prediction = self.fine_tune_and_evaluate_combined_model(
             fine_tuner=self.correction_model[model_index],
-            device=torch.device('cpu'),
+            device=devices[0],
             loaders=loaders,
             loss=self.loss,
             mode='test'
