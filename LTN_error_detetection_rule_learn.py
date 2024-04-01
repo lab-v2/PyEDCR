@@ -45,7 +45,7 @@ class EDCR_LTN_experiment(EDCR):
         self.pretrain_path = config.main_pretrained_path
         self.beta = config.beta
         self.correction_model = {}
-        self.num_models = 3
+        self.num_models = 5
 
     def fine_tune_and_evaluate_combined_model(self,
                                               fine_tuner: models.FineTuner,
@@ -184,7 +184,6 @@ class EDCR_LTN_experiment(EDCR):
 
                     del X, Y_fine_grain, Y_coarse_grain, indices, Y_pred_fine_grain, Y_pred_coarse_grain
 
-
         fine_accuracy, coarse_accuracy = vit_pipeline.get_and_print_post_epoch_metrics(
             epoch=epoch,
             num_batches=num_batches,
@@ -276,7 +275,7 @@ class EDCR_LTN_experiment(EDCR):
                 if epoch >= 6 and slicing_window_last <= slicing_window_before_last:
                     break
 
-        print('\nfinish train and eval!\n')
+        print(f'\nfinish train and eval model {model_index}!\n')
 
         print('#' * 100)
 
@@ -286,7 +285,8 @@ class EDCR_LTN_experiment(EDCR):
         print(f'\nStarted testing LTN model {model_index}...\n')
 
         _, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            vit_pipeline.initiate(combined=self.combined, debug=False, evaluation=True, lrs=[self.lr], get_indices=True))
+            vit_pipeline.initiate(combined=self.combined, debug=False, evaluation=True, lrs=[self.lr],
+                                  get_indices=True))
 
         _, _, fine_predictions, coarse_prediction = self.fine_tune_and_evaluate_combined_model(
             fine_tuner=self.correction_model[model_index],
@@ -299,7 +299,7 @@ class EDCR_LTN_experiment(EDCR):
 
     def get_majority_vote(self,
                           predictions: dict[int, list],
-                          g: str):
+                          g: data_preprocessing.Granularity):
         """
         Performs majority vote on a list of 1D numpy arrays representing predictions.
 
@@ -312,7 +312,8 @@ class EDCR_LTN_experiment(EDCR):
         """
         # Count the occurrences of each class for each example (axis=0)
         all_prediction = torch.zeros_like(torch.nn.functional.one_hot(torch.tensor(predictions[0]),
-                                                                      num_classes=len(data_preprocessing.get_labels(g))))
+                                                                      num_classes=len(
+                                                                          data_preprocessing.get_labels(g))))
         for i in range(self.num_models):
             all_prediction += torch.nn.functional.one_hot(torch.tensor(predictions[i]),
                                                           num_classes=len(data_preprocessing.get_labels(g)))
@@ -328,10 +329,24 @@ class EDCR_LTN_experiment(EDCR):
             self.run_learning_pipeline(model_index=i)
             fine_prediction[i], coarse_prediction[i] = self.run_evaluating_pipeline(model_index=i)
 
+        print("\nGot all the prediction from test model!\n")
+
         final_fine_prediction = self.get_majority_vote(fine_prediction,
-                                                       g='fine')
+                                                       g=data_preprocessing.granularities['fine'])
         final_coarse_prediction = self.get_majority_vote(coarse_prediction,
-                                                         g='coarse')
+                                                         g=data_preprocessing.granularities['coarse'])
+
+        np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_fine_{self.loss}_"
+                f"lr_{self.lr}_batch_size_{self.batch_size}_"
+                f"ltn_epoch_{self.num_epochs}_"
+                f"beta_{self.beta}_num_model_{self.num_models}.py",
+                np.array(final_fine_prediction))
+
+        np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_coarse_{self.loss}_"
+                f"lr_{self.lr}_batch_size_{self.batch_size}_"
+                f"ltn_epoch_{self.num_epochs}_"
+                f"beta_{self.beta}_num_model_{self.num_models}.py",
+                np.array(final_fine_prediction))
 
         vit_pipeline.get_and_print_metrics(pred_fine_data=np.array(final_fine_prediction),
                                            pred_coarse_data=np.array(final_coarse_prediction),
