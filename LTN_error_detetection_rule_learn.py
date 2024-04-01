@@ -356,7 +356,7 @@ class EDCR_LTN_experiment(EDCR):
                                                g=data_preprocessing.granularities['fine']),
                                            true_coarse_data=data_preprocessing.get_ground_truths(
                                                test=True,
-                                               g=data_preprocessing.granularities['fine']),
+                                               g=data_preprocessing.granularities['coarse']),
                                            test=True)
 
 
