@@ -101,7 +101,7 @@ def get_ground_truths(test: bool,
                       K: List[int] = None,
                       g: Granularity = None) -> np.array:
     if K is None:
-        K = [(0, len(test_true_coarse_data) - 1)]
+        K = [idx for idx in range(0, len(test_true_coarse_data) - 1)]
     if test:
         true_fine_data = test_true_fine_data
         true_coarse_data = test_true_coarse_data
