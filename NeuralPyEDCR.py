@@ -42,22 +42,33 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
     def run_training_new_model_pipeline(self):
 
-        examples_with_errors = set()
+        perceived_examples_with_errors = set()
         for g in data_preprocessing.granularities.values():
-            examples_with_errors = examples_with_errors.union(set(
+            perceived_examples_with_errors = perceived_examples_with_errors.union(set(
                 np.where(self.get_predictions(test=False, g=g, stage='post_detection') == -1)[0]))
 
-        examples_with_errors = np.array(list(examples_with_errors))
+        perceived_examples_with_errors = np.array(list(perceived_examples_with_errors))
 
-        print(utils.red_text(f'\nNumber of errors: {len(examples_with_errors)} / '
-                             f'{self.get_predictions(test=False)[0].shape[0]}\n'))
+        actual_examples_with_errors = set()
+        for g in data_preprocessing.granularities.values():
+            actual_examples_with_errors = actual_examples_with_errors.union(set(
+                self.get_where_predicted_incorrect(test=False, g=g)[0]))
+
+        actual_examples_with_errors = np.array(list(actual_examples_with_errors))
+
+        total_num_of_train_images = self.get_predictions(test=False)[0].shape[0]
+        print(utils.red_text(f'\nNumber of perceived errors: {len(perceived_examples_with_errors)} / '
+                             f'{total_num_of_train_images}\n'))
+        print(utils.red_text(f'\nNumber of actual errors: {len(actual_examples_with_errors)} / '
+                             f'{total_num_of_train_images}\n'))
+
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             vit_model_names=[self.main_model_name],
             lrs=[self.lr],
             combined=self.combined,
             debug=False,
-            indices=examples_with_errors
+            indices=perceived_examples_with_errors
             # pretrained_path='models/vit_b_16_BCE_lr0.0001.pth'
             # train_eval_split=0.8
         )
@@ -90,7 +101,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             lrs=[self.lr],
             combined=self.combined,
             debug=False,
-            indices=examples_with_errors,
+            indices=perceived_examples_with_errors,
             evaluation=True)
 
         evaluation_return_values = neural_evaluation.evaluate_combined_model(
@@ -102,9 +113,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print_results=False)
 
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['fine']][
-            examples_with_errors] = evaluation_return_values[2]
+            perceived_examples_with_errors] = evaluation_return_values[2]
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['coarse']][
-            examples_with_errors] = evaluation_return_values[3]
+            perceived_examples_with_errors] = evaluation_return_values[3]
 
     def apply_new_model_on_test(self,
                                 print_results: bool = True):
