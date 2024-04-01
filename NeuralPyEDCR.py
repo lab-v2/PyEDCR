@@ -165,8 +165,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
 
-    for EDCR_num_epochs in [5]:
-        for neural_num_epochs in [5]:
+    for EDCR_num_epochs in [1]:
+        for neural_num_epochs in [1]:
             # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
             print('\n' + '#' * 100 + '\n' +
                   utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}'
