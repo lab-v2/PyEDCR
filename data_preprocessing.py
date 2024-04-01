@@ -207,16 +207,24 @@ def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose
 
     standard_transforms = [torchvision.transforms.ToTensor(),
                            torchvision.transforms.Normalize(means, stds)]
-    train_transforms = [torchvision.transforms.RandomResizedCrop(resize_num),
-                        torchvision.transforms.RandomHorizontalFlip()]
-    test_transforms = [torchvision.transforms.Resize(int(resize_num / 224 * 256)),
+    train_transforms = [
+        torchvision.transforms.RandomResizedCrop(resize_num),
+        torchvision.transforms.RandomHorizontalFlip(),
+        torchvision.transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        torchvision.transforms.RandomRotation(degrees=15),
+        torchvision.transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=10),
+        torchvision.transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
+        torchvision.transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+        torchvision.transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0, inplace=False),
+    ]
+    test_transforms = [torchvision.transforms.Resize(256),
                        torchvision.transforms.CenterCrop(resize_num)]
     return torchvision.transforms.Compose(
         (train_transforms if train_or_test == 'train' else test_transforms) + standard_transforms)
 
 
-class EDCRImageFolder(torchvision.datasets.ImageFolder):
-    def find_classes(self, directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
+class EDCRImageFolder(torchvision.datasets.ImageFolder, abc.ABC):
+    def find_classes(self, directory: str) -> (List[str], typing.Dict[str, int]):
         classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir() and
                          not entry.name.startswith('.'))
         if not classes:
@@ -225,31 +233,33 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
         class_to_idx = {cls_name: index for index, cls_name in enumerate(classes)}
         return classes, class_to_idx
 
+    def __getitem__(self, index: int):
+        pass
+
+    def __len__(self):
+        return super().__len__() * 2  # Double the dataset size to accommodate both original and transformed images
+
 
 class CombinedImageFolderWithName(EDCRImageFolder):
-    """
-    Subclass of torchvision.datasets for a combined coarse and fine grain models that returns an image with its filename
-    """
+    def __getitem__(self, index: int) -> (torch.Tensor, int, str):
+        original_index = index % len(self.samples)  # Use modulo to cycle between original and transformed images
+        transform_applied = index >= len(self.samples)  # Check if the index is in the second half
 
-    def __getitem__(self,
-                    index: int) -> (torch.tensor, int, str):
-        """
-        Returns one image from the dataset
-
-        Parameters
-        ----------
-
-        index: Index of the image in the dataset
-        """
-
-        path, y_fine_grain = self.samples[index]
-        y_coarse_grain = fine_to_course_idx[y_fine_grain]
+        path, y_fine_grain = self.samples[original_index]
+        y_coarse_grain = fine_to_course_idx[y_fine_grain]  # Assuming fine_to_course_idx is defined elsewhere
         x = self.loader(path)
 
         if self.transform is not None:
-            x = self.transform(x)
+            if transform_applied:
+                # Apply an additional transformation for the second half of the dataset
+                additional_transform = torchvision.transforms.RandomResizedCrop(size=224)
+                x = additional_transform(x)
+            else:
+                x = self.transform(x)
+
         if self.target_transform is not None:
             y_fine_grain = self.target_transform(y_fine_grain)
+
         name = os.path.basename(path)
         folder_path = os.path.basename(os.path.dirname(path))
 
@@ -320,18 +330,23 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
 
     data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), '.')
 
-    datasets = {
-        f'{train_or_test}': BinaryImageFolder(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
-                                              transform=get_dataset_transforms(train_or_test=train_or_test),
-                                              l=binary_label)
-        if binary_label is not None else
-        (CombinedImageFolderWithName(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
-                                     transform=get_dataset_transforms(
-                                         train_or_test=train_or_test))
-         if combined else IndividualImageFolderWithName(root=os.path.join(data_dir, f'{train_or_test}_fine'),
-                                                        transform=
-                                                        get_dataset_transforms(train_or_test=train_or_test)))
-        for train_or_test in ['train', 'test']}
+    datasets = {}
+
+    for train_or_test in ['train', 'test']:
+        if binary_label is not None:
+            datasets[train_or_test] = BinaryImageFolder(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
+                                                        transform=get_dataset_transforms(train_or_test=train_or_test),
+                                                        l=binary_label)
+        elif combined:
+            datasets[train_or_test] = CombinedImageFolderWithName(root=os.path.join(data_dir,
+                                                                                    f'data/{train_or_test}_fine'),
+                                                                  transform=get_dataset_transforms(
+                                                                      train_or_test=train_or_test))
+        else:
+            datasets[train_or_test] = IndividualImageFolderWithName(
+                root=os.path.join(data_dir, f'{train_or_test}_fine'),
+                transform=
+                get_dataset_transforms(train_or_test=train_or_test))
 
     return datasets
 
@@ -350,21 +365,28 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
         :param batch_size:
         :param indices:
     """
+    loaders = {}
 
-    return {train_or_test_dataset: torch.utils.data.DataLoader(
-        dataset=datasets[train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train']
-        if indices is None or train_or_test_dataset != 'train'
-        else torch.utils.data.Subset(dataset=
-                                     datasets[
-                                         train_or_test_dataset if train_or_test_dataset != 'train_eval' else 'train'],
-                                     indices=indices),
-        batch_size=batch_size,
-        shuffle=train_or_test_dataset == 'train' and (evaluation is None or not evaluation))
-        for train_or_test_dataset in ['train', 'train_eval', 'test']}
+    for split in ['train', 'train_eval', 'test']:
+        relevant_dataset = datasets[split if split != 'train_eval' else 'train']
+        shuffle = split == 'train' and (evaluation is None or not evaluation)
+
+        if indices is None or split != 'train':
+            dataset = relevant_dataset
+        else:
+            dataset = torch.utils.data.Subset(dataset=relevant_dataset,
+                                              indices=indices)
+
+        loaders[split] = torch.utils.data.DataLoader(
+            dataset=dataset,
+            batch_size=batch_size,
+            shuffle=shuffle)
+
+    return loaders
 
 
-def get_one_hot_encoding(injput_arr: np.array) -> np.array:
-    return np.eye(np.max(injput_arr) + 1)[injput_arr].T
+def get_one_hot_encoding(input_arr: np.array) -> np.array:
+    return np.eye(np.max(input_arr) + 1)[input_arr].T
 
 
 for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
