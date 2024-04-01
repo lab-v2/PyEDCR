@@ -7,7 +7,7 @@ import torch.utils.data
 import pathlib
 import typing
 import abc
-import ltn
+import random
 
 from typing import List
 
@@ -355,6 +355,8 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
         if train_eval_split is not None:
             dataset_size = len(loader_dataset)
             all_indices = list(range(dataset_size))
+            # Shuffle the indices in-place
+            random.shuffle(all_indices)
             train_size = int(train_eval_split * dataset_size)
 
             if dataset_type == 'train':
