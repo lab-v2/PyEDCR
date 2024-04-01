@@ -205,14 +205,15 @@ def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose
     resize_num = 224
     means = stds = [0.5] * 3
 
+    standard_transforms = [torchvision.transforms.ToTensor(),
+                           torchvision.transforms.Normalize(means, stds)]
+    train_transforms = [torchvision.transforms.RandomResizedCrop(resize_num),
+                        torchvision.transforms.RandomHorizontalFlip()]
+    test_transforms = [torchvision.transforms.Resize(int(resize_num / 224 * 256)),
+                       torchvision.transforms.CenterCrop(resize_num)]
     return torchvision.transforms.Compose(
-        ([torchvision.transforms.RandomResizedCrop(resize_num),
-          torchvision.transforms.RandomHorizontalFlip()] if train_or_test == 'train' else
-         [torchvision.transforms.Resize(int(resize_num / 224 * 256)),
-          torchvision.transforms.CenterCrop(resize_num)]) +
-        [torchvision.transforms.ToTensor(),
-         torchvision.transforms.Normalize(means, stds)
-         ])
+        (train_transforms if train_or_test == 'train' else test_transforms) + standard_transforms)
+
 
 class EDCRImageFolder(torchvision.datasets.ImageFolder):
     def find_classes(self, directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
