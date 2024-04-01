@@ -339,13 +339,13 @@ class EDCR_LTN_experiment(EDCR):
         np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_fine_{self.loss}_"
                 f"lr_{self.lr}_batch_size_{self.batch_size}_"
                 f"ltn_epoch_{self.num_epochs}_"
-                f"beta_{self.beta}_num_model_{self.num_models}.py",
+                f"beta_{self.beta}_num_model_{self.num_models}.npy",
                 np.array(final_fine_prediction))
 
         np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_coarse_{self.loss}_"
                 f"lr_{self.lr}_batch_size_{self.batch_size}_"
                 f"ltn_epoch_{self.num_epochs}_"
-                f"beta_{self.beta}_num_model_{self.num_models}.py",
+                f"beta_{self.beta}_num_model_{self.num_models}.npy",
                 np.array(final_fine_prediction))
 
         vit_pipeline.get_and_print_metrics(pred_fine_data=np.array(final_fine_prediction),
