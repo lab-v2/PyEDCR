@@ -160,6 +160,13 @@ class EDCR:
                                                                                           l=l,
                                                                                           stage='original'))
 
+        actual_examples_with_errors = set()
+        for g in data_preprocessing.granularities.values():
+            actual_examples_with_errors = actual_examples_with_errors.union(set(
+                np.where(self.get_where_predicted_incorrect(test=True, g=g) == 1)[0]))
+
+        self.actual_examples_with_errors = np.array(list(actual_examples_with_errors))
+
         self.error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
         self.error_correction_rules: dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
 
@@ -251,17 +258,20 @@ class EDCR:
         where_label_is_l = np.where(data == l.index, 1, 0)
         return where_label_is_l
 
+
     def print_metrics(self,
                       test: bool,
                       prior: bool,
                       print_inconsistencies: bool = True,
-                      stage: str = 'original'):
+                      stage: str = 'original',
+                      print_actual_errors_num: bool = False):
 
         """Prints performance metrics for given test/train data.
 
         Calculates and prints various metrics (accuracy, precision, recall, etc.)
         using appropriate true labels and prediction data based on the specified mode.
 
+        :param print_actual_errors_num:
         :param stage:
         :param print_inconsistencies: whether to print the inconsistencies metric or not
         :param prior:
@@ -301,7 +311,7 @@ class EDCR:
                                       pred_fine_data == true_fine_data)  # for completeness
 
         # Calculate total number of examples
-        total_examples = len(pred_coarse_data) # Assuming shapes are compatible
+        total_examples = len(pred_coarse_data)  # Assuming shapes are compatible
 
         fractions = {
             'correct_coarse_incorrect_fine': np.sum(correct_coarse_incorrect_fine) / total_examples,
@@ -315,6 +325,10 @@ class EDCR:
               f"incorrect_coarse_correct_fine: {round(fractions['incorrect_coarse_correct_fine'], 2)} \n",
               f"incorrect_both: {round(fractions['incorrect_both'], 2)} \n",
               f"correct_both: {round(fractions['correct_both'], 2)} \n")
+
+        if print_actual_errors_num:
+            print(utils.red_text(f'\nNumber of actual errors on test: {len(self.actual_examples_with_errors)} / '
+                                 f'{self.T_test}\n'))
 
     def get_where_predicted_correct(self,
                                     test: bool,

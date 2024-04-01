@@ -49,18 +49,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         perceived_examples_with_errors = np.array(list(perceived_examples_with_errors))
 
-        actual_examples_with_errors = set()
-        for g in data_preprocessing.granularities.values():
-            actual_examples_with_errors = actual_examples_with_errors.union(set(
-                self.get_where_predicted_incorrect(test=False, g=g)[0]))
-
-        actual_examples_with_errors = np.array(list(actual_examples_with_errors))
-
-        total_num_of_train_images = self.get_predictions(test=False)[0].shape[0]
-        print(utils.red_text(f'\nNumber of perceived errors: {len(perceived_examples_with_errors)} / '
-                             f'{total_num_of_train_images}\n'))
-        print(utils.red_text(f'\nNumber of actual errors: {len(actual_examples_with_errors)} / '
-                             f'{total_num_of_train_images}\n'))
+        print(utils.red_text(f'\nNumber of perceived train errors: {len(perceived_examples_with_errors)} / '
+                             f'{self.T_train}\n'))
 
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
@@ -139,6 +129,14 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         if print_results:
             self.print_metrics(test=True, prior=False, stage='post_detection')
 
+            where_fixed_initial_error = set()
+            for g in data_preprocessing.granularities.values():
+                where_fixed_initial_error = where_fixed_initial_error.union(set(
+                    np.where(self.get_where_predicted_correct(test=True, g=g, stage='post_detection') == 1)[0]
+                ).intersection(set(np.where(self.get_where_predicted_incorrect(test=True, g=g) == 1)[0])))
+
+            print(f'where_fixed_initial_error: {len(where_fixed_initial_error)}')
+
     def run_learning_pipeline(self):
         print('Started learning pipeline...\n')
         self.print_metrics(test=False, prior=True)
@@ -189,7 +187,7 @@ if __name__ == '__main__':
                                     # lower_predictions_indices=lower_predictions_indices,
                                     EDCR_num_epochs=EDCR_num_epochs,
                                     neural_num_epochs=neural_num_epochs)
-                edcr.print_metrics(test=True, prior=True)
+                edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
                 edcr.run_learning_pipeline()
                 edcr.run_error_detection_application_pipeline(test=True, print_results=False)
                 edcr.apply_new_model_on_test()
