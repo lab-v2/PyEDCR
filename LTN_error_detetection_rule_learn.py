@@ -346,7 +346,7 @@ class EDCR_LTN_experiment(EDCR):
                 f"lr_{self.lr}_batch_size_{self.batch_size}_"
                 f"ltn_epoch_{self.num_epochs}_"
                 f"beta_{self.beta}_num_model_{self.num_models}.npy",
-                np.array(final_fine_prediction))
+                np.array(final_coarse_prediction))
 
         vit_pipeline.get_and_print_metrics(pred_fine_data=np.array(final_fine_prediction),
                                            pred_coarse_data=np.array(final_coarse_prediction),
