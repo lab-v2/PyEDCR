@@ -7,6 +7,8 @@ import torch.utils.data
 import pathlib
 import typing
 import abc
+import torchvision.transforms.functional as transforms_functional
+import random
 
 from typing import List
 
@@ -31,7 +33,6 @@ train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
 
 num_fine_grain_classes = len(fine_grain_classes_str)
 num_coarse_grain_classes = len(coarse_grain_classes_str)
-
 
 
 def is_monotonic(input_arr: np.array) -> bool:
@@ -206,14 +207,113 @@ def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose
     resize_num = 224
     means = stds = [0.5] * 3
 
-    return torchvision.transforms.Compose(
-        ([torchvision.transforms.RandomResizedCrop(resize_num),
-          torchvision.transforms.RandomHorizontalFlip()] if train_or_test == 'train' else
-         [torchvision.transforms.Resize(int(resize_num / 224 * 256)),
-          torchvision.transforms.CenterCrop(resize_num)]) +
-        [torchvision.transforms.ToTensor(),
-         torchvision.transforms.Normalize(means, stds)
-         ])
+    # Define data augmentation transforms for training
+    train_transforms = [
+        torchvision.transforms.RandomResizedCrop(resize_num),
+        torchvision.transforms.RandomHorizontalFlip(),
+        torchvision.transforms.RandomRotation(90),
+        torchvision.transforms.RandomVerticalFlip(),
+        torchvision.transforms.RandomAffine(degrees=45, translate=(0.1, 0.1), scale=(0.8, 1.2), shear=20),
+        torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
+        torchvision.transforms.RandomGrayscale(p=0.1),
+        torchvision.transforms.RandomPerspective(distortion_scale=0.5, p=0.5),
+        # torchvision.transforms.RandomErasing(p=0.5, scale=(0.02, 0.2), ratio=(0.3, 3.3), value=0, inplace=False)
+    ]
+
+    # Define standard transforms for both training and testing
+    standard_transforms = [
+        torchvision.transforms.Resize(int(resize_num / 224 * 256)),
+        torchvision.transforms.CenterCrop(resize_num),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(means, stds)
+    ]
+
+    # Combine transforms based on train or test mode
+    if train_or_test == 'train':
+        return torchvision.transforms.Compose(train_transforms + standard_transforms)
+    else:
+        return torchvision.transforms.Compose(standard_transforms)
+
+
+# Rotation
+def random_rotation(image, max_angle=90):
+    angle = random.uniform(-max_angle, max_angle)
+    return torchvision.transforms.functional.rotate(image, angle)
+
+
+# Translation
+def random_translation(image, max_shift=0.1):
+    width, height = image.size
+    shift_x = random.uniform(-max_shift * width, max_shift * width)
+    shift_y = random.uniform(-max_shift * height, max_shift * height)
+    return torchvision.transforms.functional.affine(image, angle=0, translate=(shift_x, shift_y), scale=1, shear=0)
+
+
+# Scaling
+def random_scaling(image, scale_range=(0.8, 1.2)):
+    scale_factor = random.uniform(scale_range[0], scale_range[1])
+    new_size = tuple(int(dim * scale_factor) for dim in image.size)
+    return torchvision.transforms.functional.resize(image, new_size)
+
+
+# Shearing
+def random_shear(image, max_shear=0.2):
+    shear = random.uniform(-max_shear, max_shear)
+    return torchvision.transforms.functional.affine(image, angle=0, translate=(0, 0), scale=1, shear=shear)
+
+
+# Horizontal and Vertical Flipping
+def random_horizontal_flip(image, p=0.5):
+    if random.random() < p:
+        return torchvision.transforms.functional.hflip(image)
+    return image
+
+
+def random_vertical_flip(image, p=0.5):
+    if random.random() < p:
+        return torchvision.transforms.functional.vflip(image)
+    return image
+
+
+# Brightness Adjustment
+def random_brightness(image, brightness_factor_range=(0.5, 1.5)):
+    brightness_factor = random.uniform(brightness_factor_range[0], brightness_factor_range[1])
+    return torchvision.transforms.functional.adjust_brightness(image, brightness_factor)
+
+
+# Contrast Adjustment
+def random_contrast(image, contrast_factor_range=(0.5, 1.5)):
+    contrast_factor = random.uniform(contrast_factor_range[0], contrast_factor_range[1])
+    return torchvision.transforms.functional.adjust_contrast(image, contrast_factor)
+
+
+# Noise Injection (Gaussian noise)
+def add_gaussian_noise(image, mean=0, std=0.1):
+    noise = torch.randn_like(image) * std + mean
+    return image + noise
+
+
+# Color Jitter
+def random_color_jitter(image, brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1):
+    return torchvision.transforms.ColorJitter(brightness=brightness, contrast=contrast, saturation=saturation, hue=hue)(
+        image)
+
+
+# Elastic Distortions
+# Requires additional implementation, not directly available in torchvision
+
+# Cutout
+def cutout(image, cutout_size=16):
+    width, height = image.size
+    left = random.randint(0, width - cutout_size)
+    top = random.randint(0, height - cutout_size)
+    mask = torchvision.transforms.functional.to_tensor(image).clone()
+    mask[:, top:top + cutout_size, left:left + cutout_size] = 0
+    return torchvision.transforms.functional.to_pil_image(mask)
+
+
+# Mixup
+# Requires combining pairs of images and labels, not directly available in torchvision
 
 
 class EDCRImageFolder(torchvision.datasets.ImageFolder):

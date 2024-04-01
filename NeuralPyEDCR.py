@@ -168,7 +168,7 @@ if __name__ == '__main__':
             for eps in epsilons:
                 print('#' * 25 + f'eps = {eps}' + '#' * 50)
                 edcr = NeuralPyEDCR(epsilon=eps,
-                                    main_model_name='vit_l_16',
+                                    main_model_name='vit_b_16',
                                     combined=True,
                                     loss='BCE',
                                     lr=0.0001,
