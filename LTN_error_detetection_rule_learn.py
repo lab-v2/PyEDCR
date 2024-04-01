@@ -98,7 +98,7 @@ class EDCR_LTN_experiment(EDCR):
                     original_pred_fine_batch = torch.tensor(
                         self.pred_data[train_or_test]['original']['fine'][indices]).to(device)
                     original_pred_coarse_batch = torch.tensor(
-                        self.pred_data[train_or_test]['original']['fine'][indices]).to(device)
+                        self.pred_data[train_or_test]['original']['coarse'][indices]).to(device)
                     original_secondary_pred_fine_batch = torch.tensor(
                         self.pred_data['secondary_model'][train_or_test]['fine'][indices]).to(device)
                     original_secondary_pred_coarse_batch = torch.tensor(
@@ -197,7 +197,7 @@ class EDCR_LTN_experiment(EDCR):
         ltn_support.compute_sat_testing_value(
             logits_to_predicate=logits_to_predicate,
             pred_fine_batch=torch.tensor(fine_predictions).to(device),
-            pred_coarse_batch=torch.tensor(fine_predictions).to(device),
+            pred_coarse_batch=torch.tensor(coarse_predictions).to(device),
             true_fine_batch=torch.tensor(fine_ground_truths).to(device),
             true_coarse_batch=torch.tensor(coarse_ground_truths).to(device),
             original_pred_fine_batch=torch.tensor(original_pred_fines).to(device),
