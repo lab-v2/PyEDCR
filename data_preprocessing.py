@@ -215,7 +215,7 @@ def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose
         torchvision.transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=10),
         torchvision.transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
         torchvision.transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
-        torchvision.transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0, inplace=False),
+        # torchvision.transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0, inplace=False),
     ]
     test_transforms = [torchvision.transforms.Resize(256),
                        torchvision.transforms.CenterCrop(resize_num)]

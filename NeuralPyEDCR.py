@@ -6,7 +6,7 @@ import PyEDCR
 import utils
 import vit_pipeline
 import context_handlers
-import neural_fine_tuning
+import combined_fine_tuning
 import neural_evaluation
 
 
@@ -66,7 +66,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             self.correction_model = fine_tuners[0]
 
         with context_handlers.ClearSession():
-            neural_fine_tuning.fine_tune_combined_model(
+            combined_fine_tuning.fine_tune_combined_model(
                 lrs=[self.lr],
                 fine_tuner=self.correction_model,
                 device=devices[0],
