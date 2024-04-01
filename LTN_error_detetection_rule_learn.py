@@ -46,6 +46,7 @@ class EDCR_LTN_experiment(EDCR):
         self.beta = config.beta
         self.correction_model = {}
         self.num_models = 5
+        self.get_fraction_of_example_with_label = config.get_fraction_of_example_with_label
 
     def fine_tune_and_evaluate_combined_model(self,
                                               fine_tuner: models.FineTuner,
@@ -229,8 +230,12 @@ class EDCR_LTN_experiment(EDCR):
         print(f'\nStarted train and eval LTN model {model_index}...\n')
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            vit_pipeline.initiate(combined=self.combined, pretrained_path=self.pretrain_path, debug=False,
-                                  get_indices=True, train_eval_split=0.8))
+            vit_pipeline.initiate(combined=self.combined,
+                                  pretrained_path=self.pretrain_path,
+                                  debug=False,
+                                  get_indices=True,
+                                  train_eval_split=0.8,
+                                  get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
         self.correction_model[model_index] = fine_tuners[0]
 

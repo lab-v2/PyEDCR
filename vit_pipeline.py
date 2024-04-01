@@ -895,6 +895,7 @@ def initiate(
         evaluation: bool = None,
         train_eval_split: float = None,
         get_indices: bool = None,
+        get_fraction_of_example_with_label: dict[data_preprocessing.Label, float] = None,
         lrs: list[typing.Union[str, float]] = None):
     """
     Initializes models, datasets, and devices for training.
@@ -963,7 +964,8 @@ def initiate(
                                              subset_indices=indices,
                                              evaluation=evaluation,
                                              train_eval_split=train_eval_split,
-                                             get_indices=get_indices)
+                                             get_indices=get_indices,
+                                             get_fraction_of_example_with_label=get_fraction_of_example_with_label)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of eval images: {len(loaders['train_eval'].dataset) if train_eval_split else 0}\n"
