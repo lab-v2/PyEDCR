@@ -408,7 +408,7 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
                     filtered_indices = [idx for _, _, _, _, idx in loader_dataset
                                         if (idx in add_indices) or (idx not in label_indices)]
 
-                print(f'remove {remove_fraction * 100}% of examples out of {label_counts[label.index]} '
+                print(f'add {remove_fraction * 100}% of examples out of {label_counts[label.index]} '
                       f'from label {label.index} in train')
 
                 loader_dataset = torch.utils.data.Subset(relevant_dataset, filtered_indices)

@@ -383,7 +383,7 @@ class EDCR_LTN_experiment(EDCR):
                     break
 
         torch.save(obj=self.baseline_model,
-                   f=f"model/vit_b_16/combined_{self.loss}_"
+                   f=f"models/vit_b_16/combined_{self.loss}_"
                      f"lr_{self.lr}_batch_size_{self.batch_size}_"
                      f"baseline_epoch_{self.num_baseline_epochs}_"
                      f"remove_label_{self.formatted_removed_label}.pth")
