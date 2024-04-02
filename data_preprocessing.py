@@ -302,12 +302,16 @@ class BinaryImageFolder(EDCRImageFolder):
                              target_transform=lambda y: int(y == l.index))
 
     def __getitem__(self, index: int):
+        if self.evaluation:
+            return super().__getitem__(index)
+
         path, target = self.balanced_samples[index]
         sample = self.loader(path)
         if self.transform is not None:
             sample = self.transform(sample)
         # Convert the target to binary (1 for the chosen class, 0 for others)
         target = int(target == self.l)
+
         return sample, target
 
     def __len__(self):
