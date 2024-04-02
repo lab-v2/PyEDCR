@@ -265,6 +265,8 @@ class BinaryImageFolder(EDCRImageFolder):
                  l: Label,
                  transform: typing.Optional[typing.Callable] = None,
                  evaluation: bool = False):
+        self.evaluation = evaluation
+
         if not evaluation:
             super().__init__(root=root, transform=transform)
             self.l = l.index
@@ -286,7 +288,8 @@ class BinaryImageFolder(EDCRImageFolder):
 
             for cls in other_classes:
                 cls_samples = [(path, target) for path, target in self.samples if target == cls]
-                self.balanced_samples.extend(random.sample(cls_samples, min(negative_samples_per_class, len(cls_samples))))
+                self.balanced_samples.extend(
+                    random.sample(cls_samples, min(negative_samples_per_class, len(cls_samples))))
 
             # Add positive examples
             self.balanced_samples.extend([(path, target) for path, target in self.samples if target == self.l])
@@ -298,7 +301,7 @@ class BinaryImageFolder(EDCRImageFolder):
                              transform=transform,
                              target_transform=lambda y: int(y == l.index))
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         path, target = self.balanced_samples[index]
         sample = self.loader(path)
         if self.transform is not None:
@@ -308,7 +311,7 @@ class BinaryImageFolder(EDCRImageFolder):
         return sample, target
 
     def __len__(self):
-        return len(self.balanced_samples)
+        return len(self.samples if self.evaluation else self.balanced_samples)
 
 
 class IndividualImageFolderWithName(EDCRImageFolder):
