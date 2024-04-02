@@ -60,6 +60,8 @@ class EDCR_LTN_experiment(EDCR):
                                   train_eval_split=0.8,
                                   get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
+        self.devices[0] = torch.device('cpu')
+
     def fine_tune_and_evaluate_combined_model(self,
                                               fine_tuner: models.FineTuner,
                                               device: torch.device,
@@ -324,16 +326,17 @@ class EDCR_LTN_experiment(EDCR):
         if mode == 'train':
             scheduler.step()
 
-        return fine_predictions, coarse_predictions, fine_accuracy, coarse_accuracy
+        return np.array(fine_predictions), np.array(coarse_predictions), fine_accuracy, coarse_accuracy
 
     def run_baseline_pipeline(self,
                               pretrained_path: str = None):
         if pretrained_path is not None:
             try:
                 self.baseline_model = torch.load(pretrained_path)
+                print('Load pretrain model successfully!')
                 return
-            except:
-                raise FileNotFoundError('pretrained path is not found, train the model from the beginning')
+            except FileNotFoundError:
+                print('pretrained path is not found, train the model from the beginning')
 
         print(f'\nStarted train baseline model ...\n')
 
@@ -350,7 +353,7 @@ class EDCR_LTN_experiment(EDCR):
         train_coarse_accuracies = []
 
         for epoch in range(self.num_baseline_epochs):
-            with context_handlers.ClearSession():
+            with (context_handlers.ClearSession()):
 
                 self.train_and_evaluate_baseline_combined_model(
                     fine_tuner=self.baseline_model,
@@ -363,14 +366,15 @@ class EDCR_LTN_experiment(EDCR):
                     scheduler=scheduler
                 )
 
-                _, _, training_fine_accuracy, training_coarse_accuracy = self.train_and_evaluate_baseline_combined_model(
-                    fine_tuner=self.baseline_model,
-                    device=self.devices[0],
-                    loaders=self.loaders,
-                    loss=self.loss,
-                    epoch=epoch,
-                    mode='train_eval'
-                )
+                train_fine_prediction, train_coarse_prediction, training_fine_accuracy, training_coarse_accuracy = (
+                    self.train_and_evaluate_baseline_combined_model(
+                        fine_tuner=self.baseline_model,
+                        device=self.devices[0],
+                        loaders=self.loaders,
+                        loss=self.loss,
+                        epoch=epoch,
+                        mode='train_eval'
+                    ))
 
                 train_fine_accuracies += [training_fine_accuracy]
                 train_coarse_accuracies += [training_coarse_accuracy]
@@ -388,9 +392,26 @@ class EDCR_LTN_experiment(EDCR):
                      f"baseline_epoch_{self.num_baseline_epochs}_"
                      f"remove_label_{self.formatted_removed_label}.pth")
 
+        np.save(file=f"combined_results/vit_b_16_train_fine_{self.loss}_"
+                     f"lr_{self.lr}_batch_size_{self.batch_size}_"
+                     f"baseline_epoch_{self.num_baseline_epochs}_"
+                     f"remove_label_{self.formatted_removed_label}.npy",
+                arr=np.array(train_fine_prediction))
+
+        np.save(file=f"combined_results/vit_b_16_train_coarse_{self.loss}_"
+                     f"lr_{self.lr}_batch_size_{self.batch_size}_"
+                     f"baseline_epoch_{self.num_baseline_epochs}_"
+                     f"remove_label_{self.formatted_removed_label}.npy",
+                arr=np.array(train_fine_prediction))
+
         print(f'\nfinish train and eval baseline model!\n')
 
-        self.train_and_evaluate_baseline_combined_model(
+        self.pred_data['train']['original'][config.g_fine] = np.array(train_fine_prediction)
+        self.pred_data['train']['original'][config.g_coarse] = np.array(train_coarse_prediction)
+
+        print(f'\nupdate original prediction!\n')
+
+        test_fine_prediction, test_coarse_prediction, _, _ = self.train_and_evaluate_baseline_combined_model(
             fine_tuner=self.baseline_model,
             device=self.devices[0],
             loaders=self.loaders,
@@ -398,13 +419,15 @@ class EDCR_LTN_experiment(EDCR):
             mode='test'
         )
 
+        self.pred_data['test']['original'][config.g_fine] = np.array(test_fine_prediction)
+        self.pred_data['test']['original'][config.g_coarse] = np.array(test_coarse_prediction)
+
         print('#' * 100)
 
     def run_learning_pipeline(self,
                               model_index: int,
                               EDCR_epoch_num=0):
         print('Started learning pipeline...\n')
-        self.print_metrics(test=False, prior=True)
 
         for g in data_preprocessing.granularities.values():
             self.learn_detection_rules(g=g)
@@ -460,7 +483,6 @@ class EDCR_LTN_experiment(EDCR):
         print(f'\nfinish train and eval model {model_index}!\n')
 
         print('#' * 100)
-
 
     def run_evaluating_pipeline(self,
                                 model_index: int):

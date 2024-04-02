@@ -403,10 +403,9 @@ def get_loaders(datasets: dict[str, typing.Union[CombinedImageFolderWithName, In
                                  if y_coarse_grain == label.index]
 
                 # Sample indices to add the desired number
-                if num_to_add > 0:
-                    add_indices = random.sample(label_indices, num_to_add)
-                    filtered_indices = [idx for _, _, _, _, idx in loader_dataset
-                                        if (idx in add_indices) or (idx not in label_indices)]
+                add_indices = random.sample(label_indices, num_to_add)
+                filtered_indices = [idx for _, _, _, _, idx in loader_dataset
+                                    if (idx in add_indices) or (idx not in label_indices)]
 
                 print(f'add {remove_fraction * 100}% of examples out of {label_counts[label.index]} '
                       f'from label {label.index} in train')

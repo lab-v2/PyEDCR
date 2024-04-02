@@ -27,7 +27,7 @@ combined = True  # Whether to train a combined model for fine and coarse grain c
 
 # Additional Training Options
 include_inconsistency_constraint = False  # Whether to include inconsistency constraint in loss
-secondary_model_name = 'vit_b_16_soft_marginal'  # (Optional) Name of secondary model for additional tasks
+secondary_model_name = None  # (Optional) Name of secondary model for additional tasks
 
 # Data Paths
 combined_results_path = 'combined_results'  # Path to save combined results
