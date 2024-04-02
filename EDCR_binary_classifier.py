@@ -39,7 +39,7 @@ class EDCR_binary_classifier(EDCR):
 
         self.batch_size = config.batch_size
         self.scheduler_gamma = config.scheduler_gamma
-        self.num_epochs = config.num_epochs
+        self.num_epochs = config.num_ltn_epochs
         self.scheduler_step_size = num_epochs
         self.pretrain_path = config.main_pretrained_path
 

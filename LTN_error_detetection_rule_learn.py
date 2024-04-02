@@ -40,20 +40,32 @@ class EDCR_LTN_experiment(EDCR):
 
         self.batch_size = config.batch_size
         self.scheduler_gamma = config.scheduler_gamma
-        self.num_epochs = config.ltn_num_epochs
+        self.num_ltn_epochs = config.ltn_num_epochs
+        self.num_baseline_epochs = config.baseline_num_epochs
         self.scheduler_step_size = num_epochs
         self.pretrain_path = config.main_pretrained_path
         self.beta = config.beta
+        self.baseline_model = None
         self.correction_model = {}
         self.num_models = 5
         self.get_fraction_of_example_with_label = config.get_fraction_of_example_with_label
+
+        self.formatted_removed_label = ",".join(f"{key},{value}"
+                                                for key, value in self.get_fraction_of_example_with_label.items())
+
+        self.fine_tuners, self.loaders, self.devices, _, _ = (
+            vit_pipeline.initiate(combined=self.combined,
+                                  debug=False,
+                                  get_indices=True,
+                                  train_eval_split=0.8,
+                                  get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
     def fine_tune_and_evaluate_combined_model(self,
                                               fine_tuner: models.FineTuner,
                                               device: torch.device,
                                               loaders: dict[str, torch.utils.data.DataLoader],
                                               loss: str,
-                                              mode: 'str',
+                                              mode: str,
                                               epoch: int = 0,
                                               beta: float = 0.1,
                                               optimizer=None,
@@ -67,7 +79,7 @@ class EDCR_LTN_experiment(EDCR):
         total_losses = []
         logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
-        print(f'\n{mode} {fine_tuner} with {len(fine_tuner)} parameters for {self.num_epochs} epochs '
+        print(f'\n{mode} {fine_tuner} with {len(fine_tuner)} parameters for {self.num_ltn_epochs} epochs '
               f'using lr={self.lr} on {device}...')
         print('#' * 100 + '\n')
 
@@ -216,6 +228,178 @@ class EDCR_LTN_experiment(EDCR):
 
         return fine_accuracy, coarse_accuracy, fine_predictions, coarse_predictions
 
+    def train_and_evaluate_baseline_combined_model(self,
+                                                   fine_tuner: models.FineTuner,
+                                                   device: torch.device,
+                                                   loaders: dict[str, torch.utils.data.DataLoader],
+                                                   loss: str,
+                                                   mode: str,
+                                                   epoch: int = 0,
+                                                   optimizer=None,
+                                                   scheduler=None
+                                                   ):
+        fine_tuner.to(device)
+        fine_tuner.train()
+        loader = loaders[mode]
+        num_batches = len(loader)
+
+        print(f'\n{mode} {fine_tuner} with {len(fine_tuner)} parameters for {self.num_ltn_epochs} epochs '
+              f'using lr={self.lr} on {device}...')
+        print('#' * 100 + '\n')
+
+        with context_handlers.TimeWrapper():
+            total_running_loss = 0.0
+
+            fine_predictions = []
+            coarse_predictions = []
+
+            fine_ground_truths = []
+            coarse_ground_truths = []
+
+            batches = vit_pipeline.get_fine_tuning_batches(train_loader=loader,
+                                                           num_batches=num_batches,
+                                                           debug=False)
+
+            for batch_num, batch in batches:
+                with context_handlers.ClearCache(device=device):
+                    X, Y_fine_grain, Y_coarse_grain = (
+                        batch[0].to(device), batch[1].to(device), batch[3].to(device))
+
+                    Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
+                        data_preprocessing.fine_grain_classes_str))
+                    Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
+                        data_preprocessing.coarse_grain_classes_str))
+
+                    Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
+
+                    # currently we have many option to get prediction, depend on whether fine_tuner predict
+                    # fine / coarse or both
+                    Y_pred = fine_tuner(X)
+
+                    Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
+                    Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
+
+                    if mode == 'train':
+
+                        optimizer.zero_grad()
+
+                        if loss == 'BCE':
+                            criterion = torch.nn.BCEWithLogitsLoss()
+                            batch_total_loss = criterion(Y_pred, Y_combine)
+
+                        if loss == "soft_marginal":
+                            criterion = torch.nn.MultiLabelSoftMarginLoss()
+                            batch_total_loss = criterion(Y_pred, Y_combine)
+
+                        vit_pipeline.print_post_batch_metrics(batch_num=batch_num,
+                                                              num_batches=num_batches,
+                                                              batch_total_loss=batch_total_loss.item())
+
+                        batch_total_loss.backward()
+                        optimizer.step()
+
+                        total_running_loss += batch_total_loss.item()
+
+                    predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
+                    predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
+
+                    fine_predictions += predicted_fine.tolist()
+                    coarse_predictions += predicted_coarse.tolist()
+
+                    fine_ground_truths += Y_fine_grain.tolist()
+                    coarse_ground_truths += Y_coarse_grain.tolist()
+
+                    del X, Y_fine_grain, Y_coarse_grain, Y_pred_fine_grain, Y_pred_coarse_grain
+
+        fine_accuracy, coarse_accuracy = vit_pipeline.get_and_print_post_epoch_metrics(
+            epoch=epoch,
+            num_batches=num_batches,
+            train_fine_ground_truth=np.array(fine_ground_truths),
+            train_fine_prediction=np.array(fine_predictions),
+            train_coarse_ground_truth=np.array(coarse_ground_truths),
+            train_coarse_prediction=np.array(coarse_predictions),
+            num_fine_grain_classes=len(data_preprocessing.fine_grain_classes_str),
+            num_coarse_grain_classes=len(data_preprocessing.coarse_grain_classes_str))
+
+        if mode == 'train':
+            scheduler.step()
+
+        return fine_predictions, coarse_predictions, fine_accuracy, coarse_accuracy
+
+    def run_baseline_pipeline(self,
+                              pretrained_path: str = None):
+        if pretrained_path is not None:
+            try:
+                self.baseline_model = torch.load(pretrained_path)
+                return
+            except:
+                raise FileNotFoundError('pretrained path is not found, train the model from the beginning')
+
+        print(f'\nStarted train baseline model ...\n')
+
+        self.baseline_model = self.fine_tuners[0]
+
+        optimizer = torch.optim.Adam(params=self.baseline_model.parameters(),
+                                     lr=self.lr)
+
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
+                                                    step_size=self.scheduler_step_size,
+                                                    gamma=self.scheduler_gamma)
+
+        train_fine_accuracies = []
+        train_coarse_accuracies = []
+
+        for epoch in range(self.num_baseline_epochs):
+            with context_handlers.ClearSession():
+
+                self.train_and_evaluate_baseline_combined_model(
+                    fine_tuner=self.baseline_model,
+                    device=self.devices[0],
+                    loaders=self.loaders,
+                    loss=self.loss,
+                    epoch=epoch,
+                    mode='train',
+                    optimizer=optimizer,
+                    scheduler=scheduler
+                )
+
+                _, _, training_fine_accuracy, training_coarse_accuracy = self.train_and_evaluate_baseline_combined_model(
+                    fine_tuner=self.baseline_model,
+                    device=self.devices[0],
+                    loaders=self.loaders,
+                    loss=self.loss,
+                    epoch=epoch,
+                    mode='train_eval'
+                )
+
+                train_fine_accuracies += [training_fine_accuracy]
+                train_coarse_accuracies += [training_coarse_accuracy]
+
+                slicing_window_last = (sum(train_fine_accuracies[-3:]) + sum(train_coarse_accuracies[-3:])) / 6
+                slicing_window_before_last = (sum(train_fine_accuracies[-4:-2]) + sum(
+                    train_coarse_accuracies[-4:-2])) / 6
+
+                if epoch >= 10 and slicing_window_last <= slicing_window_before_last:
+                    break
+
+        torch.save(obj=self.baseline_model,
+                   f=f"model/vit_b_16/combined_{self.loss}_"
+                     f"lr_{self.lr}_batch_size_{self.batch_size}_"
+                     f"baseline_epoch_{self.num_baseline_epochs}_"
+                     f"remove_label_{self.formatted_removed_label}.pth")
+
+        print(f'\nfinish train and eval baseline model!\n')
+
+        self.train_and_evaluate_baseline_combined_model(
+            fine_tuner=self.baseline_model,
+            device=self.devices[0],
+            loaders=self.loaders,
+            loss=self.loss,
+            mode='test'
+        )
+
+        print('#' * 100)
+
     def run_learning_pipeline(self,
                               model_index: int,
                               EDCR_epoch_num=0):
@@ -229,15 +413,7 @@ class EDCR_LTN_experiment(EDCR):
 
         print(f'\nStarted train and eval LTN model {model_index}...\n')
 
-        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            vit_pipeline.initiate(combined=self.combined,
-                                  pretrained_path=self.pretrain_path,
-                                  debug=False,
-                                  get_indices=True,
-                                  train_eval_split=0.8,
-                                  get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
-
-        self.correction_model[model_index] = fine_tuners[0]
+        self.correction_model[model_index] = self.baseline_model
 
         train_fine_accuracies = []
         train_coarse_accuracies = []
@@ -248,13 +424,13 @@ class EDCR_LTN_experiment(EDCR):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
                                                     step_size=self.scheduler_step_size,
                                                     gamma=self.scheduler_gamma)
-        for epoch in range(self.num_epochs):
+        for epoch in range(self.num_ltn_epochs):
             with context_handlers.ClearSession():
 
                 self.fine_tune_and_evaluate_combined_model(
                     fine_tuner=self.correction_model[model_index],
-                    device=devices[0],
-                    loaders=loaders,
+                    device=self.devices[0],
+                    loaders=self.loaders,
                     loss=self.loss,
                     epoch=epoch,
                     mode='train',
@@ -264,8 +440,8 @@ class EDCR_LTN_experiment(EDCR):
 
                 training_fine_accuracy, training_coarse_accuracy, _, _ = self.fine_tune_and_evaluate_combined_model(
                     fine_tuner=self.correction_model[model_index],
-                    device=devices[0],
-                    loaders=loaders,
+                    device=self.devices[0],
+                    loaders=self.loaders,
                     loss=self.loss,
                     epoch=epoch,
                     mode='train_eval'
@@ -275,7 +451,8 @@ class EDCR_LTN_experiment(EDCR):
                 train_coarse_accuracies += [training_coarse_accuracy]
 
                 slicing_window_last = (sum(train_fine_accuracies[-3:]) + sum(train_coarse_accuracies[-3:])) / 6
-                slicing_window_before_last = (sum(train_fine_accuracies[-4:-2]) + sum(train_coarse_accuracies[-4:-2]))
+                slicing_window_before_last = (sum(train_fine_accuracies[-4:-2]) + sum(
+                    train_coarse_accuracies[-4:-2])) / 6
 
                 if epoch >= 6 and slicing_window_last <= slicing_window_before_last:
                     break
@@ -283,6 +460,7 @@ class EDCR_LTN_experiment(EDCR):
         print(f'\nfinish train and eval model {model_index}!\n')
 
         print('#' * 100)
+
 
     def run_evaluating_pipeline(self,
                                 model_index: int):
@@ -329,6 +507,8 @@ class EDCR_LTN_experiment(EDCR):
         return majority_votes
 
     def run_evaluating_pipeline_all_models(self):
+        self.run_baseline_pipeline(pretrained_path=self.pretrain_path)
+
         fine_prediction, coarse_prediction = {}, {}
         for i in range(self.num_models):
             self.run_learning_pipeline(model_index=i)
@@ -343,14 +523,16 @@ class EDCR_LTN_experiment(EDCR):
 
         np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_fine_{self.loss}_"
                 f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                f"ltn_epoch_{self.num_epochs}_"
-                f"beta_{self.beta}_num_model_{self.num_models}.npy",
+                f"ltn_epoch_{self.num_ltn_epochs}_"
+                f"beta_{self.beta}_num_model_{self.num_models}_"
+                f"remove_label_{self.formatted_removed_label}.npy",
                 np.array(final_fine_prediction))
 
         np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_coarse_{self.loss}_"
                 f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                f"ltn_epoch_{self.num_epochs}_"
-                f"beta_{self.beta}_num_model_{self.num_models}.npy",
+                f"ltn_epoch_{self.num_ltn_epochs}_"
+                f"beta_{self.beta}_num_model_{self.num_models}_"
+                f"remove_label_{self.formatted_removed_label}.npy",
                 np.array(final_coarse_prediction))
 
         vit_pipeline.get_and_print_metrics(pred_fine_data=np.array(final_fine_prediction),

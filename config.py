@@ -9,12 +9,13 @@ l_Air_Defense, l_BMD_coarse, l_BMP, l_BTR, l_MT_LB_coarse, l_SPA, l_Tank = cg_l
 # Training Parameters
 batch_size = 128
 ltn_num_epochs = 1  # Number of epochs for LTN training (if applicable)
+baseline_num_epochs = 20
 lr = 0.0001  # Initial learning rate
 scheduler_gamma = 0.9  # Learning rate scheduler gamma value
 scheduler_step_size = 1  # Number of epochs after which to decay learning rate
 loss = 'BCE'  # Loss function (e.g., 'BCE' for Binary Cross-Entropy)
 beta = 0.1  # weight for LTN: higher beta -> higher weight to LTN
-get_fraction_of_example_with_label = {l_Tank: 0.1}
+get_fraction_of_example_with_label = {l_Tank: 0.1}  # fraction of example to remove from a label in the train dataset
 
 num_epochs = 20
 K_train = None  # Number of example for training
