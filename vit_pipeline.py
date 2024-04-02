@@ -134,24 +134,21 @@ def save_binary_prediction_files(test: bool,
                f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
 
 
-def get_imbalance_weights(l: data_preprocessing.Label,
-                          train_images_num: int,
-                          evaluation: bool = False) -> list[float]:
+def get_imbalance_weight(l: data_preprocessing.Label,
+                         train_images_num: int,
+                         evaluation: bool = False) -> list[float]:
     g_ground_truth = data_preprocessing.train_true_fine_data if l.g.g_str == 'fine' \
         else data_preprocessing.train_true_coarse_data
     positive_examples_num = np.sum(np.where(g_ground_truth == l.index, 1, 0))
     negative_examples_num = train_images_num - positive_examples_num
 
-    negative_class_weight = train_images_num / negative_examples_num
     positive_class_weight = train_images_num / positive_examples_num
-    weight = [negative_class_weight, positive_class_weight]
 
     if not evaluation:
         print(f'\nl={l}:\n'
-              f'weight of positive class: {positive_class_weight}, '
-              f'weight of negative class: {negative_class_weight}\n')
+              f'weight of positive class: {positive_class_weight}')
 
-    return weight
+    return positive_class_weight
 
 
 def initiate(lrs: list[typing.Union[str, float]],
@@ -250,8 +247,8 @@ def initiate(lrs: list[typing.Union[str, float]],
     if l is None:
         return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
     else:
-        weight = get_imbalance_weights(l=l,
-                                       train_images_num=train_images_num,
-                                       evaluation=evaluation)
+        positive_class_weight = get_imbalance_weight(l=l,
+                                                     train_images_num=train_images_num,
+                                                     evaluation=evaluation)
 
-        return fine_tuners, loaders, devices, weight
+        return fine_tuners, loaders, devices, positive_class_weight

@@ -18,14 +18,14 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                            device: torch.device,
                            loaders: dict[str, torch.utils.data.DataLoader],
                            num_epochs: int,
-                           weight: list[float],
+                           positive_class_weight: list[float],
                            save_files: bool = True,
                            evaluate_on_test: bool = True):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
     num_batches = len(train_loader)
-    weight = torch.tensor(weight).float().to(device)
+    positive_class_weight = torch.tensor(positive_class_weight).float().to(device)
     loss = 'BCE'
 
     for lr in lrs:
@@ -56,7 +56,7 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                         optimizer.zero_grad()
                         Y_pred = fine_tuner(X)
 
-                        criterion = torch.nn.BCEWithLogitsLoss(weight=weight)
+                        criterion = torch.nn.BCEWithLogitsLoss(pos_weight=positive_class_weight)
 
                         batch_total_loss = criterion(Y_pred, Y_one_hot)
 
@@ -111,7 +111,7 @@ def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
                                       save_files: bool = True):
     if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
                           f"loss_BCE_e{num_epochs}.pth"):
-        fine_tuners, loaders, devices, weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
+        fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
                                                                       lrs=[lr],
                                                                       l=l)
         for fine_tuner in fine_tuners:
@@ -123,7 +123,7 @@ def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
                                        loaders=loaders,
                                        num_epochs=num_epochs,
                                        save_files=save_files,
-                                       weight=weight)
+                                       positive_class_weight=positive_class_weight)
                 print('#' * 100)
     else:
         print(f'Skipping {l}')
