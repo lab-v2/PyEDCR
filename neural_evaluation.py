@@ -342,14 +342,15 @@ if __name__ == '__main__':
     #                                   loss='BCE'
     #                                   )
 
+    l_str = data_preprocessing.fine_grain_classes_str[1]
     run_binary_evaluating_pipeline(model_name='vit_b_16',
-                                   l=data_preprocessing.fine_grain_labels[data_preprocessing.fine_grain_classes_str[1]],
+                                   l=data_preprocessing.fine_grain_labels[l_str],
                                    split='train',
                                    lrs=[0.0001],
                                    loss='BCE',
                                    num_epochs=20,
                                    pretrained_path=
-                                   'models/binary_models/binary_2S19_MSTA_vit_b_16_lr0.0001_loss_BCE_e10.pth')
+                                   f'models/binary_models/binary_{l_str}_vit_b_16_lr0.0001_loss_BCE_e20.pth')
 
     # evaluate_binary_models_from_files(g_str='fine',
     #                                   test=False,
