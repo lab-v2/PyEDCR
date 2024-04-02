@@ -139,9 +139,11 @@ def get_imbalance_weights(l: data_preprocessing.Label,
                           evaluation: bool = False) -> list[float]:
     g_ground_truth = data_preprocessing.train_true_fine_data if l.g.g_str == 'fine' \
         else data_preprocessing.train_true_coarse_data
-    l_examples_num = np.sum(np.where(g_ground_truth == l.index, 1, 0))
-    negative_class_weight = l_examples_num / train_images_num
-    positive_class_weight = 1 - negative_class_weight
+    positive_examples_num = np.sum(np.where(g_ground_truth == l.index, 1, 0))
+    negative_examples_num = train_images_num - positive_examples_num
+
+    negative_class_weight = 1 / negative_examples_num
+    positive_class_weight = 1 / positive_examples_num
     weight = [negative_class_weight, positive_class_weight]
 
     if not evaluation:
