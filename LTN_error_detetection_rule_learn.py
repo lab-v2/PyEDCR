@@ -467,14 +467,10 @@ class EDCR_LTN_experiment(EDCR):
 
         print(f'\nStarted testing LTN model {model_index}...\n')
 
-        _, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            vit_pipeline.initiate(combined=self.combined, debug=False, evaluation=True, lrs=[self.lr],
-                                  get_indices=True))
-
         _, _, fine_predictions, coarse_prediction = self.fine_tune_and_evaluate_combined_model(
             fine_tuner=self.correction_model[model_index],
-            device=devices[0],
-            loaders=loaders,
+            device=self.devices[0],
+            loaders=self.loaders,
             loss=self.loss,
             mode='test'
         )
