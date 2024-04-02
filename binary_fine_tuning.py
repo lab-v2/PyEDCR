@@ -111,8 +111,8 @@ def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
     if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
                           f"loss_BCE_e{num_epochs}.pth"):
         fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
-                                                                      lrs=[lr],
-                                                                      l=l)
+                                                                                     lrs=[lr],
+                                                                                     l=l)
         for fine_tuner in fine_tuners:
             with context_handlers.ClearSession():
                 fine_tune_binary_model(l=l,
@@ -149,9 +149,9 @@ if __name__ == '__main__':
     #                                       num_epochs=10,
     #                                       save_files=True)
 
-    l_str = data_preprocessing.fine_grain_classes_str[1]
+    l_str = data_preprocessing.fine_grain_classes_str[0]
     run_l_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
                                       l=data_preprocessing.fine_grain_labels[l_str],
-                                      lr=0.1,
+                                      lr=0.0001,
                                       num_epochs=20,
                                       save_files=True)
