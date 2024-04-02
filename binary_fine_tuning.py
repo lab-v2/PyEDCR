@@ -89,22 +89,21 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                     #                                             loss=loss,
                     #                                             device=device,
                     #                                             split='test'))
-                    neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
-                                                                     l=l,
-                                                                     split='train',
-                                                                     lrs=[0.0001],
-                                                                     loss='BCE',
-                                                                     num_epochs=20,
-                                                                     pretrained_fine_tuner=fine_tuner,
-                                                                     save_files=False)
-                    neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
-                                                                     l=l,
-                                                                     split='test',
-                                                                     lrs=[0.0001],
-                                                                     loss='BCE',
-                                                                     num_epochs=20,
-                                                                     pretrained_fine_tuner=fine_tuner,
-                                                                     save_files=False)
+                    if epoch == num_epochs - 1:
+                        neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
+                                                                         l=l,
+                                                                         split='train',
+                                                                         lrs=[0.0001],
+                                                                         loss='BCE',
+                                                                         num_epochs=10,
+                                                                         pretrained_fine_tuner=fine_tuner)
+                        neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
+                                                                         l=l,
+                                                                         split='test',
+                                                                         lrs=[0.0001],
+                                                                         loss='BCE',
+                                                                         num_epochs=10,
+                                                                         pretrained_fine_tuner=fine_tuner)
                 print('#' * 100)
 
         if save_files:
