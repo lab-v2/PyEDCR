@@ -135,16 +135,19 @@ def save_binary_prediction_files(test: bool,
 
 
 def get_imbalance_weights(l: data_preprocessing.Label,
-                          train_images_num: int) -> list[float]:
+                          train_images_num: int,
+                          evaluation: bool = False) -> list[float]:
     g_ground_truth = data_preprocessing.train_true_fine_data if l.g.g_str == 'fine' \
         else data_preprocessing.train_true_coarse_data
     l_examples_num = np.sum(np.where(g_ground_truth == l.index, 1, 0))
     negative_class_weight = l_examples_num / train_images_num
     positive_class_weight = 1 - negative_class_weight
     weight = [negative_class_weight, positive_class_weight]
-    print(f'\nl={l}:\n'
-          f'weight of positive class: {positive_class_weight}, '
-          f'weight of negative class: {negative_class_weight}\n')
+
+    if not evaluation:
+        print(f'\nl={l}:\n'
+              f'weight of positive class: {positive_class_weight}, '
+              f'weight of negative class: {negative_class_weight}\n')
 
     return weight
 
@@ -246,6 +249,7 @@ def initiate(lrs: list[typing.Union[str, float]],
         return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
     else:
         weight = get_imbalance_weights(l=l,
-                                       train_images_num=train_images_num)
+                                       train_images_num=train_images_num,
+                                       evaluation=evaluation)
 
         return fine_tuners, loaders, devices, weight

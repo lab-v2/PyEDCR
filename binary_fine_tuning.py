@@ -104,35 +104,48 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
         return train_predictions
 
 
+def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
+                                      l: data_preprocessing.Label,
+                                      lr: float,
+                                      num_epochs: int,
+                                      save_files: bool = True):
+    if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
+                          f"loss_BCE_e{num_epochs}.pth"):
+        fine_tuners, loaders, devices, weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
+                                                                      lrs=[lr],
+                                                                      l=l)
+        for fine_tuner in fine_tuners:
+            with context_handlers.ClearSession():
+                fine_tune_binary_model(l=l,
+                                       lrs=[lr],
+                                       fine_tuner=fine_tuner,
+                                       device=devices[0],
+                                       loaders=loaders,
+                                       num_epochs=num_epochs,
+                                       save_files=save_files,
+                                       weight=weight)
+                print('#' * 100)
+    else:
+        print(f'Skipping {l}')
+
+
 def run_g_binary_fine_tuning_pipeline(vit_model_names: list[str],
                                       g: data_preprocessing.Granularity,
                                       lr: float,
                                       num_epochs: int,
                                       save_files: bool = True):
     for l in data_preprocessing.get_labels(g=g).values():
-        if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
-                              f"loss_BCE_e{num_epochs}.pth"):
-            fine_tuners, loaders, devices, weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
-                                                                          lrs=[lr],
-                                                                          l=l)
-            for fine_tuner in fine_tuners:
-                with context_handlers.ClearSession():
-                    fine_tune_binary_model(l=l,
-                                           lrs=[lr],
-                                           fine_tuner=fine_tuner,
-                                           device=devices[0],
-                                           loaders=loaders,
-                                           num_epochs=num_epochs,
-                                           save_files=save_files,
-                                           weight=weight)
-                    print('#' * 100)
-        else:
-            print(f'Skipping {l}')
+        run_l_binary_fine_tuning_pipeline(vit_model_names=vit_model_names,
+                                          l=l,
+                                          lr=lr,
+                                          num_epochs=num_epochs,
+                                          save_files=save_files)
 
 
 if __name__ == '__main__':
     for g in data_preprocessing.granularities.values():
-        run_g_binary_fine_tuning_pipeline(g=g,
+        run_g_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
+                                          g=g,
                                           lr=0.0001,
                                           num_epochs=10,
                                           save_files=True)

@@ -43,7 +43,8 @@ class EDCR:
                  K_test: list[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
-                 lower_predictions_indices: list[int] = []):
+                 lower_predictions_indices: list[int] = [],
+                 binary_models: list[str] = []):
         self.main_model_name = main_model_name
         self.combined = combined
         self.loss = loss
@@ -142,6 +143,9 @@ class EDCR:
                 self.condition_datas[g] = self.condition_datas[g].union(
                     {conditions.PredCondition(l=l, lower_prediction_index=lower_prediction_index)
                      for l in data_preprocessing.get_labels(g).values()})
+
+        for binary_model in binary_models:
+            pass
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.granularities.values():
