@@ -143,9 +143,16 @@ def run_g_binary_fine_tuning_pipeline(vit_model_names: list[str],
 
 
 if __name__ == '__main__':
-    for g in data_preprocessing.granularities.values():
-        run_g_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
-                                          g=g,
-                                          lr=0.0001,
-                                          num_epochs=10,
-                                          save_files=True)
+    # for g in data_preprocessing.granularities.values():
+    #     run_g_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
+    #                                       g=g,
+    #                                       lr=0.0001,
+    #                                       num_epochs=10,
+    #                                       save_files=True)
+
+    run_l_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
+                                      l=data_preprocessing.fine_grain_labels[
+                                          data_preprocessing.fine_grain_classes_str[0]],
+                                      lr=0.0001,
+                                      num_epochs=20,
+                                      save_files=True)
