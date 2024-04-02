@@ -297,7 +297,7 @@ def run_binary_evaluating_pipeline(model_name: str,
             print_results=print_results))
 
     if save_files:
-        vit_pipeline.save_binary_prediction_files(test=False,
+        vit_pipeline.save_binary_prediction_files(test=split == 'test',
                                                   fine_tuner=fine_tuner,
                                                   lr=lrs[0],
                                                   epoch=num_epochs,
