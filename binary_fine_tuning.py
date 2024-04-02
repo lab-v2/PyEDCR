@@ -168,5 +168,5 @@ if __name__ == '__main__':
         run_l_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
                                           l=data_preprocessing.fine_grain_labels[l_str],
                                           lr=0.0001,
-                                          num_epochs=10,
+                                          num_epochs=5,
                                           save_files=True)
