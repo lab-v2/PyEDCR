@@ -82,13 +82,29 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                 )
 
                 if evaluate_on_test:
-                    test_ground_truths, test_predictions, test_accuracy = (
-                        neural_evaluation.evaluate_binary_model(l=l,
-                                                                fine_tuner=fine_tuner,
-                                                                loaders=loaders,
-                                                                loss=loss,
-                                                                device=device,
-                                                                split='test'))
+                    # test_ground_truths, test_predictions, test_accuracy = (
+                    #     neural_evaluation.evaluate_binary_model(l=l,
+                    #                                             fine_tuner=fine_tuner,
+                    #                                             loaders=loaders,
+                    #                                             loss=loss,
+                    #                                             device=device,
+                    #                                             split='test'))
+                    neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
+                                                                     l=l,
+                                                                     split='train',
+                                                                     lrs=[0.0001],
+                                                                     loss='BCE',
+                                                                     num_epochs=20,
+                                                                     pretrained_fine_tuner=fine_tuner,
+                                                                     save_files=False)
+                    neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
+                                                                     l=l,
+                                                                     split='test',
+                                                                     lrs=[0.0001],
+                                                                     loss='BCE',
+                                                                     num_epochs=20,
+                                                                     pretrained_fine_tuner=fine_tuner,
+                                                                     save_files=False)
                 print('#' * 100)
 
         if save_files:
