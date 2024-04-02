@@ -26,6 +26,7 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
     train_loader = loaders['train']
     num_batches = len(train_loader)
     positive_class_weight = torch.tensor(positive_class_weight).float().to(device)
+    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=positive_class_weight)
     loss = 'BCE'
 
     for lr in lrs:
@@ -55,8 +56,6 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                         Y_one_hot = torch.nn.functional.one_hot(Y, num_classes=2).float()
                         optimizer.zero_grad()
                         Y_pred = fine_tuner(X)
-
-                        criterion = torch.nn.BCEWithLogitsLoss(pos_weight=positive_class_weight)
 
                         batch_total_loss = criterion(Y_pred, Y_one_hot)
 

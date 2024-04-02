@@ -342,7 +342,7 @@ if __name__ == '__main__':
     #                                   )
 
     run_binary_evaluating_pipeline(model_name='vit_b_16',
-                                   l=data_preprocessing.fine_grain_labels[data_preprocessing.fine_grain_classes_str[0]],
+                                   l=data_preprocessing.fine_grain_labels[data_preprocessing.fine_grain_classes_str[1]],
                                    split='train',
                                    lrs=[0.0001],
                                    loss='BCE',
