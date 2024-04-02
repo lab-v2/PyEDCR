@@ -104,10 +104,12 @@ def save_binary_prediction_files(test: bool,
                                  l: data_preprocessing.Label,
                                  epoch: int = None,
                                  loss: str = 'BCE',
-                                 ground_truths: np.array = None):
+                                 ground_truths: np.array = None,
+                                 evaluation: bool = False):
     """
     Saves prediction files and optional ground truth files.
 
+    :param evaluation:
     :param l:
     :param ground_truths:
     :param predictions:
@@ -130,8 +132,9 @@ def save_binary_prediction_files(test: bool,
 
     np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
             ground_truths)
-    torch.save(fine_tuner.state_dict(),
-               f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
+    if not evaluation:
+        torch.save(fine_tuner.state_dict(),
+                   f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
 
 
 def get_imbalance_weight(l: data_preprocessing.Label,

@@ -303,7 +303,8 @@ def run_binary_evaluating_pipeline(model_name: str,
                                                   epoch=num_epochs,
                                                   l=l,
                                                   predictions=predictions,
-                                                  ground_truths=ground_truths)
+                                                  ground_truths=ground_truths,
+                                                  evaluation=True)
 
     return predictions, accuracy
 
