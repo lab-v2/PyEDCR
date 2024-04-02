@@ -24,7 +24,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  K_test: list[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
-                 lower_predictions_indices: list[int] = []
+                 lower_predictions_indices: list[int] = [],
+                 binary_models: list[str] = []
                  ):
         super(NeuralPyEDCR, self).__init__(main_model_name=main_model_name,
                                            combined=combined,
@@ -36,7 +37,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            K_test=K_test,
                                            include_inconsistency_constraint=include_inconsistency_constraint,
                                            secondary_model_name=secondary_model_name,
-                                           lower_predictions_indices=lower_predictions_indices)
+                                           lower_predictions_indices=lower_predictions_indices,
+                                           binary_l_strs=binary_models)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
@@ -183,8 +185,10 @@ if __name__ == '__main__':
                                     lr=0.0001,
                                     original_num_epochs=20,
                                     include_inconsistency_constraint=False,
-                                    secondary_model_name='vit_b_16_BCE',
+                                    secondary_model_name='vit_l_16_BCE',
+                                    binary_models=data_preprocessing.fine_grain_classes_str,
                                     # lower_predictions_indices=lower_predictions_indices,
+
                                     EDCR_num_epochs=EDCR_num_epochs,
                                     neural_num_epochs=neural_num_epochs)
                 edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)

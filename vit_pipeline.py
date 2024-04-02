@@ -161,7 +161,7 @@ def initiate(lrs: list[typing.Union[str, float]],
              pretrained_path: str = None,
              debug: bool = False,
              indices: typing.Sequence = None,
-             evaluation: bool = None):
+             evaluation: bool = False):
     """
     Initializes models, datasets, and devices for training.
 
@@ -184,7 +184,8 @@ def initiate(lrs: list[typing.Union[str, float]],
           f'Learning rates: {lrs}')
 
     datasets = data_preprocessing.get_datasets(combined=combined,
-                                               binary_label=l)
+                                               binary_label=l,
+                                               evaluation=evaluation)
 
     device = torch.device('cpu') if debug else (
         torch.device('mps' if torch.backends.mps.is_available() else

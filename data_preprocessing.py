@@ -263,34 +263,40 @@ class BinaryImageFolder(EDCRImageFolder):
     def __init__(self,
                  root: str,
                  l: Label,
-                 transform: typing.Optional[typing.Callable] = None):
-        super().__init__(root=root, transform=transform)
-        self.l = l.index
-        self.balanced_samples = []
+                 transform: typing.Optional[typing.Callable] = None,
+                 evaluation: bool = False):
+        if not evaluation:
+            super().__init__(root=root, transform=transform)
+            self.l = l.index
+            self.balanced_samples = []
 
-        # Count the number of images per class
-        class_counts = {target: 0 for _, target in self.samples}
-        for _, target in self.samples:
-            class_counts[target] += 1
+            # Count the number of images per class
+            class_counts = {target: 0 for _, target in self.samples}
+            for _, target in self.samples:
+                class_counts[target] += 1
 
-        # Number of positive examples
-        positive_count = class_counts[self.l]
+            # Number of positive examples
+            positive_count = class_counts[self.l]
 
-        # Calculate the number of negatives to sample from each of the other classes
-        other_classes = [cls for cls in class_counts.keys() if cls != self.l]
-        negative_samples_per_class = positive_count // len(other_classes)
+            # Calculate the number of negatives to sample from each of the other classes
+            other_classes = [cls for cls in class_counts.keys() if cls != self.l]
+            negative_samples_per_class = positive_count // len(other_classes)
 
-        # Sample negatives
+            # Sample negatives
 
-        for cls in other_classes:
-            cls_samples = [(path, target) for path, target in self.samples if target == cls]
-            self.balanced_samples.extend(random.sample(cls_samples, min(negative_samples_per_class, len(cls_samples))))
+            for cls in other_classes:
+                cls_samples = [(path, target) for path, target in self.samples if target == cls]
+                self.balanced_samples.extend(random.sample(cls_samples, min(negative_samples_per_class, len(cls_samples))))
 
-        # Add positive examples
-        self.balanced_samples.extend([(path, target) for path, target in self.samples if target == self.l])
+            # Add positive examples
+            self.balanced_samples.extend([(path, target) for path, target in self.samples if target == self.l])
 
-        # Shuffle the dataset
-        random.shuffle(self.balanced_samples)
+            # Shuffle the dataset
+            random.shuffle(self.balanced_samples)
+        else:
+            super().__init__(root=root,
+                             transform=transform,
+                             target_transform=lambda y: int(y == l.index))
 
     def __getitem__(self, index):
         path, target = self.balanced_samples[index]
@@ -339,13 +345,15 @@ class IndividualImageFolderWithName(EDCRImageFolder):
 
 def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
-                 binary_label: Label = None) -> \
+                 binary_label: Label = None,
+                 evaluation: bool = False) -> \
         (dict[str, torchvision.datasets.ImageFolder], int, int):
     """
     Instantiates and returns train and test datasets
 
     Parameters
     ----------
+        :param evaluation:
         :param binary_label:
         :param cwd:
         :param combined:
@@ -359,7 +367,8 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
         if binary_label is not None:
             datasets[train_or_test] = BinaryImageFolder(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
                                                         transform=get_dataset_transforms(train_or_test=train_or_test),
-                                                        l=binary_label)
+                                                        l=binary_label,
+                                                        evaluation=evaluation)
         elif combined:
             datasets[train_or_test] = CombinedImageFolderWithName(root=os.path.join(data_dir,
                                                                                     f'data/{train_or_test}_fine'),

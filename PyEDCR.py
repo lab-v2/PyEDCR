@@ -44,7 +44,7 @@ class EDCR:
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
                  lower_predictions_indices: list[int] = [],
-                 binary_models: list[str] = []):
+                 binary_l_strs: list[str] = []):
         self.main_model_name = main_model_name
         self.combined = combined
         self.loss = loss
@@ -144,8 +144,27 @@ class EDCR:
                     {conditions.PredCondition(l=l, lower_prediction_index=lower_prediction_index)
                      for l in data_preprocessing.get_labels(g).values()})
 
-        for binary_model in binary_models:
-            pass
+        for l_str in binary_l_strs:
+            l = data_preprocessing.fine_grain_labels[l_str]
+            pred_paths[l_str] = {
+                'test' if test else 'train': models.get_filepath(model_name=main_model_name,
+                                                                 l=l,
+                                                                 test=test,
+                                                                 loss=loss,
+                                                                 lr=lr,
+                                                                 pred=True,
+                                                                 epoch=10)
+
+                for test in [True, False]}
+
+            self.pred_data[l_str] = \
+                {test_or_train: {g: np.load(pred_paths[l_str][test_or_train])
+                                 for g in data_preprocessing.granularities.values()}
+                 for test_or_train in ['test', 'train']}
+
+            for g in data_preprocessing.granularities.values():
+                self.condition_datas[g] = self.condition_datas[g].union(
+                    {conditions.PredCondition(l=l, binary=True)})
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.granularities.values():
@@ -199,9 +218,11 @@ class EDCR:
                         g: data_preprocessing.Granularity = None,
                         stage: str = 'original',
                         secondary: bool = False,
-                        lower_predictions: bool = False) -> typing.Union[np.array, tuple[np.array]]:
+                        lower_predictions: bool = False,
+                        binary: bool = False) -> typing.Union[np.array, tuple[np.array]]:
         """Retrieves prediction data based on specified test/train mode.
 
+        :param binary:
         :param lower_predictions:
         :param secondary:
         :param stage:
@@ -218,6 +239,8 @@ class EDCR:
                 f'lower_{lower_prediction_index}'][test_str][g]
                              for lower_prediction_index in self.lower_predictions_indices}
                          for g in data_preprocessing.granularities.values()}
+        elif binary:
+            pred_data = self
         else:
             pred_data = self.pred_data[test_str][stage]
 
@@ -261,7 +284,6 @@ class EDCR:
         data = test_pred_fine_data if l.g == data_preprocessing.granularities['fine'] else test_pred_coarse_data
         where_label_is_l = np.where(data == l.index, 1, 0)
         return where_label_is_l
-
 
     def print_metrics(self,
                       test: bool,
