@@ -105,13 +105,8 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                 print('#' * 100)
 
         if save_files:
-            vit_pipeline.save_binary_prediction_files(test=False,
-                                                      fine_tuner=fine_tuner,
-                                                      lr=lr,
-                                                      epoch=num_epochs,
-                                                      l=l,
-                                                      predictions=train_predictions,
-                                                      ground_truths=train_ground_truths)
+            torch.save(fine_tuner.state_dict(),
+                       f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
 
         return train_predictions
 
