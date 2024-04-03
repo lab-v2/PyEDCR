@@ -60,7 +60,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             lrs=[self.lr],
             combined=self.combined,
             debug=False,
-            indices=perceived_examples_with_errors
+            error_indices=perceived_examples_with_errors
             # train_eval_split=0.8
         )
 
@@ -69,7 +69,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         with context_handlers.ClearSession():
             combined_fine_tuning.fine_tune_combined_model(
-                lrs=[self.lr / 10],
+                lrs=[self.lr],
                 fine_tuner=self.correction_model,
                 device=devices[0],
                 loaders=loaders,
@@ -92,7 +92,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             lrs=[self.lr],
             combined=self.combined,
             debug=False,
-            indices=perceived_examples_with_errors,
+            error_indices=perceived_examples_with_errors,
             evaluation=True)
 
         evaluation_return_values = neural_evaluation.evaluate_combined_model(

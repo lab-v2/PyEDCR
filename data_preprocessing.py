@@ -198,7 +198,8 @@ def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
     return inconsistencies
 
 
-def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose:
+def get_dataset_transforms(train_or_test: str,
+                           error_fixing: bool = False) -> torchvision.transforms.Compose:
     """
     Returns the transforms required for the VIT for training or test datasets
     """
@@ -209,7 +210,20 @@ def get_dataset_transforms(train_or_test: str) -> torchvision.transforms.Compose
     standard_transforms = [torchvision.transforms.ToTensor(),
                            torchvision.transforms.Normalize(means, stds)]
     train_transforms = [torchvision.transforms.RandomResizedCrop(resize_num),
-                        torchvision.transforms.RandomHorizontalFlip()]
+                        torchvision.transforms.RandomHorizontalFlip(),
+                        # Additional augmentation options:
+                        torchvision.transforms.RandomRotation(15),  # Random rotation
+                        torchvision.transforms.RandomVerticalFlip(),  # Random vertical flip
+                        torchvision.transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+                        ]
+    # Additional error-fixing-specific augmentations
+    if error_fixing:
+        train_transforms += [
+            torchvision.transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),  # Random translation
+            torchvision.transforms.RandomPerspective(distortion_scale=0.05, p=0.5),  # Random perspective
+            torchvision.transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Gaussian blur
+        ]
+
     test_transforms = [torchvision.transforms.Resize(int(resize_num / 224 * 256)),
                        torchvision.transforms.CenterCrop(resize_num)]
     return torchvision.transforms.Compose(
@@ -353,13 +367,15 @@ class IndividualImageFolderWithName(EDCRImageFolder):
 def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
                  binary_label: Label = None,
-                 evaluation: bool = False) -> \
+                 evaluation: bool = False,
+                 error_fixing: bool = False) -> \
         (dict[str, torchvision.datasets.ImageFolder], int, int):
     """
     Instantiates and returns train and test datasets
 
     Parameters
     ----------
+        :param error_fixing:
         :param evaluation:
         :param binary_label:
         :param cwd:
@@ -380,7 +396,8 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
             datasets[train_or_test] = CombinedImageFolderWithName(root=os.path.join(data_dir,
                                                                                     f'data/{train_or_test}_fine'),
                                                                   transform=get_dataset_transforms(
-                                                                      train_or_test=train_or_test))
+                                                                      train_or_test=train_or_test,
+                                                                  error_fixing=error_fixing))
         else:
             datasets[train_or_test] = IndividualImageFolderWithName(
                 root=os.path.join(data_dir, f'{train_or_test}_fine'),

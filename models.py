@@ -96,10 +96,7 @@ class VITFineTuner(FineTuner):
 
         :return: Predicted class probabilities for each input image (batch_num, classes_num).
         """
-
-        Y_pred = self.vit(X)
-
-        return Y_pred
+        return self.vit(X)
 
     def __str__(self):
         return self.vit_model_name

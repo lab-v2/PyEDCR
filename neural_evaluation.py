@@ -235,7 +235,7 @@ def run_combined_evaluating_pipeline(model_name: str,
                               combined=True,
                               pretrained_path=pretrained_path,
                               debug=debug,
-                              indices=indices,
+                              error_indices=indices,
                               evaluation=True))
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,

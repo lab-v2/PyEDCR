@@ -161,15 +161,15 @@ def initiate(lrs: list[typing.Union[str, float]],
              l: data_preprocessing.Label = None,
              pretrained_path: str = None,
              debug: bool = False,
-             indices: typing.Sequence = None,
-             evaluation: bool = False):
+             error_indices: typing.Sequence = None,
+             evaluation: bool = False, ):
     """
     Initializes models, datasets, and devices for training.
 
     :param vit_model_names:
     :param l:
     :param evaluation:
-    :param indices:
+    :param error_indices:
     :param lrs: List of learning rates for the models.
     :param combined: Whether the model are individual or combine one.
     :param pretrained_path: Path to a pretrained model (optional).
@@ -186,7 +186,8 @@ def initiate(lrs: list[typing.Union[str, float]],
 
     datasets = data_preprocessing.get_datasets(combined=combined,
                                                binary_label=l,
-                                               evaluation=evaluation)
+                                               evaluation=evaluation,
+                                               error_fixing=error_indices is not None)
 
     device = torch.device('cpu') if debug else (
         torch.device('mps' if torch.backends.mps.is_available() else
@@ -240,7 +241,7 @@ def initiate(lrs: list[typing.Union[str, float]],
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size,
-                                             indices=indices,
+                                             indices=error_indices,
                                              evaluation=evaluation)
 
     train_images_num = len(loaders['train'].dataset)
