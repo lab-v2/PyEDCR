@@ -56,7 +56,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            vit_model_names=['vit_l_32'],
+            model_names=['vit_l_16'],
+            weights=['IMAGENET1K_SWAG_E2E_V1'],
             lrs=[self.lr],
             combined=self.combined,
             error_indices=perceived_examples_with_errors
@@ -87,7 +88,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print('#' * 100)
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            vit_model_names=['vit_l_32'],
+            model_names=['vit_l_16'],
             lrs=[self.lr],
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
@@ -101,10 +102,12 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             split='train',
             print_results=True)
 
+        new_fine_predictions, new_coarse_predictions = evaluation_return_values[2], evaluation_return_values[3]
+
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['fine']][
-            perceived_examples_with_errors] = evaluation_return_values[2]
+            perceived_examples_with_errors] = new_fine_predictions
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['coarse']][
-            perceived_examples_with_errors] = evaluation_return_values[3]
+            perceived_examples_with_errors] = new_coarse_predictions
 
     def apply_new_model_on_test(self,
                                 print_results: bool = True):

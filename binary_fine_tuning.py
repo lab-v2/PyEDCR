@@ -118,7 +118,7 @@ def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
                                       save_files: bool = True):
     # if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
     #                       f"loss_BCE_e{num_epochs}.pth"):
-    fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
+    fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(model_names=vit_model_names,
                                                                                  lrs=[lr],
                                                                                  l=l)
     for fine_tuner in fine_tuners:

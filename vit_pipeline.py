@@ -156,7 +156,8 @@ def get_imbalance_weight(l: data_preprocessing.Label,
 
 
 def initiate(lrs: list[typing.Union[str, float]],
-             vit_model_names: list[str] = ['vit_b_16'],
+             model_names: list[str] = ['vit_b_16'],
+             weights: list[str] = ['DEFAULT'],
              combined: bool = True,
              l: data_preprocessing.Label = None,
              pretrained_path: str = None,
@@ -166,7 +167,8 @@ def initiate(lrs: list[typing.Union[str, float]],
     """
     Initializes models, datasets, and devices for training.
 
-    :param vit_model_names:
+    :param weights:
+    :param model_names:
     :param l:
     :param evaluation:
     :param error_indices:
@@ -181,14 +183,14 @@ def initiate(lrs: list[typing.Union[str, float]],
              - num_fine_grain_classes: The number of fine-grained classes.
              - num_coarse_grain_classes: The number of coarse-grained classes.
     """
-    print(f'Models: {vit_model_names}\n'
+    print(f'Models: {model_names}\n'
           f'Learning rates: {lrs}')
 
     datasets = data_preprocessing.get_datasets(combined=combined,
                                                binary_label=l,
                                                evaluation=evaluation,
                                                error_fixing=error_indices is not None,
-                                               vit_model_names=vit_model_names)
+                                               vit_model_names=model_names)
 
     device = torch.device('cpu') if debug else (
         torch.device('mps' if torch.backends.mps.is_available() else
@@ -202,7 +204,7 @@ def initiate(lrs: list[typing.Union[str, float]],
         results_path = binary_results_path
         fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
                                            num_classes=2)
-                       for vit_model_name in vit_model_names]
+                       for vit_model_name in model_names]
     else:
         num_fine_grain_classes = len(data_preprocessing.fine_grain_classes_str)
         num_coarse_grain_classes = len(data_preprocessing.coarse_grain_classes_str)
@@ -216,11 +218,12 @@ def initiate(lrs: list[typing.Union[str, float]],
                                                                    classes_num=num_classes,
                                                                    pretrained_path=pretrained_path,
                                                                    device=device)
-                               for vit_model_name in vit_model_names]
+                               for vit_model_name in model_names]
             else:
                 fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+                                                   weights=weight,
                                                    num_classes=num_classes)
-                               for vit_model_name in vit_model_names]
+                               for vit_model_name, weight in zip(model_names, weights)]
 
             results_path = combined_results_path
         else:
@@ -233,10 +236,10 @@ def initiate(lrs: list[typing.Union[str, float]],
 
             fine_tuners = ([models.VITFineTuner(vit_model_name=vit_model_name,
                                                 num_classes=num_fine_grain_classes)
-                            for vit_model_name in vit_model_names] +
+                            for vit_model_name in model_names] +
                            [models.VITFineTuner(vit_model_name=vit_model_name,
                                                 num_classes=num_coarse_grain_classes)
-                            for vit_model_name in vit_model_names])
+                            for vit_model_name in model_names])
             results_path = individual_results_path
 
     utils.create_directory(results_path)

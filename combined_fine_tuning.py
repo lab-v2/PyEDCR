@@ -273,7 +273,7 @@ def run_combined_fine_tuning_pipeline(vit_model_names: list[str],
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        vit_pipeline.initiate(vit_model_names=vit_model_names,
+        vit_pipeline.initiate(model_names=vit_model_names,
                               lrs=lrs,
                               combined=True,
                               debug=debug))

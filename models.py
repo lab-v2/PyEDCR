@@ -7,11 +7,11 @@ import typing
 import data_preprocessing
 
 
-
 class FineTuner(torch.nn.Module, abc.ABC):
     """
     Base class for fine-tuning transformers for image classification tasks.
     """
+
     def __init__(self,
                  num_classes: int):
         """
@@ -31,14 +31,32 @@ class FineTuner(torch.nn.Module, abc.ABC):
         return sum(p.numel() for p in self.parameters())
 
 
+class EfficientNetV2FineTuner(FineTuner):
+    def __init__(self,
+                 efficient_net_v2_model_name: str,
+                 num_classes: int):
+        super().__init__(num_classes=num_classes)
+        self.efficient_net_v2_model_name = efficient_net_v2_model_name
+        vit_model = getattr(torchvision.models, efficient_net_v2_model_name)
+
+        vit_weights = getattr(torchvision.models,
+                              f"ViT_{'_'.join([s.upper() for s in self.vit_model_name.split('vit_')[-1].split('_')])}"
+                              f"_Weights").DEFAULT
+        self.vit = vit_model(weights=vit_weights)
+        self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
+                                             out_features=num_classes)
+
+
 class VITFineTuner(FineTuner):
     """
     This class inherits from `FineTuner` to provide specific functionalities for
     fine-tuning vision transformer (ViT) models.
     """
+
     def __init__(self,
                  vit_model_name: str,
-                 num_classes: int):
+                 num_classes: int,
+                 weights: str = 'DEFAULT'):
         """
         Initializes the VITFineTuner with a pre-trained ViT model and number of classes.
 
@@ -49,9 +67,10 @@ class VITFineTuner(FineTuner):
         self.vit_model_name = vit_model_name
         vit_model = getattr(torchvision.models, vit_model_name)
 
-        vit_weights = eval(
-            f"torchvision.models.ViT_{'_'.join([s.upper() for s in self.vit_model_name.split('vit_')[-1].split('_')])}"
-            f"_Weights.DEFAULT")
+        vit_weights = getattr(getattr(torchvision.models,
+                                      f"ViT_{'_'.join([s.upper() for s in 
+                                                       self.vit_model_name.split('vit_')[-1].split('_')])}"
+                                      f"_Weights"), weights)
         self.vit = vit_model(weights=vit_weights)
         self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
                                              out_features=num_classes)

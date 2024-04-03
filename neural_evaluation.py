@@ -230,7 +230,7 @@ def run_combined_evaluating_pipeline(model_name: str,
              - coarse_accuracy: Coarse-grained accuracy score.
     """
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        vit_pipeline.initiate(vit_model_names=[model_name],
+        vit_pipeline.initiate(model_names=[model_name],
                               lrs=lrs,
                               combined=True,
                               pretrained_path=pretrained_path,
@@ -278,7 +278,7 @@ def run_binary_evaluating_pipeline(model_name: str,
                                    debug: bool = utils.is_debug_mode(),
                                    print_results: bool = True):
     fine_tuners, loaders, devices, weight = (
-        vit_pipeline.initiate(vit_model_names=[model_name],
+        vit_pipeline.initiate(model_names=[model_name],
                               l=l,
                               lrs=lrs,
                               pretrained_path=pretrained_path,
