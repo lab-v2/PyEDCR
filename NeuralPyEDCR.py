@@ -61,7 +61,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             combined=self.combined,
             debug=False,
             indices=perceived_examples_with_errors
-            # pretrained_path='models/vit_b_16_BCE_lr0.0001.pth'
             # train_eval_split=0.8
         )
 
@@ -70,7 +69,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         with context_handlers.ClearSession():
             combined_fine_tuning.fine_tune_combined_model(
-                lrs=[self.lr],
+                lrs=[self.lr / 10],
                 fine_tuner=self.correction_model,
                 device=devices[0],
                 loaders=loaders,
