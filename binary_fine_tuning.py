@@ -123,8 +123,8 @@ def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
                                       lr: float,
                                       num_epochs: int,
                                       save_files: bool = True):
-    if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
-                          f"loss_BCE_e{num_epochs}.pth"):
+    # if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
+    #                       f"loss_BCE_e{num_epochs}.pth"):
         fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
                                                                                      lrs=[lr],
                                                                                      l=l)
@@ -139,8 +139,8 @@ def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
                                        save_files=save_files,
                                        positive_class_weight=positive_class_weight)
                 print('#' * 100)
-    else:
-        print(f'Skipping {l}')
+    # else:
+    #     print(f'Skipping {l}')
 
 
 def run_g_binary_fine_tuning_pipeline(vit_model_names: list[str],
@@ -164,9 +164,21 @@ if __name__ == '__main__':
     #                                       num_epochs=10,
     #                                       save_files=True)
 
-    for l_str in data_preprocessing.fine_grain_classes_str:
-        run_l_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
-                                          l=data_preprocessing.fine_grain_labels[l_str],
-                                          lr=0.0001,
-                                          num_epochs=5,
-                                          save_files=True)
+    l_str = data_preprocessing.fine_grain_classes_str[1]
+    l = data_preprocessing.fine_grain_labels[l_str]
+
+    # for l_str in data_preprocessing.fine_grain_classes_str:
+    run_l_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
+                                      l=data_preprocessing.fine_grain_labels[l_str],
+                                      lr=0.0001,
+                                      num_epochs=5,
+                                      save_files=True)
+
+    neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
+                                                     l=l,
+                                                     split='train',
+                                                     lrs=[0.0001],
+                                                     loss='BCE',
+                                                     num_epochs=5,
+                                                     pretrained_path=
+                                                     f'models/binary_models/binary_{l}_vit_b_16_lr0.0001_loss_BCE_e5.pth')
