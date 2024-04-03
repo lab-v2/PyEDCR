@@ -187,7 +187,8 @@ def initiate(lrs: list[typing.Union[str, float]],
     datasets = data_preprocessing.get_datasets(combined=combined,
                                                binary_label=l,
                                                evaluation=evaluation,
-                                               error_fixing=error_indices is not None)
+                                               error_fixing=error_indices is not None,
+                                               vit_model_names=vit_model_names)
 
     device = torch.device('cpu') if debug else (
         torch.device('mps' if torch.backends.mps.is_available() else

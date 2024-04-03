@@ -199,12 +199,13 @@ def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
 
 
 def get_dataset_transforms(train_or_test: str,
+                           vit_model_name = 'vit_b_16',
                            error_fixing: bool = False) -> torchvision.transforms.Compose:
     """
     Returns the transforms required for the VIT for training or test datasets
     """
 
-    resize_num = 224
+    resize_num = 518 if vit_model_name == 'vit_h_14' else 224
     means = stds = [0.5] * 3
 
     standard_transforms = [torchvision.transforms.ToTensor(),
@@ -223,7 +224,7 @@ def get_dataset_transforms(train_or_test: str,
             torchvision.transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Gaussian blur
         ]
 
-    test_transforms = [torchvision.transforms.Resize(int(resize_num / 224 * 256)),
+    test_transforms = [torchvision.transforms.Resize(256),
                        torchvision.transforms.CenterCrop(resize_num)]
     return torchvision.transforms.Compose(
         (train_transforms if train_or_test == 'train' else test_transforms) + standard_transforms)
@@ -363,7 +364,8 @@ class IndividualImageFolderWithName(EDCRImageFolder):
         return x, y, x_identifier
 
 
-def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
+def get_datasets(vit_model_names = ['vit_b_16'],
+                 cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
                  binary_label: Label = None,
                  evaluation: bool = False,
@@ -374,6 +376,7 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
 
     Parameters
     ----------
+        :param vit_model_names:
         :param error_fixing:
         :param evaluation:
         :param binary_label:
@@ -396,7 +399,8 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                                                                                     f'data/{train_or_test}_fine'),
                                                                   transform=get_dataset_transforms(
                                                                       train_or_test=train_or_test,
-                                                                      error_fixing=error_fixing))
+                                                                      error_fixing=error_fixing,
+                                                                      vit_model_name=vit_model_names[0]))
         else:
             datasets[train_or_test] = IndividualImageFolderWithName(
                 root=os.path.join(data_dir, f'{train_or_test}_fine'),
