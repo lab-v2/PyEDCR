@@ -106,7 +106,7 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
 
         if save_files:
             torch.save(fine_tuner.state_dict(),
-                       f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
+                       f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
 
         return train_predictions
 
@@ -152,7 +152,7 @@ def run_g_binary_fine_tuning_pipeline(vit_model_names: list[str],
 
 
 if __name__ == '__main__':
-    num_epochs = 5
+    num_epochs = 10
     lr = 0.0001
     model_name = 'vit_b_16'
     loss = 'BCE'
