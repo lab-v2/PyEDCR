@@ -317,6 +317,8 @@ def evaluate_binary_models_from_files(g_str: str,
                                       loss: str = 'BCE'):
     g_ground_truth = data_preprocessing.train_true_fine_data if g_str == 'fine' \
         else data_preprocessing.train_true_coarse_data
+    print(f'gt shape : {g_ground_truth.shape}')
+
     for l in data_preprocessing.get_labels(g=data_preprocessing.granularities[g_str]).values():
         predictions = np.load(models.get_filepath(model_name=model_name,
                                                   l=l,
@@ -325,6 +327,7 @@ def evaluate_binary_models_from_files(g_str: str,
                                                   lr=lrs,
                                                   pred=True,
                                                   epoch=num_epochs))
+        print(f'l_pred shape : {predictions.shape}')
         # print(f'{l}:{np.sum(np.where(predictions == 1, 1, 0))}')
         ground_truths = np.where(g_ground_truth == l.index, 1, 0)
         neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
