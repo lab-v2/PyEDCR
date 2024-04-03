@@ -450,11 +450,11 @@ class EDCR_LTN_experiment(EDCR):
 
         print(f'\nfinish train and eval baseline model!\n')
 
-        self.pred_data['train']['original'][config.g_fine] = np.ones_like(data_preprocessing.test_true_fine_data) * -1
+        self.pred_data['train']['original'][config.g_fine] = np.ones_like(data_preprocessing.train_true_fine_data) * -1
         self.pred_data['train']['original'][config.g_fine][train_indices] = np.array(train_fine_prediction)
         self.pred_data['train']['original'][config.g_fine][train_eval_indices] = np.array(train_eval_fine_prediction)
 
-        self.pred_data['train']['original'][config.g_coarse] = np.ones((self.K_train, 1)) * -1
+        self.pred_data['train']['original'][config.g_coarse] = np.ones(data_preprocessing.train_true_fine_data) * -1
         self.pred_data['train']['original'][config.g_coarse][train_indices] = np.array(train_coarse_prediction)
         self.pred_data['train']['original'][config.g_coarse][train_eval_indices] = np.array(
             train_eval_coarse_prediction)
@@ -470,10 +470,10 @@ class EDCR_LTN_experiment(EDCR):
                 mode='test'
             ))
 
-        self.pred_data['test']['original'][config.g_coarse] = np.ones((self.K_train, 1)) * -1
+        self.pred_data['test']['original'][config.g_coarse] = np.ones(data_preprocessing.test_true_fine_data) * -1
         self.pred_data['test']['original'][config.g_coarse][test_indices] = np.array(test_coarse_prediction)
 
-        self.pred_data['test']['original'][config.g_fine] = np.ones((self.K_train, 1)) * -1
+        self.pred_data['test']['original'][config.g_fine] = np.ones(data_preprocessing.test_true_fine_data) * -1
         self.pred_data['test']['original'][config.g_fine][test_indices] = np.array(test_coarse_prediction)
 
         torch.save(obj=self.baseline_model.state_dict(),
