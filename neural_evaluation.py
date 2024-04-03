@@ -348,9 +348,9 @@ if __name__ == '__main__':
                                    split='train',
                                    lrs=[0.0001],
                                    loss='BCE',
-                                   num_epochs=20,
+                                   num_epochs=5,
                                    pretrained_path=
-                                   f'models/binary_models/binary_{l}_vit_b_16_lr0.0001_loss_BCE_e10.pth')
+                                   f'models/binary_models/binary_{l}_vit_b_16_lr0.0001_loss_BCE_e5.pth')
 
 
     # evaluate_binary_models_from_files(g_str='fine',
