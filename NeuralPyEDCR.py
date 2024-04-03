@@ -59,7 +59,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             vit_model_names=['vit_l_32'],
             lrs=[self.lr],
             combined=self.combined,
-            debug=False,
             error_indices=perceived_examples_with_errors
             # train_eval_split=0.8
         )
@@ -88,10 +87,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print('#' * 100)
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            vit_model_names=[self.main_model_name],
+            vit_model_names=['vit_l_32'],
             lrs=[self.lr],
             combined=self.combined,
-            debug=False,
             error_indices=perceived_examples_with_errors,
             evaluation=True)
 
@@ -101,7 +99,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             loss=self.loss,
             device=devices[0],
             split='train',
-            print_results=False)
+            print_results=True)
 
         self.pred_data['train']['post_detection'][data_preprocessing.granularities['fine']][
             perceived_examples_with_errors] = evaluation_return_values[2]
