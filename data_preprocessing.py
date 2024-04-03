@@ -211,7 +211,6 @@ def get_dataset_transforms(train_or_test: str,
                            torchvision.transforms.Normalize(means, stds)]
     train_transforms = [torchvision.transforms.RandomResizedCrop(resize_num),
                         torchvision.transforms.RandomHorizontalFlip(),
-                        # Additional augmentation options:
                         torchvision.transforms.RandomRotation(15),  # Random rotation
                         torchvision.transforms.RandomVerticalFlip(),  # Random vertical flip
                         torchvision.transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
@@ -397,7 +396,7 @@ def get_datasets(cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                                                                                     f'data/{train_or_test}_fine'),
                                                                   transform=get_dataset_transforms(
                                                                       train_or_test=train_or_test,
-                                                                  error_fixing=error_fixing))
+                                                                      error_fixing=error_fixing))
         else:
             datasets[train_or_test] = IndividualImageFolderWithName(
                 root=os.path.join(data_dir, f'{train_or_test}_fine'),

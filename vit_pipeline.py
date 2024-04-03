@@ -162,7 +162,7 @@ def initiate(lrs: list[typing.Union[str, float]],
              pretrained_path: str = None,
              debug: bool = False,
              error_indices: typing.Sequence = None,
-             evaluation: bool = False, ):
+             evaluation: bool = False):
     """
     Initializes models, datasets, and devices for training.
 

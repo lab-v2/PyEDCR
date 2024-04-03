@@ -56,7 +56,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            vit_model_names=[self.main_model_name],
+            vit_model_names=['vit_h_14'],
             lrs=[self.lr],
             combined=self.combined,
             debug=False,
