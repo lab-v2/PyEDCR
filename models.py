@@ -67,10 +67,10 @@ class VITFineTuner(FineTuner):
         self.vit_model_name = vit_model_name
         vit_model = getattr(torchvision.models, vit_model_name)
 
-        vit_weights = getattr(getattr(torchvision.models,
-                                      f"ViT_{'_'.join([s.upper() for s in 
-                                                       self.vit_model_name.split('vit_')[-1].split('_')])}"
-                                      f"_Weights"), weights)
+        vit_weights = getattr(getattr(
+            torchvision.models,
+            f"ViT_{'_'.join([s.upper() for s in self.vit_model_name.split('vit_')[-1].split('_')])}_Weights"),
+            weights)
         self.vit = vit_model(weights=vit_weights)
         self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
                                              out_features=num_classes)
