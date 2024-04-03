@@ -164,20 +164,20 @@ if __name__ == '__main__':
     #                                       num_epochs=num_epochs,
     #                                       save_files=True)
 
-    l_str = data_preprocessing.fine_grain_classes_str[1]
-    l = data_preprocessing.fine_grain_labels[l_str]
+    # l_str = data_preprocessing.fine_grain_classes_str[1]
 
-    # for l_str in data_preprocessing.fine_grain_classes_str:
-    run_l_binary_fine_tuning_pipeline(vit_model_names=[model_name],
-                                      l=data_preprocessing.fine_grain_labels[l_str],
-                                      lr=lr,
-                                      num_epochs=num_epochs,
-                                      save_files=True)
+    for l_str in data_preprocessing.fine_grain_classes_str:
+        l = data_preprocessing.fine_grain_labels[l_str]
+        run_l_binary_fine_tuning_pipeline(vit_model_names=[model_name],
+                                          l=data_preprocessing.fine_grain_labels[l_str],
+                                          lr=lr,
+                                          num_epochs=num_epochs,
+                                          save_files=True)
 
-    neural_evaluation.evaluate_binary_models_from_files(g_str='fine',
-                                                        test=False,
-                                                        lrs=lr,
-                                                        num_epochs=num_epochs)
+    # neural_evaluation.evaluate_binary_models_from_files(g_str='fine',
+    #                                                     test=False,
+    #                                                     lrs=lr,
+    #                                                     num_epochs=num_epochs)
 
     # neural_evaluation.run_binary_evaluating_pipeline(
     #     model_name=model_name,
