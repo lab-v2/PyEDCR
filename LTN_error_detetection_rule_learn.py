@@ -46,7 +46,7 @@ class EDCR_LTN_experiment(EDCR):
         self.pretrain_path = config.main_pretrained_path
         self.beta = config.beta
         self.correction_model = {}
-        self.num_models = 5
+        self.num_models = config.num_models
         self.get_fraction_of_example_with_label = config.get_fraction_of_example_with_label
 
         self.formatted_removed_label = ",".join(f"{key},{value}"

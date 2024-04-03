@@ -16,6 +16,7 @@ scheduler_step_size = 1  # Number of epochs after which to decay learning rate
 loss = 'BCE'  # Loss function (e.g., 'BCE' for Binary Cross-Entropy)
 beta = 0.1  # weight for LTN: higher beta -> higher weight to LTN
 get_fraction_of_example_with_label = {l_Tank: 0.1}  # fraction of example to remove from a label in the train dataset
+num_models = 3
 
 num_epochs = 20
 K_train = None  # Number of example for training
