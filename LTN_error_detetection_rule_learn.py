@@ -45,7 +45,6 @@ class EDCR_LTN_experiment(EDCR):
         self.scheduler_step_size = num_epochs
         self.pretrain_path = config.main_pretrained_path
         self.beta = config.beta
-        self.baseline_model = None
         self.correction_model = {}
         self.num_models = 5
         self.get_fraction_of_example_with_label = config.get_fraction_of_example_with_label
@@ -59,7 +58,7 @@ class EDCR_LTN_experiment(EDCR):
                                      f"baseline_epoch_{self.num_baseline_epochs}_"
                                      f"remove_label_{self.formatted_removed_label}.pth")
 
-            if os.path.exists(str(pretrained_model_path)):
+            if os.path.exists(pretrained_model_path):
                 print(f"Previous model is found!")
                 self.pretrain_path = pretrained_model_path
             else:
@@ -69,7 +68,7 @@ class EDCR_LTN_experiment(EDCR):
                                      f"batch_size_{self.batch_size}_baseline_epoch_{self.num_baseline_epochs}_"
                                      f"remove_label_{self.formatted_removed_label}.npy")
 
-        if os.path.exists(str(path_to_prediction_result)) and self.pretrain_path is not None:
+        if os.path.exists(path_to_prediction_result) and self.pretrain_path is not None:
             print(f"Previous result is found! Loading the previous prediction for conditions")
             self.pred_data['train']['original'][config.g_fine] = (
                 np.load(file=f"combined_results/vit_b_16_train_fine_{self.loss}_"
@@ -94,9 +93,9 @@ class EDCR_LTN_experiment(EDCR):
                              f"lr_{self.lr}_batch_size_{self.batch_size}_"
                              f"baseline_epoch_{self.num_baseline_epochs}_"
                              f"remove_label_{self.formatted_removed_label}.npy"))
-        else:
-            raise FileNotFoundError("Previous result is not found. The baseline will be pretrained. "
-                                    "Consider changing the code")
+        # else:
+        #     raise FileNotFoundError("Previous result is not found. The baseline will be pretrained. "
+        #                             "Consider changing the code")
 
         self.fine_tuners, self.loaders, self.devices, _, _ = (
             vit_pipeline.initiate(combined=self.combined,
@@ -106,7 +105,10 @@ class EDCR_LTN_experiment(EDCR):
                                   train_eval_split=0.8,
                                   get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
-        self.run_baseline_pipeline(pretrained_path=self.pretrain_path)
+        self.baseline_model = self.fine_tuners[0] if self.pretrain_path is not None else None
+        print('Load pretrain model successfully!')
+        if self.pretrain_path is None:
+            self.run_baseline_pipeline(pretrained_path=self.pretrain_path)
 
     def fine_tune_and_evaluate_combined_model(self,
                                               fine_tuner: models.FineTuner,
@@ -160,10 +162,14 @@ class EDCR_LTN_experiment(EDCR):
                         self.pred_data[train_or_test]['original']['fine'][indices]).to(device)
                     original_pred_coarse_batch = torch.tensor(
                         self.pred_data[train_or_test]['original']['coarse'][indices]).to(device)
-                    original_secondary_pred_fine_batch = torch.tensor(
-                        self.pred_data['secondary_model'][train_or_test]['fine'][indices]).to(device)
-                    original_secondary_pred_coarse_batch = torch.tensor(
-                        self.pred_data['secondary_model'][train_or_test]['coarse'][indices]).to(device)
+                    if self.secondary_model_name is not None:
+                        original_secondary_pred_fine_batch = torch.tensor(
+                            self.pred_data['secondary_model'][train_or_test]['fine'][indices]).to(device)
+                        original_secondary_pred_coarse_batch = torch.tensor(
+                            self.pred_data['secondary_model'][train_or_test]['coarse'][indices]).to(device)
+                    else:
+                        original_secondary_pred_fine_batch = None
+                        original_secondary_pred_coarse_batch = None
 
                     Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
                         data_preprocessing.fine_grain_classes_str))
@@ -240,8 +246,9 @@ class EDCR_LTN_experiment(EDCR):
                     original_pred_fines += original_pred_fine_batch.tolist()
                     original_pred_coarses += original_pred_coarse_batch.tolist()
 
-                    original_secondary_pred_fines += original_secondary_pred_fine_batch.tolist()
-                    original_secondary_pred_coarses += original_secondary_pred_coarse_batch.tolist()
+                    if self.secondary_model_name is not None:
+                        original_secondary_pred_fines += original_secondary_pred_fine_batch.tolist()
+                        original_secondary_pred_coarses += original_secondary_pred_coarse_batch.tolist()
 
                     del X, Y_fine_grain, Y_coarse_grain, indices, Y_pred_fine_grain, Y_pred_coarse_grain
 
@@ -263,8 +270,10 @@ class EDCR_LTN_experiment(EDCR):
             true_coarse_batch=torch.tensor(coarse_ground_truths).to(device),
             original_pred_fine_batch=torch.tensor(original_pred_fines).to(device),
             original_pred_coarse_batch=torch.tensor(original_pred_coarses).to(device),
-            original_secondary_pred_fine_batch=torch.tensor(original_secondary_pred_fines).to(device),
-            original_secondary_pred_coarse_batch=torch.tensor(original_secondary_pred_coarses).to(device),
+            original_secondary_pred_fine_batch=torch.tensor(original_secondary_pred_fines).to(device)
+            if self.secondary_model_name is not None else None,
+            original_secondary_pred_coarse_batch=torch.tensor(original_secondary_pred_coarses).to(device)
+            if self.secondary_model_name is not None else None,
             error_detection_rules=self.error_detection_rules,
             device=device
         )
@@ -378,15 +387,7 @@ class EDCR_LTN_experiment(EDCR):
         return (np.array(fine_predictions), np.array(coarse_predictions), np.array(batch_indices),
                 fine_accuracy, coarse_accuracy)
 
-    def run_baseline_pipeline(self,
-                              pretrained_path: str = None):
-        if pretrained_path is not None:
-            try:
-                self.baseline_model = torch.load(pretrained_path)
-                print('Load pretrain model successfully!')
-                return
-            except FileNotFoundError:
-                print('pretrained path is not found, train the model from the beginning')
+    def run_baseline_pipeline(self):
 
         print(f'\nStarted train baseline model ...\n')
 
@@ -440,7 +441,7 @@ class EDCR_LTN_experiment(EDCR):
 
         print(f'\nfinish train and eval baseline model!\n')
 
-        self.pred_data['train']['original'][config.g_fine] = np.ones((self.K_train, 1)) * -1
+        self.pred_data['train']['original'][config.g_fine] = np.ones_like(data_preprocessing.test_true_fine_data) * -1
         self.pred_data['train']['original'][config.g_fine][train_indices] = np.array(train_fine_prediction)
         self.pred_data['train']['original'][config.g_fine][train_eval_indices] = np.array(train_eval_fine_prediction)
 
@@ -466,7 +467,7 @@ class EDCR_LTN_experiment(EDCR):
         self.pred_data['test']['original'][config.g_fine] = np.ones((self.K_train, 1)) * -1
         self.pred_data['test']['original'][config.g_fine][test_indices] = np.array(test_coarse_prediction)
 
-        torch.save(obj=self.baseline_model,
+        torch.save(obj=self.baseline_model.state_dict(),
                    f=f"models/vit_b_16/combined_{self.loss}_"
                      f"lr_{self.lr}_batch_size_{self.batch_size}_"
                      f"baseline_epoch_{self.num_baseline_epochs}_"

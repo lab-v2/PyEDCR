@@ -52,9 +52,9 @@ def conds_predicate(examples: torch.tensor,
         any_condition_satisfied |= torch.tensor(cond(fine_data=cond_fine_data.detach().to('cpu').numpy(),
                                                      coarse_data=cond_coarse_data.detach().to('cpu').numpy(),
                                                      secondary_fine_data=cond_second_fine_data.detach().to(
-                                                         'cpu').numpy(),
+                                                         'cpu').numpy() if cond_second_fine_data is not None else None,
                                                      secondary_coarse_data=cond_second_coarse_data.detach().to(
-                                                         'cpu').numpy()))
+                                                         'cpu').numpy()) if cond_second_coarse_data is not None else None)
     return any_condition_satisfied.to(device)
 
 
