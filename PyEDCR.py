@@ -198,8 +198,9 @@ class EDCR:
 
         self.correction_model = None
 
-        print(f"Num of fine conditions: {len(self.condition_datas[data_preprocessing.granularities['fine']])}\n"
-              f"Num of coarse conditions: {len(self.condition_datas[data_preprocessing.granularities['coarse']])}\n")
+        print(utils.blue_text(
+            f"Num of fine conditions: {len(self.condition_datas[data_preprocessing.granularities['fine']])}\n"
+              f"Num of coarse conditions: {len(self.condition_datas[data_preprocessing.granularities['coarse']])}\n"))
 
     def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
         """
