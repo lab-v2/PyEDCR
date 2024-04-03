@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.utils.data
 import numpy as np
@@ -320,20 +321,22 @@ def evaluate_binary_models_from_files(g_str: str,
     print(f'gt shape : {g_ground_truth.shape}')
 
     for l in data_preprocessing.get_labels(g=data_preprocessing.granularities[g_str]).values():
-        predictions = np.load(models.get_filepath(model_name=model_name,
-                                                  l=l,
-                                                  test=test,
-                                                  loss=loss,
-                                                  lr=lrs,
-                                                  pred=True,
-                                                  epoch=num_epochs))
-        print(f'l_pred shape : {predictions.shape}')
-        # print(f'{l}:{np.sum(np.where(predictions == 1, 1, 0))}')
-        ground_truths = np.where(g_ground_truth == l.index, 1, 0)
-        neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
-                                                    loss=loss,
-                                                    true_data=ground_truths,
-                                                    test=test)
+        l_file = models.get_filepath(model_name=model_name,
+                                     l=l,
+                                     test=test,
+                                     loss=loss,
+                                     lr=lrs,
+                                     pred=True,
+                                     epoch=num_epochs)
+        if os.path.exists(l_file):
+            predictions = np.load(l_file)
+            print(f'l_pred shape : {predictions.shape}')
+            # print(f'{l}:{np.sum(np.where(predictions == 1, 1, 0))}')
+            ground_truths = np.where(g_ground_truth == l.index, 1, 0)
+            neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
+                                                        loss=loss,
+                                                        true_data=ground_truths,
+                                                        test=test)
 
 
 if __name__ == '__main__':
@@ -354,7 +357,6 @@ if __name__ == '__main__':
                                    num_epochs=5,
                                    pretrained_path=
                                    f'models/binary_models/binary_{l}_vit_b_16_lr0.0001_loss_BCE_e5.pth')
-
 
     # evaluate_binary_models_from_files(g_str='fine',
     #                                   test=False,
