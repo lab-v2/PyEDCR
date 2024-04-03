@@ -10,6 +10,7 @@ import abc
 import random
 
 from typing import List
+random.seed(42)
 
 current_file_location = pathlib.Path(__file__).parent.resolve()
 os.chdir(current_file_location)
