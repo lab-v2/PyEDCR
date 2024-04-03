@@ -32,6 +32,7 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
                  secondary_pred_coarse_data: np.array,
                  lower_predictions_fine_data: np.array,
                  lower_predictions_coarse_data: np.array,
+                 binary_data: dict,
                  ) -> np.array:
         pass
 
@@ -43,6 +44,7 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
                                     secondary_pred_coarse_data: np.array,
                                     lower_predictions_fine_data: np.array,
                                     lower_predictions_coarse_data: np.array,
+                                    binary_data: dict,
                                     ):
         pass
 
@@ -54,7 +56,7 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
                                            secondary_coarse_data: np.array,
                                            lower_predictions_fine_data: np.array,
                                            lower_predictions_coarse_data: np.array,
-                                           binary_data: dict[data_preprocessing.Label, np.array],
+                                           binary_data: dict,
                                            ) -> np.array:
         """Checks where any given conditions are satisfied.
 
@@ -99,7 +101,7 @@ class ErrorDetectionRule(Rule):
         super().__init__(l=l, C_l=DC_l)
         assert all(cond.l != self.l for cond in {cond_prime for cond_prime in self.C_l
                                                  if isinstance(cond_prime, conditions.PredCondition)
-                                                 and not cond_prime.secondary_model})
+                                                 and not cond_prime.secondary_model and not cond_prime.binary})
 
     def get_where_body_is_satisfied(self,
                                     pred_fine_data: np.array,
@@ -108,7 +110,7 @@ class ErrorDetectionRule(Rule):
                                     secondary_pred_coarse_data: np.array,
                                     lower_predictions_fine_data: np.array,
                                     lower_predictions_coarse_data: np.array,
-                                    binary_data: dict[data_preprocessing.Label, np.array] = None
+                                    binary_data: dict
                                     ) -> np.array:
         test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
             else pred_coarse_data
@@ -133,7 +135,7 @@ class ErrorDetectionRule(Rule):
                  secondary_pred_coarse_data: np.array,
                  lower_predictions_fine_data: dict,
                  lower_predictions_coarse_data: dict,
-                 binary_data: dict[data_preprocessing.Label, np.array] = None) -> np.array:
+                 binary_data: dict) -> np.array:
         """Infer the detection rule based on the provided prediction data.
 
         :param pred_fine_data: The fine-grained prediction data.
@@ -182,7 +184,7 @@ class ErrorCorrectionRule(Rule):
                                     secondary_pred_coarse_data: np.array,
                                     lower_predictions_fine_data: dict,
                                     lower_predictions_coarse_data: dict,
-                                    binary_data: dict[data_preprocessing.Label, np.array] = None) -> np.array:
+                                    binary_data: dict) -> np.array:
         test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
             else pred_coarse_data
 
@@ -213,6 +215,7 @@ class ErrorCorrectionRule(Rule):
                  secondary_pred_coarse_data: np.array,
                  lower_predictions_fine_data: dict,
                  lower_predictions_coarse_data: dict,
+                 binary_data: dict,
                  ) -> np.array:
         """Infer the correction rule based on the provided prediction data.
 
@@ -226,7 +229,8 @@ class ErrorCorrectionRule(Rule):
                                              secondary_pred_fine_data=secondary_pred_fine_data,
                                              secondary_pred_coarse_data=secondary_pred_coarse_data,
                                              lower_predictions_fine_data=lower_predictions_fine_data,
-                                             lower_predictions_coarse_data=lower_predictions_coarse_data
+                                             lower_predictions_coarse_data=lower_predictions_coarse_data,
+                                             binary_data=binary_data
                                              ))
 
         altered_pred_data = np.where(where_any_pair_satisfied == 1, self.l.index, -1)

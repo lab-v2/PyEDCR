@@ -167,8 +167,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 if __name__ == '__main__':
     epsilons = [0.1 * i for i in range(2, 3)]
 
-    for EDCR_num_epochs in [3]:
-        for neural_num_epochs in [3]:
+    for EDCR_num_epochs in [5]:
+        for neural_num_epochs in [5]:
             # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
             print('\n' + '#' * 100 + '\n' +
                   utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}'
@@ -186,7 +186,7 @@ if __name__ == '__main__':
                                     original_num_epochs=20,
                                     include_inconsistency_constraint=False,
                                     secondary_model_name='vit_l_16_BCE',
-                                    binary_models=data_preprocessing.fine_grain_classes_str,
+                                    binary_models=data_preprocessing.fine_grain_classes_str[0:4],
                                     # lower_predictions_indices=lower_predictions_indices,
 
                                     EDCR_num_epochs=EDCR_num_epochs,

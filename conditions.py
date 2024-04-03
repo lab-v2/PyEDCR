@@ -59,8 +59,7 @@ class PredCondition(Condition):
                  secondary_coarse_data: np.array,
                  lower_predictions_fine_data: dict,
                  lower_predictions_coarse_data: dict,
-                 binary_data: dict[data_preprocessing.Label, np.array]
-                 ) -> np.array:
+                 binary_data: dict[data_preprocessing.Label, np.array]) -> np.array:
 
         if self.secondary_model:
             if self.l.g == data_preprocessing.granularities['fine']:

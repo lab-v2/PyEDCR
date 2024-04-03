@@ -53,6 +53,7 @@ class EDCR:
         self.epsilon = epsilon
         self.secondary_model_name = secondary_model_name
         self.lower_predictions_indices = lower_predictions_indices
+        self.binary_l_strs = binary_l_strs
 
         pred_paths: dict[str, dict] = {
             'test' if test else 'train': {g_str: models.get_filepath(model_name=main_model_name,
@@ -144,9 +145,11 @@ class EDCR:
                     {conditions.PredCondition(l=l, lower_prediction_index=lower_prediction_index)
                      for l in data_preprocessing.get_labels(g).values()})
 
+        self.pred_data['binary'] = {}
+
         for l_str in binary_l_strs:
             l = data_preprocessing.fine_grain_labels[l_str]
-            pred_paths[l_str] = {
+            pred_paths[l] = {
                 'test' if test else 'train': models.get_filepath(model_name=main_model_name,
                                                                  l=l,
                                                                  test=test,
@@ -157,8 +160,8 @@ class EDCR:
 
                 for test in [True, False]}
 
-            self.pred_data[l_str] = \
-                {test_or_train: {g: np.load(pred_paths[l_str][test_or_train])
+            self.pred_data['binary'][l] = \
+                {test_or_train: {g: np.load(pred_paths[l][test_or_train])
                                  for g in data_preprocessing.granularities.values()}
                  for test_or_train in ['test', 'train']}
 
@@ -538,6 +541,7 @@ class EDCR:
         lower_train_pred_fine_data, lower_train_pred_coarse_data = (
             self.get_predictions(test=False, lower_predictions=True)) \
             if len(self.lower_predictions_indices) else (None, None)
+        binary_data = self.pred_data['binary']
 
         where_any_conditions_satisfied_on_train = (
             rules.Rule.get_where_any_conditions_satisfied(C=C,
@@ -547,7 +551,7 @@ class EDCR:
                                                           secondary_coarse_data=secondary_train_pred_coarse_data,
                                                           lower_predictions_fine_data=lower_train_pred_fine_data,
                                                           lower_predictions_coarse_data=lower_train_pred_coarse_data,
-                                                          binary_data={}))
+                                                          binary_data=binary_data))
         where_train_tp_l = self.get_where_tp_l(test=False, l=l, stage=stage)
         NEG_l = np.sum(where_train_tp_l * where_any_conditions_satisfied_on_train)
 
@@ -566,6 +570,7 @@ class EDCR:
         lower_train_pred_fine_data, lower_train_pred_coarse_data = (
             self.get_predictions(test=False, lower_predictions=True)) \
             if len(self.lower_predictions_indices) else (None, None)
+        binary_data = self.pred_data['binary']
 
         where_any_conditions_satisfied_on_train = (
             rules.Rule.get_where_any_conditions_satisfied(C=C,
@@ -575,7 +580,7 @@ class EDCR:
                                                           secondary_coarse_data=secondary_train_pred_coarse_data,
                                                           lower_predictions_fine_data=lower_train_pred_fine_data,
                                                           lower_predictions_coarse_data=lower_train_pred_coarse_data,
-                                                          binary_data={}
+                                                          binary_data=binary_data
                                                           ))
         BOD_l = np.sum(where_any_conditions_satisfied_on_train)
 
@@ -600,6 +605,7 @@ class EDCR:
         lower_train_pred_fine_data, lower_train_pred_coarse_data = (
             self.get_predictions(test=False, lower_predictions=True)) \
             if len(self.lower_predictions_indices) else (None, None)
+        binary_data = self.pred_data['binary']
 
         where_any_conditions_satisfied_on_train = (
             rules.Rule.get_where_any_conditions_satisfied(C=C,
@@ -609,7 +615,7 @@ class EDCR:
                                                           secondary_coarse_data=secondary_train_pred_coarse_data,
                                                           lower_predictions_fine_data=lower_train_pred_fine_data,
                                                           lower_predictions_coarse_data=lower_train_pred_coarse_data,
-                                                          binary_data={}))
+                                                          binary_data=binary_data))
         POS_l = np.sum(where_was_wrong_with_respect_to_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
@@ -690,6 +696,7 @@ class EDCR:
         lower_train_pred_fine_data, lower_train_pred_coarse_data = (
             self.get_predictions(test=False, lower_predictions=True)) \
             if len(self.lower_predictions_indices) else (None, None)
+        binary_data = self.pred_data['binary']
 
         altered_pred_granularity_data = self.get_predictions(test=test, g=g, stage=stage)
 
@@ -701,8 +708,8 @@ class EDCR:
                                            secondary_pred_fine_data=secondary_pred_fine_data,
                                            secondary_pred_coarse_data=secondary_pred_coarse_data,
                                            lower_predictions_fine_data=lower_train_pred_fine_data,
-                                           lower_predictions_coarse_data=lower_train_pred_coarse_data
-                                           )
+                                           lower_predictions_coarse_data=lower_train_pred_coarse_data,
+                                           binary_data=binary_data)
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
         self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
