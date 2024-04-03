@@ -1,4 +1,3 @@
-import os
 import torch
 import torch.utils.data
 import typing
@@ -158,29 +157,38 @@ def run_g_binary_fine_tuning_pipeline(vit_model_names: list[str],
 
 
 if __name__ == '__main__':
+    num_epochs = 5
+    lr = 0.0001
+    model_name = 'vit_b_16'
+    loss = 'BCE'
+
     # for g in data_preprocessing.granularities.values():
-    #     run_g_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
+    #     run_g_binary_fine_tuning_pipeline(vit_model_names=[model_name],
     #                                       g=g,
-    #                                       lr=0.0001,
-    #                                       num_epochs=10,
+    #                                       lr=lr,
+    #                                       num_epochs=num_epochs,
     #                                       save_files=True)
 
     l_str = data_preprocessing.fine_grain_classes_str[1]
     l = data_preprocessing.fine_grain_labels[l_str]
 
     # for l_str in data_preprocessing.fine_grain_classes_str:
-    run_l_binary_fine_tuning_pipeline(vit_model_names=['vit_b_16'],
+    run_l_binary_fine_tuning_pipeline(vit_model_names=[model_name],
                                       l=data_preprocessing.fine_grain_labels[l_str],
-                                      lr=0.0001,
-                                      num_epochs=5,
+                                      lr=lr,
+                                      num_epochs=num_epochs,
                                       save_files=True)
 
-    neural_evaluation.run_binary_evaluating_pipeline(
-        model_name='vit_b_16',
-        l=l,
-        split='train',
-        lrs=[0.0001],
-        loss='BCE',
-        num_epochs=5,
-        pretrained_path=
-        f'models/binary_models/binary_{l}_vit_b_16_lr0.0001_loss_BCE_e5.pth')
+    neural_evaluation.evaluate_binary_models_from_files(g_str='fine',
+                                                        test=False,
+                                                        lrs=lr,
+                                                        num_epochs=num_epochs)
+
+    # neural_evaluation.run_binary_evaluating_pipeline(
+    #     model_name=model_name,
+    #     l=l,
+    #     split='train',
+    #     lrs=[lr],
+    #     loss=loss,
+    #     num_epochs=num_epochs,
+    #     pretrained_path=f'models/binary_models/binary_{l}_{model_name}_lr{lr}_loss_{loss}_e{num_epochs}.pth')
