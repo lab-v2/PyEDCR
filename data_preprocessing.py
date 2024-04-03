@@ -200,12 +200,13 @@ def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
 
 def get_dataset_transforms(train_or_test: str,
                            vit_model_name = 'vit_b_16',
-                           error_fixing: bool = False) -> torchvision.transforms.Compose:
+                           error_fixing: bool = False,
+                           weight: str = 'DEFAULT') -> torchvision.transforms.Compose:
     """
     Returns the transforms required for the VIT for training or test datasets
     """
 
-    resize_num = 518 if vit_model_name == 'vit_h_14' else 224
+    resize_num = 518 if vit_model_name == 'vit_h_14' else (224 if weight == 'DEFAULT' else 512)
     means = stds = [0.5] * 3
 
     standard_transforms = [torchvision.transforms.ToTensor(),
@@ -364,7 +365,8 @@ class IndividualImageFolderWithName(EDCRImageFolder):
         return x, y, x_identifier
 
 
-def get_datasets(vit_model_names = ['vit_b_16'],
+def get_datasets(vit_model_names: list[str] = ['vit_b_16'],
+                 weights: list[str] = ['DEFAULT'],
                  cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
                  binary_label: Label = None,
@@ -376,6 +378,7 @@ def get_datasets(vit_model_names = ['vit_b_16'],
 
     Parameters
     ----------
+        :param weights:
         :param vit_model_names:
         :param error_fixing:
         :param evaluation:
@@ -400,7 +403,9 @@ def get_datasets(vit_model_names = ['vit_b_16'],
                                                                   transform=get_dataset_transforms(
                                                                       train_or_test=train_or_test,
                                                                       error_fixing=error_fixing,
-                                                                      vit_model_name=vit_model_names[0]))
+                                                                      vit_model_name=vit_model_names[0],
+                                                                      weight=weights[0]
+                                                                  ))
         else:
             datasets[train_or_test] = IndividualImageFolderWithName(
                 root=os.path.join(data_dir, f'{train_or_test}_fine'),

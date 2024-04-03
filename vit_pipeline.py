@@ -190,7 +190,8 @@ def initiate(lrs: list[typing.Union[str, float]],
                                                binary_label=l,
                                                evaluation=evaluation,
                                                error_fixing=error_indices is not None,
-                                               vit_model_names=model_names)
+                                               vit_model_names=model_names,
+                                               weights=weights)
 
     device = torch.device('cpu') if debug else (
         torch.device('mps' if torch.backends.mps.is_available() else
