@@ -27,7 +27,6 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
     num_batches = len(train_loader)
     positive_class_weight = torch.tensor(positive_class_weight).float().to(device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=positive_class_weight)
-    loss = 'BCE'
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -93,16 +92,16 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                         neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
                                                                          l=l,
                                                                          split='train',
-                                                                         lrs=[0.0001],
+                                                                         lrs=[lr],
                                                                          loss='BCE',
-                                                                         num_epochs=10,
+                                                                         num_epochs=num_epochs,
                                                                          pretrained_fine_tuner=fine_tuner)
                         neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
                                                                          l=l,
                                                                          split='test',
-                                                                         lrs=[0.0001],
+                                                                         lrs=[lr],
                                                                          loss='BCE',
-                                                                         num_epochs=10,
+                                                                         num_epochs=num_epochs,
                                                                          pretrained_fine_tuner=fine_tuner)
                 print('#' * 100)
 
@@ -125,22 +124,24 @@ def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
                                       save_files: bool = True):
     # if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
     #                       f"loss_BCE_e{num_epochs}.pth"):
-        fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
-                                                                                     lrs=[lr],
-                                                                                     l=l)
-        for fine_tuner in fine_tuners:
-            with context_handlers.ClearSession():
-                fine_tune_binary_model(l=l,
-                                       lrs=[lr],
-                                       fine_tuner=fine_tuner,
-                                       device=devices[0],
-                                       loaders=loaders,
-                                       num_epochs=num_epochs,
-                                       save_files=save_files,
-                                       positive_class_weight=positive_class_weight)
-                print('#' * 100)
-    # else:
-    #     print(f'Skipping {l}')
+    fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(vit_model_names=vit_model_names,
+                                                                                 lrs=[lr],
+                                                                                 l=l)
+    for fine_tuner in fine_tuners:
+        with context_handlers.ClearSession():
+            fine_tune_binary_model(l=l,
+                                   lrs=[lr],
+                                   fine_tuner=fine_tuner,
+                                   device=devices[0],
+                                   loaders=loaders,
+                                   num_epochs=num_epochs,
+                                   save_files=save_files,
+                                   positive_class_weight=positive_class_weight)
+            print('#' * 100)
+
+
+# else:
+#     print(f'Skipping {l}')
 
 
 def run_g_binary_fine_tuning_pipeline(vit_model_names: list[str],
@@ -174,11 +175,12 @@ if __name__ == '__main__':
                                       num_epochs=5,
                                       save_files=True)
 
-    neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
-                                                     l=l,
-                                                     split='train',
-                                                     lrs=[0.0001],
-                                                     loss='BCE',
-                                                     num_epochs=5,
-                                                     pretrained_path=
-                                                     f'models/binary_models/binary_{l}_vit_b_16_lr0.0001_loss_BCE_e5.pth')
+    neural_evaluation.run_binary_evaluating_pipeline(
+        model_name='vit_b_16',
+        l=l,
+        split='train',
+        lrs=[0.0001],
+        loss='BCE',
+        num_epochs=5,
+        pretrained_path=
+        f'models/binary_models/binary_{l}_vit_b_16_lr0.0001_loss_BCE_e5.pth')
