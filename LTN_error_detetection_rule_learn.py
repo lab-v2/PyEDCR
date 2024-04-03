@@ -5,6 +5,7 @@ import models
 import ltn
 import ltn_support
 import numpy as np
+import copy
 
 from PyEDCR import EDCR
 import data_preprocessing
@@ -105,10 +106,18 @@ class EDCR_LTN_experiment(EDCR):
                                   train_eval_split=0.8,
                                   get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
-        self.baseline_model = self.fine_tuners[0] if self.pretrain_path is not None else None
-        print('Load pretrain model successfully!')
         if self.pretrain_path is None:
-            self.run_baseline_pipeline(pretrained_path=self.pretrain_path)
+            self.run_baseline_pipeline()
+        else:
+            self.baseline_model = self.fine_tuners[0]
+            print('Load pretrain model successfully!')
+
+        vit_pipeline.evaluate_combined_model(fine_tuner=self.baseline_model,
+                                             loaders=self.loaders,
+                                             loss='BCE',
+                                             device=self.devices[0],
+                                             split='test')
+
 
     def fine_tune_and_evaluate_combined_model(self,
                                               fine_tuner: models.FineTuner,
@@ -511,7 +520,7 @@ class EDCR_LTN_experiment(EDCR):
 
         print(f'\nStarted train and eval LTN model {model_index}...\n')
 
-        self.correction_model[model_index] = self.baseline_model
+        self.correction_model[model_index] = copy.deepcopy(self.baseline_model)
 
         train_fine_accuracies = []
         train_coarse_accuracies = []
