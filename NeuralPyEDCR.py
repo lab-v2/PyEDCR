@@ -57,7 +57,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print(utils.red_text(f'\nNumber of perceived train errors: {len(perceived_examples_with_errors)} / '
                              f'{self.T_train}\n'))
 
-        new_model_name = 'vit_b_16'
+        new_model_name = 'vit_l_16'
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             model_names=[new_model_name],
             # weights=['IMAGENET1K_SWAG_E2E_V1'],
