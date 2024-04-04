@@ -172,7 +172,7 @@ if __name__ == '__main__':
     epsilons = [0.2]
 
     for EDCR_num_epochs in [4]:
-        for neural_num_epochs in [1]:
+        for neural_num_epochs in [4]:
             # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
             print('\n' + '#' * 100 + '\n' +
                   utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
