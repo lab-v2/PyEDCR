@@ -75,7 +75,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 loaders=loaders,
                 loss=self.loss,
                 save_files=False,
-                debug=False,
                 evaluate_on_test=False,
                 num_epochs=self.neural_num_epochs
                 # Y_original_fine=

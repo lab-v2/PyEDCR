@@ -437,14 +437,13 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
                 train_eval_split: float = None,
                 get_indices: bool = None,
                 get_fraction_of_example_with_label: dict[Label, float] = None,
-                binary: bool = False) -> dict[
-    str, torch.utils.data.DataLoader]:
+                print_counts: bool = False) -> dict[str, torch.utils.data.DataLoader]:
     """
     Instantiates and returns train and test torch data loaders
 
     Parameters
     ----------
-        :param binary:
+        :param print_counts:
         :param get_indices:
         :param get_fraction_of_example_with_label:
         :param train_eval_split:
@@ -461,7 +460,7 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
     label_counts = {}
     total_count = 0
 
-    if not binary:
+    if print_counts:
         for element in datasets['train']:  # Iterate through the original dataset
             if element[-1] not in label_counts:
                 label_counts[element[-1]] = 0
@@ -502,7 +501,7 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
                 loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
                                                          indices=all_indices[train_size:])
 
-        if get_fraction_of_example_with_label is not None and split == 'train' and get_indices:
+        if print_counts and get_fraction_of_example_with_label is not None and split == 'train' and get_indices:
             # Remove the fraction of label based on the value specify in the dict remove_label_with_fraction
             label_counts = {}
             for _, _, _, y_coarse_grain, _ in loader_dataset:  # Iterate through data and labels
@@ -529,22 +528,21 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
 
         shuffle = split == 'train' and (evaluation is None or not evaluation)
 
-        # if not binary:
-            # if split in ['train', 'train_eval']:  # Only for train and train_eval loaders
-            #     label_counts = {}
-            #     total_count = 0
-            #     for _, _, _, y_coarse_grain, _ in loader_dataset:  # Iterate through the loader dataset
-            #         if y_coarse_grain not in label_counts:
-            #             label_counts[y_coarse_grain] = 0
-            #         label_counts[y_coarse_grain] += 1
-            #         total_count += 1
-            #
-            #     print(f"Label counts in {split} loader: {total_count} examples in total, in which")
-            #     # Sort label counts by label value (assuming labels are integers)
-            #     sorted_label_counts = sorted(label_counts.items(), key=lambda item: item[0])
-            #
-            #     for label, count in sorted_label_counts:
-            #         print(f"  - Label {label}: {count} examples")
+        if print_counts and split in ['train', 'train_eval']:  # Only for train and train_eval loaders
+            label_counts = {}
+            total_count = 0
+            for _, _, _, y_coarse_grain, _ in loader_dataset:  # Iterate through the loader dataset
+                if y_coarse_grain not in label_counts:
+                    label_counts[y_coarse_grain] = 0
+                label_counts[y_coarse_grain] += 1
+                total_count += 1
+
+            print(f"Label counts in {split} loader: {total_count} examples in total, in which")
+            # Sort label counts by label value (assuming labels are integers)
+            sorted_label_counts = sorted(label_counts.items(), key=lambda item: item[0])
+
+            for label, count in sorted_label_counts:
+                print(f"  - Label {label}: {count} examples")
 
         loaders[split] = torch.utils.data.DataLoader(
             dataset=loader_dataset,

@@ -24,9 +24,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              save_files: bool = True,
                              debug: bool = False,
                              evaluate_on_test: bool = True,
-                             evaluate_on_train_eval: bool = False,
-                             Y_original_fine: np.array = None,
-                             Y_original_coarse: np.array = None):
+                             evaluate_on_train_eval: bool = False):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -147,24 +145,6 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                 sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
                                                                            Y_pred, Y_coarse_grain, Y_fine_grain)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_combine))
-
-                        if batch_total_loss is not None and Y_original_fine is not None:
-                            end_index = (batch_num + 1) * vit_pipeline.batch_size if batch_num + 1 < num_batches else \
-                                len(Y_original_fine)
-                            Y_original_fine_one_hot = torch.nn.functional.one_hot(
-                                torch.tensor(Y_original_fine[batch_num *
-                                                             vit_pipeline.batch_size:end_index]).to(device),
-                                num_classes=len(data_preprocessing.fine_grain_classes_str))
-                            Y_original_coarse_one_hot = torch.nn.functional.one_hot(
-                                torch.tensor(Y_original_coarse[batch_num *
-                                                               vit_pipeline.batch_size:end_index]).to(device),
-                                num_classes=len(data_preprocessing.coarse_grain_classes_str))
-
-                            Y_original_combine = torch.cat(tensors=[Y_original_fine_one_hot,
-                                                                    Y_original_coarse_one_hot],
-                                                           dim=1).float()
-                            batch_total_loss -= vit_pipeline.original_prediction_weight * criterion(Y_pred,
-                                                                                                    Y_original_combine)
 
                         neural_metrics.print_post_batch_metrics(batch_num=batch_num,
                                                                 num_batches=num_batches,
