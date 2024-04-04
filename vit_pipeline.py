@@ -171,7 +171,7 @@ def initiate(lrs: list[typing.Union[str, float]],
              error_indices: typing.Sequence = None,
              evaluation: bool = False,
              train_eval_split: float = None,
-             get_indices: bool = None,
+             get_indices: bool = False,
              get_fraction_of_example_with_label: dict[data_preprocessing.Label, float] = None,):
     """
     Initializes models, datasets, and devices for training.

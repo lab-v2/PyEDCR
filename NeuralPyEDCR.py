@@ -60,7 +60,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             # weights=['IMAGENET1K_SWAG_E2E_V1'],
             lrs=[self.lr],
             combined=self.combined,
-            error_indices=perceived_examples_with_errors
+            error_indices=perceived_examples_with_errors,
+            get_indices=True
             # train_eval_split=0.8
         )
 
@@ -91,7 +92,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             lrs=[self.lr],
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
-            evaluation=True)
+            evaluation=True,
+            get_indices=True)
 
         evaluation_return_values = neural_evaluation.evaluate_combined_model(
             fine_tuner=self.correction_model,
@@ -170,8 +172,7 @@ if __name__ == '__main__':
         for neural_num_epochs in [1]:
             # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
             print('\n' + '#' * 100 + '\n' +
-                  utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}'
-                                  f'neural_num_epochs = {neural_num_epochs}'
+                  utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
                                   # f'lower_predictions_indices = {lower_predictions_indices}'
                                   )
                   + '\n' + '#' * 100 + '\n')
