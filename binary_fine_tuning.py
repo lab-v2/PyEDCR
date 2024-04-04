@@ -2,6 +2,8 @@ import torch
 import torch.utils.data
 import typing
 
+from imblearn.over_sampling import RandomOverSampler
+
 import data_preprocessing
 import models
 import context_handlers
@@ -9,6 +11,8 @@ import neural_evaluation
 import neural_metrics
 import vit_pipeline
 import neural_fine_tuning
+import sys
+import numpy as np
 
 
 def fine_tune_binary_model(l: data_preprocessing.Label,
@@ -24,6 +28,7 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
     fine_tuner.train()
     train_loader = loaders['train']
     num_batches = len(train_loader)
+    oversample = RandomOverSampler(sampling_strategy='minority')
     positive_class_weight = torch.tensor(positive_class_weight).float().to(device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=positive_class_weight)
 
@@ -51,6 +56,15 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
                         X, Y = batch[0].to(device), batch[1].to(device)
+
+                        X_flattened = X.reshape(X.shape[0], -1)
+                        X_resampled, Y_resampled = oversample.fit_resample(X_flattened, Y)
+                        channels, height, width = X.shape[1], X.shape[2], X.shape[3]
+                        X = torch.tensor(X_resampled, dtype=torch.float).reshape(-1, channels,
+                                                                                 height, width).to(device)
+
+                        Y = torch.tensor(Y_resampled, dtype=torch.long).to(device)
+
                         Y_one_hot = torch.nn.functional.one_hot(Y, num_classes=2).float()
                         optimizer.zero_grad()
                         Y_pred = fine_tuner(X)
@@ -164,7 +178,7 @@ if __name__ == '__main__':
     #                                       num_epochs=num_epochs,
     #                                       save_files=True)
 
-    l_str = data_preprocessing.fine_grain_classes_str[1]
+    # l_str = data_preprocessing.fine_grain_classes_str[1]
 
     for l_str in data_preprocessing.fine_grain_classes_str:
         l = data_preprocessing.fine_grain_labels[l_str]

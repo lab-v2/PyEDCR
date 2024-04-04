@@ -42,5 +42,7 @@ main_pretrained_path = "/home/ngocbach/PyEDCR/models/vit_b_16_BCE_lr0.0001.pth" 
 original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
                                   len(data_preprocessing.coarse_grain_classes_str))  # Weight for original prediction in combined loss
 
+binary_results_path = '/home/v00d00/PycharmProjects/metacognitive_error_detection_and_correction_v2/binary_results'
+
 # Config for PyEDCR
 randomized = False
