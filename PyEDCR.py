@@ -704,8 +704,8 @@ class EDCR:
 
         # self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
 
-        where_predicted_incorrect = self.get_where_predicted_incorrect(test=test, g=g)
-        where_error_detection_identified_errors = np.zeros_like(where_predicted_incorrect)
+        error_ground_truths = self.get_where_predicted_incorrect(test=test, g=g)
+        error_predictions = np.zeros_like(error_ground_truths)
 
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
             altered_pred_data_l = rule_g_l(pred_fine_data=pred_fine_data,
@@ -717,17 +717,17 @@ class EDCR:
                                            binary_data=binary_data)
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
-            where_error_detection_identified_errors |= np.where(altered_pred_data_l == -1, 1, 0)
+            error_predictions |= np.where(altered_pred_data_l == -1, 1, 0)
 
         self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
 
         error_accuracy, error_f1, error_precision, error_recall = neural_metrics.get_individual_metrics(
-            pred_data=where_error_detection_identified_errors,
-            true_data=where_predicted_incorrect)
+            pred_data=error_predictions,
+            true_data=error_ground_truths)
 
-        print(f'{g}-grain:\n'
-              f'Error accuracy: {error_accuracy}, Error f1: {error_f1}\n'
-              f'Error precision: {error_precision}, Error recall: {error_recall}')
+        print(utils.blue_text(f'{g}-grain:\n'
+                              f'Train error accuracy: {error_accuracy}, Train error f1: {error_f1}\n'
+                              f'Train error precision: {error_precision}, Train error recall: {error_recall}'))
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
@@ -738,6 +738,8 @@ class EDCR:
         #                                                                                     stage='post_detection'))
         #
         # return error_mask
+
+        return error_predictions, error_ground_truths
 
     def print_how_many_not_assigned(self,
                                     test: bool,

@@ -24,7 +24,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              save_files: bool = True,
                              debug: bool = False,
                              evaluate_on_test: bool = True,
-                             evaluate_on_train_eval: bool = False):
+                             evaluate_on_train_eval: bool = False,
+                             error_predictions: np.array = None,
+                             error_ground_truths: np.array = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -121,6 +123,9 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                         elif loss == "BCE":
                             criterion = torch.nn.BCEWithLogitsLoss()
                             batch_total_loss = criterion(Y_pred, Y_combine)
+
+                            if error_predictions is not None:
+                                batch_total_loss += criterion(error_predictions, error_ground_truths)
 
                         elif loss == "CE":
                             criterion = torch.nn.CrossEntropyLoss()
