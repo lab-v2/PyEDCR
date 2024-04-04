@@ -264,7 +264,8 @@ def initiate(lrs: list[typing.Union[str, float]],
                                              subset_indices=error_indices,
                                              train_eval_split=train_eval_split,
                                              get_indices=get_indices,
-                                             get_fraction_of_example_with_label=get_fraction_of_example_with_label)
+                                             get_fraction_of_example_with_label=get_fraction_of_example_with_label,
+                                             binary=l is not None)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of eval images: {len(loaders['train_eval'].dataset) if train_eval_split else 0}\n"
