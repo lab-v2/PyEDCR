@@ -200,7 +200,7 @@ class EDCR:
 
         print(utils.blue_text(
             f"Num of fine conditions: {len(self.condition_datas[data_preprocessing.granularities['fine']])}\n"
-              f"Num of coarse conditions: {len(self.condition_datas[data_preprocessing.granularities['coarse']])}\n"))
+            f"Num of coarse conditions: {len(self.condition_datas[data_preprocessing.granularities['coarse']])}\n"))
 
     def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
         """
@@ -721,7 +721,14 @@ class EDCR:
 
         self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
 
-        # self.print_metrics()
+        error_accuracy, error_f1, error_precision, error_recall = neural_metrics.get_individual_metrics(
+            pred_data=where_error_detection_identified_errors,
+            true_data=where_predicted_incorrect)
+
+        print(f'{g}-grain:\n'
+              f'Error accuracy: {error_accuracy}, Error f1: {error_f1}\n'
+              f'Error precision: {error_precision}, Error recall: {error_recall}')
+
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
         # for l in data_preprocessing.get_labels(g).values():

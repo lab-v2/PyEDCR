@@ -529,22 +529,22 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
 
         shuffle = split == 'train' and (evaluation is None or not evaluation)
 
-        if not binary:
-            if split in ['train', 'train_eval']:  # Only for train and train_eval loaders
-                label_counts = {}
-                total_count = 0
-                for _, _, _, y_coarse_grain, _ in loader_dataset:  # Iterate through the loader dataset
-                    if y_coarse_grain not in label_counts:
-                        label_counts[y_coarse_grain] = 0
-                    label_counts[y_coarse_grain] += 1
-                    total_count += 1
-
-                print(f"Label counts in {split} loader: {total_count} examples in total, in which")
-                # Sort label counts by label value (assuming labels are integers)
-                sorted_label_counts = sorted(label_counts.items(), key=lambda item: item[0])
-
-                for label, count in sorted_label_counts:
-                    print(f"  - Label {label}: {count} examples")
+        # if not binary:
+            # if split in ['train', 'train_eval']:  # Only for train and train_eval loaders
+            #     label_counts = {}
+            #     total_count = 0
+            #     for _, _, _, y_coarse_grain, _ in loader_dataset:  # Iterate through the loader dataset
+            #         if y_coarse_grain not in label_counts:
+            #             label_counts[y_coarse_grain] = 0
+            #         label_counts[y_coarse_grain] += 1
+            #         total_count += 1
+            #
+            #     print(f"Label counts in {split} loader: {total_count} examples in total, in which")
+            #     # Sort label counts by label value (assuming labels are integers)
+            #     sorted_label_counts = sorted(label_counts.items(), key=lambda item: item[0])
+            #
+            #     for label, count in sorted_label_counts:
+            #         print(f"  - Label {label}: {count} examples")
 
         loaders[split] = torch.utils.data.DataLoader(
             dataset=loader_dataset,
