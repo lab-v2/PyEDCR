@@ -43,7 +43,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         self.neural_num_epochs = neural_num_epochs
 
     def run_training_new_model_pipeline(self,
-                                        error_predictions, error_ground_truths):
+                                        error_predictions: dict[data_preprocessing.Granularity, np.array],
+                                        error_ground_truths: dict[data_preprocessing.Granularity, np.array]):
+
 
         perceived_examples_with_errors = set()
         for g in data_preprocessing.granularities.values():
@@ -79,6 +81,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 save_files=False,
                 evaluate_on_test=False,
                 num_epochs=self.neural_num_epochs,
+                error_predictions=error_predictions,
+                error_ground_truths=error_ground_truths
                 # debug=True
             )
             print('#' * 100)
@@ -147,7 +151,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 self.learn_detection_rules(g=g)
                 error_predictions[g], error_ground_truths[g] = self.apply_detection_rules(test=False, g=g)
 
-            self.run_training_new_model_pipeline()
+            self.run_training_new_model_pipeline(error_predictions=error_predictions,
+                                                 error_ground_truths=error_ground_truths)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
@@ -164,7 +169,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 if __name__ == '__main__':
-    epsilons = [0.3]
+    epsilons = [0.2]
 
     for EDCR_num_epochs in [4]:
         for neural_num_epochs in [1]:

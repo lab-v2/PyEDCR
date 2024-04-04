@@ -25,8 +25,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                              debug: bool = False,
                              evaluate_on_test: bool = True,
                              evaluate_on_train_eval: bool = False,
-                             error_predictions: np.array = None,
-                             error_ground_truths: np.array = None):
+                             error_predictions: dict[data_preprocessing.Granularity, np.array] = None,
+                             error_ground_truths: dict[data_preprocessing.Granularity, np.array] = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -125,7 +125,24 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
                             if error_predictions is not None:
-                                batch_total_loss += criterion(error_predictions, error_ground_truths)
+                                error_data = []
+                                for error_preds_or_gts in [error_predictions, error_ground_truths]:
+                                    fine_error = error_preds_or_gts[data_preprocessing.granularities['fine']]
+                                    coarse_error = error_preds_or_gts[data_preprocessing.granularities['coarse']]
+
+                                    error_fine_grain_one_hot = \
+                                        torch.nn.functional.one_hot(torch.tensor(fine_error),
+                                                                    num_classes=len(
+                                                                        data_preprocessing.fine_grain_classes_str))
+                                    error_coarse_grain_one_hot = \
+                                        torch.nn.functional.one_hot(torch.tensor(coarse_error),
+                                                                    num_classes=len(
+                                                                        data_preprocessing.coarse_grain_classes_str))
+                                    error_data += [torch.cat(tensors=[error_fine_grain_one_hot,
+                                                                      error_coarse_grain_one_hot],
+                                                             dim=1).float().to(device)]
+
+                                batch_total_loss += criterion(*error_data)
 
                         elif loss == "CE":
                             criterion = torch.nn.CrossEntropyLoss()
