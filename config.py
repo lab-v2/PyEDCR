@@ -33,6 +33,7 @@ secondary_model_name = None  # (Optional) Name of secondary model for additional
 # Data Paths
 combined_results_path = 'combined_results'  # Path to save combined results
 individual_results_path = 'individual_results'  # Path to save individual results (fine and coarse)
+binary_results_path = 'binary_results'  # Path to save individual results (fine and coarse)
 
 # Pre-trained Model Path
 main_pretrained_path = "/home/ngocbach/PyEDCR/models/vit_b_16_BCE_lr0.0001.pth"  # Path to pre-trained model

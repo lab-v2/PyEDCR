@@ -25,7 +25,7 @@ class EDCR:
     fine-grained and coarse-grained model runs to enhance its accuracy.
 
     Attributes:
-        main_model_name (str): Name of the primary model used for predictions.
+        main_model_name (str): Name of the primary model  used for predictions.
         combined (bool): Whether combined features (coarse and fine) were used during training.
         loss (str): Loss function used during training.
         lr: Learning rate used during training.
@@ -692,6 +692,7 @@ class EDCR:
         """
         stage = 'original' if self.correction_model is None else 'post_detection'
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
+
         secondary_pred_fine_data, secondary_pred_coarse_data = (
             self.get_predictions(test=test, secondary=True) if self.secondary_model_name is not None else None, None)
         lower_train_pred_fine_data, lower_train_pred_coarse_data = (
@@ -703,6 +704,9 @@ class EDCR:
 
         # self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
 
+        where_predicted_incorrect = self.get_where_predicted_incorrect(test=test, g=g)
+        where_error_detection_identified_errors = np.zeros_like(where_predicted_incorrect)
+
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
             altered_pred_data_l = rule_g_l(pred_fine_data=pred_fine_data,
                                            pred_coarse_data=pred_coarse_data,
@@ -713,8 +717,11 @@ class EDCR:
                                            binary_data=binary_data)
             altered_pred_granularity_data = np.where(altered_pred_data_l == -1, -1, altered_pred_granularity_data)
 
+            where_error_detection_identified_errors |= np.where(altered_pred_data_l == -1, 1, 0)
+
         self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
 
+        # self.print_metrics()
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
         # for l in data_preprocessing.get_labels(g).values():

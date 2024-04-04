@@ -11,7 +11,6 @@ def get_change_str(change: typing.Union[float, str]):
                                     else utils.green_text(f'(+{round(change, 2)}%)'))
 
 
-
 def print_num_inconsistencies(pred_fine_data: np.array,
                               pred_coarse_data: np.array,
                               prior: bool = True):
@@ -55,6 +54,27 @@ def get_binary_metrics(pred_data: np.array,
     return accuracy, f1, precision, recall
 
 
+def get_individual_metrics(pred_data: np.array,
+                           true_data: np.array,
+                           labels=None):
+    accuracy = accuracy_score(y_true=true_data,
+                              y_pred=pred_data)
+    f1 = f1_score(y_true=true_data,
+                  y_pred=pred_data,
+                  labels=labels,
+                  average='macro')
+    precision = precision_score(y_true=true_data,
+                                y_pred=pred_data,
+                                labels=labels,
+                                average='macro')
+    recall = recall_score(y_true=true_data,
+                          y_pred=pred_data,
+                          labels=labels,
+                          average='macro')
+
+    return accuracy, f1, precision, recall
+
+
 def get_metrics(pred_fine_data: np.array,
                 pred_coarse_data: np.array,
                 true_fine_data: np.array,
@@ -68,35 +88,15 @@ def get_metrics(pred_fine_data: np.array,
     :return: A tuple containing the accuracy, F1, precision, and recall metrics
              for both fine and coarse granularities.
     """
-    fine_accuracy = accuracy_score(y_true=true_fine_data,
-                                   y_pred=pred_fine_data)
-    fine_f1 = f1_score(y_true=true_fine_data,
-                       y_pred=pred_fine_data,
-                       labels=range(len(data_preprocessing.fine_grain_classes_str)),
-                       average='macro')
-    fine_precision = precision_score(y_true=true_fine_data,
-                                     y_pred=pred_fine_data,
-                                     labels=range(len(data_preprocessing.fine_grain_classes_str)),
-                                     average='macro')
-    fine_recall = recall_score(y_true=true_fine_data,
-                               y_pred=pred_fine_data,
-                               labels=range(len(data_preprocessing.fine_grain_classes_str)),
-                               average='macro')
+    fine_accuracy, fine_f1, fine_precision, fine_recall = (
+        get_individual_metrics(pred_data=pred_fine_data,
+                               true_data=true_fine_data,
+                               labels=range(len(data_preprocessing.fine_grain_classes_str))))
 
-    coarse_accuracy = accuracy_score(y_true=true_coarse_data,
-                                     y_pred=pred_coarse_data)
-    coarse_f1 = f1_score(y_true=true_coarse_data,
-                         y_pred=pred_coarse_data,
-                         labels=range(len(data_preprocessing.coarse_grain_classes_str)),
-                         average='macro')
-    coarse_precision = precision_score(y_true=true_coarse_data,
-                                       y_pred=pred_coarse_data,
-                                       labels=range(len(data_preprocessing.coarse_grain_classes_str)),
-                                       average='macro')
-    coarse_recall = recall_score(y_true=true_coarse_data,
-                                 y_pred=pred_coarse_data,
-                                 labels=range(len(data_preprocessing.coarse_grain_classes_str)),
-                                 average='macro')
+    coarse_accuracy, coarse_f1, coarse_precision, coarse_recall = (
+        get_individual_metrics(pred_data=pred_coarse_data,
+                               true_data=true_coarse_data,
+                               labels=range(len(data_preprocessing.coarse_grain_classes_str))))
 
     return (fine_accuracy, fine_f1, fine_precision, fine_recall,
             coarse_accuracy, coarse_f1, coarse_precision, coarse_recall)
@@ -230,7 +230,6 @@ def get_and_print_metrics(pred_fine_data: np.array,
                                   prior=prior)
 
     return fine_accuracy, coarse_accuracy
-
 
 
 def get_and_print_post_epoch_binary_metrics(epoch: int,
