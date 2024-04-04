@@ -20,7 +20,7 @@ num_models = 3
 
 num_epochs = 20
 K_train = None  # Number of example for training
-K_test = None   # Number of example for testing
+K_test = None  # Number of example for testing
 
 # Model and Loss Configuration
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]

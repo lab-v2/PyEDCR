@@ -87,7 +87,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             )
             print('#' * 100)
 
-        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
+        _, loaders, devices, _, _ = vit_pipeline.initiate(
             model_names=[new_model_name],
             lrs=[self.lr],
             combined=self.combined,
@@ -168,7 +168,7 @@ if __name__ == '__main__':
     epsilons = [0.2]
 
     for EDCR_num_epochs in [4]:
-        for neural_num_epochs in [4]:
+        for neural_num_epochs in [1]:
             # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
             print('\n' + '#' * 100 + '\n' +
                   utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}'
