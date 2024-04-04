@@ -11,6 +11,8 @@ import random
 
 from typing import List
 
+random.seed(42)
+
 current_file_location = pathlib.Path(__file__).parent.resolve()
 os.chdir(current_file_location)
 
@@ -104,7 +106,7 @@ def get_ground_truths(test: bool,
                       K: List[int] = None,
                       g: Granularity = None) -> np.array:
     if K is None:
-        K = [(0, len(test_true_coarse_data) - 1)]
+        K = [idx for idx in range(0, len(test_true_coarse_data))]
     if test:
         true_fine_data = test_true_fine_data
         true_coarse_data = test_true_coarse_data
@@ -199,7 +201,7 @@ def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
 
 
 def get_dataset_transforms(train_or_test: str,
-                           vit_model_name = 'vit_b_16',
+                           vit_model_name='vit_b_16',
                            error_fixing: bool = False,
                            weight: str = 'DEFAULT') -> torchvision.transforms.Compose:
     """
@@ -415,34 +417,132 @@ def get_datasets(vit_model_names: list[str] = ['vit_b_16'],
     return datasets
 
 
+class DatasetWithIndices(torch.utils.data.Dataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
+        self.indices = np.arange(len(dataset))
+
+    def __getitem__(self, index):
+        x, y_fine_grain, x_identifier, y_coarse_grain = self.dataset[index]
+        return x, y_fine_grain, x_identifier, y_coarse_grain, self.indices[index]
+
+    def __len__(self):
+        return len(self.dataset)
+
+
 def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
                 batch_size: int,
-                indices: typing.Sequence = None,
-                evaluation: bool = None) -> dict[str, torch.utils.data.DataLoader]:
+                subset_indices: typing.Sequence = None,
+                evaluation: bool = None,
+                train_eval_split: float = None,
+                get_indices: bool = None,
+                get_fraction_of_example_with_label: dict[Label, float] = None) -> dict[
+    str, torch.utils.data.DataLoader]:
     """
     Instantiates and returns train and test torch data loaders
 
     Parameters
     ----------
+        :param get_indices:
+        :param get_fraction_of_example_with_label:
+        :param train_eval_split:
         :param evaluation:
         :param datasets:
         :param batch_size:
-        :param indices:
+        :param subset_indices:
     """
     loaders = {}
 
-    for split in ['train', 'train_eval', 'test']:
+    all_indices = None
+    train_size = None
+
+    label_counts = {}
+    total_count = 0
+    for _, _, _, y_coarse_grain in datasets['train']:  # Iterate through the original dataset
+        if y_coarse_grain not in label_counts:
+            label_counts[y_coarse_grain] = 0
+        label_counts[y_coarse_grain] += 1
+        total_count += 1
+    print(f"Label counts in original train dataset: {total_count} examples in total, in which")
+
+    # Sort label counts by label value (assuming labels are integers)
+    sorted_label_counts = sorted(label_counts.items(), key=lambda item: item[0])
+
+    for label, count in sorted_label_counts:
+        print(f"  - Label {label}: {count} examples")
+
+    for split in ['train', 'test'] + (['train_eval'] if train_eval_split is not None else []):
         relevant_dataset = datasets[split if split != 'train_eval' else 'train']
+
+        if get_indices:
+            relevant_dataset = DatasetWithIndices(relevant_dataset)
+
+        if subset_indices is None or relevant_dataset != 'train':
+            loader_dataset = relevant_dataset
+        else:
+            loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
+                                                     indices=subset_indices)
+
+        if train_eval_split is not None:
+            # Shuffle the indices in-place
+            if all_indices is None:
+                dataset_size = len(loader_dataset)
+                all_indices = list(range(dataset_size))
+                random.shuffle(all_indices)
+                train_size = int(train_eval_split * dataset_size)
+
+            if split == 'train':
+                loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
+                                                         indices=all_indices[:train_size])
+            elif split == 'train_eval':
+                loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
+                                                         indices=all_indices[train_size:])
+
+        if get_fraction_of_example_with_label is not None and split == 'train' and get_indices:
+            # Remove the fraction of label based on the value specify in the dict remove_label_with_fraction
+            label_counts = {}
+            for _, _, _, y_coarse_grain, _ in loader_dataset:  # Iterate through data and labels
+                if y_coarse_grain not in label_counts:
+                    label_counts[y_coarse_grain] = 0
+                label_counts[y_coarse_grain] += 1  # Count occurrences of each label
+
+            for label, remove_fraction in get_fraction_of_example_with_label.items():
+                num_to_add = int(remove_fraction * label_counts[label.index])  # Calculate number to remove
+
+                # Get datapoints with the specified label
+                label_indices = [idx for _, _, _, y_coarse_grain, idx in loader_dataset
+                                 if y_coarse_grain == label.index]
+
+                # Sample indices to add the desired number
+                add_indices = random.sample(label_indices, num_to_add)
+                filtered_indices = [idx for _, _, _, _, idx in loader_dataset
+                                    if (idx in add_indices) or (idx not in label_indices)]
+
+                print(f'add {remove_fraction * 100}% of examples out of {label_counts[label.index]} '
+                      f'from label {label.index} in train')
+
+                loader_dataset = torch.utils.data.Subset(relevant_dataset, filtered_indices)
+
         shuffle = split == 'train' and (evaluation is None or not evaluation)
 
-        if indices is None or split != 'train':
-            dataset = relevant_dataset
-        else:
-            dataset = torch.utils.data.Subset(dataset=relevant_dataset,
-                                              indices=indices)
+        if split in ['train', 'train_eval']:  # Only for train and train_eval loaders
+            label_counts = {}
+            total_count = 0
+            for _, _, _, y_coarse_grain, _ in loader_dataset:  # Iterate through the loader dataset
+                if y_coarse_grain not in label_counts:
+                    label_counts[y_coarse_grain] = 0
+                label_counts[y_coarse_grain] += 1
+                total_count += 1
+
+            print(f"Label counts in {split} loader: {total_count} examples in total, in which")
+            # Sort label counts by label value (assuming labels are integers)
+            sorted_label_counts = sorted(label_counts.items(), key=lambda item: item[0])
+
+            for label, count in sorted_label_counts:
+                print(f"  - Label {label}: {count} examples")
 
         loaders[split] = torch.utils.data.DataLoader(
-            dataset=dataset,
+            dataset=loader_dataset,
             batch_size=batch_size,
             shuffle=shuffle)
 

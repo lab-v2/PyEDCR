@@ -5,15 +5,23 @@ import typing
 import models
 import utils
 import data_preprocessing
+import ltn
+import ltn_support
+import config
 
-original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
-                                  len(data_preprocessing.coarse_grain_classes_str))
-binary_results_path = fr'binary_results'
-combined_results_path = fr'combined_results'
-individual_results_path = fr'individual_results'
-batch_size = 64
-scheduler_gamma = 0.9
-ltn_num_epochs = 5
+# Use the configuration variables:
+batch_size = config.batch_size
+scheduler_gamma = config.scheduler_gamma
+num_epochs = config.num_epochs
+ltn_num_epochs = config.ltn_num_epochs
+vit_model_names = config.vit_model_names
+
+combined_results_path = config.combined_results_path
+individual_results_path = config.individual_results_path
+binary_results_path = config.binary_results_path
+
+scheduler_step_size = config.scheduler_step_size
+original_prediction_weight = config.original_prediction_weight
 
 
 # vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
@@ -163,10 +171,16 @@ def initiate(lrs: list[typing.Union[str, float]],
              pretrained_path: str = None,
              debug: bool = False,
              error_indices: typing.Sequence = None,
-             evaluation: bool = False):
+             evaluation: bool = False,
+             train_eval_split: float = None,
+             get_indices: bool = None,
+             get_fraction_of_example_with_label: dict[data_preprocessing.Label, float] = None,):
     """
     Initializes models, datasets, and devices for training.
 
+    :param get_fraction_of_example_with_label:
+    :param get_indices:
+    :param train_eval_split:
     :param weights:
     :param model_names:
     :param l:
@@ -246,20 +260,21 @@ def initiate(lrs: list[typing.Union[str, float]],
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(datasets=datasets,
                                              batch_size=batch_size,
-                                             indices=error_indices,
-                                             evaluation=evaluation)
+                                             evaluation=evaluation,
+                                             subset_indices=error_indices,
+                                             train_eval_split=train_eval_split,
+                                             get_indices=get_indices,
+                                             get_fraction_of_example_with_label=get_fraction_of_example_with_label)
 
-    train_images_num = len(loaders['train'].dataset)
-    test_images_num = len(loaders['test'].dataset)
-
-    print(f"Total number of train images: {train_images_num}\n"
-          f"Total number of test images: {test_images_num}")
+    print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
+          f"Total number of eval images: {len(loaders['train_eval'].dataset) if train_eval_split else 0}\n"
+          f"Total number of test images: {len(loaders['test'].dataset)}")
 
     if l is None:
         return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
     else:
         positive_class_weight = get_imbalance_weight(l=l,
-                                                     train_images_num=train_images_num,
+                                                     train_images_num=len(loaders['train'].dataset),
                                                      evaluation=evaluation)
 
         return fine_tuners, loaders, devices, positive_class_weight
