@@ -723,7 +723,8 @@ class EDCR:
 
         error_accuracy, error_f1, error_precision, error_recall = neural_metrics.get_individual_metrics(
             pred_data=error_predictions,
-            true_data=error_ground_truths)
+            true_data=error_ground_truths,
+            labels=[0, 1])
 
         print(utils.blue_text(f'{g}-grain:\n'
                               f'Train error accuracy: {error_accuracy}, Train error f1: {error_f1}\n'
