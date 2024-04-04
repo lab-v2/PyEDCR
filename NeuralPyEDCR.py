@@ -61,7 +61,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             lrs=[self.lr],
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
-            get_indices=True
+            print_counts=False
             # train_eval_split=0.8
         )
 
@@ -77,13 +77,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 loss=self.loss,
                 save_files=False,
                 evaluate_on_test=False,
-                num_epochs=self.neural_num_epochs
-                # Y_original_fine=
-                # self.pred_data['train']['mid_learning'][data_preprocessing.granularities['fine']][
-                #     examples_with_errors],
-                # Y_original_coarse=
-                # self.pred_data['train']['mid_learning'][data_preprocessing.granularities['coarse']][
-                #     examples_with_errors]
+                num_epochs=self.neural_num_epochs,
+                # debug=True
             )
             print('#' * 100)
 
@@ -93,7 +88,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
             evaluation=True,
-            get_indices=True)
+            print_counts=False)
 
         evaluation_return_values = neural_evaluation.evaluate_combined_model(
             fine_tuner=self.correction_model,

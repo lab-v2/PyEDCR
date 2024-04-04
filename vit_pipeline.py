@@ -172,10 +172,12 @@ def initiate(lrs: list[typing.Union[str, float]],
              evaluation: bool = False,
              train_eval_split: float = None,
              get_indices: bool = False,
-             get_fraction_of_example_with_label: dict[data_preprocessing.Label, float] = None,):
+             get_fraction_of_example_with_label: dict[data_preprocessing.Label, float] = None,
+             print_counts: bool = True):
     """
     Initializes models, datasets, and devices for training.
 
+    :param print_counts:
     :param get_fraction_of_example_with_label:
     :param get_indices:
     :param train_eval_split:
