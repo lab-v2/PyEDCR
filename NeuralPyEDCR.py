@@ -188,7 +188,6 @@ if __name__ == '__main__':
                                     # secondary_model_name='vit_l_16_BCE',
                                     binary_models=data_preprocessing.fine_grain_classes_str,
                                     # lower_predictions_indices=lower_predictions_indices,
-
                                     EDCR_num_epochs=EDCR_num_epochs,
                                     neural_num_epochs=neural_num_epochs)
                 edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
