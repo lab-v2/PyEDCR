@@ -45,10 +45,6 @@ coarse_unique, coarse_counts = np.unique(train_true_coarse_data, return_counts=T
 fine_data_counts = dict(zip(fine_unique, fine_counts))
 coarse_data_counts = dict(zip(coarse_unique, coarse_counts))
 
-# Print the dictionaries
-# print("Fine data counts:", fine_data_counts)
-print("Coarse data counts:", coarse_data_counts)
-
 
 def is_monotonic(input_arr: np.array) -> bool:
     return np.all(input_arr[:-1] <= input_arr[1:])
@@ -438,7 +434,6 @@ def get_subset_indices_for_train_and_train_eval(train_eval_split: float,
         and removing examples from train based on get_fraction_of_example_with_label.
 
         Args:
-            train_true_coarse_data: NumPy array of coarse-grained labels for the dataset.
             get_fraction_of_example_with_label: Optional dict mapping coarse-grained
                 labels to fractions of examples to keep for training.
             train_eval_split: Float between 0 and 1, indicating the proportion
@@ -471,7 +466,9 @@ def get_subset_indices_for_train_and_train_eval(train_eval_split: float,
             else:
                 count_labels[label] += 1
 
-        print(f'Coarse data counts for train after remove: {count_labels}')
+        print(f"\nCoarse data counts: {coarse_data_counts}")
+        print(f"train eval split is: {train_eval_split}")
+        print(f'Coarse data counts for train after remove: {count_labels}\n')
         train_indices = np.array(filtered_train_indices)
 
     return train_indices, train_eval_indices
