@@ -168,30 +168,32 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 if __name__ == '__main__':
     epsilons = [0.2]
 
-    for EDCR_num_epochs in [5]:
-        for neural_num_epochs in [10]:
-            # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
-            print('\n' + '#' * 100 + '\n' +
-                  utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
-                                  # f'lower_predictions_indices = {lower_predictions_indices}'
-                                  )
-                  + '\n' + '#' * 100 + '\n')
-            for eps in epsilons:
-                print('#' * 25 + f'eps = {eps}' + '#' * 50)
-                edcr = NeuralPyEDCR(epsilon=eps,
-                                    main_model_name='vit_b_16',
-                                    combined=True,
-                                    loss='BCE',
-                                    lr=0.0001,
-                                    original_num_epochs=20,
-                                    include_inconsistency_constraint=False,
-                                    # secondary_model_name='vit_l_16_BCE',
-                                    binary_models=data_preprocessing.fine_grain_classes_str,
-                                    # lower_predictions_indices=lower_predictions_indices,
-                                    EDCR_num_epochs=EDCR_num_epochs,
-                                    neural_num_epochs=neural_num_epochs)
-                edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
-                edcr.run_learning_pipeline(new_model_name='efficientnet_v2_l',
-                                           new_lr=0.005)
-                edcr.run_error_detection_application_pipeline(test=True, print_results=False)
-                edcr.apply_new_model_on_test()
+    for new_model in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l']:
+        for new_lr in [0.01, 0.001, 0.0001]:
+            for EDCR_num_epochs in [5]:
+                for neural_num_epochs in [10]:
+                    # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
+                    print('\n' + '#' * 100 + '\n' +
+                          utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
+                                          # f'lower_predictions_indices = {lower_predictions_indices}'
+                                          )
+                          + '\n' + '#' * 100 + '\n')
+                    for eps in epsilons:
+                        print('#' * 25 + f'eps = {eps}' + '#' * 50)
+                        edcr = NeuralPyEDCR(epsilon=eps,
+                                            main_model_name='vit_b_16',
+                                            combined=True,
+                                            loss='BCE',
+                                            lr=0.0001,
+                                            original_num_epochs=20,
+                                            include_inconsistency_constraint=False,
+                                            # secondary_model_name='vit_l_16_BCE',
+                                            binary_models=data_preprocessing.fine_grain_classes_str,
+                                            # lower_predictions_indices=lower_predictions_indices,
+                                            EDCR_num_epochs=EDCR_num_epochs,
+                                            neural_num_epochs=neural_num_epochs)
+                        edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
+                        edcr.run_learning_pipeline(new_model_name='efficientnet_v2_l',
+                                                   new_lr=new_lr)
+                        edcr.run_error_detection_application_pipeline(test=True, print_results=False)
+                        edcr.apply_new_model_on_test()
