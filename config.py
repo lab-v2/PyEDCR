@@ -7,7 +7,7 @@ fg_l, cg_l = list(data_preprocessing.fine_grain_labels.values()), list(data_prep
 l_Air_Defense, l_BMD_coarse, l_BMP, l_BTR, l_MT_LB_coarse, l_SPA, l_Tank = cg_l
 
 # Training Parameters
-batch_size = 4
+batch_size = 1
 ltn_num_epochs = 1  # Number of epochs for LTN training (if applicable)
 baseline_num_epochs = 20
 lr = 0.0001  # Initial learning rate
