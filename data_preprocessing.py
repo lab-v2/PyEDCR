@@ -481,7 +481,7 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
                 subset_indices: typing.Sequence = None,
                 evaluation: bool = None,
                 train_eval_split: float = None,
-                get_indices: bool = None,
+                get_indices: bool = False,
                 get_fraction_of_example_with_label: dict[Label, float] = None,
                 binary: bool = False) -> dict[str, torch.utils.data.DataLoader]:
     """

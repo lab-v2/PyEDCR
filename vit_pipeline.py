@@ -171,11 +171,13 @@ def initiate(lrs: list[typing.Union[str, float]],
              error_indices: typing.Sequence = None,
              evaluation: bool = False,
              train_eval_split: float = None,
-             get_indices: bool = None,
-             get_fraction_of_example_with_label: dict[data_preprocessing.Label, float] = None,):
+             get_indices: bool = False,
+             get_fraction_of_example_with_label: dict[data_preprocessing.Label, float] = None,
+             print_counts: bool = True):
     """
     Initializes models, datasets, and devices for training.
 
+    :param print_counts:
     :param get_fraction_of_example_with_label:
     :param get_indices:
     :param train_eval_split:
@@ -262,8 +264,7 @@ def initiate(lrs: list[typing.Union[str, float]],
                                              subset_indices=error_indices,
                                              train_eval_split=train_eval_split,
                                              get_indices=get_indices,
-                                             get_fraction_of_example_with_label=get_fraction_of_example_with_label,
-                                             binary=l is not None)
+                                             get_fraction_of_example_with_label=get_fraction_of_example_with_label)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of eval images: {len(loaders['train_eval'].dataset) if train_eval_split else 0}\n"
