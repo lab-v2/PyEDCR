@@ -200,6 +200,6 @@ if __name__ == '__main__':
                                     neural_num_epochs=neural_num_epochs)
                 edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
                 edcr.run_learning_pipeline(new_model_name='efficientnet_v2_l',
-                                           new_lr=0.1)
+                                           new_lr=0.01)
                 edcr.run_error_detection_application_pipeline(test=True, print_results=False)
                 edcr.apply_new_model_on_test()
