@@ -481,7 +481,8 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
                 train_eval_split: float = None,
                 get_indices: bool = False,
                 get_fraction_of_example_with_label: dict[Label, float] = None,
-                binary: bool = False) -> dict[str, torch.utils.data.DataLoader]:
+                binary: bool = False
+                ) -> dict[str, torch.utils.data.DataLoader]:
     """
     Instantiates and returns train and test torch data loaders
 
@@ -499,6 +500,7 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
     loaders = {}
     train_indices = None
     train_eval_indices = None
+
     if train_eval_split is not None:
         # Shuffle the indices in-place
         train_indices, train_eval_indices = get_subset_indices_for_train_and_train_eval(
@@ -509,7 +511,7 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
     for split in ['train', 'test'] + (['train_eval'] if train_eval_split is not None else []):
         relevant_dataset = datasets[split if split != 'train_eval' else 'train']
 
-        if subset_indices is None or relevant_dataset != 'train':
+        if subset_indices is None or split != 'train':
             loader_dataset = relevant_dataset
         else:
             loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,

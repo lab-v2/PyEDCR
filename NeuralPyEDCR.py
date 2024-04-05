@@ -43,6 +43,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         self.neural_num_epochs = neural_num_epochs
 
     def run_training_new_model_pipeline(self,
+                                        new_model_name: str,
+                                        new_lr: float,
                                         error_predictions: dict[data_preprocessing.Granularity, np.array],
                                         error_ground_truths: dict[data_preprocessing.Granularity, np.array]):
 
@@ -56,11 +58,11 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print(utils.red_text(f'\nNumber of perceived train errors: {len(perceived_examples_with_errors)} / '
                              f'{self.T_train}\n'))
 
-        new_model_name = 'efficientnet_v2_s'
+        # new_model_name = 'efficientnet_v2_s'
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
             model_names=[new_model_name],
             # weights=['IMAGENET1K_SWAG_E2E_V1'],
-            lrs=[self.lr],
+            lrs=[new_lr],
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
             print_counts=False
@@ -72,7 +74,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         with context_handlers.ClearSession():
             combined_fine_tuning.fine_tune_combined_model(
-                lrs=[self.lr * 10],
+                lrs=[new_lr],
                 fine_tuner=self.correction_model,
                 device=devices[0],
                 loaders=loaders,
@@ -88,7 +90,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         _, loaders, devices, _, _ = vit_pipeline.initiate(
             model_names=[new_model_name],
-            lrs=[self.lr],
+            lrs=[new_lr],
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
             evaluation=True,
@@ -139,7 +141,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
             print(f'where_fixed_initial_error: {len(where_fixed_initial_error)}')
 
-    def run_learning_pipeline(self):
+    def run_learning_pipeline(self,
+                              new_model_name: str,
+                              new_lr: float):
         print('Started learning pipeline...\n')
         self.print_metrics(test=False, prior=True)
 
@@ -150,7 +154,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 self.learn_detection_rules(g=g)
                 error_predictions[g], error_ground_truths[g] = self.apply_detection_rules(test=False, g=g)
 
-            self.run_training_new_model_pipeline(error_predictions=error_predictions,
+            self.run_training_new_model_pipeline(new_model_name=new_model_name,
+                                                 new_lr=new_lr,
+                                                 error_predictions=error_predictions,
                                                  error_ground_truths=error_ground_truths)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
 
@@ -193,6 +199,7 @@ if __name__ == '__main__':
                                     EDCR_num_epochs=EDCR_num_epochs,
                                     neural_num_epochs=neural_num_epochs)
                 edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
-                edcr.run_learning_pipeline()
+                edcr.run_learning_pipeline(new_model_name='efficientnet_v2_l',
+                                           new_lr=0.1)
                 edcr.run_error_detection_application_pipeline(test=True, print_results=False)
                 edcr.apply_new_model_on_test()

@@ -272,6 +272,8 @@ def initiate(lrs: list[typing.Union[str, float]],
           f"Total number of eval images: {len(loaders['train_eval'].dataset) if train_eval_split else 0}\n"
           f"Total number of test images: {len(loaders['test'].dataset)}")
 
+    assert error_indices is None or len(loaders['train'].dataset) == len(error_indices)
+
     if l is None:
         return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
     else:
