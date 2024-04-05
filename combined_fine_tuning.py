@@ -142,7 +142,7 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                                                                       error_coarse_grain_one_hot],
                                                              dim=1).float().to(device)]
 
-                                batch_total_loss += criterion(*error_data)
+                                batch_total_loss += 0.5 * criterion(*error_data)
 
                         elif loss == "CE":
                             criterion = torch.nn.CrossEntropyLoss()

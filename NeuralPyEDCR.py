@@ -72,7 +72,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         with context_handlers.ClearSession():
             combined_fine_tuning.fine_tune_combined_model(
-                lrs=[self.lr],
+                lrs=[self.lr * 10],
                 fine_tuner=self.correction_model,
                 device=devices[0],
                 loaders=loaders,
