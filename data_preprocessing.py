@@ -13,6 +13,7 @@ import collections
 from typing import List
 
 random.seed(42)
+np.random.seed(42)
 
 current_file_location = pathlib.Path(__file__).parent.resolve()
 os.chdir(current_file_location)
@@ -431,7 +432,7 @@ def get_datasets(vit_model_names: list[str] = ['vit_b_16'],
 
 
 def get_subset_indices_for_train_and_train_eval(train_eval_split: float,
-                                                get_fraction_of_example_with_label: dict[Label, float] = None,):
+                                                get_fraction_of_example_with_label: dict[Label, float] = None, ):
     """
         Splits indices into train and train_eval sets, respecting train_eval_split
         and removing examples from train based on get_fraction_of_example_with_label.
@@ -499,12 +500,14 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
         :param subset_indices:
     """
     loaders = {}
-
-    all_indices = None
-    train_size = None
-
-    label_counts = {}
-    total_count = 0
+    train_indices = None
+    train_eval_indices = None
+    if train_eval_split is not None:
+        # Shuffle the indices in-place
+        train_indices, train_eval_indices = get_subset_indices_for_train_and_train_eval(
+            train_eval_split=train_eval_split,
+            get_fraction_of_example_with_label=get_fraction_of_example_with_label
+        )
 
     for split in ['train', 'test'] + (['train_eval'] if train_eval_split is not None else []):
         relevant_dataset = datasets[split if split != 'train_eval' else 'train']
@@ -515,19 +518,12 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
             loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
                                                      indices=subset_indices)
 
-        if train_eval_split is not None:
-            # Shuffle the indices in-place
-            train_indices, train_eval_indices = get_subset_indices_for_train_and_train_eval(
-                train_eval_split=train_eval_split,
-                get_fraction_of_example_with_label=get_fraction_of_example_with_label
-            )
-
-            if split == 'train':
-                loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
-                                                         indices=train_indices)
-            elif split == 'train_eval':
-                loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
-                                                         indices=train_eval_indices)
+        if split == 'train' and train_eval_split is not None:
+            loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
+                                                     indices=train_indices)
+        elif split == 'train_eval' and train_eval_split is not None:
+            loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
+                                                     indices=train_eval_indices)
 
         shuffle = split == 'train' and (evaluation is None or not evaluation)
 

@@ -7,7 +7,7 @@ fg_l, cg_l = list(data_preprocessing.fine_grain_labels.values()), list(data_prep
 l_Air_Defense, l_BMD_coarse, l_BMP, l_BTR, l_MT_LB_coarse, l_SPA, l_Tank = cg_l
 
 # Training Parameters
-batch_size = 128
+batch_size = 4
 ltn_num_epochs = 1  # Number of epochs for LTN training (if applicable)
 baseline_num_epochs = 20
 lr = 0.0001  # Initial learning rate
@@ -36,7 +36,7 @@ individual_results_path = 'individual_results'  # Path to save individual result
 binary_results_path = 'binary_results'  # Path to save individual results (fine and coarse)
 
 # Pre-trained Model Path
-main_pretrained_path = "/home/ngocbach/PyEDCR/models/vit_b_16_BCE_lr0.0001.pth"  # Path to pre-trained model
+main_pretrained_path = None  # Path to pre-trained model
 
 # Data Preprocessing Information (assuming data_preprocessing.py exists)
 original_prediction_weight = 1 / (len(data_preprocessing.fine_grain_classes_str) +
