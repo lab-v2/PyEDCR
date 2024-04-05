@@ -283,10 +283,10 @@ def get_and_print_post_epoch_metrics(epoch: int,
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done,\n'
           # f'{loss_str}'
-          f'\npost-epoch training fine accuracy: {round(training_fine_accuracy * 100, 2)}%'
-          f', post-epoch fine f1: {round(training_fine_f1 * 100, 2)}%'
-          f'\npost-epoch training coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
-          f', post-epoch coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
+          f'\nLast batch training fine accuracy: {round(training_fine_accuracy * 100, 2)}%'
+          f', last batch fine f1: {round(training_fine_f1 * 100, 2)}%'
+          f'\nLast batch training coarse accuracy: {round(training_coarse_accuracy * 100, 2)}%'
+          f', last batch coarse f1: {round(training_coarse_f1 * 100, 2)}%\n')
 
     return training_fine_accuracy, training_coarse_accuracy
 
