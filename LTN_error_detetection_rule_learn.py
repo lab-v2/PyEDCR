@@ -12,7 +12,9 @@ import data_preprocessing
 import vit_pipeline
 import typing
 import config
-import utils
+import neural_evaluation
+import neural_fine_tuning
+import neural_metrics
 
 
 class EDCR_LTN_experiment(EDCR):
@@ -32,13 +34,12 @@ class EDCR_LTN_experiment(EDCR):
                          combined=combined,
                          loss=loss,
                          lr=lr,
-                         num_epochs=num_epochs,
+                         original_num_epochs=num_epochs,
                          epsilon=epsilon,
                          K_train=K_train,
                          K_test=K_test,
                          include_inconsistency_constraint=include_inconsistency_constraint,
                          secondary_model_name=secondary_model_name)
-
         self.batch_size = config.batch_size
         self.scheduler_gamma = config.scheduler_gamma
         self.num_ltn_epochs = config.ltn_num_epochs
@@ -99,12 +100,14 @@ class EDCR_LTN_experiment(EDCR):
         #                             "Consider changing the code")
 
         self.fine_tuners, self.loaders, self.devices, _, _ = (
-            vit_pipeline.initiate(combined=self.combined,
-                                  debug=False,
-                                  pretrained_path=self.pretrain_path,
-                                  get_indices=True,
-                                  train_eval_split=0.8,
-                                  get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
+            vit_pipeline.initiate(
+                lrs=[self.lr],
+                combined=self.combined,
+                debug=False,
+                pretrained_path=self.pretrain_path,
+                get_indices=True,
+                train_eval_split=0.8,
+                get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
         if self.pretrain_path is None:
             self.run_baseline_pipeline()
@@ -112,12 +115,11 @@ class EDCR_LTN_experiment(EDCR):
             self.baseline_model = self.fine_tuners[0]
             print('Load pretrain model successfully!')
 
-        vit_pipeline.evaluate_combined_model(fine_tuner=self.baseline_model,
-                                             loaders=self.loaders,
-                                             loss='BCE',
-                                             device=self.devices[0],
-                                             split='test')
-
+        neural_evaluation.evaluate_combined_model(fine_tuner=self.baseline_model,
+                                                  loaders=self.loaders,
+                                                  loss='BCE',
+                                                  device=self.devices[0],
+                                                  split='test')
 
     def fine_tune_and_evaluate_combined_model(self,
                                               fine_tuner: models.FineTuner,
@@ -157,9 +159,9 @@ class EDCR_LTN_experiment(EDCR):
             original_secondary_pred_fines = []
             original_secondary_pred_coarses = []
 
-            batches = vit_pipeline.get_fine_tuning_batches(train_loader=loader,
-                                                           num_batches=num_batches,
-                                                           debug=False)
+            batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=loader,
+                                                                 num_batches=num_batches,
+                                                                 debug=False)
 
             for batch_num, batch in batches:
                 with context_handlers.ClearCache(device=device):
@@ -234,9 +236,9 @@ class EDCR_LTN_experiment(EDCR):
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (
                                 criterion(Y_pred, Y_combine))
 
-                        vit_pipeline.print_post_batch_metrics(batch_num=batch_num,
-                                                              num_batches=num_batches,
-                                                              batch_total_loss=batch_total_loss.item())
+                        neural_metrics.print_post_batch_metrics(batch_num=batch_num,
+                                                                num_batches=num_batches,
+                                                                batch_total_loss=batch_total_loss.item())
 
                         batch_total_loss.backward()
                         optimizer.step()
@@ -261,15 +263,13 @@ class EDCR_LTN_experiment(EDCR):
 
                     del X, Y_fine_grain, Y_coarse_grain, indices, Y_pred_fine_grain, Y_pred_coarse_grain
 
-        fine_accuracy, coarse_accuracy = vit_pipeline.get_and_print_post_epoch_metrics(
+        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_epoch_metrics(
             epoch=epoch,
-            num_batches=num_batches,
+            num_epochs=self.num_ltn_epochs,
             train_fine_ground_truth=np.array(fine_ground_truths),
             train_fine_prediction=np.array(fine_predictions),
             train_coarse_ground_truth=np.array(coarse_ground_truths),
-            train_coarse_prediction=np.array(coarse_predictions),
-            num_fine_grain_classes=len(data_preprocessing.fine_grain_classes_str),
-            num_coarse_grain_classes=len(data_preprocessing.coarse_grain_classes_str))
+            train_coarse_prediction=np.array(coarse_predictions))
 
         ltn_support.compute_sat_testing_value(
             logits_to_predicate=logits_to_predicate,
@@ -323,9 +323,9 @@ class EDCR_LTN_experiment(EDCR):
             coarse_ground_truths = []
             batch_indices = []
 
-            batches = vit_pipeline.get_fine_tuning_batches(train_loader=loader,
-                                                           num_batches=num_batches,
-                                                           debug=False)
+            batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=loader,
+                                                                 num_batches=num_batches,
+                                                                 debug=False)
 
             for batch_num, batch in batches:
                 with context_handlers.ClearCache(device=device):
@@ -358,9 +358,9 @@ class EDCR_LTN_experiment(EDCR):
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
                             batch_total_loss = criterion(Y_pred, Y_combine)
 
-                        vit_pipeline.print_post_batch_metrics(batch_num=batch_num,
-                                                              num_batches=num_batches,
-                                                              batch_total_loss=batch_total_loss.item())
+                        neural_metrics.print_post_batch_metrics(batch_num=batch_num,
+                                                                num_batches=num_batches,
+                                                                batch_total_loss=batch_total_loss.item())
 
                         batch_total_loss.backward()
                         optimizer.step()
@@ -380,15 +380,13 @@ class EDCR_LTN_experiment(EDCR):
 
                     del X, Y_fine_grain, Y_coarse_grain, Y_pred_fine_grain, Y_pred_coarse_grain
 
-        fine_accuracy, coarse_accuracy = vit_pipeline.get_and_print_post_epoch_metrics(
+        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_epoch_metrics(
             epoch=epoch,
-            num_batches=num_batches,
+            num_epochs=self.num_baseline_epochs,
             train_fine_ground_truth=np.array(fine_ground_truths),
             train_fine_prediction=np.array(fine_predictions),
             train_coarse_ground_truth=np.array(coarse_ground_truths),
-            train_coarse_prediction=np.array(coarse_predictions),
-            num_fine_grain_classes=len(data_preprocessing.fine_grain_classes_str),
-            num_coarse_grain_classes=len(data_preprocessing.coarse_grain_classes_str))
+            train_coarse_prediction=np.array(coarse_predictions))
 
         if mode == 'train':
             scheduler.step()
@@ -454,7 +452,8 @@ class EDCR_LTN_experiment(EDCR):
         self.pred_data['train']['original'][config.g_fine][train_indices] = np.array(train_fine_prediction)
         self.pred_data['train']['original'][config.g_fine][train_eval_indices] = np.array(train_eval_fine_prediction)
 
-        self.pred_data['train']['original'][config.g_coarse] = np.ones_like(data_preprocessing.train_true_fine_data) * -1
+        self.pred_data['train']['original'][config.g_coarse] = np.ones_like(
+            data_preprocessing.train_true_fine_data) * -1
         self.pred_data['train']['original'][config.g_coarse][train_indices] = np.array(train_coarse_prediction)
         self.pred_data['train']['original'][config.g_coarse][train_eval_indices] = np.array(
             train_eval_coarse_prediction)
@@ -583,7 +582,7 @@ class EDCR_LTN_experiment(EDCR):
         return fine_predictions, coarse_prediction
 
     def get_majority_vote(self,
-                          predictions: dict[int, list],
+                          predictions: dict[int, tuple[list, list]],
                           g: data_preprocessing.Granularity):
         """
         Performs majority vote on a list of 1D numpy arrays representing predictions.
@@ -636,16 +635,16 @@ class EDCR_LTN_experiment(EDCR):
                 f"remove_label_{self.formatted_removed_label}.npy",
                 np.array(final_coarse_prediction))
 
-        vit_pipeline.get_and_print_metrics(pred_fine_data=np.array(final_fine_prediction),
-                                           pred_coarse_data=np.array(final_coarse_prediction),
-                                           loss=self.loss,
-                                           true_fine_data=data_preprocessing.get_ground_truths(
-                                               test=True,
-                                               g=data_preprocessing.granularities['fine']),
-                                           true_coarse_data=data_preprocessing.get_ground_truths(
-                                               test=True,
-                                               g=data_preprocessing.granularities['coarse']),
-                                           test=True)
+        neural_metrics.get_and_print_metrics(pred_fine_data=np.array(final_fine_prediction),
+                                             pred_coarse_data=np.array(final_coarse_prediction),
+                                             loss=self.loss,
+                                             true_fine_data=data_preprocessing.get_ground_truths(
+                                                 test=True,
+                                                 g=data_preprocessing.granularities['fine']),
+                                             true_coarse_data=data_preprocessing.get_ground_truths(
+                                                 test=True,
+                                                 g=data_preprocessing.granularities['coarse']),
+                                             test=True)
 
 
 if __name__ == '__main__':
