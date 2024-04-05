@@ -44,9 +44,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
     def run_training_new_model_pipeline(self,
                                         new_model_name: str,
-                                        new_lr: float,
-                                        error_predictions: dict[data_preprocessing.Granularity, np.array],
-                                        error_ground_truths: dict[data_preprocessing.Granularity, np.array]):
+                                        new_lr: float):
 
         perceived_examples_with_errors = set()
         for g in data_preprocessing.granularities.values():
@@ -81,9 +79,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 loss=self.loss,
                 save_files=False,
                 evaluate_on_test=False,
-                num_epochs=self.neural_num_epochs,
-                error_predictions=error_predictions,
-                error_ground_truths=error_ground_truths
+                num_epochs=self.neural_num_epochs
                 # debug=True
             )
             print('#' * 100)
@@ -147,17 +143,13 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print('Started learning pipeline...\n')
         self.print_metrics(test=False, prior=True)
 
-        error_predictions, error_ground_truths = {}, {}
-
         for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.granularities.values():
                 self.learn_detection_rules(g=g)
-                error_predictions[g], error_ground_truths[g] = self.apply_detection_rules(test=False, g=g)
+                self.apply_detection_rules(test=False, g=g)
 
             self.run_training_new_model_pipeline(new_model_name=new_model_name,
-                                                 new_lr=new_lr,
-                                                 error_predictions=error_predictions,
-                                                 error_ground_truths=error_ground_truths)
+                                                 new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
@@ -199,7 +191,7 @@ if __name__ == '__main__':
                                     EDCR_num_epochs=EDCR_num_epochs,
                                     neural_num_epochs=neural_num_epochs)
                 edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
-                edcr.run_learning_pipeline(new_model_name='efficientnet_v2_m',
-                                           new_lr=0.001)
+                edcr.run_learning_pipeline(new_model_name='efficientnet_v2_l',
+                                           new_lr=0.005)
                 edcr.run_error_detection_application_pipeline(test=True, print_results=False)
                 edcr.apply_new_model_on_test()

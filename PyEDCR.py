@@ -740,8 +740,6 @@ class EDCR:
         #
         # return error_mask
 
-        return error_predictions, error_ground_truths
-
     def print_how_many_not_assigned(self,
                                     test: bool,
                                     g: data_preprocessing.Granularity,
