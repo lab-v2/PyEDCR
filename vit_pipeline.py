@@ -235,10 +235,12 @@ def initiate(lrs: list[typing.Union[str, float]],
                                                                    device=device)
                                for vit_model_name in model_names]
             else:
-                fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+                fine_tuners = [models.VITFineTuner(vit_model_name=model_name,
                                                    weights=weight,
-                                                   num_classes=num_classes)
-                               for vit_model_name, weight in zip(model_names, weights)]
+                                                   num_classes=num_classes) if model_name.startswith('vit')
+                               else models.EfficientNetV2FineTuner(efficient_net_v2_model_name=model_name,
+                                                                   num_classes=num_classes)
+                               for model_name, weight in zip(model_names, weights)]
 
             results_path = combined_results_path
         else:
