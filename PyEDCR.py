@@ -33,6 +33,7 @@ class EDCR:
     """
 
     def __init__(self,
+                 data: str,
                  main_model_name: str,
                  combined: bool,
                  loss: str,
@@ -45,6 +46,7 @@ class EDCR:
                  secondary_model_name: str = None,
                  lower_predictions_indices: list[int] = [],
                  binary_l_strs: list[str] = []):
+        self.data = data
         self.main_model_name = main_model_name
         self.combined = combined
         self.loss = loss
@@ -739,8 +741,6 @@ class EDCR:
         #                                                                                     stage='post_detection'))
         #
         # return error_mask
-
-        return error_predictions, error_ground_truths
 
     def print_how_many_not_assigned(self,
                                     test: bool,

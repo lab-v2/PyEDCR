@@ -41,11 +41,18 @@ class EfficientNetV2FineTuner(FineTuner):
 
         efficient_net_v2_weights = getattr(getattr(
             torchvision.models,
-            f"EfficientNet_V2_{'_'.join([s.upper() for s in self.vit_model_name.split('vit_')[-1].split('_')])}_Weights"),
+            f"EfficientNet_V2_{efficient_net_v2_model_name.split('efficientnet_v2_')[-1].upper()}_Weights"),
             'DEFAULT')
+
         self.efficient_net_v2 = efficient_net_v2_model(weights=efficient_net_v2_weights)
-        self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
-                                             out_features=num_classes)
+        self.output_layer = torch.nn.Linear(in_features=self.efficient_net_v2.classifier[-1].out_features,
+                                            out_features=num_classes)
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        X = self.efficient_net_v2(X)
+        X = self.output_layer(X)
+
+        return X
 
 
 class VITFineTuner(FineTuner):
@@ -75,6 +82,7 @@ class VITFineTuner(FineTuner):
         self.vit = vit_model(weights=vit_weights)
         self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
                                              out_features=num_classes)
+
 
     @classmethod
     def from_pretrained(cls,

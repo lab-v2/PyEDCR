@@ -161,7 +161,8 @@ def get_imbalance_weight(l: data_preprocessing.Label,
     return positive_class_weight
 
 
-def initiate(lrs: list[typing.Union[str, float]],
+def initiate(data: str,
+             lrs: list[typing.Union[str, float]],
              model_names: list[str] = ['vit_b_16'],
              weights: list[str] = ['DEFAULT'],
              combined: bool = True,
@@ -177,6 +178,7 @@ def initiate(lrs: list[typing.Union[str, float]],
     """
     Initializes models, datasets, and devices for training.
 
+    :param data:
     :param print_counts:
     :param get_fraction_of_example_with_label:
     :param get_indices:
@@ -200,7 +202,8 @@ def initiate(lrs: list[typing.Union[str, float]],
     print(f'Models: {model_names}\n'
           f'Learning rates: {lrs}')
 
-    datasets = data_preprocessing.get_datasets(combined=combined,
+    datasets = data_preprocessing.get_datasets(data=data,
+                                               combined=combined,
                                                binary_label=l,
                                                evaluation=evaluation,
                                                error_fixing=error_indices is not None,
@@ -235,10 +238,12 @@ def initiate(lrs: list[typing.Union[str, float]],
                                                                    device=device)
                                for vit_model_name in model_names]
             else:
-                fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+                fine_tuners = [models.VITFineTuner(vit_model_name=model_name,
                                                    weights=weight,
-                                                   num_classes=num_classes)
-                               for vit_model_name, weight in zip(model_names, weights)]
+                                                   num_classes=num_classes) if model_name.startswith('vit')
+                               else models.EfficientNetV2FineTuner(efficient_net_v2_model_name=model_name,
+                                                                   num_classes=num_classes)
+                               for model_name, weight in zip(model_names, weights)]
 
             results_path = combined_results_path
         else:
@@ -269,6 +274,8 @@ def initiate(lrs: list[typing.Union[str, float]],
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of eval images: {len(loaders['train_eval'].dataset) if train_eval_split else 0}\n"
           f"Total number of test images: {len(loaders['test'].dataset)}")
+
+    assert error_indices is None or len(loaders['train'].dataset) == len(error_indices)
 
     if l is None:
         return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes

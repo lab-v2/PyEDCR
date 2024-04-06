@@ -111,14 +111,16 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
         return train_predictions
 
 
-def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
+def run_l_binary_fine_tuning_pipeline(data: str,
+                                      vit_model_names: list[str],
                                       l: data_preprocessing.Label,
                                       lr: float,
                                       num_epochs: int,
                                       save_files: bool = True):
     # if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
     #                       f"loss_BCE_e{num_epochs}.pth"):
-    fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(model_names=vit_model_names,
+    fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(data=data,
+                                                                                 model_names=vit_model_names,
                                                                                  lrs=[lr],
                                                                                  l=l)
     for fine_tuner in fine_tuners:
@@ -138,13 +140,15 @@ def run_l_binary_fine_tuning_pipeline(vit_model_names: list[str],
 #     print(f'Skipping {l}')
 
 
-def run_g_binary_fine_tuning_pipeline(vit_model_names: list[str],
+def run_g_binary_fine_tuning_pipeline(data: str,
+                                      vit_model_names: list[str],
                                       g: data_preprocessing.Granularity,
                                       lr: float,
                                       num_epochs: int,
                                       save_files: bool = True):
     for l in data_preprocessing.get_labels(g=g).values():
-        run_l_binary_fine_tuning_pipeline(vit_model_names=vit_model_names,
+        run_l_binary_fine_tuning_pipeline(data=data,
+                                          vit_model_names=vit_model_names,
                                           l=l,
                                           lr=lr,
                                           num_epochs=num_epochs,
@@ -152,6 +156,7 @@ def run_g_binary_fine_tuning_pipeline(vit_model_names: list[str],
 
 
 if __name__ == '__main__':
+    data = 'imagenet'
     num_epochs = 10
     lr = 0.0001
     model_name = 'vit_b_16'
@@ -168,7 +173,8 @@ if __name__ == '__main__':
 
     # for l_str in data_preprocessing.fine_grain_classes_str:
     l = data_preprocessing.fine_grain_labels[l_str]
-    run_l_binary_fine_tuning_pipeline(vit_model_names=[model_name],
+    run_l_binary_fine_tuning_pipeline(data=data,
+                                      vit_model_names=[model_name],
                                       l=data_preprocessing.fine_grain_labels[l_str],
                                       lr=lr,
                                       num_epochs=num_epochs,

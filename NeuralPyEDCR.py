@@ -12,6 +12,7 @@ import neural_evaluation
 
 class NeuralPyEDCR(PyEDCR.EDCR):
     def __init__(self,
+                 data: str,
                  main_model_name: str,
                  combined: bool,
                  loss: str,
@@ -27,7 +28,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  lower_predictions_indices: list[int] = [],
                  binary_models: list[str] = []
                  ):
-        super(NeuralPyEDCR, self).__init__(main_model_name=main_model_name,
+        super(NeuralPyEDCR, self).__init__(data=data,
+                                           main_model_name=main_model_name,
                                            combined=combined,
                                            loss=loss,
                                            lr=lr,
@@ -43,8 +45,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         self.neural_num_epochs = neural_num_epochs
 
     def run_training_new_model_pipeline(self,
-                                        error_predictions: dict[data_preprocessing.Granularity, np.array],
-                                        error_ground_truths: dict[data_preprocessing.Granularity, np.array]):
+                                        new_model_name: str,
+                                        new_lr: float):
 
         perceived_examples_with_errors = set()
         for g in data_preprocessing.granularities.values():
@@ -56,11 +58,12 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print(utils.red_text(f'\nNumber of perceived train errors: {len(perceived_examples_with_errors)} / '
                              f'{self.T_train}\n'))
 
-        new_model_name = 'vit_b_16'
+        # new_model_name = 'efficientnet_v2_s'
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
+            data=self.data,
             model_names=[new_model_name],
             # weights=['IMAGENET1K_SWAG_E2E_V1'],
-            lrs=[self.lr],
+            lrs=[new_lr],
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
             print_counts=False
@@ -72,23 +75,22 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         with context_handlers.ClearSession():
             combined_fine_tuning.fine_tune_combined_model(
-                lrs=[self.lr * 10],
+                lrs=[new_lr],
                 fine_tuner=self.correction_model,
                 device=devices[0],
                 loaders=loaders,
                 loss=self.loss,
                 save_files=False,
                 evaluate_on_test=False,
-                num_epochs=self.neural_num_epochs,
-                error_predictions=error_predictions,
-                error_ground_truths=error_ground_truths
+                num_epochs=self.neural_num_epochs
                 # debug=True
             )
             print('#' * 100)
 
         _, loaders, devices, _, _ = vit_pipeline.initiate(
+            data=self.data,
             model_names=[new_model_name],
-            lrs=[self.lr],
+            lrs=[new_lr],
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
             evaluation=True,
@@ -139,19 +141,19 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
             print(f'where_fixed_initial_error: {len(where_fixed_initial_error)}')
 
-    def run_learning_pipeline(self):
+    def run_learning_pipeline(self,
+                              new_model_name: str,
+                              new_lr: float):
         print('Started learning pipeline...\n')
         self.print_metrics(test=False, prior=True)
-
-        error_predictions, error_ground_truths = {}, {}
 
         for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.granularities.values():
                 self.learn_detection_rules(g=g)
-                error_predictions[g], error_ground_truths[g] = self.apply_detection_rules(test=False, g=g)
+                self.apply_detection_rules(test=False, g=g)
 
-            self.run_training_new_model_pipeline(error_predictions=error_predictions,
-                                                 error_ground_truths=error_ground_truths)
+            self.run_training_new_model_pipeline(new_model_name=new_model_name,
+                                                 new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
@@ -169,30 +171,35 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 if __name__ == '__main__':
     epsilons = [0.2]
+    data = 'imagenet'
 
-    for EDCR_num_epochs in [4]:
-        for neural_num_epochs in [15]:
-            # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
-            print('\n' + '#' * 100 + '\n' +
-                  utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
-                                  # f'lower_predictions_indices = {lower_predictions_indices}'
-                                  )
-                  + '\n' + '#' * 100 + '\n')
-            for eps in epsilons:
-                print('#' * 25 + f'eps = {eps}' + '#' * 50)
-                edcr = NeuralPyEDCR(epsilon=eps,
-                                    main_model_name='vit_b_16',
-                                    combined=True,
-                                    loss='BCE',
-                                    lr=0.0001,
-                                    original_num_epochs=20,
-                                    include_inconsistency_constraint=False,
-                                    # secondary_model_name='vit_l_16_BCE',
-                                    binary_models=data_preprocessing.fine_grain_classes_str,
-                                    # lower_predictions_indices=lower_predictions_indices,
-                                    EDCR_num_epochs=EDCR_num_epochs,
-                                    neural_num_epochs=neural_num_epochs)
-                edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
-                edcr.run_learning_pipeline()
-                edcr.run_error_detection_application_pipeline(test=True, print_results=False)
-                edcr.apply_new_model_on_test()
+    for new_model in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l']:
+        for new_lr in [0.01, 0.001, 0.0001]:
+            for EDCR_num_epochs in [5]:
+                for neural_num_epochs in [10]:
+                    # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
+                    print('\n' + '#' * 100 + '\n' +
+                          utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
+                                          # f'lower_predictions_indices = {lower_predictions_indices}'
+                                          )
+                          + '\n' + '#' * 100 + '\n')
+                    for eps in epsilons:
+                        print('#' * 25 + f'eps = {eps}' + '#' * 50)
+                        edcr = NeuralPyEDCR(data=data,
+                                            epsilon=eps,
+                                            main_model_name='vit_b_16',
+                                            combined=True,
+                                            loss='BCE',
+                                            lr=0.0001,
+                                            original_num_epochs=20,
+                                            include_inconsistency_constraint=False,
+                                            # secondary_model_name='vit_l_16_BCE',
+                                            binary_models=data_preprocessing.fine_grain_classes_str,
+                                            # lower_predictions_indices=lower_predictions_indices,
+                                            EDCR_num_epochs=EDCR_num_epochs,
+                                            neural_num_epochs=neural_num_epochs)
+                        edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
+                        edcr.run_learning_pipeline(new_model_name='efficientnet_v2_l',
+                                                   new_lr=new_lr)
+                        edcr.run_error_detection_application_pipeline(test=True, print_results=False)
+                        edcr.apply_new_model_on_test()
