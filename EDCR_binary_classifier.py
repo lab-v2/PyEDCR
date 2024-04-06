@@ -30,7 +30,7 @@ class EDCR_binary_classifier(EDCR):
                          combined=combined,
                          loss=loss,
                          lr=lr,
-                         num_epochs=num_epochs,
+                         original_num_epochs=num_epochs,
                          epsilon=epsilon,
                          K_train=K_train,
                          K_test=K_test,
