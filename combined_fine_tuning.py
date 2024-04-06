@@ -246,14 +246,16 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         return train_fine_predictions, train_coarse_predictions
 
 
-def run_combined_fine_tuning_pipeline(vit_model_names: list[str],
+def run_combined_fine_tuning_pipeline(data: str,
+                                      vit_model_names: list[str],
                                       lrs: list[typing.Union[str, float]],
                                       num_epochs: int,
                                       loss: str = 'BCE',
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        vit_pipeline.initiate(model_names=vit_model_names,
+        vit_pipeline.initiate(data=data,
+                              model_names=vit_model_names,
                               lrs=lrs,
                               combined=True,
                               debug=debug))

@@ -161,7 +161,8 @@ def get_imbalance_weight(l: data_preprocessing.Label,
     return positive_class_weight
 
 
-def initiate(lrs: list[typing.Union[str, float]],
+def initiate(data: str,
+             lrs: list[typing.Union[str, float]],
              model_names: list[str] = ['vit_b_16'],
              weights: list[str] = ['DEFAULT'],
              combined: bool = True,
@@ -177,6 +178,7 @@ def initiate(lrs: list[typing.Union[str, float]],
     """
     Initializes models, datasets, and devices for training.
 
+    :param data:
     :param print_counts:
     :param get_fraction_of_example_with_label:
     :param get_indices:
@@ -200,7 +202,8 @@ def initiate(lrs: list[typing.Union[str, float]],
     print(f'Models: {model_names}\n'
           f'Learning rates: {lrs}')
 
-    datasets = data_preprocessing.get_datasets(combined=combined,
+    datasets = data_preprocessing.get_datasets(data=data,
+                                               combined=combined,
                                                binary_label=l,
                                                evaluation=evaluation,
                                                error_fixing=error_indices is not None,

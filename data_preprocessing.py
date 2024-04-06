@@ -8,7 +8,6 @@ import pathlib
 import typing
 import abc
 import random
-import collections
 
 from typing import List
 
@@ -210,7 +209,8 @@ def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
     return inconsistencies
 
 
-def get_dataset_transforms(train_or_test: str,
+def get_dataset_transforms(data: str,
+                           train_or_test: str,
                            vit_model_name='vit_b_16',
                            error_fixing: bool = False,
                            weight: str = 'DEFAULT') -> torchvision.transforms.Compose:
@@ -218,27 +218,46 @@ def get_dataset_transforms(train_or_test: str,
     Returns the transforms required for the VIT for training or test datasets
     """
 
-    resize_num = 518 if vit_model_name == 'vit_h_14' else (224 if weight == 'DEFAULT' else 512)
-    means = stds = [0.5] * 3
+    if data == 'imagenet':
+        normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                     std=[0.229, 0.224, 0.225])
 
-    standard_transforms = [torchvision.transforms.ToTensor(),
-                           torchvision.transforms.Normalize(means, stds)]
-    train_transforms = [torchvision.transforms.RandomResizedCrop(resize_num),
-                        torchvision.transforms.RandomHorizontalFlip(),
-                        torchvision.transforms.RandomRotation(15),  # Random rotation
-                        torchvision.transforms.RandomVerticalFlip(),  # Random vertical flip
-                        torchvision.transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
-                        ]
-    # Additional error-fixing-specific augmentations
-    if error_fixing:
-        train_transforms += [
-            torchvision.transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),  # Random translation
-            torchvision.transforms.RandomPerspective(distortion_scale=0.05, p=0.5),  # Random perspective
-            torchvision.transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Gaussian blur
+        standard_transforms = [
+            torchvision.transforms.ToTensor(),
+            normalize
+        ]
+        train_transforms = [
+            torchvision.transforms.RandomResizedCrop(224),
+            torchvision.transforms.RandomHorizontalFlip()
         ]
 
-    test_transforms = [torchvision.transforms.Resize(256),
-                       torchvision.transforms.CenterCrop(resize_num)]
+        test_transforms = [torchvision.transforms.Resize(256),
+                           torchvision.transforms.CenterCrop(224),
+                           torchvision.transforms.ToTensor()]
+
+    else:
+
+        resize_num = 518 if vit_model_name == 'vit_h_14' else (224 if weight == 'DEFAULT' else 512)
+        means = stds = [0.5] * 3
+
+        standard_transforms = [torchvision.transforms.ToTensor(),
+                               torchvision.transforms.Normalize(means, stds)]
+        train_transforms = [torchvision.transforms.RandomResizedCrop(resize_num),
+                            torchvision.transforms.RandomHorizontalFlip(),
+                            torchvision.transforms.RandomRotation(15),  # Random rotation
+                            torchvision.transforms.RandomVerticalFlip(),  # Random vertical flip
+                            torchvision.transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+                            ]
+        # Additional error-fixing-specific augmentations
+        if error_fixing:
+            train_transforms += [
+                torchvision.transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),  # Random translation
+                torchvision.transforms.RandomPerspective(distortion_scale=0.05, p=0.5),  # Random perspective
+                torchvision.transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Gaussian blur
+            ]
+
+        test_transforms = [torchvision.transforms.Resize(256),
+                           torchvision.transforms.CenterCrop(resize_num)]
     return torchvision.transforms.Compose(
         (train_transforms if train_or_test == 'train' else test_transforms) + standard_transforms)
 
@@ -377,7 +396,8 @@ class IndividualImageFolderWithName(EDCRImageFolder):
         return x, y, x_identifier
 
 
-def get_datasets(vit_model_names: list[str] = ['vit_b_16'],
+def get_datasets(data: str,
+                 vit_model_names: list[str] = ['vit_b_16'],
                  weights: list[str] = ['DEFAULT'],
                  cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
@@ -390,6 +410,7 @@ def get_datasets(vit_model_names: list[str] = ['vit_b_16'],
 
     Parameters
     ----------
+        :param data:
         :param weights:
         :param vit_model_names:
         :param error_fixing:
@@ -406,13 +427,15 @@ def get_datasets(vit_model_names: list[str] = ['vit_b_16'],
     for train_or_test in ['train', 'test']:
         if binary_label is not None:
             datasets[train_or_test] = BinaryImageFolder(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
-                                                        transform=get_dataset_transforms(train_or_test=train_or_test),
+                                                        transform=get_dataset_transforms(data=data,
+                                                                                         train_or_test=train_or_test),
                                                         l=binary_label,
                                                         evaluation=evaluation)
         elif combined:
             datasets[train_or_test] = CombinedImageFolderWithName(root=os.path.join(data_dir,
                                                                                     f'data/{train_or_test}_fine'),
                                                                   transform=get_dataset_transforms(
+                                                                      data=data,
                                                                       train_or_test=train_or_test,
                                                                       error_fixing=error_fixing,
                                                                       vit_model_name=vit_model_names[0],
@@ -422,7 +445,8 @@ def get_datasets(vit_model_names: list[str] = ['vit_b_16'],
             datasets[train_or_test] = IndividualImageFolderWithName(
                 root=os.path.join(data_dir, f'{train_or_test}_fine'),
                 transform=
-                get_dataset_transforms(train_or_test=train_or_test))
+                get_dataset_transforms(data=data,
+                                       train_or_test=train_or_test))
 
     return datasets
 
@@ -529,7 +553,9 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
         loaders[split] = torch.utils.data.DataLoader(
             dataset=loader_dataset,
             batch_size=batch_size,
-            shuffle=shuffle)
+            shuffle=shuffle,
+            # num_workers=os.cpu_count(),
+        )
 
     return loaders
 

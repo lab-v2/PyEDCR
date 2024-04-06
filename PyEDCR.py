@@ -33,6 +33,7 @@ class EDCR:
     """
 
     def __init__(self,
+                 data: str,
                  main_model_name: str,
                  combined: bool,
                  loss: str,
@@ -45,6 +46,7 @@ class EDCR:
                  secondary_model_name: str = None,
                  lower_predictions_indices: list[int] = [],
                  binary_l_strs: list[str] = []):
+        self.data = data
         self.main_model_name = main_model_name
         self.combined = combined
         self.loss = loss

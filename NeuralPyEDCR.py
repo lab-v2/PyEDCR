@@ -12,6 +12,7 @@ import neural_evaluation
 
 class NeuralPyEDCR(PyEDCR.EDCR):
     def __init__(self,
+                 data: str,
                  main_model_name: str,
                  combined: bool,
                  loss: str,
@@ -27,7 +28,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  lower_predictions_indices: list[int] = [],
                  binary_models: list[str] = []
                  ):
-        super(NeuralPyEDCR, self).__init__(main_model_name=main_model_name,
+        super(NeuralPyEDCR, self).__init__(data=data,
+                                           main_model_name=main_model_name,
                                            combined=combined,
                                            loss=loss,
                                            lr=lr,
@@ -58,6 +60,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         # new_model_name = 'efficientnet_v2_s'
         fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
+            data=self.data,
             model_names=[new_model_name],
             # weights=['IMAGENET1K_SWAG_E2E_V1'],
             lrs=[new_lr],
@@ -85,6 +88,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print('#' * 100)
 
         _, loaders, devices, _, _ = vit_pipeline.initiate(
+            data=self.data,
             model_names=[new_model_name],
             lrs=[new_lr],
             combined=self.combined,
@@ -167,6 +171,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 if __name__ == '__main__':
     epsilons = [0.2]
+    data = 'imagenet'
 
     for new_model in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l']:
         for new_lr in [0.01, 0.001, 0.0001]:
@@ -180,7 +185,8 @@ if __name__ == '__main__':
                           + '\n' + '#' * 100 + '\n')
                     for eps in epsilons:
                         print('#' * 25 + f'eps = {eps}' + '#' * 50)
-                        edcr = NeuralPyEDCR(epsilon=eps,
+                        edcr = NeuralPyEDCR(data=data,
+                                            epsilon=eps,
                                             main_model_name='vit_b_16',
                                             combined=True,
                                             loss='BCE',
