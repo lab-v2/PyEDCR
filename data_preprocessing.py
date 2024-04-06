@@ -17,21 +17,86 @@ np.random.seed(42)
 current_file_location = pathlib.Path(__file__).parent.resolve()
 os.chdir(current_file_location)
 
-data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
-fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
-coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
+
+def get_military_dataframes():
+    data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+    dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+
+    return dataframes_by_sheet
+
+
+def get_data(data: str):
+    if data == 'imagenet':
+        output_coarse_grain_classes_str = [
+            'Bird', 'Snake', 'Spider', 'Small Fish', 'Turtle', 'Lizard', 'Crab', 'Shark'
+        ]
+
+        fine_grain_classes_dict = {
+            'n01818515': 'macaw',
+            'n01537544': 'indigo bunting, indigo finch, indigo bird, Passerina cyanea',
+            'n02007558': 'flamingo',
+            'n02002556': 'white stork, Ciconia ciconia',
+            'n01614925': 'bald eagle, American eagle, Haliaeetus leucocephalus',
+            'n01582220': 'magpie',
+            'n01806143': 'peacock',
+            'n01795545': 'black grouse',
+            'n01531178': 'goldfinch, Carduelis carduelis',
+            'n01622779': 'great grey owl, great gray owl, Strix nebulosa',
+            'n01833805': 'hummingbird',
+            'n01740131': 'night snake, Hypsiglena torquata',
+            'n01735189': 'garter snake, grass snake',
+            'n01755581': 'diamondback, diamondback rattlesnake, Crotalus adamanteus',
+            'n01751748': 'sea snake',
+            'n01729977': 'green snake, grass snake',
+            'n01729322': 'hognose snake, puff adder, sand viper',
+            'n01734418': 'king snake, kingsnake',
+            'n01728572': 'thunder snake, worm snake, Carphophis amoenus',
+            'n01739381': 'vine snake',
+            'n01756291': 'sidewinder, horned rattlesnake, Crotalus cerastes',
+            'n01773797': 'garden spider, Aranea diademata',
+            'n01775062': 'wolf spider, hunting spider',
+            'n01773549': 'barn spider, Araneus cavaticus',
+            'n01774384': 'black widow, Latrodectus mactans',
+            'n01774750': 'tarantula',
+            'n01440764': 'tench, Tinca tinca',
+            'n01443537': 'goldfish, Carassius auratus',
+            'n01667778': 'terrapin',
+            'n01667114': 'mud turtle',
+            'n01664065': 'loggerhead, loggerhead turtle, Caretta caretta',
+            'n01665541': 'leatherback turtle, leatherback, leathery turtle, Dermochelys coriacea',
+            'n01687978': 'agama',
+            'n01677366': 'common iguana, iguana, Iguana iguana',
+            'n01695060': 'Komodo dragon, Komodo lizard, dragon lizard, giant lizard, Varanus komodoensis',
+            'n01685808': 'whiptail, whiptail lizard',
+            'n01978287': 'Dungeness crab, Cancer magister',
+            'n01986214': 'hermit crab',
+            'n01978455': 'rock crab, Cancer irroratus',
+            'n01491361': 'tiger shark, Galeocerdo cuvieri',
+            'n01484850': 'great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias',
+            'n01494475': 'hammerhead, hammerhead shark'
+        }
+        output_fine_grain_classes_str = list(fine_grain_classes_dict.values())
+    else:
+        dataframes_by_sheet = get_military_dataframes()
+        fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+        output_fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
+        coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
+        output_coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
+
+        output_test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
+        output_test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
+
+        output_train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
+        output_train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
+
+    return (output_fine_grain_classes_str, output_coarse_grain_classes_str, output_test_true_fine_data,
+            output_test_true_coarse_data, output_train_true_fine_data, output_train_true_coarse_data)
+
+
+(fine_grain_classes_str, coarse_grain_classes_str, test_true_fine_data, test_true_coarse_data,
+ train_true_fine_data, train_true_coarse_data) = get_data(data='military_vehicles')
+
 granularities_str = ['fine', 'coarse']
-
-# Data for our use case
-
-test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
-test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
-
-train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
-train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
 
 num_fine_grain_classes = len(fine_grain_classes_str)
 num_coarse_grain_classes = len(coarse_grain_classes_str)
@@ -75,7 +140,7 @@ def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
 
     output_fine_to_coarse = {}
     output_fine_to_course_idx = {}
-    training_df = dataframes_by_sheet['Training']
+    training_df = get_military_dataframes()['Training']
 
     assert (set(training_df['Fine-Grain Ground Truth'].unique().tolist()).intersection(fine_grain_classes_str)
             == set(fine_grain_classes_str))
