@@ -105,19 +105,17 @@ class EDCR_LTN_experiment(EDCR):
                                   train_eval_split=0.8,
                                   get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
-        # if self.pretrain_path is None:
-        #     self.run_baseline_pipeline()
-        # else:
-        #     self.baseline_model = self.fine_tuners[0]
-        #     print('Load pretrain model successfully!')
-        self.baseline_model = self.fine_tuners[0]
-        self.devices[0] = torch.device('cpu')
+        if self.pretrain_path is None:
+            self.run_baseline_pipeline()
+        else:
+            self.baseline_model = self.fine_tuners[0]
+            print('Load pretrain model successfully!')
 
-        # vit_pipeline.evaluate_combined_model(fine_tuner=self.baseline_model,
-        #                                      loaders=self.loaders,
-        #                                      loss='BCE',
-        #                                      device=self.devices[0],
-        #                                      split='test')
+        vit_pipeline.evaluate_combined_model(fine_tuner=self.baseline_model,
+                                             loaders=self.loaders,
+                                             loss='BCE',
+                                             device=self.devices[0],
+                                             split='test')
 
     def fine_tune_and_evaluate_combined_model(self,
                                               logits_to_predicate: torch.nn.Module,
