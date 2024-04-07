@@ -105,10 +105,10 @@ def compute_sat_normally(
 
     True_predicate = {}
     for l in data_preprocessing.get_labels(g_fine).values():
-        True_predicate[l] = torch.where(train_true_fine_batch == l.index, 1, 0)
+        True_predicate[l] = torch.where(torch.tensor(train_true_fine_batch == l.index), 1, 0)
 
     for l in data_preprocessing.get_labels(g_coarse).values():
-        True_predicate[l] = torch.where(train_true_coarse_batch == l.index, 1, 0)
+        True_predicate[l] = torch.where(torch.tensor(train_true_coarse_batch == l.index), 1, 0)
 
     label_one_hot = {}
     for l in data_preprocessing.get_labels(g_fine).values():
@@ -125,7 +125,7 @@ def compute_sat_normally(
     x_variables = {}
     # x_fine = ltn.Variable("x_fine", train_pred_fine_batch)
     # x_coarse = ltn.Variable("x_coarse", train_pred_coarse_batch)
-    x_all = ltn.Variable('x_all', image)
+    # x_all = ltn.Variable('x_all', image)
 
     for l in data_preprocessing.get_labels(g=g_fine).values():
         x_variables[l] = ltn.Variable(
@@ -152,13 +152,13 @@ def compute_sat_normally(
                                                   true_l,
                                                   cond_l)
         confidence_score = (
-            Forall([x_l, true_l, cond_l],
+            Forall([x_variables[l], true_l, cond_l],
                    Implies(
-                       And(logits_to_predicate(x_l, label_one_hot[l], g=l.g),
+                       And(logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g),
                            cond_l),
                        And(
                            Not(true_l),
-                           logits_to_predicate(x_l, label_one_hot[l], g=l.g))
+                           logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g))
                    )
                    ))
         sat_agg_list.append(confidence_score)
@@ -176,13 +176,13 @@ def compute_sat_normally(
                                                   true_l,
                                                   cond_l)
         confidence_score = (
-            Forall([x_l, true_l, cond_l],
+            Forall([x_variables[l], true_l, cond_l],
                    Implies(
-                       And(logits_to_predicate(x_l, label_one_hot[l], g=l.g),
+                       And(logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g),
                            cond_l),
                        And(
                            Not(true_l),
-                           logits_to_predicate(x_l, label_one_hot[l], g=l.g))
+                           logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g))
                    )
                    ))
         sat_agg_list.append(confidence_score)
