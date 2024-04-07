@@ -125,7 +125,7 @@ def compute_sat_normally(
     x_variables = {}
     # x_fine = ltn.Variable("x_fine", train_pred_fine_batch)
     # x_coarse = ltn.Variable("x_coarse", train_pred_coarse_batch)
-    # x_all = ltn.Variable('x_all', image)
+    x_all = ltn.Variable('x_all', image)
 
     for l in data_preprocessing.get_labels(g=g_fine).values():
         x_variables[l] = ltn.Variable(
@@ -141,48 +141,40 @@ def compute_sat_normally(
     # error_i(w) = pred_i(w) and not(true_i(w))
 
     for l in data_preprocessing.get_labels(g_fine).values():
-        if x_variables[l].shape()[0] == 0:
-            continue
         # true_l mean if the prediction is the same with the ground truth, and cond_l is big or of all cond in DC_l
-        true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l][train_pred_fine_batch == l.index],
+        true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l],
                               add_batch_dim=False)
-        cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_fine_batch == l.index],
+        cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l],
                               add_batch_dim=False)
-        x_variables[l], true_l, cond_l = ltn.diag(x_variables[l],
-                                                  true_l,
-                                                  cond_l)
+        x_all, true_l, cond_l = ltn.diag(x_all, true_l, cond_l)
         confidence_score = (
-            Forall([x_variables[l], true_l, cond_l],
+            Forall([x_all, true_l, cond_l],
                    Implies(
-                       And(logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g),
+                       And(logits_to_predicate(x_all, label_one_hot[l], g=l.g),
                            cond_l),
                        And(
                            Not(true_l),
-                           logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g))
+                           logits_to_predicate(x_all, label_one_hot[l], g=l.g))
                    )
                    ))
         sat_agg_list.append(confidence_score)
         sat_agg_average_score += confidence_score.value.detach().item()
 
     for l in data_preprocessing.get_labels(g_coarse).values():
-        if x_variables[l].shape()[0] == 0:
-            continue
         # true_l mean if the prediction is the same with the ground truth, and cond_l is big or of all cond in DC_l
-        true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l][train_pred_coarse_batch == l.index],
+        true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l],
                               add_batch_dim=False)
-        cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_coarse_batch == l.index],
+        cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l],
                               add_batch_dim=False)
-        x_variables[l], true_l, cond_l = ltn.diag(x_variables[l],
-                                                  true_l,
-                                                  cond_l)
+        x_all, true_l, cond_l = ltn.diag(x_all, true_l, cond_l)
         confidence_score = (
-            Forall([x_variables[l], true_l, cond_l],
+            Forall([x_all, true_l, cond_l],
                    Implies(
-                       And(logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g),
+                       And(logits_to_predicate(x_all, label_one_hot[l], g=l.g),
                            cond_l),
                        And(
                            Not(true_l),
-                           logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g))
+                           logits_to_predicate(x_all, label_one_hot[l], g=l.g))
                    )
                    ))
         sat_agg_list.append(confidence_score)
@@ -194,9 +186,7 @@ def compute_sat_normally(
 
     print(f'for all w in operational data, i in coarse grain classes, rule \n'
           f'pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w)) \n'
-          f'has average score {sat_agg_average_score / 
-                               (len(data_preprocessing.coarse_grain_classes_str) + 
-                                len(data_preprocessing.fine_grain_classes_str))}')
+          f'has average score {sat_agg_average_score / (len(data_preprocessing.coarse_grain_classes_str) + len(data_preprocessing.fine_grain_classes_str))}')
 
     return sat_agg
 
