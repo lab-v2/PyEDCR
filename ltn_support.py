@@ -148,9 +148,9 @@ def compute_sat_normally(
                               add_batch_dim=False)
         cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_fine_batch == l.index],
                               add_batch_dim=False)
-        x_l, true_l, cond_l = ltn.diag(x_variables[l],
-                                       true_l,
-                                       cond_l)
+        x_variables[l], true_l, cond_l = ltn.diag(x_variables[l],
+                                                  true_l,
+                                                  cond_l)
         confidence_score = (
             Forall([x_l, true_l, cond_l],
                    Implies(
@@ -172,9 +172,9 @@ def compute_sat_normally(
                               add_batch_dim=False)
         cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_coarse_batch == l.index],
                               add_batch_dim=False)
-        x_l, true_l, cond_l = ltn.diag(x_variables[l],
-                                       true_l,
-                                       cond_l)
+        x_variables[l], true_l, cond_l = ltn.diag(x_variables[l],
+                                                  true_l,
+                                                  cond_l)
         confidence_score = (
             Forall([x_l, true_l, cond_l],
                    Implies(
