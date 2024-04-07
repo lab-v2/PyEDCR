@@ -12,7 +12,6 @@ import data_preprocessing
 import vit_pipeline
 import typing
 import config
-import utils
 
 
 class EDCR_LTN_experiment(EDCR):
@@ -106,27 +105,28 @@ class EDCR_LTN_experiment(EDCR):
                                   train_eval_split=0.8,
                                   get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
-        if self.pretrain_path is None:
-            self.run_baseline_pipeline()
-        else:
-            self.baseline_model = self.fine_tuners[0]
-            print('Load pretrain model successfully!')
+        # if self.pretrain_path is None:
+        #     self.run_baseline_pipeline()
+        # else:
+        #     self.baseline_model = self.fine_tuners[0]
+        #     print('Load pretrain model successfully!')
+        self.baseline_model = self.fine_tuners[0]
+        self.devices[0] = torch.device('cpu')
 
-        vit_pipeline.evaluate_combined_model(fine_tuner=self.baseline_model,
-                                             loaders=self.loaders,
-                                             loss='BCE',
-                                             device=self.devices[0],
-                                             split='test')
-
+        # vit_pipeline.evaluate_combined_model(fine_tuner=self.baseline_model,
+        #                                      loaders=self.loaders,
+        #                                      loss='BCE',
+        #                                      device=self.devices[0],
+        #                                      split='test')
 
     def fine_tune_and_evaluate_combined_model(self,
+                                              logits_to_predicate: torch.nn.Module,
                                               fine_tuner: models.FineTuner,
                                               device: torch.device,
                                               loaders: dict[str, torch.utils.data.DataLoader],
                                               loss: str,
                                               mode: str,
                                               epoch: int = 0,
-                                              beta: float = 0.1,
                                               optimizer=None,
                                               scheduler=None):
         fine_tuner.to(device)
@@ -136,7 +136,6 @@ class EDCR_LTN_experiment(EDCR):
         train_or_test = 'train' if mode != 'test' else 'test'
 
         total_losses = []
-        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
         print(f'\n{mode} {fine_tuner} with {len(fine_tuner)} parameters for {self.num_ltn_epochs} epochs '
               f'using lr={self.lr} on {device}...')
@@ -201,9 +200,10 @@ class EDCR_LTN_experiment(EDCR):
                             criterion = torch.nn.BCEWithLogitsLoss()
 
                             sat_agg = ltn_support.compute_sat_normally(
+                                image=X,
                                 logits_to_predicate=logits_to_predicate,
-                                train_pred_fine_batch=Y_pred_fine_grain,
-                                train_pred_coarse_batch=Y_pred_coarse_grain,
+                                train_pred_fine_batch=torch.max(Y_pred_fine_grain, 1)[1],
+                                train_pred_coarse_batch=torch.max(Y_pred_coarse_grain, 1)[1],
                                 train_true_fine_batch=Y_fine_grain,
                                 train_true_coarse_batch=Y_coarse_grain,
                                 original_train_pred_fine_batch=original_pred_fine_batch,
@@ -213,15 +213,16 @@ class EDCR_LTN_experiment(EDCR):
                                 error_detection_rules=self.error_detection_rules,
                                 device=device
                             )
-                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_combine)
+                            batch_total_loss = self.beta * (1. - sat_agg) + (1 - self.beta) * criterion(Y_pred, Y_combine)
 
                         if loss == "soft_marginal":
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
                             sat_agg = ltn_support.compute_sat_normally(
+                                image=X,
                                 logits_to_predicate=logits_to_predicate,
-                                train_pred_fine_batch=Y_pred_fine_grain,
-                                train_pred_coarse_batch=Y_pred_coarse_grain,
+                                train_pred_fine_batch=torch.max(Y_pred_fine_grain, 1)[1],
+                                train_pred_coarse_batch=torch.max(Y_pred_coarse_grain, 1)[1],
                                 train_true_fine_batch=Y_fine_grain,
                                 train_true_coarse_batch=Y_coarse_grain,
                                 original_train_pred_fine_batch=original_pred_fine_batch,
@@ -231,7 +232,7 @@ class EDCR_LTN_experiment(EDCR):
                                 error_detection_rules=self.error_detection_rules,
                                 device=device
                             )
-                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (
+                            batch_total_loss = self.beta * (1. - sat_agg) + (1 - self.beta) * (
                                 criterion(Y_pred, Y_combine))
 
                         vit_pipeline.print_post_batch_metrics(batch_num=batch_num,
@@ -271,21 +272,21 @@ class EDCR_LTN_experiment(EDCR):
             num_fine_grain_classes=len(data_preprocessing.fine_grain_classes_str),
             num_coarse_grain_classes=len(data_preprocessing.coarse_grain_classes_str))
 
-        ltn_support.compute_sat_testing_value(
-            logits_to_predicate=logits_to_predicate,
-            pred_fine_batch=torch.tensor(fine_predictions).to(device),
-            pred_coarse_batch=torch.tensor(coarse_predictions).to(device),
-            true_fine_batch=torch.tensor(fine_ground_truths).to(device),
-            true_coarse_batch=torch.tensor(coarse_ground_truths).to(device),
-            original_pred_fine_batch=torch.tensor(original_pred_fines).to(device),
-            original_pred_coarse_batch=torch.tensor(original_pred_coarses).to(device),
-            original_secondary_pred_fine_batch=torch.tensor(original_secondary_pred_fines).to(device)
-            if self.secondary_model_name is not None else None,
-            original_secondary_pred_coarse_batch=torch.tensor(original_secondary_pred_coarses).to(device)
-            if self.secondary_model_name is not None else None,
-            error_detection_rules=self.error_detection_rules,
-            device=device
-        )
+        # ltn_support.compute_sat_testing_value(
+        #     logits_to_predicate=logits_to_predicate,
+        #     pred_fine_batch=torch.tensor(fine_predictions).to(device),
+        #     pred_coarse_batch=torch.tensor(coarse_predictions).to(device),
+        #     true_fine_batch=torch.tensor(fine_ground_truths).to(device),
+        #     true_coarse_batch=torch.tensor(coarse_ground_truths).to(device),
+        #     original_pred_fine_batch=torch.tensor(original_pred_fines).to(device),
+        #     original_pred_coarse_batch=torch.tensor(original_pred_coarses).to(device),
+        #     original_secondary_pred_fine_batch=torch.tensor(original_secondary_pred_fines).to(device)
+        #     if self.secondary_model_name is not None else None,
+        #     original_secondary_pred_coarse_batch=torch.tensor(original_secondary_pred_coarses).to(device)
+        #     if self.secondary_model_name is not None else None,
+        #     error_detection_rules=self.error_detection_rules,
+        #     device=device
+        # )
 
         if mode == 'train':
             scheduler.step()
@@ -454,7 +455,8 @@ class EDCR_LTN_experiment(EDCR):
         self.pred_data['train']['original'][config.g_fine][train_indices] = np.array(train_fine_prediction)
         self.pred_data['train']['original'][config.g_fine][train_eval_indices] = np.array(train_eval_fine_prediction)
 
-        self.pred_data['train']['original'][config.g_coarse] = np.ones_like(data_preprocessing.train_true_fine_data) * -1
+        self.pred_data['train']['original'][config.g_coarse] = np.ones_like(
+            data_preprocessing.train_true_fine_data) * -1
         self.pred_data['train']['original'][config.g_coarse][train_indices] = np.array(train_coarse_prediction)
         self.pred_data['train']['original'][config.g_coarse][train_eval_indices] = np.array(
             train_eval_coarse_prediction)
@@ -525,7 +527,9 @@ class EDCR_LTN_experiment(EDCR):
         train_fine_accuracies = []
         train_coarse_accuracies = []
 
-        optimizer = torch.optim.Adam(params=self.correction_model[model_index].parameters(),
+        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate(self.correction_model[model_index])).to(ltn.device)
+
+        optimizer = torch.optim.Adam(params=logits_to_predicate.parameters(),
                                      lr=self.lr)
 
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
@@ -535,6 +539,7 @@ class EDCR_LTN_experiment(EDCR):
             with context_handlers.ClearSession():
 
                 self.fine_tune_and_evaluate_combined_model(
+                    logits_to_predicate=logits_to_predicate,
                     fine_tuner=self.correction_model[model_index],
                     device=self.devices[0],
                     loaders=self.loaders,
@@ -546,6 +551,7 @@ class EDCR_LTN_experiment(EDCR):
                 )
 
                 training_fine_accuracy, training_coarse_accuracy, _, _ = self.fine_tune_and_evaluate_combined_model(
+                    logits_to_predicate=logits_to_predicate,
                     fine_tuner=self.correction_model[model_index],
                     device=self.devices[0],
                     loaders=self.loaders,
@@ -572,8 +578,11 @@ class EDCR_LTN_experiment(EDCR):
                                 model_index: int):
 
         print(f'\nStarted testing LTN model {model_index}...\n')
+        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate(self.correction_model[model_index])).to(
+            ltn.device)
 
         _, _, fine_predictions, coarse_prediction = self.fine_tune_and_evaluate_combined_model(
+            logits_to_predicate=logits_to_predicate,
             fine_tuner=self.correction_model[model_index],
             device=self.devices[0],
             loaders=self.loaders,
@@ -583,7 +592,7 @@ class EDCR_LTN_experiment(EDCR):
         return fine_predictions, coarse_prediction
 
     def get_majority_vote(self,
-                          predictions: dict[int, list],
+                          predictions: dict[int, tuple[list, list]],
                           g: data_preprocessing.Granularity):
         """
         Performs majority vote on a list of 1D numpy arrays representing predictions.
