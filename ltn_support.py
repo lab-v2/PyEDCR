@@ -142,20 +142,22 @@ def compute_sat_normally(
     for l in data_preprocessing.get_labels(g_fine).values():
         if x_variables[l].shape()[0] == 0:
             continue
-        # true_l mean if the prediction is the same with the ground truth, and cond_l is the and of all cond in DC_l
-        true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l][train_pred_fine_batch == l.index])
-        cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_fine_batch == l.index])
-        ltn.diag(x_variables[l],
-                 true_l,
-                 cond_l)
+        # true_l mean if the prediction is the same with the ground truth, and cond_l is big or of all cond in DC_l
+        true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l][train_pred_fine_batch == l.index],
+                              add_batch_dim=False)
+        cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_fine_batch == l.index],
+                              add_batch_dim=False)
+        x_l, true_l, cond_l = ltn.diag(x_variables[l],
+                                       true_l,
+                                       cond_l)
         confidence_score = (
-            Forall([x_variables[l], true_l, cond_l],
+            Forall([x_l, true_l, cond_l],
                    Implies(
-                       And(logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g),
+                       And(logits_to_predicate(x_l, label_one_hot[l], g=l.g),
                            cond_l),
                        And(
                            Not(true_l),
-                           logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g))
+                           logits_to_predicate(x_l, label_one_hot[l], g=l.g))
                    )
                    ))
         sat_agg_list.append(confidence_score)
@@ -163,20 +165,22 @@ def compute_sat_normally(
     for l in data_preprocessing.get_labels(g_coarse).values():
         if x_variables[l].shape()[0] == 0:
             continue
-            # true_l mean if the prediction is the same with the ground truth, and cond_l is the and of all cond in DC_l
-        true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l][train_pred_coarse_batch == l.index])
-        cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_coarse_batch == l.index])
-        ltn.diag(x_variables[l],
-                 true_l,
-                 cond_l)
+        # true_l mean if the prediction is the same with the ground truth, and cond_l is big or of all cond in DC_l
+        true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l][train_pred_coarse_batch == l.index],
+                              add_batch_dim=False)
+        cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_coarse_batch == l.index],
+                              add_batch_dim=False)
+        x_l, true_l, cond_l = ltn.diag(x_variables[l],
+                                       true_l,
+                                       cond_l)
         confidence_score = (
-            Forall([x_variables[l], true_l, cond_l],
+            Forall([x_l, true_l, cond_l],
                    Implies(
-                       And(logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g),
+                       And(logits_to_predicate(x_l, label_one_hot[l], g=l.g),
                            cond_l),
                        And(
                            Not(true_l),
-                           logits_to_predicate(x_variables[l], label_one_hot[l], g=l.g))
+                           logits_to_predicate(x_l, label_one_hot[l], g=l.g))
                    )
                    ))
         sat_agg_list.append(confidence_score)
