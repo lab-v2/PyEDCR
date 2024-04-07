@@ -358,10 +358,11 @@ def get_subset_indices_for_train_and_train_eval(train_eval_split: float,
         for idx in train_indices:
             label = train_true_coarse_data[idx]
             if label in list(filter_label.keys()) and filter_label[label] > 0:
-                filtered_train_indices.append(idx)
                 filter_label[label] -= 1
+                continue
             else:
                 count_labels[label] += 1
+            filtered_train_indices.append(idx)
 
         print(f"\nCoarse data counts: {coarse_data_counts}")
         print(f"train eval split is: {train_eval_split}")
