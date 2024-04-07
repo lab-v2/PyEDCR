@@ -135,6 +135,7 @@ def compute_sat_normally(
             str(l), image[train_pred_coarse_batch == l.index])
 
     sat_agg_list = []
+    sat_agg_average_score = 0
 
     # Detection Rule: pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w))
     # error_i(w) = pred_i(w) and not(true_i(w))
@@ -161,6 +162,7 @@ def compute_sat_normally(
                    )
                    ))
         sat_agg_list.append(confidence_score)
+        sat_agg_average_score += confidence_score.value.detach().item()
 
     for l in data_preprocessing.get_labels(g_coarse).values():
         if x_variables[l].shape()[0] == 0:
@@ -184,10 +186,15 @@ def compute_sat_normally(
                    )
                    ))
         sat_agg_list.append(confidence_score)
+        sat_agg_average_score += confidence_score.value.detach().item()
 
     sat_agg = SatAgg(
         *sat_agg_list
     )
+
+    print(f'for all w in operational data, i in coarse grain classes, rule \n'
+          f'pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w)) \n'
+          f'has average score {sat_agg_average_score / len(data_preprocessing.coarse_grain_classes_str)}')
 
     return sat_agg
 
