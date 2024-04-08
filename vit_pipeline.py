@@ -207,7 +207,7 @@ def initiate(data: str,
                                                binary_label=l,
                                                evaluation=evaluation,
                                                error_fixing=error_indices is not None,
-                                               vit_model_names=model_names,
+                                               model_names=model_names,
                                                weights=weights)
 
     device = torch.device('cpu') if debug else (
