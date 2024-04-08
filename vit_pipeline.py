@@ -207,7 +207,7 @@ def initiate(data: str,
                                                binary_label=l,
                                                evaluation=evaluation,
                                                error_fixing=error_indices is not None,
-                                               vit_model_names=model_names,
+                                               model_names=model_names,
                                                weights=weights)
 
     device = torch.device('cpu') if debug else (
@@ -241,8 +241,11 @@ def initiate(data: str,
                 fine_tuners = [models.VITFineTuner(vit_model_name=model_name,
                                                    weights=weight,
                                                    num_classes=num_classes) if model_name.startswith('vit')
-                               else models.EfficientNetV2FineTuner(efficient_net_v2_model_name=model_name,
-                                                                   num_classes=num_classes)
+                               else (models.EfficientNetV2FineTuner(efficient_net_v2_model_name=model_name,
+                                                                    num_classes=num_classes)
+                                     if model_name.startswith('efficient_net_v2') else
+                                     models.DINOV2FineTuner(dino_v2_model_name=model_name,
+                                                            num_classes=num_classes))
                                for model_name, weight in zip(model_names, weights)]
 
             results_path = combined_results_path

@@ -462,7 +462,7 @@ class IndividualImageFolderWithName(EDCRImageFolder):
 
 
 def get_datasets(data: str,
-                 vit_model_names: list[str] = ['vit_b_16'],
+                 model_names: list[str],
                  weights: list[str] = ['DEFAULT'],
                  cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
@@ -477,7 +477,7 @@ def get_datasets(data: str,
     ----------
         :param data:
         :param weights:
-        :param vit_model_names:
+        :param model_names:
         :param error_fixing:
         :param evaluation:
         :param binary_label:
@@ -485,30 +485,32 @@ def get_datasets(data: str,
         :param combined:
     """
 
-    data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), '.')
+    data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), 'data')
 
     datasets = {}
 
     for train_or_test in ['train', 'test']:
+        data_dir_name = f'ImageNet100/{train_or_test}' if data == 'imagenet' else f'{train_or_test}_fine'
+        full_data_dir = os.path.join(data_dir, data_dir_name)
+
         if binary_label is not None:
-            datasets[train_or_test] = BinaryImageFolder(root=os.path.join(data_dir, f'data/{train_or_test}_fine'),
+            datasets[train_or_test] = BinaryImageFolder(root=full_data_dir,
                                                         transform=get_dataset_transforms(data=data,
                                                                                          train_or_test=train_or_test),
                                                         l=binary_label,
                                                         evaluation=evaluation)
         elif combined:
-            datasets[train_or_test] = CombinedImageFolderWithName(root=os.path.join(data_dir,
-                                                                                    f'data/{train_or_test}_fine'),
+            datasets[train_or_test] = CombinedImageFolderWithName(root=full_data_dir,
                                                                   transform=get_dataset_transforms(
                                                                       data=data,
                                                                       train_or_test=train_or_test,
                                                                       error_fixing=error_fixing,
-                                                                      vit_model_name=vit_model_names[0],
+                                                                      vit_model_name=model_names[0],
                                                                       weight=weights[0]
                                                                   ))
         else:
             datasets[train_or_test] = IndividualImageFolderWithName(
-                root=os.path.join(data_dir, f'{train_or_test}_fine'),
+                root=full_data_dir,
                 transform=
                 get_dataset_transforms(data=data,
                                        train_or_test=train_or_test))
