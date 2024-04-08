@@ -4,6 +4,7 @@ import torch
 from torchvision.transforms import Compose, RandomResizedCrop, RandomHorizontalFlip, ColorJitter, ToTensor, Normalize
 from transformers import AutoImageProcessor, AutoModelForImageClassification
 from datasets import load_dataset
+
 from sklearn.metrics import accuracy_score
 import numpy as np
 from transformers import TrainingArguments, Trainer
@@ -124,17 +125,19 @@ def fine_tune_image_net(imagenet100_folder_path: str = 'ImageNet100',
     # see https://huggingface.co/docs/datasets/image_dataset to load your own custom dataset
     dataset = load_dataset("timm/oxford-iiit-pet")
 
+    num_proc = 4
+
     # set num_proc equal to the number of CPU cores on your machine
     # see https://docs.python.org/3/library/multiprocessing.html#multiprocessing.cpu_count
     train_dataset = dataset["train"].map(prepare,
-                                         num_proc=os.cpu_count(),
+                                         num_proc=num_proc,
                                          batched=True,
                                          batch_size=batch_size,
                                          fn_kwargs={"mode": "train",
                                                     "train_transform": train_transform,
                                                     "processor": processor})
     eval_dataset = dataset["test"].map(prepare,
-                                       num_proc=os.cpu_count(),
+                                       num_proc=num_proc,
                                        batched=True,
                                        batch_size=batch_size,
                                        fn_kwargs={"mode": "test",
@@ -159,7 +162,7 @@ def fine_tune_image_net(imagenet100_folder_path: str = 'ImageNet100',
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
         push_to_hub=False,
-        # use_cpu=True
+        use_cpu=True
     )
 
     trainer = Trainer(

@@ -1,4 +1,3 @@
-import re
 import abc
 import torch
 import torchvision
@@ -13,6 +12,7 @@ class FineTuner(torch.nn.Module, abc.ABC):
     """
 
     def __init__(self,
+                 model_name: str,
                  num_classes: int):
         """
         Initializes the FineTuner with the number of classes.
@@ -20,12 +20,11 @@ class FineTuner(torch.nn.Module, abc.ABC):
         :param num_classes: The number of output classes for classification.
         """
         super().__init__()
+        self.model_name = model_name
         self.num_classes = num_classes
 
     def __str__(self) -> str:
-        return re.sub(pattern=r'([a-z])([A-Z0-9])',
-                      repl=r'\1_\2',
-                      string=self.__class__.__name__.split('Fine')[0]).lower()
+        return self.model_name
 
     def __len__(self) -> int:
         return sum(p.numel() for p in self.parameters())
@@ -35,7 +34,8 @@ class EfficientNetV2FineTuner(FineTuner):
     def __init__(self,
                  efficient_net_v2_model_name: str,
                  num_classes: int):
-        super().__init__(num_classes=num_classes)
+        super().__init__(model_name=efficient_net_v2_model_name,
+                         num_classes=num_classes)
         self.efficient_net_v2_model_name = efficient_net_v2_model_name
         efficient_net_v2_model = getattr(torchvision.models, efficient_net_v2_model_name)
 
@@ -51,6 +51,28 @@ class EfficientNetV2FineTuner(FineTuner):
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         X = self.efficient_net_v2(X)
         X = self.output_layer(X)
+
+        return X
+
+
+class DINOV2FineTuner(FineTuner):
+    def __init__(self,
+                 num_classes: int,
+                 dino_v2_model_name: str):
+        super().__init__(model_name=dino_v2_model_name,
+                         num_classes=num_classes)
+        self.transformer = torch.hub.load(repo_or_dir='facebookresearch/dinov2',
+                                          model=dino_v2_model_name)
+        self.classifier = torch.nn.Sequential(
+            torch.nn.Linear(in_features=384, out_features=256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(in_features=256, out_features=num_classes)
+        )
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        X = self.transformer(X)
+        X = self.transformer.norm(X)
+        X = self.classifier(X)
 
         return X
 
@@ -71,7 +93,8 @@ class VITFineTuner(FineTuner):
         :param vit_model_name: The name of the pre-trained ViT model to use (e.g., 'vit_base_patch16').
         :param num_classes: The number of output classes for classification.
         """
-        super().__init__(num_classes=num_classes)
+        super().__init__(model_name=vit_model_name,
+                         num_classes=num_classes)
         self.vit_model_name = vit_model_name
         vit_model = getattr(torchvision.models, vit_model_name)
 
@@ -125,9 +148,6 @@ class VITFineTuner(FineTuner):
         :return: Predicted class probabilities for each input image (batch_num, classes_num).
         """
         return self.vit(X)
-
-    def __str__(self):
-        return self.vit_model_name
 
 
 def get_filepath(model_name: typing.Union[str, FineTuner],
