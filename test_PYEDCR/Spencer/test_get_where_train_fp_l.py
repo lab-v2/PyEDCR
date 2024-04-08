@@ -27,7 +27,7 @@ def test_case_1():
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
     test_label = label_fine['30N6E']
 
-    print(f'label is: {test_label._l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
+    print(f'label is: {test_label.l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
 
     except_result_1 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 1, 0])
 
@@ -52,7 +52,7 @@ def test_case_2():
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
     test_label = label_coarse['Air Defense']
 
-    print(f'label is: {test_label._l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
+    print(f'label is: {test_label.l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
 
     except_result_2 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -75,7 +75,7 @@ def test_case_3():
     print(utils.blue_text("=" * 50 + f"test {case_number} " + method_str + "=" * 50))
     test_label = label_fine['BM-30']
 
-    print(f'label is: {test_label._l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
+    print(f'label is: {test_label.l_str}, granularity: {test_label.g}, label_index: {test_label.index}')
 
     except_result_2 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

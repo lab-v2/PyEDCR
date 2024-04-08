@@ -18,96 +18,349 @@ current_file_location = pathlib.Path(__file__).parent.resolve()
 os.chdir(current_file_location)
 
 
-def get_military_dataframes():
-    data_file_path = rf'data/WEO_Data_Sheet.xlsx'
-    dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+class Granularity(typing.Hashable):
+    def __init__(self,
+                 g_str: str):
+        self.g_str = g_str
 
-    return dataframes_by_sheet
+    def __str__(self):
+        return self.g_str
 
+    def __hash__(self):
+        return hash(self.g_str)
 
-def get_data(data: str):
-    if data == 'imagenet':
-        output_coarse_grain_classes_str = [
-            'Bird', 'Snake', 'Spider', 'Small Fish', 'Turtle', 'Lizard', 'Crab', 'Shark'
-        ]
-
-        fine_grain_classes_dict = {
-            'n01818515': 'macaw',
-            'n01537544': 'indigo bunting, indigo finch, indigo bird, Passerina cyanea',
-            'n02007558': 'flamingo',
-            'n02002556': 'white stork, Ciconia ciconia',
-            'n01614925': 'bald eagle, American eagle, Haliaeetus leucocephalus',
-            'n01582220': 'magpie',
-            'n01806143': 'peacock',
-            'n01795545': 'black grouse',
-            'n01531178': 'goldfinch, Carduelis carduelis',
-            'n01622779': 'great grey owl, great gray owl, Strix nebulosa',
-            'n01833805': 'hummingbird',
-            'n01740131': 'night snake, Hypsiglena torquata',
-            'n01735189': 'garter snake, grass snake',
-            'n01755581': 'diamondback, diamondback rattlesnake, Crotalus adamanteus',
-            'n01751748': 'sea snake',
-            'n01729977': 'green snake, grass snake',
-            'n01729322': 'hognose snake, puff adder, sand viper',
-            'n01734418': 'king snake, kingsnake',
-            'n01728572': 'thunder snake, worm snake, Carphophis amoenus',
-            'n01739381': 'vine snake',
-            'n01756291': 'sidewinder, horned rattlesnake, Crotalus cerastes',
-            'n01773797': 'garden spider, Aranea diademata',
-            'n01775062': 'wolf spider, hunting spider',
-            'n01773549': 'barn spider, Araneus cavaticus',
-            'n01774384': 'black widow, Latrodectus mactans',
-            'n01774750': 'tarantula',
-            'n01440764': 'tench, Tinca tinca',
-            'n01443537': 'goldfish, Carassius auratus',
-            'n01667778': 'terrapin',
-            'n01667114': 'mud turtle',
-            'n01664065': 'loggerhead, loggerhead turtle, Caretta caretta',
-            'n01665541': 'leatherback turtle, leatherback, leathery turtle, Dermochelys coriacea',
-            'n01687978': 'agama',
-            'n01677366': 'common iguana, iguana, Iguana iguana',
-            'n01695060': 'Komodo dragon, Komodo lizard, dragon lizard, giant lizard, Varanus komodoensis',
-            'n01685808': 'whiptail, whiptail lizard',
-            'n01978287': 'Dungeness crab, Cancer magister',
-            'n01986214': 'hermit crab',
-            'n01978455': 'rock crab, Cancer irroratus',
-            'n01491361': 'tiger shark, Galeocerdo cuvieri',
-            'n01484850': 'great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias',
-            'n01494475': 'hammerhead, hammerhead shark'
-        }
-        output_fine_grain_classes_str = list(fine_grain_classes_dict.values())
-    else:
-        dataframes_by_sheet = get_military_dataframes()
-        fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
-        output_fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
-        coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
-        output_coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
-
-        output_test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
-        output_test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
-
-        output_train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
-        output_train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
-
-    return (output_fine_grain_classes_str, output_coarse_grain_classes_str, output_test_true_fine_data,
-            output_test_true_coarse_data, output_train_true_fine_data, output_train_true_coarse_data)
+    def __eq__(self, other):
+        return self.__hash__() == other.__hash__()
 
 
-(fine_grain_classes_str, coarse_grain_classes_str, test_true_fine_data, test_true_coarse_data,
- train_true_fine_data, train_true_coarse_data) = get_data(data='imagenet')
+class Label(typing.Hashable, abc.ABC):
+    def __init__(self,
+                 l_str: str,
+                 index: int):
+        self.l_str = l_str
+        self.index = index
+        self.g = None
 
-granularities_str = ['fine', 'coarse']
+    def __str__(self):
+        return self.l_str
 
-num_fine_grain_classes = len(fine_grain_classes_str)
-num_coarse_grain_classes = len(coarse_grain_classes_str)
+    def __hash__(self):
+        return hash(f'{self.g}_{self.l_str}')
 
-# Get unique labels and their counts for fine and coarse data
-fine_unique, fine_counts = np.unique(train_true_fine_data, return_counts=True)
-coarse_unique, coarse_counts = np.unique(train_true_coarse_data, return_counts=True)
+    def __eq__(self, other):
+        return self.__hash__() == other.__hash__()
 
-# Create dictionaries from unique labels and counts
-fine_data_counts = dict(zip(fine_unique, fine_counts))
-coarse_data_counts = dict(zip(coarse_unique, coarse_counts))
+
+class FineGrainLabel(Label):
+    def __init__(self,
+                 l_str: str,
+                 fine_grain_classes_str: list[str]):
+        super().__init__(l_str=l_str,
+                         index=fine_grain_classes_str.index(l_str))
+        assert l_str in fine_grain_classes_str
+
+        self.g = DataPreprocessor.granularities['fine']
+
+    @classmethod
+    def with_index(cls,
+                   fine_grain_classes_str: list[str],
+                   l_index: int):
+        l = fine_grain_classes_str[l_index]
+        instance = cls(l_str=l,
+                       fine_grain_classes_str=fine_grain_classes_str)
+
+        return instance
+
+
+class CoarseGrainLabel(Label):
+    def __init__(self,
+                 l_str: str,
+                 coarse_grain_classes_str: list[str]):
+        super().__init__(l_str=l_str,
+                         index=coarse_grain_classes_str.index(l_str))
+        assert l_str in coarse_grain_classes_str
+        self.g = DataPreprocessor.granularities['coarse']
+
+    @classmethod
+    def with_index(cls,
+                   i_l: int,
+                   coarse_grain_classes_str: list[str]):
+        l = coarse_grain_classes_str[i_l]
+        instance = cls(l_str=l,
+                       coarse_grain_classes_str=coarse_grain_classes_str)
+
+        return instance
+
+
+class DataPreprocessor:
+    granularities_str = ['fine', 'coarse']
+    granularities = {g_str: Granularity(g_str=g_str) for g_str in granularities_str}
+
+    def __init__(self,
+                 data_str: str):
+        self.data_str = data_str
+
+        if data_str == 'imagenet':
+            self.coarse_grain_classes_str = [
+                'bird', 'snake', 'spider', 'small fish', 'turtle', 'lizard', 'crab', 'shark'
+            ]
+
+            self.fine_grain_mapping_dict = {
+                'n01818515': 'macaw',
+                'n01537544': 'indigo bunting, indigo finch, indigo bird, Passerina cyanea',
+                'n02007558': 'flamingo',
+                'n02002556': 'white stork, Ciconia ciconia',
+                'n01614925': 'bald eagle, American eagle, Haliaeetus leucocephalus',
+                'n01582220': 'magpie',
+                'n01806143': 'peacock',
+                'n01795545': 'black grouse',
+                'n01531178': 'goldfinch, Carduelis carduelis',
+                'n01622779': 'great grey owl, great gray owl, Strix nebulosa',
+                'n01833805': 'hummingbird',
+                'n01740131': 'night snake, Hypsiglena torquata',
+                'n01735189': 'garter snake, grass snake',
+                'n01755581': 'diamondback, diamondback rattlesnake, Crotalus adamanteus',
+                'n01751748': 'sea snake',
+                'n01729977': 'green snake, grass snake',
+                'n01729322': 'hognose snake, puff adder, sand viper',
+                'n01734418': 'king snake, kingsnake',
+                'n01728572': 'thunder snake, worm snake, Carphophis amoenus',
+                'n01739381': 'vine snake',
+                'n01756291': 'sidewinder, horned rattlesnake, Crotalus cerastes',
+                'n01773797': 'garden spider, Aranea diademata',
+                'n01775062': 'wolf spider, hunting spider',
+                'n01773549': 'barn spider, Araneus cavaticus',
+                'n01774384': 'black widow, Latrodectus mactans',
+                'n01774750': 'tarantula',
+                'n01440764': 'tench, Tinca tinca',
+                'n01443537': 'goldfish, Carassius auratus',
+                'n01667778': 'terrapin',
+                'n01667114': 'mud turtle',
+                'n01664065': 'loggerhead, loggerhead turtle, Caretta caretta',
+                'n01665541': 'leatherback turtle, leatherback, leathery turtle, Dermochelys coriacea',
+                'n01687978': 'agama',
+                'n01677366': 'common iguana, iguana, Iguana iguana',
+                'n01695060': 'Komodo dragon, Komodo lizard, dragon lizard, giant lizard, Varanus komodoensis',
+                'n01685808': 'whiptail, whiptail lizard',
+                'n01978287': 'Dungeness crab, Cancer magister',
+                'n01986214': 'hermit crab',
+                'n01978455': 'rock crab, Cancer irroratus',
+                'n01491361': 'tiger shark, Galeocerdo cuvieri',
+                'n01484850': 'great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias',
+                'n01494475': 'hammerhead, hammerhead shark'
+            }
+            self.fine_grain_classes_str = list(self.fine_grain_mapping_dict.values())
+
+            self.coarse_to_fine = {
+                'Bird': ['Macaw',
+                         'Indigo Bunting',
+                         'Flamingo',
+                         'White Stork',
+                         'Bald Eagle',
+                         'Magpie',
+                         'Peacock',
+                         'Black Grouse',
+                         'Goldfinch',
+                         'Great Grey Owl',
+                         'Hummingbird'],
+                'Snake': ['Snake1',
+                          'Snake2',
+                          'Snake3',
+                          'Snake4',
+                          'Snake5',
+                          'Snake6',
+                          'Snake7',
+                          'Snake8',
+                          'Snake9',
+                          'Snake10'],
+                'Spider': ['Garden Spider',
+                           'Wolf Spider',
+                           'Barn Spider',
+                           'Black Widow',
+                           'Tarantula'],
+                'Small Fish': ['Tench', 'Goldfish'],
+                'Turtle': ['Terrapin',
+                           'Mud Turtle',
+                           'Loggerhead Turtle',
+                           'Leatherback Turtle'],
+                'Lizard': ['Agama', 'Common Iguana', 'Komodo Dragon', 'Whiptail Lizard'],
+                'Crab': ['Dungeness Crab', 'Hermit Crab', 'Rock Crab'],
+                'Shark': ['Tiger Shark', 'Great White Shark', 'Hammerhead Shark']}
+
+            self.fine_to_coarse = {
+
+                'macaw': 'bird',
+
+                'indigo bunting, indigo finch, indigo bird, Passerina cyanea': 'bird',
+
+                'flamingo': 'bird',
+
+                'white stork, Ciconia ciconia': 'bird',
+
+                'bald eagle, American eagle, Haliaeetus leucocephalus': 'bird',
+
+                'magpie': 'bird',
+
+                'peacock': 'bird',
+
+                'black grouse': 'bird',
+
+                'goldfinch, Carduelis carduelis': 'bird',
+
+                'great grey owl, great gray owl, Strix nebulosa': 'bird',
+
+                'hummingbird': 'bird',
+
+                'night snake, Hypsiglena torquata': 'snake',
+
+                'garter snake, grass snake': 'snake',
+
+                'diamondback, diamondback rattlesnake, Crotalus adamanteus': 'snake',
+
+                'sea snake': 'snake',
+
+                'green snake, grass snake': 'snake',
+
+                'hognose snake, puff adder, sand viper': 'snake',
+
+                'king snake, kingsnake': 'snake',
+
+                'thunder snake, worm snake, Carphophis amoenus': 'snake',
+
+                'vine snake': 'snake',
+
+                'sidewinder, horned rattlesnake, Crotalus cerastes': 'snake',
+
+                'garden spider, Aranea diademata': 'spider',
+
+                'wolf spider, hunting spider': 'spider',
+
+                'barn spider, Araneus cavaticus': 'spider',
+
+                'black widow, Latrodectus mactans': 'spider',
+
+                'tarantula': 'spider',
+
+                'tench, Tinca tinca': 'small fish',
+
+                'goldfish, Carassius auratus': 'small fish',
+
+                'terrapin': 'turtle',
+
+                'mud turtle': 'turtle',
+
+                'loggerhead, loggerhead turtle, Caretta caretta': 'turtle',
+
+                'leatherback turtle, leatherback, leathery turtle, Dermochelys coriacea': 'turtle',
+
+                'agama': 'lizard',
+
+                'common iguana, iguana, Iguana iguana': 'lizard',
+
+                'Komodo dragon, Komodo lizard, dragon lizard, giant lizard, Varanus komodoensis': 'lizard',
+
+                'whiptail, whiptail lizard': 'lizard',
+
+                'Dungeness crab, Cancer magister': 'crab',
+
+                'hermit crab': 'crab',
+
+                'rock crab, Cancer irroratus': 'crab',
+
+                'tiger shark, Galeocerdo cuvieri': 'shark',
+
+                'great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias': 'shark',
+
+                'hammerhead, hammerhead shark': 'shark'
+
+            }
+
+            self.fine_to_course_idx = {fine_idx: self.coarse_grain_classes_str.index(self.fine_to_coarse[fine_class])
+                                       for fine_idx, fine_class in self.fine_grain_mapping_dict.items()}
+
+        else:
+            data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+            dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
+
+            fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
+            self.fine_grain_classes_str = sorted(fine_grain_results_df['Class Name'].to_list())
+            coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
+            self.coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
+
+            self.test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
+            self.test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
+
+            self.train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
+            self.train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
+
+            self.fine_to_coarse = {}
+            self.fine_to_course_idx = {}
+            training_df = dataframes_by_sheet['Training']
+
+            assert (set(training_df['Fine-Grain Ground Truth'].unique().tolist()).intersection(
+                self.fine_grain_classes_str) == set(self.fine_grain_classes_str))
+
+            for fine_grain_class_idx, fine_grain_class in enumerate(self.fine_grain_classes_str):
+                curr_fine_grain_training_data = training_df[training_df['Fine-Grain Ground Truth'] == fine_grain_class]
+                assert curr_fine_grain_training_data['Course-Grain Ground Truth'].nunique() == 1
+
+                coarse_grain_class = curr_fine_grain_training_data['Course-Grain Ground Truth'].iloc[0]
+                self.coarse_grain_class_idx = self.coarse_grain_classes_str.index(coarse_grain_class)
+
+                self.fine_to_coarse[fine_grain_class] = coarse_grain_class
+                self.fine_to_course_idx[fine_grain_class_idx] = self.coarse_grain_class_idx
+
+        self.num_fine_grain_classes = len(self.fine_grain_classes_str)
+        self.num_coarse_grain_classes = len(self.coarse_grain_classes_str)
+
+        # self.fine_unique, self.fine_counts = np.unique(self.train_true_fine_data, return_counts=True)
+        # self.coarse_unique, self.coarse_counts = np.unique(self.train_true_coarse_data, return_counts=True)
+        #
+        # # Create dictionaries from unique labels and counts
+        # self.fine_data_counts = dict(zip(self.fine_unique, self.fine_counts))
+        # self.coarse_data_counts = dict(zip(self.coarse_unique, self.coarse_counts))
+
+        self.fine_grain_labels = {l: FineGrainLabel(l, fine_grain_classes_str=self.fine_grain_classes_str)
+                                  for l in self.fine_grain_classes_str}
+        self.coarse_grain_labels = {l: CoarseGrainLabel(l, coarse_grain_classes_str=self.coarse_grain_classes_str)
+                                    for l in self.coarse_grain_classes_str}
+
+    def get_ground_truths(self,
+                          test: bool,
+                          K: List[int] = None,
+                          g: Granularity = None) -> np.array:
+        if K is None:
+            K = [idx for idx in range(0, len(self.test_true_coarse_data))]
+        if test:
+            true_fine_data = self.test_true_fine_data
+            true_coarse_data = self.test_true_coarse_data
+        else:
+            true_fine_data = self.train_true_fine_data
+            true_coarse_data = self.train_true_coarse_data
+
+        if g is None:
+            return true_fine_data[K], true_coarse_data[K]
+        else:
+            return true_fine_data[K] if str(g) == 'fine' else true_coarse_data[K]
+
+    def get_num_inconsistencies(self,
+                                fine_labels: typing.Union[np.array, torch.Tensor],
+                                coarse_labels: typing.Union[np.array, torch.Tensor]) -> int:
+        inconsistencies = 0
+
+        if isinstance(fine_labels, torch.Tensor):
+            fine_labels = np.array(fine_labels.cpu())
+            coarse_labels = np.array(coarse_labels.cpu())
+
+        for fine_prediction, coarse_prediction in zip(fine_labels, coarse_labels):
+            if self.fine_to_course_idx[fine_prediction] != coarse_prediction:
+                inconsistencies += 1
+
+        return inconsistencies
+
+    def get_labels(self,
+                   g: Granularity) -> dict[str, Label]:
+        return self.fine_grain_labels if str(g) == 'fine' else self.coarse_grain_labels
 
 
 def is_monotonic(input_arr: np.array) -> bool:
@@ -129,149 +382,6 @@ def expand_ranges(tuples):
         # Add all numbers from start (inclusive) to end (exclusive)
         result.extend(range(start, end + 1))
     return result
-
-
-def get_fine_to_coarse() -> (dict[str, str], dict[int, int]):
-    """
-    Creates and returns a dictionary with fine-grain labels as keys and their corresponding coarse grain-labels
-    as values, and a dictionary with fine-grain label indices as keys and their corresponding coarse-grain label
-    indices as values
-    """
-
-    output_fine_to_coarse = {}
-    output_fine_to_course_idx = {}
-    training_df = get_military_dataframes()['Training']
-
-    assert (set(training_df['Fine-Grain Ground Truth'].unique().tolist()).intersection(fine_grain_classes_str)
-            == set(fine_grain_classes_str))
-
-    for fine_grain_class_idx, fine_grain_class in enumerate(fine_grain_classes_str):
-        curr_fine_grain_training_data = training_df[training_df['Fine-Grain Ground Truth'] == fine_grain_class]
-        assert curr_fine_grain_training_data['Course-Grain Ground Truth'].nunique() == 1
-
-        coarse_grain_class = curr_fine_grain_training_data['Course-Grain Ground Truth'].iloc[0]
-        coarse_grain_class_idx = coarse_grain_classes_str.index(coarse_grain_class)
-
-        output_fine_to_coarse[fine_grain_class] = coarse_grain_class
-        output_fine_to_course_idx[fine_grain_class_idx] = coarse_grain_class_idx
-
-    return output_fine_to_coarse, output_fine_to_course_idx
-
-
-fine_to_coarse, fine_to_course_idx = get_fine_to_coarse()
-
-
-class Granularity(typing.Hashable):
-    def __init__(self,
-                 g_str: str):
-        self.g_str = g_str
-
-    def __str__(self):
-        return self.g_str
-
-    def __hash__(self):
-        return hash(self.g_str)
-
-    def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
-
-
-def get_ground_truths(test: bool,
-                      K: List[int] = None,
-                      g: Granularity = None) -> np.array:
-    if K is None:
-        K = [idx for idx in range(0, len(test_true_coarse_data))]
-    if test:
-        true_fine_data = test_true_fine_data
-        true_coarse_data = test_true_coarse_data
-    else:
-        true_fine_data = train_true_fine_data
-        true_coarse_data = train_true_coarse_data
-
-    if g is None:
-        return true_fine_data[K], true_coarse_data[K]
-    else:
-        return true_fine_data[K] if str(g) == 'fine' else true_coarse_data[K]
-
-
-granularities = {g_str: Granularity(g_str=g_str) for g_str in granularities_str}
-
-
-class Label(typing.Hashable, abc.ABC):
-    def __init__(self,
-                 l_str: str,
-                 index: int):
-        self._l_str = l_str
-        self._index = index
-        self._g = None
-
-    def __str__(self):
-        return self._l_str
-
-    @property
-    def index(self):
-        return self._index
-
-    @property
-    def g(self):
-        return self._g
-
-    def __hash__(self):
-        return hash(f'{self.g}_{self._l_str}')
-
-    def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
-
-
-class FineGrainLabel(Label):
-    def __init__(self,
-                 l_str: str):
-        super().__init__(l_str=l_str,
-                         index=fine_grain_classes_str.index(l_str))
-        assert l_str in fine_grain_classes_str
-        self.__correct_coarse = fine_to_coarse[l_str]
-        self._g = granularities['fine']
-
-    @classmethod
-    def with_index(cls,
-                   l_index: int):
-        l = fine_grain_classes_str[l_index]
-        instance = cls(l_str=l)
-
-        return instance
-
-
-class CoarseGrainLabel(Label):
-    def __init__(self,
-                 l_str: str):
-        super().__init__(l_str=l_str,
-                         index=coarse_grain_classes_str.index(l_str))
-        assert l_str in coarse_grain_classes_str
-        self.correct_fine = coarse_to_fine[l_str]
-        self._g = granularities['coarse']
-
-    @classmethod
-    def with_index(cls,
-                   i_l: int):
-        l = coarse_grain_classes_str[i_l]
-        instance = cls(l_str=l)
-
-        return instance
-
-
-def get_num_inconsistencies(fine_labels: typing.Union[np.array, torch.Tensor],
-                            coarse_labels: typing.Union[np.array, torch.Tensor]) -> int:
-    inconsistencies = 0
-
-    if isinstance(fine_labels, torch.Tensor):
-        fine_labels = np.array(fine_labels.cpu())
-        coarse_labels = np.array(coarse_labels.cpu())
-
-    for fine_prediction, coarse_prediction in zip(fine_labels, coarse_labels):
-        if fine_to_course_idx[fine_prediction] != coarse_prediction:
-            inconsistencies += 1
-
-    return inconsistencies
 
 
 def get_dataset_transforms(data: str,
@@ -343,6 +453,14 @@ class CombinedImageFolderWithName(EDCRImageFolder):
     Subclass of torchvision.datasets for a combined coarse and fine grain models that returns an image with its filename
     """
 
+    def __init__(self,
+                 root,
+                 fine_to_course_idx: dict[int, int],
+                 transform=None):
+        super(CombinedImageFolderWithName, self).__init__(root=root,
+                                                          transform=transform)
+        self.fine_to_course_idx = fine_to_course_idx
+
     def __getitem__(self,
                     index: int) -> (torch.tensor, int, str):
         """
@@ -355,7 +473,7 @@ class CombinedImageFolderWithName(EDCRImageFolder):
         """
 
         path, y_fine_grain = self.samples[index]
-        y_coarse_grain = fine_to_course_idx[y_fine_grain]
+        y_coarse_grain = self.fine_to_course_idx[y_fine_grain]
         x = self.loader(path)
 
         if self.transform is not None:
@@ -461,7 +579,7 @@ class IndividualImageFolderWithName(EDCRImageFolder):
         return x, y, x_identifier
 
 
-def get_datasets(data: str,
+def get_datasets(preprocessor: DataPreprocessor,
                  model_names: list[str],
                  weights: list[str] = ['DEFAULT'],
                  cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
@@ -475,7 +593,7 @@ def get_datasets(data: str,
 
     Parameters
     ----------
-        :param data:
+        :param preprocessor:
         :param weights:
         :param model_names:
         :param error_fixing:
@@ -490,29 +608,31 @@ def get_datasets(data: str,
     datasets = {}
 
     for train_or_test in ['train', 'test']:
-        data_dir_name = f'ImageNet100/{train_or_test}' if data == 'imagenet' else f'{train_or_test}_fine'
+        data_dir_name = f'ImageNet100/{train_or_test}_fine' if preprocessor.data_str == 'imagenet' \
+            else f'{train_or_test}_fine'
         full_data_dir = os.path.join(data_dir, data_dir_name)
 
         if binary_label is not None:
             datasets[train_or_test] = BinaryImageFolder(root=full_data_dir,
-                                                        transform=get_dataset_transforms(data=data,
+                                                        transform=get_dataset_transforms(data=preprocessor.data_str,
                                                                                          train_or_test=train_or_test),
                                                         l=binary_label,
                                                         evaluation=evaluation)
         elif combined:
             datasets[train_or_test] = CombinedImageFolderWithName(root=full_data_dir,
                                                                   transform=get_dataset_transforms(
-                                                                      data=data,
+                                                                      data=preprocessor.data_str,
                                                                       train_or_test=train_or_test,
                                                                       error_fixing=error_fixing,
                                                                       vit_model_name=model_names[0],
-                                                                      weight=weights[0]
-                                                                  ))
+                                                                      weight=weights[0],
+                                                                  ),
+                                                                  fine_to_course_idx=preprocessor.fine_to_course_idx)
         else:
             datasets[train_or_test] = IndividualImageFolderWithName(
                 root=full_data_dir,
                 transform=
-                get_dataset_transforms(data=data,
+                get_dataset_transforms(data=preprocessor.data_str,
                                        train_or_test=train_or_test))
 
     return datasets
@@ -632,9 +752,6 @@ def get_one_hot_encoding(input_arr: np.array) -> np.array:
     return np.eye(np.max(input_arr) + 1)[input_arr].T
 
 
-for i, arr in enumerate([train_true_fine_data, test_true_fine_data]):
-    assert is_monotonic(arr)
-
 coarse_to_fine = {
     'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
     'BMP': ['BMP-1', 'BMP-2', 'BMP-T15'],
@@ -644,10 +761,3 @@ coarse_to_fine = {
     'BMD': ['BMD'],
     'MT_LB': ['MT_LB']
 }
-
-fine_grain_labels = {l: FineGrainLabel(l) for l in fine_grain_classes_str}
-coarse_grain_labels = {l: CoarseGrainLabel(l) for l in coarse_grain_classes_str}
-
-
-def get_labels(g: Granularity) -> dict[str, Label]:
-    return fine_grain_labels if str(g) == 'fine' else coarse_grain_labels

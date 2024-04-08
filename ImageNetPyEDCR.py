@@ -20,11 +20,12 @@ import neural_fine_tuning
 import neural_metrics
 import models
 
-imagenet100_folder_path = 'ImageNet100'
+imagenet100_folder_path = 'data/ImageNet100'
 
 with open(f'{imagenet100_folder_path}/Labels.json', 'r') as f:
     labels = json.load(f)
 
+print(labels)
 coarse_grain_classes_list = [
     'Bird', 'Snake', 'Spider', 'Small Fish', 'Turtle', 'Lizard', 'Crab', 'Shark'
 ]
@@ -436,7 +437,7 @@ class EDCR_Imagenet100_experiment(EDCR):
 
         fine_tuners, loaders, devices, _, _ = (
             vit_pipeline.initiate(
-                data=self.data,
+                data=self.data_str,
                 lrs=[self.lr],
                 combined=self.combined,
                 debug=False,

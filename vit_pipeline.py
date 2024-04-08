@@ -19,7 +19,7 @@ individual_results_path = config.individual_results_path
 binary_results_path = config.binary_results_path
 
 scheduler_step_size = config.scheduler_step_size
-original_prediction_weight = config.original_prediction_weight
+# original_prediction_weight = config.original_prediction_weight
 
 
 # vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
@@ -58,7 +58,7 @@ def save_prediction_files(test: bool,
     test_str = 'test' if test else 'train'
 
     if combined:
-        for g_str in data_preprocessing.granularities_str:
+        for g_str in data_preprocessing.DataPreprocessor.granularities_str:
             prediction = fine_prediction if g_str == 'fine' else coarse_prediction
             np.save(models.get_filepath(model_name=fine_tuners,
                                         combined=True,
@@ -202,7 +202,9 @@ def initiate(data: str,
     print(f'Models: {model_names}\n'
           f'Learning rates: {lrs}')
 
-    datasets = data_preprocessing.get_datasets(data=data,
+    preprocessor = data_preprocessing.DataPreprocessor(data_str=data)
+
+    datasets = data_preprocessing.get_datasets(preprocessor=preprocessor,
                                                combined=combined,
                                                binary_label=l,
                                                evaluation=evaluation,
@@ -224,11 +226,8 @@ def initiate(data: str,
                                            num_classes=2)
                        for vit_model_name in model_names]
     else:
-        num_fine_grain_classes = len(data_preprocessing.fine_grain_classes_str)
-        num_coarse_grain_classes = len(data_preprocessing.coarse_grain_classes_str)
-
         if combined:
-            num_classes = num_fine_grain_classes + num_coarse_grain_classes
+            num_classes = preprocessor.num_fine_grain_classes + preprocessor.num_coarse_grain_classes
 
             if pretrained_path is not None:
                 print(f'Loading pretrained model from {pretrained_path}')
@@ -258,10 +257,10 @@ def initiate(data: str,
             devices = [torch.device("cuda:0"), torch.device("cuda:1")]
 
             fine_tuners = ([models.VITFineTuner(vit_model_name=vit_model_name,
-                                                num_classes=num_fine_grain_classes)
+                                                num_classes=preprocessor.num_fine_grain_classes)
                             for vit_model_name in model_names] +
                            [models.VITFineTuner(vit_model_name=vit_model_name,
-                                                num_classes=num_coarse_grain_classes)
+                                                num_classes=preprocessor.num_coarse_grain_classes)
                             for vit_model_name in model_names])
             results_path = individual_results_path
 
@@ -281,10 +280,10 @@ def initiate(data: str,
     assert error_indices is None or len(loaders['train'].dataset) == len(error_indices)
 
     if l is None:
-        return fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
+        return preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
     else:
         positive_class_weight = get_imbalance_weight(l=l,
                                                      train_images_num=len(loaders['train'].dataset),
                                                      evaluation=evaluation)
 
-        return fine_tuners, loaders, devices, positive_class_weight
+        return preprocessor, fine_tuners, loaders, devices, positive_class_weight

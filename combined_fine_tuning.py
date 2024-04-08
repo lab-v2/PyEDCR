@@ -14,7 +14,8 @@ import vit_pipeline
 import neural_fine_tuning
 
 
-def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
+def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
+                             lrs: list[typing.Union[str, float]],
                              fine_tuner: models.FineTuner,
                              device: torch.device,
                              loaders: dict[str, torch.utils.data.DataLoader],
@@ -41,8 +42,8 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
         #                                             step_size=scheduler_step_size,
         #                                             gamma=scheduler_gamma)
 
-        alpha = data_preprocessing.num_fine_grain_classes / (data_preprocessing.num_fine_grain_classes +
-                                                             data_preprocessing.num_coarse_grain_classes)
+        alpha = preprocessor.num_fine_grain_classes / (preprocessor.num_fine_grain_classes +
+                                                       preprocessor.num_coarse_grain_classes)
 
         train_total_losses = []
         train_fine_losses = []
@@ -96,16 +97,16 @@ def fine_tune_combined_model(lrs: list[typing.Union[str, float]],
                     with context_handlers.ClearCache(device=device):
                         X, Y_fine_grain, Y_coarse_grain = batch[0].to(device), batch[1].to(device), batch[3].to(device)
                         Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
-                            data_preprocessing.fine_grain_classes_str))
+                            preprocessor.fine_grain_classes_str))
                         Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
-                            data_preprocessing.coarse_grain_classes_str))
+                            preprocessor.coarse_grain_classes_str))
 
                         Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
                         optimizer.zero_grad()
 
                         Y_pred = fine_tuner(X)
-                        Y_pred_fine_grain = Y_pred[:, :data_preprocessing.num_fine_grain_classes]
-                        Y_pred_coarse_grain = Y_pred[:, data_preprocessing.num_fine_grain_classes:]
+                        Y_pred_fine_grain = Y_pred[:, :preprocessor.num_fine_grain_classes]
+                        Y_pred_coarse_grain = Y_pred[:, preprocessor.num_fine_grain_classes:]
 
                         if loss == "weighted":
                             criterion = torch.nn.CrossEntropyLoss()
@@ -253,7 +254,7 @@ def run_combined_fine_tuning_pipeline(data: str,
                                       loss: str = 'BCE',
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode()):
-    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+    preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
         vit_pipeline.initiate(data=data,
                               model_names=model_names,
                               lrs=lrs,
@@ -261,7 +262,8 @@ def run_combined_fine_tuning_pipeline(data: str,
                               debug=debug))
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
-            fine_tune_combined_model(lrs=lrs,
+            fine_tune_combined_model(preprocessor=preprocessor,
+                                     lrs=lrs,
                                      fine_tuner=fine_tuner,
                                      device=devices[0],
                                      loaders=loaders,
