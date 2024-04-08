@@ -316,7 +316,7 @@ class DataPreprocessor:
         # self.fine_unique, self.fine_counts = np.unique(self.train_true_fine_data, return_counts=True)
         # self.coarse_unique, self.coarse_counts = np.unique(self.train_true_coarse_data, return_counts=True)
         #
-        # # Create dictionaries from unique labels and counts
+        # # # Create dictionaries from unique labels and counts
         # self.fine_data_counts = dict(zip(self.fine_unique, self.fine_counts))
         # self.coarse_data_counts = dict(zip(self.coarse_unique, self.coarse_counts))
 
@@ -361,6 +361,71 @@ class DataPreprocessor:
     def get_labels(self,
                    g: Granularity) -> dict[str, Label]:
         return self.fine_grain_labels if str(g) == 'fine' else self.coarse_grain_labels
+
+
+    def get_subset_indices_for_train_and_train_eval(self,
+                                                    train_eval_split: float,
+                                                    get_fraction_of_example_with_label: dict[Label, float] = None, ):
+        """
+            Splits indices into train and train_eval sets, respecting train_eval_split
+            and removing examples from train based on get_fraction_of_example_with_label.
+
+            Args:
+                get_fraction_of_example_with_label: Optional dict mapping coarse-grained
+                    labels to fractions of examples to keep for training.
+                train_eval_split: Float between 0 and 1, indicating the proportion
+                    of examples to assign to the train set.
+
+            Returns:
+                Tuple of NumPy arrays containing indices for train and train_eval sets.
+            """
+
+        num_examples = len(self.train_true_coarse_data)
+        num_train = int(num_examples * train_eval_split)
+
+        # Split indices initially based on train_eval_split
+        all_indices = np.arange(num_examples)
+        np.random.shuffle(all_indices)  # Shuffle for random sampling
+        train_indices = all_indices[:num_train]
+        train_eval_indices = all_indices[num_train:]
+
+        # Filter train indices based on get_fraction_of_example_with_label if provided
+        if get_fraction_of_example_with_label is not None:
+            filter_label = {l.index: int((1 - frac) * self.coarse_data_counts[l.index])
+                            for l, frac in get_fraction_of_example_with_label.items()}
+            count_labels = {l: 0 for l in range(self.num_coarse_grain_classes)}
+            filtered_train_indices = []
+            for idx in train_indices:
+                label = self.train_true_coarse_data[idx]
+                if label in list(filter_label.keys()) and filter_label[label] > 0:
+                    filter_label[label] -= 1
+                    continue
+                else:
+                    count_labels[label] += 1
+                filtered_train_indices.append(idx)
+
+            print(f"\nCoarse data counts: {self.coarse_data_counts}")
+            print(f"train eval split is: {train_eval_split}")
+            print(f'Coarse data counts for train after remove: {count_labels}\n')
+            train_indices = np.array(filtered_train_indices)
+
+        return train_indices, train_eval_indices
+
+    def get_imbalance_weight(self,
+                             l: Label,
+                             train_images_num: int,
+                             evaluation: bool = False) -> list[float]:
+        g_ground_truth = self.train_true_fine_data if l.g.g_str == 'fine' else self.train_true_coarse_data
+        positive_examples_num = np.sum(np.where(g_ground_truth == l.index, 1, 0))
+        # negative_examples_num = train_images_num - positive_examples_num
+
+        positive_class_weight = train_images_num / positive_examples_num
+
+        if not evaluation:
+            print(f'\nl={l}:\n'
+                  f'weight of positive class: {positive_class_weight}')
+
+        return positive_class_weight
 
 
 def is_monotonic(input_arr: np.array) -> bool:
@@ -638,55 +703,11 @@ def get_datasets(preprocessor: DataPreprocessor,
     return datasets
 
 
-def get_subset_indices_for_train_and_train_eval(train_eval_split: float,
-                                                get_fraction_of_example_with_label: dict[Label, float] = None, ):
-    """
-        Splits indices into train and train_eval sets, respecting train_eval_split
-        and removing examples from train based on get_fraction_of_example_with_label.
-
-        Args:
-            get_fraction_of_example_with_label: Optional dict mapping coarse-grained
-                labels to fractions of examples to keep for training.
-            train_eval_split: Float between 0 and 1, indicating the proportion
-                of examples to assign to the train set.
-
-        Returns:
-            Tuple of NumPy arrays containing indices for train and train_eval sets.
-        """
-
-    num_examples = len(train_true_coarse_data)
-    num_train = int(num_examples * train_eval_split)
-
-    # Split indices initially based on train_eval_split
-    all_indices = np.arange(num_examples)
-    np.random.shuffle(all_indices)  # Shuffle for random sampling
-    train_indices = all_indices[:num_train]
-    train_eval_indices = all_indices[num_train:]
-
-    # Filter train indices based on get_fraction_of_example_with_label if provided
-    if get_fraction_of_example_with_label is not None:
-        filter_label = {l.index: int((1 - frac) * coarse_data_counts[l.index])
-                        for l, frac in get_fraction_of_example_with_label.items()}
-        count_labels = {l: 0 for l in range(num_coarse_grain_classes)}
-        filtered_train_indices = []
-        for idx in train_indices:
-            label = train_true_coarse_data[idx]
-            if label in list(filter_label.keys()) and filter_label[label] > 0:
-                filter_label[label] -= 1
-                continue
-            else:
-                count_labels[label] += 1
-            filtered_train_indices.append(idx)
-
-        print(f"\nCoarse data counts: {coarse_data_counts}")
-        print(f"train eval split is: {train_eval_split}")
-        print(f'Coarse data counts for train after remove: {count_labels}\n')
-        train_indices = np.array(filtered_train_indices)
-
-    return train_indices, train_eval_indices
 
 
-def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
+
+def get_loaders(preprocessor: DataPreprocessor,
+                datasets: dict[str, torchvision.datasets.ImageFolder],
                 batch_size: int,
                 subset_indices: typing.Sequence = None,
                 evaluation: bool = None,
@@ -700,6 +721,7 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
 
     Parameters
     ----------
+        :param preprocessor:
         :param binary:
         :param get_indices:
         :param get_fraction_of_example_with_label:
@@ -715,7 +737,7 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
 
     if train_eval_split is not None:
         # Shuffle the indices in-place
-        train_indices, train_eval_indices = get_subset_indices_for_train_and_train_eval(
+        train_indices, train_eval_indices = preprocessor.get_subset_indices_for_train_and_train_eval(
             train_eval_split=train_eval_split,
             get_fraction_of_example_with_label=get_fraction_of_example_with_label
         )

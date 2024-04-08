@@ -19,6 +19,8 @@ individual_results_path = config.individual_results_path
 binary_results_path = config.binary_results_path
 
 scheduler_step_size = config.scheduler_step_size
+
+
 # original_prediction_weight = config.original_prediction_weight
 
 
@@ -144,23 +146,6 @@ def save_binary_prediction_files(test: bool,
                    f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
 
 
-def get_imbalance_weight(l: data_preprocessing.Label,
-                         train_images_num: int,
-                         evaluation: bool = False) -> list[float]:
-    g_ground_truth = data_preprocessing.train_true_fine_data if l.g.g_str == 'fine' \
-        else data_preprocessing.train_true_coarse_data
-    positive_examples_num = np.sum(np.where(g_ground_truth == l.index, 1, 0))
-    negative_examples_num = train_images_num - positive_examples_num
-
-    positive_class_weight = train_images_num / positive_examples_num
-
-    if not evaluation:
-        print(f'\nl={l}:\n'
-              f'weight of positive class: {positive_class_weight}')
-
-    return positive_class_weight
-
-
 def initiate(data: str,
              lrs: list[typing.Union[str, float]],
              model_names: list[str] = ['vit_b_16'],
@@ -265,7 +250,8 @@ def initiate(data: str,
             results_path = individual_results_path
 
     utils.create_directory(results_path)
-    loaders = data_preprocessing.get_loaders(datasets=datasets,
+    loaders = data_preprocessing.get_loaders(preprocessor=preprocessor,
+                                             datasets=datasets,
                                              batch_size=batch_size,
                                              evaluation=evaluation,
                                              subset_indices=error_indices,
@@ -282,8 +268,8 @@ def initiate(data: str,
     if l is None:
         return preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
     else:
-        positive_class_weight = get_imbalance_weight(l=l,
-                                                     train_images_num=len(loaders['train'].dataset),
-                                                     evaluation=evaluation)
+        positive_class_weight = preprocessor.get_imbalance_weight(l=l,
+                                                                  train_images_num=len(loaders['train'].dataset),
+                                                                  evaluation=evaluation)
 
         return preprocessor, fine_tuners, loaders, devices, positive_class_weight
