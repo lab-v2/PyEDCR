@@ -99,6 +99,7 @@ class DataPreprocessor:
     def __init__(self,
                  data_str: str):
         self.data_str = data_str
+        self.fine_to_course_idx = {}
 
         if data_str == 'imagenet':
             self.coarse_grain_classes_str = [
@@ -151,132 +152,61 @@ class DataPreprocessor:
             }
             self.fine_grain_classes_str = list(self.fine_grain_mapping_dict.values())
 
-            self.coarse_to_fine = {
-                'Bird': ['Macaw',
-                         'Indigo Bunting',
-                         'Flamingo',
-                         'White Stork',
-                         'Bald Eagle',
-                         'Magpie',
-                         'Peacock',
-                         'Black Grouse',
-                         'Goldfinch',
-                         'Great Grey Owl',
-                         'Hummingbird'],
-                'Snake': ['Snake1',
-                          'Snake2',
-                          'Snake3',
-                          'Snake4',
-                          'Snake5',
-                          'Snake6',
-                          'Snake7',
-                          'Snake8',
-                          'Snake9',
-                          'Snake10'],
-                'Spider': ['Garden Spider',
-                           'Wolf Spider',
-                           'Barn Spider',
-                           'Black Widow',
-                           'Tarantula'],
-                'Small Fish': ['Tench', 'Goldfish'],
-                'Turtle': ['Terrapin',
-                           'Mud Turtle',
-                           'Loggerhead Turtle',
-                           'Leatherback Turtle'],
-                'Lizard': ['Agama', 'Common Iguana', 'Komodo Dragon', 'Whiptail Lizard'],
-                'Crab': ['Dungeness Crab', 'Hermit Crab', 'Rock Crab'],
-                'Shark': ['Tiger Shark', 'Great White Shark', 'Hammerhead Shark']}
-
             self.fine_to_coarse = {
-
                 'macaw': 'bird',
-
                 'indigo bunting, indigo finch, indigo bird, Passerina cyanea': 'bird',
-
                 'flamingo': 'bird',
-
                 'white stork, Ciconia ciconia': 'bird',
-
                 'bald eagle, American eagle, Haliaeetus leucocephalus': 'bird',
-
                 'magpie': 'bird',
-
                 'peacock': 'bird',
-
                 'black grouse': 'bird',
-
                 'goldfinch, Carduelis carduelis': 'bird',
-
                 'great grey owl, great gray owl, Strix nebulosa': 'bird',
-
                 'hummingbird': 'bird',
-
                 'night snake, Hypsiglena torquata': 'snake',
-
                 'garter snake, grass snake': 'snake',
-
                 'diamondback, diamondback rattlesnake, Crotalus adamanteus': 'snake',
-
                 'sea snake': 'snake',
-
                 'green snake, grass snake': 'snake',
-
                 'hognose snake, puff adder, sand viper': 'snake',
-
                 'king snake, kingsnake': 'snake',
-
                 'thunder snake, worm snake, Carphophis amoenus': 'snake',
-
                 'vine snake': 'snake',
-
                 'sidewinder, horned rattlesnake, Crotalus cerastes': 'snake',
-
                 'garden spider, Aranea diademata': 'spider',
-
                 'wolf spider, hunting spider': 'spider',
-
                 'barn spider, Araneus cavaticus': 'spider',
-
                 'black widow, Latrodectus mactans': 'spider',
-
                 'tarantula': 'spider',
-
                 'tench, Tinca tinca': 'small fish',
-
                 'goldfish, Carassius auratus': 'small fish',
-
                 'terrapin': 'turtle',
-
                 'mud turtle': 'turtle',
-
                 'loggerhead, loggerhead turtle, Caretta caretta': 'turtle',
-
                 'leatherback turtle, leatherback, leathery turtle, Dermochelys coriacea': 'turtle',
-
                 'agama': 'lizard',
-
                 'common iguana, iguana, Iguana iguana': 'lizard',
-
                 'Komodo dragon, Komodo lizard, dragon lizard, giant lizard, Varanus komodoensis': 'lizard',
-
                 'whiptail, whiptail lizard': 'lizard',
-
                 'Dungeness crab, Cancer magister': 'crab',
-
                 'hermit crab': 'crab',
-
                 'rock crab, Cancer irroratus': 'crab',
-
                 'tiger shark, Galeocerdo cuvieri': 'shark',
-
                 'great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias': 'shark',
-
                 'hammerhead, hammerhead shark': 'shark'
-
             }
 
-            self.fine_to_course_idx = {fine_idx: self.coarse_grain_classes_str.index(self.fine_to_coarse[fine_class])
-                                       for fine_idx, fine_class in self.fine_grain_mapping_dict.items()}
+            self.coarse_to_fine = {}
+
+            for fine_idx, (fine_class, coarse_class) in enumerate(self.fine_to_coarse.items()):
+                coarse_idx = self.coarse_grain_classes_str.index(coarse_class)
+                self.fine_to_course_idx[fine_idx] = coarse_idx
+
+                if coarse_class not in coarse_to_fine:
+                    coarse_to_fine[coarse_class] = [fine_class]
+                else:
+                    coarse_to_fine[coarse_class].append(fine_class)
 
         else:
             data_file_path = rf'data/WEO_Data_Sheet.xlsx'
@@ -294,7 +224,7 @@ class DataPreprocessor:
             self.train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
 
             self.fine_to_coarse = {}
-            self.fine_to_course_idx = {}
+
             training_df = dataframes_by_sheet['Training']
 
             assert (set(training_df['Fine-Grain Ground Truth'].unique().tolist()).intersection(
@@ -305,10 +235,10 @@ class DataPreprocessor:
                 assert curr_fine_grain_training_data['Course-Grain Ground Truth'].nunique() == 1
 
                 coarse_grain_class = curr_fine_grain_training_data['Course-Grain Ground Truth'].iloc[0]
-                self.coarse_grain_class_idx = self.coarse_grain_classes_str.index(coarse_grain_class)
+                coarse_grain_class_idx = self.coarse_grain_classes_str.index(coarse_grain_class)
 
                 self.fine_to_coarse[fine_grain_class] = coarse_grain_class
-                self.fine_to_course_idx[fine_grain_class_idx] = self.coarse_grain_class_idx
+                self.fine_to_course_idx[fine_grain_class_idx] = coarse_grain_class_idx
 
         self.num_fine_grain_classes = len(self.fine_grain_classes_str)
         self.num_coarse_grain_classes = len(self.coarse_grain_classes_str)
