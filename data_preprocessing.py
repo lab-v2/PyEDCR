@@ -362,7 +362,6 @@ class DataPreprocessor:
                    g: Granularity) -> dict[str, Label]:
         return self.fine_grain_labels if str(g) == 'fine' else self.coarse_grain_labels
 
-
     def get_subset_indices_for_train_and_train_eval(self,
                                                     train_eval_split: float,
                                                     get_fraction_of_example_with_label: dict[Label, float] = None, ):
@@ -503,9 +502,26 @@ def get_dataset_transforms(data: str,
 
 
 class EDCRImageFolder(torchvision.datasets.ImageFolder):
-    def find_classes(self, directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
+    def __init__(
+            self,
+            root: str,
+            transform = None,
+            target_transform = None,
+            is_valid_file = None,
+            relevant_classes: list[str] = None
+    ):
+        self.relevant_classes = relevant_classes
+        super().__init__(root=root,
+                         transform=transform,
+                         target_transform=target_transform,
+                         is_valid_file=is_valid_file)
+
+
+    def find_classes(self,
+                     directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
         classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir() and
-                         not entry.name.startswith('.'))
+                         not entry.name.startswith('.') and (self.relevant_classes is None
+                                                             or entry.name in self.relevant_classes))
         if not classes:
             raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
 
@@ -520,11 +536,16 @@ class CombinedImageFolderWithName(EDCRImageFolder):
 
     def __init__(self,
                  root,
-                 fine_to_course_idx: dict[int, int],
-                 transform=None):
+                 preprocessor: DataPreprocessor,
+                 transform = None,
+                 target_transform = None):
+        self.preprocessor = preprocessor
         super(CombinedImageFolderWithName, self).__init__(root=root,
-                                                          transform=transform)
-        self.fine_to_course_idx = fine_to_course_idx
+                                                          transform=transform,
+                                                          target_transform=target_transform,
+                                                          relevant_classes=
+                                                          list(self.preprocessor.fine_grain_mapping_dict.keys())
+                                                          if preprocessor.data_str == 'imagenet' else None)
 
     def __getitem__(self,
                     index: int) -> (torch.tensor, int, str):
@@ -538,7 +559,7 @@ class CombinedImageFolderWithName(EDCRImageFolder):
         """
 
         path, y_fine_grain = self.samples[index]
-        y_coarse_grain = self.fine_to_course_idx[y_fine_grain]
+        y_coarse_grain = self.preprocessor.fine_to_course_idx[y_fine_grain]
         x = self.loader(path)
 
         if self.transform is not None:
@@ -684,15 +705,15 @@ def get_datasets(preprocessor: DataPreprocessor,
                                                         l=binary_label,
                                                         evaluation=evaluation)
         elif combined:
-            datasets[train_or_test] = CombinedImageFolderWithName(root=full_data_dir,
+            datasets[train_or_test] = CombinedImageFolderWithName(preprocessor=preprocessor,
+                                                                  root=full_data_dir,
                                                                   transform=get_dataset_transforms(
                                                                       data=preprocessor.data_str,
                                                                       train_or_test=train_or_test,
                                                                       error_fixing=error_fixing,
                                                                       vit_model_name=model_names[0],
                                                                       weight=weights[0],
-                                                                  ),
-                                                                  fine_to_course_idx=preprocessor.fine_to_course_idx)
+                                                                  ))
         else:
             datasets[train_or_test] = IndividualImageFolderWithName(
                 root=full_data_dir,
@@ -701,9 +722,6 @@ def get_datasets(preprocessor: DataPreprocessor,
                                        train_or_test=train_or_test))
 
     return datasets
-
-
-
 
 
 def get_loaders(preprocessor: DataPreprocessor,
