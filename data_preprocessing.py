@@ -94,7 +94,7 @@ def get_data(data: str):
 
 
 (fine_grain_classes_str, coarse_grain_classes_str, test_true_fine_data, test_true_coarse_data,
- train_true_fine_data, train_true_coarse_data) = get_data(data='military_vehicles')
+ train_true_fine_data, train_true_coarse_data) = get_data(data='imagenet')
 
 granularities_str = ['fine', 'coarse']
 
@@ -621,7 +621,7 @@ def get_loaders(datasets: dict[str, torchvision.datasets.ImageFolder],
             dataset=loader_dataset,
             batch_size=batch_size,
             shuffle=shuffle,
-            # num_workers=os.cpu_count(),
+            num_workers=4,
         )
 
     return loaders

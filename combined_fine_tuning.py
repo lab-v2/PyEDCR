@@ -275,6 +275,6 @@ def run_combined_fine_tuning_pipeline(data: str,
 if __name__ == '__main__':
     run_combined_fine_tuning_pipeline(data='imagenet',
                                       model_names=['dinov2_vits14'],
-                                      lrs=[0.0001],
+                                      lrs=[0.000001],
                                       num_epochs=15,
                                       loss='BCE')
