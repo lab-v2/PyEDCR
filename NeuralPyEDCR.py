@@ -49,7 +49,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                         new_lr: float):
 
         perceived_examples_with_errors = set()
-        for g in data_preprocessing.granularities.values():
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
             perceived_examples_with_errors = perceived_examples_with_errors.union(set(
                 np.where(self.get_predictions(test=False, g=g, stage='post_detection') == -1)[0]))
 
@@ -59,22 +59,24 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                              f'{self.T_train}\n'))
 
         # new_model_name = 'efficientnet_v2_s'
-        fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = vit_pipeline.initiate(
-            data=self.data,
-            model_names=[new_model_name],
-            # weights=['IMAGENET1K_SWAG_E2E_V1'],
-            lrs=[new_lr],
-            combined=self.combined,
-            error_indices=perceived_examples_with_errors,
-            print_counts=False
-            # train_eval_split=0.8
-        )
+        preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+            vit_pipeline.initiate(
+                data=self.data,
+                model_names=[new_model_name],
+                # weights=['IMAGENET1K_SWAG_E2E_V1'],
+                lrs=[new_lr],
+                combined=self.combined,
+                error_indices=perceived_examples_with_errors,
+                print_counts=False
+                # train_eval_split=0.8
+            ))
 
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
 
         with context_handlers.ClearSession():
             combined_fine_tuning.fine_tune_combined_model(
+                preprocessor=preprocessor,
                 lrs=[new_lr],
                 fine_tuner=self.correction_model,
                 device=devices[0],
@@ -87,7 +89,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             )
             print('#' * 100)
 
-        _, loaders, devices, _, _ = vit_pipeline.initiate(
+        _, _, loaders, devices, _, _ = vit_pipeline.initiate(
             data=self.data,
             model_names=[new_model_name],
             lrs=[new_lr],
@@ -106,9 +108,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         new_fine_predictions, new_coarse_predictions = evaluation_return_values[2], evaluation_return_values[3]
 
-        self.pred_data['train']['post_detection'][data_preprocessing.granularities['fine']][
+        self.pred_data['train']['post_detection'][data_preprocessing.DataPreprocessor.granularities['fine']][
             perceived_examples_with_errors] = new_fine_predictions
-        self.pred_data['train']['post_detection'][data_preprocessing.granularities['coarse']][
+        self.pred_data['train']['post_detection'][data_preprocessing.DataPreprocessor.granularities['coarse']][
             perceived_examples_with_errors] = new_coarse_predictions
 
     def apply_new_model_on_test(self,
@@ -123,7 +125,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                                                save_files=False,
                                                                print_results=False))
 
-        for g in data_preprocessing.granularities.values():
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
             old_test_g_predictions = self.get_predictions(test=True, g=g, stage='post_detection')
             new_test_g_predictions = new_fine_predictions if g.g_str == 'fine' else new_coarse_predictions
 
@@ -134,7 +136,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             self.print_metrics(test=True, prior=False, stage='post_detection')
 
             where_fixed_initial_error = set()
-            for g in data_preprocessing.granularities.values():
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
                 where_fixed_initial_error = where_fixed_initial_error.union(set(
                     np.where(self.get_where_predicted_correct(test=True, g=g, stage='post_detection') == 1)[0]
                 ).intersection(set(np.where(self.get_where_predicted_incorrect(test=True, g=g) == 1)[0])))
@@ -148,7 +150,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         self.print_metrics(test=False, prior=True)
 
         for EDCR_epoch in range(self.EDCR_num_epochs):
-            for g in data_preprocessing.granularities.values():
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.learn_detection_rules(g=g)
                 self.apply_detection_rules(test=False, g=g)
 
@@ -179,9 +181,10 @@ if __name__ == '__main__':
                 for neural_num_epochs in [10]:
                     # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
                     print('\n' + '#' * 100 + '\n' +
-                          utils.blue_text(f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
-                                          # f'lower_predictions_indices = {lower_predictions_indices}'
-                                          )
+                          utils.blue_text(
+                              f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
+                              # f'lower_predictions_indices = {lower_predictions_indices}'
+                              )
                           + '\n' + '#' * 100 + '\n')
                     for eps in epsilons:
                         print('#' * 25 + f'eps = {eps}' + '#' * 50)
@@ -194,7 +197,7 @@ if __name__ == '__main__':
                                             original_num_epochs=20,
                                             include_inconsistency_constraint=False,
                                             # secondary_model_name='vit_l_16_BCE',
-                                            binary_models=data_preprocessing.fine_grain_classes_str,
+                                            # binary_models=data_preprocessing.fine_grain_classes_str,
                                             # lower_predictions_indices=lower_predictions_indices,
                                             EDCR_num_epochs=EDCR_num_epochs,
                                             neural_num_epochs=neural_num_epochs)
