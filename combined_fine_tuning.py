@@ -279,4 +279,5 @@ if __name__ == '__main__':
                                       model_names=['dinov2_vits14'],
                                       lrs=[0.000001],
                                       num_epochs=15,
-                                      loss='BCE')
+                                      loss='BCE',
+                                      debug=True)

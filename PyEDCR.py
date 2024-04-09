@@ -33,7 +33,7 @@ class EDCR:
     """
 
     def __init__(self,
-                 data: str,
+                 data_str: str,
                  main_model_name: str,
                  combined: bool,
                  loss: str,
@@ -46,7 +46,8 @@ class EDCR:
                  secondary_model_name: str = None,
                  lower_predictions_indices: list[int] = [],
                  binary_l_strs: list[str] = []):
-        self.data = data
+        self.data_str = data_str
+        self.preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
         self.main_model_name = main_model_name
         self.combined = combined
         self.loss = loss
@@ -66,7 +67,7 @@ class EDCR:
                                                                      lr=lr,
                                                                      pred=True,
                                                                      epoch=original_num_epochs)
-                                          for g_str in data_preprocessing.granularities_str}
+                                          for g_str in data_preprocessing.DataPreprocessor.granularities_str}
             for test in [True, False]}
 
         self.K_train = data_preprocessing.expand_ranges(K_train) if K_train is not None \
@@ -79,22 +80,22 @@ class EDCR:
         self.pred_data = \
             {test_or_train: {'original': {g: np.load(pred_paths[test_or_train][g.g_str])[
                 self.K_test if test_or_train == 'test' else self.K_train]
-                                          for g in data_preprocessing.granularities.values()},
+                                          for g in data_preprocessing.DataPreprocessor.granularities.values()},
                              'mid_learning': {g: np.load(pred_paths[test_or_train][g.g_str])[
                                  self.K_test if test_or_train == 'test' else self.K_train]
-                                              for g in data_preprocessing.granularities.values()},
+                                              for g in data_preprocessing.DataPreprocessor.granularities.values()},
                              'post_detection': {g: np.load(pred_paths[test_or_train][g.g_str])[
                                  self.K_test if test_or_train == 'test' else self.K_train]
-                                                for g in data_preprocessing.granularities.values()},
+                                                for g in data_preprocessing.DataPreprocessor.granularities.values()},
                              'post_correction': {
                                  g: np.load(pred_paths[test_or_train][g.g_str])[
                                      self.K_test if test_or_train == 'test' else self.K_train]
-                                 for g in data_preprocessing.granularities.values()}}
+                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
         self.condition_datas = {g: {conditions.PredCondition(l=l)
-                                    for l in data_preprocessing.get_labels(g).values()}
-                                for g in data_preprocessing.granularities.values()}
+                                    for l in self.preprocessor.get_labels(g).values()}
+                                for g in data_preprocessing.DataPreprocessor.granularities.values()}
 
         if self.secondary_model_name is not None:
             secondary_loss = secondary_model_name.split('_')[-1]
@@ -107,18 +108,18 @@ class EDCR:
                                                                          lr=lr,
                                                                          pred=True,
                                                                          epoch=original_num_epochs)
-                                              for g_str in data_preprocessing.granularities_str}
+                                              for g_str in data_preprocessing.DataPreprocessor.granularities_str}
                 for test in [True, False]}
 
             self.pred_data['secondary_model'] = \
                 {test_or_train: {g: np.load(pred_paths['secondary_model'][test_or_train][g.g_str])
-                                 for g in data_preprocessing.granularities.values()}
+                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
                  for test_or_train in ['test', 'train']}
 
-            for g in data_preprocessing.granularities.values():
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
                     {conditions.PredCondition(l=l, secondary_model=True)
-                     for l in data_preprocessing.get_labels(g).values()})
+                     for l in self.preprocessor.get_labels(g).values()})
 
         for lower_prediction_index in self.lower_predictions_indices:
             lower_prediction_key = f'lower_{lower_prediction_index}'
@@ -134,23 +135,23 @@ class EDCR:
                                                 pred=True,
                                                 epoch=original_num_epochs,
                                                 lower_prediction_index=lower_prediction_index)
-                     for g_str in data_preprocessing.granularities_str}
+                     for g_str in data_preprocessing.DataPreprocessor.granularities_str}
                 for test in [True, False]}
 
             self.pred_data[lower_prediction_key] = \
                 {test_or_train: {g: np.load(pred_paths[lower_prediction_key][test_or_train][g.g_str])
-                                 for g in data_preprocessing.granularities.values()}
+                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
                  for test_or_train in ['test', 'train']}
 
-            for g in data_preprocessing.granularities.values():
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
                     {conditions.PredCondition(l=l, lower_prediction_index=lower_prediction_index)
-                     for l in data_preprocessing.get_labels(g).values()})
+                     for l in self.preprocessor.get_labels(g).values()})
 
         self.pred_data['binary'] = {}
 
         for l_str in binary_l_strs:
-            l = data_preprocessing.fine_grain_labels[l_str]
+            l = self.preprocessor.fine_grain_labels[l_str]
             pred_paths[l] = {
                 'test' if test else 'train': models.get_filepath(model_name=main_model_name,
                                                                  l=l,
@@ -164,32 +165,35 @@ class EDCR:
 
             self.pred_data['binary'][l] = \
                 {test_or_train: {g: np.load(pred_paths[l][test_or_train])
-                                 for g in data_preprocessing.granularities.values()}
+                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
                  for test_or_train in ['test', 'train']}
 
-            for g in data_preprocessing.granularities.values():
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
                     {conditions.PredCondition(l=l, binary=True)})
 
         if include_inconsistency_constraint:
-            for g in data_preprocessing.granularities.values():
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union({conditions.InconsistencyCondition()})
 
-        self.CC_all = {g: set() for g in data_preprocessing.granularities.values()}
+        self.CC_all = {g: set() for g in data_preprocessing.DataPreprocessor.granularities.values()}
 
-        self.num_predicted_l = {'original': {g: {} for g in data_preprocessing.granularities.values()},
-                                'post_detection': {g: {} for g in data_preprocessing.granularities.values()},
-                                'post_correction': {g: {} for g in data_preprocessing.granularities.values()}}
+        self.num_predicted_l = {'original': {g: {}
+                                             for g in data_preprocessing.DataPreprocessor.granularities.values()},
+                                'post_detection': {g: {}
+                                                   for g in data_preprocessing.DataPreprocessor.granularities.values()},
+                                'post_correction':
+                                    {g: {} for g in data_preprocessing.DataPreprocessor.granularities.values()}}
 
-        for g in data_preprocessing.granularities.values():
-            for l in data_preprocessing.get_labels(g).values():
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
+            for l in self.preprocessor.get_labels(g).values():
                 self.num_predicted_l['original'][g][l] = np.sum(self.get_where_label_is_l(pred=True,
                                                                                           test=True,
                                                                                           l=l,
                                                                                           stage='original'))
 
         actual_examples_with_errors = set()
-        for g in data_preprocessing.granularities.values():
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
             actual_examples_with_errors = actual_examples_with_errors.union(set(
                 np.where(self.get_where_predicted_incorrect(test=True, g=g) == 1)[0]))
 
@@ -201,8 +205,10 @@ class EDCR:
         self.correction_model = None
 
         print(utils.blue_text(
-            f"Num of fine conditions: {len(self.condition_datas[data_preprocessing.granularities['fine']])}\n"
-            f"Num of coarse conditions: {len(self.condition_datas[data_preprocessing.granularities['coarse']])}\n"))
+            f"Num of fine conditions: "
+            f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['fine']])}\n"
+            f"Num of coarse conditions: "
+            f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
     def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
         """
@@ -244,7 +250,7 @@ class EDCR:
             pred_data = {g: {f'lower_{lower_prediction_index}': self.pred_data[
                 f'lower_{lower_prediction_index}'][test_str][g]
                              for lower_prediction_index in self.lower_predictions_indices}
-                         for g in data_preprocessing.granularities.values()}
+                         for g in data_preprocessing.DataPreprocessor.granularities.values()}
         elif binary:
             pred_data = self
         else:
@@ -253,7 +259,8 @@ class EDCR:
         if g is not None:
             return pred_data[g]
 
-        pred_fine_data, pred_coarse_data = [pred_data[g] for g in data_preprocessing.granularities.values()]
+        pred_fine_data, pred_coarse_data = [pred_data[g]
+                                            for g in data_preprocessing.DataPreprocessor.granularities.values()]
 
         return pred_fine_data, pred_coarse_data
 
@@ -273,7 +280,7 @@ class EDCR:
         :return: A boolean array indicating which instances have the given label.
         """
         data = self.get_predictions(test=test, g=l.g, stage=stage, secondary=secondary) if pred else (
-            data_preprocessing.get_ground_truths(test=test, K=self.K_test if test else self.K_train, g=l.g))
+            self.preprocessor.get_ground_truths(test=test, K=self.K_test if test else self.K_train, g=l.g))
         return np.where(data == l.index, 1, 0)
 
     @staticmethod
@@ -287,7 +294,8 @@ class EDCR:
         :param l: The label to search for.
         :return: A boolean array indicating which instances have the given label.
         """
-        data = test_pred_fine_data if l.g == data_preprocessing.granularities['fine'] else test_pred_coarse_data
+        data = test_pred_fine_data if l.g == data_preprocessing.DataPreprocessor.granularities['fine'] \
+            else test_pred_coarse_data
         where_label_is_l = np.where(data == l.index, 1, 0)
         return where_label_is_l
 
@@ -316,8 +324,8 @@ class EDCR:
         #     original_pred_fine_data, original_pred_coarse_data = self.get_predictions(test=test, stage='original')
 
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
-        true_fine_data, true_coarse_data = data_preprocessing.get_ground_truths(test=test, K=self.K_test) if test \
-            else data_preprocessing.get_ground_truths(test=test, K=self.K_train)
+        true_fine_data, true_coarse_data = self.preprocessor.get_ground_truths(test=test,
+                                                                               K=self.K_test if test else self.K_train)
 
         neural_metrics.get_and_print_metrics(pred_fine_data=pred_fine_data,
                                              pred_coarse_data=pred_coarse_data,
@@ -373,7 +381,7 @@ class EDCR:
         :param g: The granularity level.
         :return: A mask with 1s for true positive instances, 0s otherwise.
         """
-        ground_truth = data_preprocessing.get_ground_truths(test=test, K=self.K_test if test else self.K_train, g=g)
+        ground_truth = self.preprocessor.get_ground_truths(test=test, K=self.K_test if test else self.K_train, g=g)
         return np.where(self.get_predictions(test=test, g=g, stage=stage) == ground_truth, 1, 0)
 
     def get_where_predicted_correct_in_data(self,
@@ -387,8 +395,9 @@ class EDCR:
         :param g: The granularity level.
         :return: A mask with 1s for true positive instances, 0s otherwise.
         """
-        ground_truth = data_preprocessing.get_ground_truths(test=True, K=self.K_test, g=g)
-        prediction = test_pred_fine_data if g == data_preprocessing.granularities['fine'] else test_pred_coarse_data
+        ground_truth = self.preprocessor.get_ground_truths(test=True, K=self.K_test, g=g)
+        prediction = test_pred_fine_data if g == data_preprocessing.DataPreprocessor.granularities['fine'] \
+            else test_pred_coarse_data
         return np.where(prediction == ground_truth, 1, 0)
 
     def get_where_predicted_incorrect(self,
@@ -507,10 +516,10 @@ class EDCR:
         r_g = {}
 
         if test_pred_fine_data is None and test_pred_coarse_data is None:
-            for l in data_preprocessing.get_labels(g).values():
+            for l in self.preprocessor.get_labels(g).values():
                 p_g[l], r_g[l] = self.get_l_precision_and_recall(test=test, l=l, stage=stage)
         else:
-            for l in data_preprocessing.get_labels(g).values():
+            for l in self.preprocessor.get_labels(g).values():
                 t_p_l = np.sum(self.get_where_tp_l_in_data(l=l,
                                                            test_pred_fine_data=test_pred_fine_data,
                                                            test_pred_coarse_data=test_pred_coarse_data))
@@ -637,7 +646,7 @@ class EDCR:
 
         if N_l:
             other_g_str = 'fine' if str(l.g) == 'coarse' else 'coarse'
-            other_g = data_preprocessing.granularities[other_g_str]
+            other_g = data_preprocessing.DataPreprocessor.granularities[other_g_str]
 
             P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage=stage)
             q_l = self.epsilon * N_l * P_l / R_l
@@ -665,7 +674,7 @@ class EDCR:
     def learn_detection_rules(self,
                               g: data_preprocessing.Granularity):
         self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
-        granularity_labels = data_preprocessing.get_labels(g).values()
+        granularity_labels = self.preprocessor.get_labels(g).values()
 
         print(f'\nLearning {g}-grain error detection rules...')
         with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
@@ -753,7 +762,7 @@ class EDCR:
     def run_error_detection_application_pipeline(self,
                                                  test: bool,
                                                  print_results: bool = True):
-        for g in data_preprocessing.granularities.values():
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
             self.apply_detection_rules(test=test, g=g)
 
             if print_results:
@@ -775,7 +784,8 @@ if __name__ == '__main__':
 
     for eps in epsilons:
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
-        edcr = EDCR(epsilon=eps,
+        edcr = EDCR(data_str='imagenet',
+                    epsilon=eps,
                     main_model_name='vit_b_16',
                     combined=True,
                     loss='BCE',

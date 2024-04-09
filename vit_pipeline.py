@@ -146,7 +146,7 @@ def save_binary_prediction_files(test: bool,
                    f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
 
 
-def initiate(data: str,
+def initiate(data_str: str,
              lrs: list[typing.Union[str, float]],
              model_names: list[str] = ['vit_b_16'],
              weights: list[str] = ['DEFAULT'],
@@ -163,7 +163,7 @@ def initiate(data: str,
     """
     Initializes models, datasets, and devices for training.
 
-    :param data:
+    :param data_str:
     :param print_counts:
     :param get_fraction_of_example_with_label:
     :param get_indices:
@@ -187,7 +187,7 @@ def initiate(data: str,
     print(f'Models: {model_names}\n'
           f'Learning rates: {lrs}')
 
-    preprocessor = data_preprocessing.DataPreprocessor(data_str=data)
+    preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
 
     datasets = data_preprocessing.get_datasets(preprocessor=preprocessor,
                                                combined=combined,
