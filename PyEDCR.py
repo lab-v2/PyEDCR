@@ -327,7 +327,8 @@ class EDCR:
         true_fine_data, true_coarse_data = self.preprocessor.get_ground_truths(test=test,
                                                                                K=self.K_test if test else self.K_train)
 
-        neural_metrics.get_and_print_metrics(pred_fine_data=pred_fine_data,
+        neural_metrics.get_and_print_metrics(preprocessor=self.preprocessor,
+                                             pred_fine_data=pred_fine_data,
                                              pred_coarse_data=pred_coarse_data,
                                              loss=self.loss,
                                              true_fine_data=true_fine_data,

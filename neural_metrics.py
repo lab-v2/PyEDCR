@@ -11,18 +11,20 @@ def get_change_str(change: typing.Union[float, str]):
                                     else utils.green_text(f'(+{round(change, 2)}%)'))
 
 
-def print_num_inconsistencies(pred_fine_data: np.array,
+def print_num_inconsistencies(preprocessor: data_preprocessing.DataPreprocessor,
+                              pred_fine_data: np.array,
                               pred_coarse_data: np.array,
                               prior: bool = True):
     """
     Prints the number of inconsistencies between fine and coarse predictions.
 
+    :param preprocessor:
     :param pred_fine_data: NumPy array of predictions at the fine granularity.
     :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
     :param prior:
     """
-    inconsistencies = data_preprocessing.get_num_inconsistencies(fine_labels=pred_fine_data,
-                                                                 coarse_labels=pred_coarse_data)
+    inconsistencies = preprocessor.get_num_inconsistencies(fine_labels=pred_fine_data,
+                                                           coarse_labels=pred_coarse_data)
 
     print(f"Total {'prior' if prior else 'post'} inconsistencies "
           f"{utils.red_text(inconsistencies)}/{utils.red_text(len(pred_fine_data))} "
@@ -75,12 +77,14 @@ def get_individual_metrics(pred_data: np.array,
     return accuracy, f1, precision, recall
 
 
-def get_metrics(pred_fine_data: np.array,
+def get_metrics(preprocessor: data_preprocessing.DataPreprocessor,
+                pred_fine_data: np.array,
                 pred_coarse_data: np.array,
                 true_fine_data: np.array,
                 true_coarse_data: np.array):
     """
     Calculates and returns performance metrics for fine and coarse granularities.
+    :param preprocessor:
     :param pred_fine_data: NumPy array of predictions at the fine granularity.
     :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
     :param true_fine_data: NumPy array of true labels at the fine granularity.
@@ -91,12 +95,12 @@ def get_metrics(pred_fine_data: np.array,
     fine_accuracy, fine_f1, fine_precision, fine_recall = (
         get_individual_metrics(pred_data=pred_fine_data,
                                true_data=true_fine_data,
-                               labels=range(len(data_preprocessing.fine_grain_classes_str))))
+                               labels=range(len(preprocessor.fine_grain_classes_str))))
 
     coarse_accuracy, coarse_f1, coarse_precision, coarse_recall = (
         get_individual_metrics(pred_data=pred_coarse_data,
                                true_data=true_coarse_data,
-                               labels=range(len(data_preprocessing.coarse_grain_classes_str))))
+                               labels=range(len(preprocessor.coarse_grain_classes_str))))
 
     return (fine_accuracy, fine_f1, fine_precision, fine_recall,
             coarse_accuracy, coarse_f1, coarse_precision, coarse_recall)
@@ -139,7 +143,8 @@ def get_and_print_binary_metrics(pred_data: np.array,
     return accuracy, f1, precision, recall
 
 
-def get_and_print_metrics(pred_fine_data: np.array,
+def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
+                          pred_fine_data: np.array,
                           pred_coarse_data: np.array,
                           loss: str,
                           true_fine_data: np.array,
@@ -155,6 +160,7 @@ def get_and_print_metrics(pred_fine_data: np.array,
     """
     Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
 
+    :param preprocessor:
     :param original_pred_coarse_data:
     :param original_pred_fine_data:
     :param print_inconsistencies:
@@ -171,7 +177,8 @@ def get_and_print_metrics(pred_fine_data: np.array,
     :return: fine_accuracy, coarse_accuracy
     """
     (fine_accuracy, fine_f1, fine_precision, fine_recall,
-     coarse_accuracy, coarse_f1, coarse_precision, coarse_recall) = get_metrics(pred_fine_data=pred_fine_data,
+     coarse_accuracy, coarse_f1, coarse_precision, coarse_recall) = get_metrics(preprocessor=preprocessor,
+                                                                                pred_fine_data=pred_fine_data,
                                                                                 pred_coarse_data=pred_coarse_data,
                                                                                 true_fine_data=true_fine_data,
                                                                                 true_coarse_data=true_coarse_data)
@@ -190,6 +197,7 @@ def get_and_print_metrics(pred_fine_data: np.array,
     if original_pred_fine_data is not None and original_pred_coarse_data is not None:
         (original_fine_accuracy, original_fine_f1, original_fine_precision, original_fine_recall,
          original_coarse_accuracy, original_coarse_f1, original_coarse_precision, original_coarse_recall) = get_metrics(
+            preprocessor=preprocessor,
             pred_fine_data=original_pred_fine_data,
             pred_coarse_data=original_pred_coarse_data,
             true_fine_data=true_fine_data,
@@ -225,7 +233,8 @@ def get_and_print_metrics(pred_fine_data: np.array,
           )
 
     if print_inconsistencies:
-        print_num_inconsistencies(pred_fine_data=pred_fine_data,
+        print_num_inconsistencies(preprocessor=preprocessor,
+                                  pred_fine_data=pred_fine_data,
                                   pred_coarse_data=pred_coarse_data,
                                   prior=prior)
 
@@ -253,7 +262,8 @@ def get_and_print_post_epoch_binary_metrics(epoch: int,
     return training_accuracy, training_f1
 
 
-def get_and_print_post_epoch_metrics(epoch: int,
+def get_and_print_post_epoch_metrics(preprocessor: data_preprocessing.DataPreprocessor,
+                                     epoch: int,
                                      num_epochs: int,
                                      train_fine_ground_truth: np.array,
                                      train_fine_prediction: np.array,
@@ -269,11 +279,11 @@ def get_and_print_post_epoch_metrics(epoch: int,
                                               y_pred=train_coarse_prediction)
     training_fine_f1 = f1_score(y_true=train_fine_ground_truth,
                                 y_pred=train_fine_prediction,
-                                labels=range(data_preprocessing.num_fine_grain_classes),
+                                labels=range(preprocessor.num_fine_grain_classes),
                                 average='macro')
     training_coarse_f1 = f1_score(y_true=train_coarse_ground_truth,
                                   y_pred=train_coarse_prediction,
-                                  labels=range(data_preprocessing.num_coarse_grain_classes),
+                                  labels=range(preprocessor.num_coarse_grain_classes),
                                   average='macro')
 
     # loss_str = (f'Training epoch total fine loss: {round(running_fine_loss / num_batches, 2)}'

@@ -16,7 +16,8 @@ ltn_num_epochs = 5
 vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 
-def evaluate_individual_models(fine_tuners: list[models.FineTuner],
+def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor,
+                               fine_tuners: list[models.FineTuner],
                                loaders: dict[str, torch.utils.data.DataLoader],
                                devices: list[torch.device],
                                test: bool) -> (list[int], list[int], float,):
@@ -67,7 +68,8 @@ def evaluate_individual_models(fine_tuners: list[models.FineTuner],
             name_list += batch_names
 
     fine_accuracy, coarse_accuracy = (
-        neural_metrics.get_and_print_metrics(pred_fine_data=fine_prediction,
+        neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
+                                             pred_fine_data=fine_prediction,
                                              pred_coarse_data=coarse_prediction,
                                              loss='Cross Entropy',
                                              true_fine_data=true_fine_data,
@@ -79,7 +81,8 @@ def evaluate_individual_models(fine_tuners: list[models.FineTuner],
             fine_accuracy, coarse_accuracy)
 
 
-def evaluate_combined_model(fine_tuner: models.FineTuner,
+def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
+                            fine_tuner: models.FineTuner,
                             loaders: dict[str, torch.utils.data.DataLoader],
                             loss: str,
                             device: torch.device,
@@ -114,8 +117,8 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
 
             Y_pred = fine_tuner(X)
-            Y_pred_fine = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
-            Y_pred_coarse = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
+            Y_pred_fine = Y_pred[:, :len(preprocessor.fine_grain_classes_str)]
+            Y_pred_coarse = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
 
             sorted_probs_fine = torch.sort(Y_pred_fine, descending=True)[1]
             predicted_fine = sorted_probs_fine[:, 0]
@@ -138,7 +141,8 @@ def evaluate_combined_model(fine_tuner: models.FineTuner,
 
     if print_results:
         fine_accuracy, coarse_accuracy = (
-            neural_metrics.get_and_print_metrics(pred_fine_data=fine_predictions,
+            neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
+                                                 pred_fine_data=fine_predictions,
                                                  pred_coarse_data=coarse_predictions,
                                                  loss=loss,
                                                  true_fine_data=fine_ground_truths,
@@ -193,7 +197,8 @@ def evaluate_binary_model(l: data_preprocessing.Label,
     return ground_truths, predictions, accuracy
 
 
-def run_combined_evaluating_pipeline(model_name: str,
+def run_combined_evaluating_pipeline(data_str: str,
+                                     model_name: str,
                                      split: str,
                                      lrs: list[typing.Union[str, float]],
                                      loss: str,
@@ -208,6 +213,7 @@ def run_combined_evaluating_pipeline(model_name: str,
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
+    :param data_str:
     :param model_name:
     :param num_epochs:
     :param lower_predictions_indices:
@@ -229,8 +235,9 @@ def run_combined_evaluating_pipeline(model_name: str,
              - fine_accuracy: Fine-grained accuracy score.
              - coarse_accuracy: Coarse-grained accuracy score.
     """
-    fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        vit_pipeline.initiate(model_names=[model_name],
+    preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+        vit_pipeline.initiate(data_str=data_str,
+                              model_names=[model_name],
                               lrs=lrs,
                               combined=True,
                               pretrained_path=pretrained_path,
@@ -241,6 +248,7 @@ def run_combined_evaluating_pipeline(model_name: str,
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
      fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy) = (
         evaluate_combined_model(
+            preprocessor=preprocessor,
             fine_tuner=fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner,
             loaders=loaders,
             loss=loss,
@@ -266,7 +274,8 @@ def run_combined_evaluating_pipeline(model_name: str,
     return fine_predictions, coarse_predictions
 
 
-def run_binary_evaluating_pipeline(model_name: str,
+def run_binary_evaluating_pipeline(data_str: str,
+                                   model_name: str,
                                    l: data_preprocessing.Label,
                                    split: str,
                                    lrs: list[typing.Union[str, float]],
@@ -277,8 +286,9 @@ def run_binary_evaluating_pipeline(model_name: str,
                                    save_files: bool = True,
                                    debug: bool = utils.is_debug_mode(),
                                    print_results: bool = True):
-    fine_tuners, loaders, devices, weight = (
-        vit_pipeline.initiate(model_names=[model_name],
+    preprocessor, fine_tuners, loaders, devices, weight = (
+        vit_pipeline.initiate(data_str=data_str,
+                              model_names=[model_name],
                               l=l,
                               lrs=lrs,
                               pretrained_path=pretrained_path,

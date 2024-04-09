@@ -99,6 +99,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print_counts=False)
 
         evaluation_return_values = neural_evaluation.evaluate_combined_model(
+            preprocessor=self.preprocessor,
             fine_tuner=self.correction_model,
             loaders=loaders,
             loss=self.loss,
@@ -116,7 +117,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
     def apply_new_model_on_test(self,
                                 print_results: bool = True):
         new_fine_predictions, new_coarse_predictions = (
-            neural_evaluation.run_combined_evaluating_pipeline(model_name='vit_b_16',
+            neural_evaluation.run_combined_evaluating_pipeline(data_str=self.data_str,
+                                                               model_name='vit_b_16',
                                                                split='test',
                                                                lrs=[self.lr],
                                                                loss=self.loss,
