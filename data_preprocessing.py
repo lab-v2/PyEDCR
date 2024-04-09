@@ -401,8 +401,8 @@ def get_dataset_transforms(data: str,
         ]
 
         test_transforms = [torchvision.transforms.Resize(256),
-                           torchvision.transforms.CenterCrop(224),
-                           torchvision.transforms.ToTensor()]
+                           torchvision.transforms.CenterCrop(224)
+                           ]
 
     else:
 
