@@ -23,6 +23,14 @@ class FineTuner(torch.nn.Module, abc.ABC):
         self.model_name = model_name
         self.num_classes = num_classes
 
+    @classmethod
+    def from_pretrained(cls,
+                        model_name: str,
+                        num_classes: int,
+                        pretrained_path: str,
+                        device: torch.device):
+        pass
+
     def __str__(self) -> str:
         return self.model_name
 
@@ -57,8 +65,8 @@ class EfficientNetV2FineTuner(FineTuner):
 
 class DINOV2FineTuner(FineTuner):
     def __init__(self,
-                 num_classes: int,
-                 dino_v2_model_name: str):
+                 dino_v2_model_name: str,
+                 num_classes: int):
         super().__init__(model_name=dino_v2_model_name,
                          num_classes=num_classes)
         self.transformer = torch.hub.load(repo_or_dir='facebookresearch/dinov2',
@@ -68,6 +76,38 @@ class DINOV2FineTuner(FineTuner):
             torch.nn.ReLU(),
             torch.nn.Linear(in_features=256, out_features=num_classes)
         )
+
+    @classmethod
+    def from_pretrained(cls,
+                        dino_v2_model_name: str,
+                        num_classes: int,
+                        pretrained_path: str,
+                        device: torch.device):
+        """
+        Loads a pre-trained DINO V2 model from a specified path.
+
+        :param dino_v2_model_name: The name of the pre-trained ViT model used during training.
+        :param num_classes: The number of output classes for the loaded model.
+        :param pretrained_path: The path to the saved pre-trained model checkpoint.
+        :param device: The device (CPU or GPU) to load the model onto.
+
+        :return: An instance of VITFineTuner loaded with pre-trained weights.
+        """
+        instance = cls(dino_v2_model_name, num_classes)
+        predefined_weights = torch.load(pretrained_path,
+                                        map_location=device)
+
+        # if 'model_state_dict' in predefined_weights.keys():
+        #     predefined_weights = predefined_weights['model_state_dict']
+        #
+        # new_predefined_weights = {}
+        # for key, value in predefined_weights.items():
+        #     new_key = key.replace('vit.', '')
+        #     new_predefined_weights[new_key] = value
+
+        instance.load_state_dict(predefined_weights)
+
+        return instance
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         X = self.transformer(X)
@@ -110,20 +150,20 @@ class VITFineTuner(FineTuner):
     @classmethod
     def from_pretrained(cls,
                         vit_model_name: str,
-                        classes_num: int,
+                        num_classes: int,
                         pretrained_path: str,
                         device: torch.device):
         """
         Loads a pre-trained VITFineTuner model from a specified path.
 
         :param vit_model_name: The name of the pre-trained ViT model used during training.
-        :param classes_num: The number of output classes for the loaded model.
+        :param num_classes: The number of output classes for the loaded model.
         :param pretrained_path: The path to the saved pre-trained model checkpoint.
         :param device: The device (CPU or GPU) to load the model onto.
 
         :return: An instance of VITFineTuner loaded with pre-trained weights.
         """
-        instance = cls(vit_model_name, classes_num)
+        instance = cls(vit_model_name, num_classes)
         predefined_weights = torch.load(pretrained_path,
                                         map_location=device)
 

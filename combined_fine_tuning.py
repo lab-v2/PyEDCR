@@ -290,5 +290,6 @@ if __name__ == '__main__':
                                       lrs=[0.000001],
                                       num_epochs=4,
                                       loss='BCE',
+                                      pretrained_path='models/dinov2_vits14_lr1e-06_BCE.pth'
                                       # debug=True
                                       )

@@ -216,11 +216,15 @@ def initiate(data_str: str,
 
             if pretrained_path is not None:
                 print(f'Loading pretrained model from {pretrained_path}')
-                fine_tuners = [models.VITFineTuner.from_pretrained(vit_model_name=vit_model_name,
-                                                                   classes_num=num_classes,
+                fine_tuners = [models.VITFineTuner.from_pretrained(vit_model_name=model_name,
+                                                                   num_classes=num_classes,
                                                                    pretrained_path=pretrained_path,
-                                                                   device=device)
-                               for vit_model_name in model_names]
+                                                                   device=device) if model_name.startswith('vit')
+                               else models.DINOV2FineTuner.from_pretrained(dino_v2_model_name=model_name,
+                                                                           num_classes=num_classes,
+                                                                           pretrained_path=pretrained_path,
+                                                                           device=device)
+                               for model_name in model_names]
             else:
                 fine_tuners = [models.VITFineTuner(vit_model_name=model_name,
                                                    weights=weight,
