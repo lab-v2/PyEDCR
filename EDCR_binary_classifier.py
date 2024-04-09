@@ -8,7 +8,7 @@ import numpy as np
 
 from PyEDCR import EDCR
 import data_preprocessing
-import vit_pipeline
+import backbone_pipeline
 import typing
 import config
 

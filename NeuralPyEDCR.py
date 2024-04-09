@@ -4,7 +4,7 @@ import typing
 import data_preprocessing
 import PyEDCR
 import utils
-import vit_pipeline
+import backbone_pipeline
 import context_handlers
 import combined_fine_tuning
 import neural_evaluation
@@ -60,7 +60,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         # new_model_name = 'efficientnet_v2_s'
         preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            vit_pipeline.initiate(
+            backbone_pipeline.initiate(
                 data_str=self.data_str,
                 model_names=[new_model_name],
                 # weights=['IMAGENET1K_SWAG_E2E_V1'],
@@ -89,7 +89,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             )
             print('#' * 100)
 
-        _, _, loaders, devices, _, _ = vit_pipeline.initiate(
+        _, _, loaders, devices, _, _ = backbone_pipeline.initiate(
             data_str=self.data_str,
             model_names=[new_model_name],
             lrs=[new_lr],

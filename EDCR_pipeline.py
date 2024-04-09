@@ -10,7 +10,7 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-import vit_pipeline
+import backbone_pipeline
 import utils
 import data_processing
 import context_handlers

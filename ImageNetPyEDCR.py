@@ -12,7 +12,7 @@ from datasets import load_dataset
 
 from PyEDCR import EDCR
 import data_preprocessing
-import vit_pipeline
+import backbone_pipeline
 import typing
 import config as configuration
 import neural_evaluation

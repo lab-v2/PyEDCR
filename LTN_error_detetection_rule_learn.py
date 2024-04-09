@@ -9,7 +9,7 @@ import copy
 
 from PyEDCR import EDCR
 import data_preprocessing
-import vit_pipeline
+import backbone_pipeline
 import typing
 import config
 import neural_evaluation

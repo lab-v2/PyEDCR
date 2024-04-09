@@ -14,7 +14,7 @@ import models
 import context_handlers
 import neural_evaluation
 import neural_metrics
-import vit_pipeline
+import backbone_pipeline
 import neural_fine_tuning
 
 
@@ -68,7 +68,7 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
             import ltn
             import ltn_support
 
-            epochs = vit_pipeline.ltn_num_epochs
+            epochs = backbone_pipeline.ltn_num_epochs
             logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
         else:
             epochs = num_epochs
@@ -213,14 +213,14 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 print('#' * 100)
 
                 if (epoch == num_epochs) and save_files:
-                    vit_pipeline.save_prediction_files(test=False,
-                                                       fine_tuners=fine_tuner,
-                                                       combined=True,
-                                                       lrs=lr,
-                                                       epoch=epoch,
-                                                       fine_prediction=test_fine_predictions,
-                                                       coarse_prediction=test_coarse_predictions,
-                                                       loss=loss)
+                    backbone_pipeline.save_prediction_files(test=False,
+                                                            fine_tuners=fine_tuner,
+                                                            combined=True,
+                                                            lrs=lr,
+                                                            epoch=epoch,
+                                                            fine_prediction=test_fine_predictions,
+                                                            coarse_prediction=test_coarse_predictions,
+                                                            loss=loss)
 
                 if evaluate_on_train_eval:
                     curr_train_eval_fine_accuracy, curr_train_eval_coarse_accuracy = \
@@ -241,10 +241,10 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                     train_eval_coarse_accuracy = curr_train_eval_coarse_accuracy
 
         if save_files:
-            if not os.path.exists(f"{vit_pipeline.combined_results_path}test_fine_true.npy"):
-                np.save(f"{vit_pipeline.combined_results_path}test_fine_true.npy", test_fine_ground_truths)
-            if not os.path.exists(f"{vit_pipeline.combined_results_path}test_coarse_true.npy"):
-                np.save(f"{vit_pipeline.combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
+            if not os.path.exists(f"{backbone_pipeline.combined_results_path}test_fine_true.npy"):
+                np.save(f"{backbone_pipeline.combined_results_path}test_fine_true.npy", test_fine_ground_truths)
+            if not os.path.exists(f"{backbone_pipeline.combined_results_path}test_coarse_true.npy"):
+                np.save(f"{backbone_pipeline.combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
             if loss.split('_')[0] == 'LTN':
                 torch.save(fine_tuner.state_dict(), f"models/{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
@@ -259,14 +259,16 @@ def run_combined_fine_tuning_pipeline(data_str: str,
                                       lrs: list[typing.Union[str, float]],
                                       num_epochs: int,
                                       loss: str = 'BCE',
+                                      pretrained_path: str = None,
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode()):
     preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        vit_pipeline.initiate(data_str=data_str,
-                              model_names=model_names,
-                              lrs=lrs,
-                              combined=True,
-                              debug=debug))
+        backbone_pipeline.initiate(data_str=data_str,
+                                   model_names=model_names,
+                                   lrs=lrs,
+                                   combined=True,
+                                   pretrained_path=pretrained_path,
+                                   debug=debug))
     for fine_tuner in fine_tuners:
         with context_handlers.ClearSession():
             fine_tune_combined_model(preprocessor=preprocessor,
@@ -286,7 +288,7 @@ if __name__ == '__main__':
     run_combined_fine_tuning_pipeline(data_str='imagenet',
                                       model_names=['dinov2_vits14'],
                                       lrs=[0.000001],
-                                      num_epochs=15,
+                                      num_epochs=4,
                                       loss='BCE',
                                       # debug=True
                                       )

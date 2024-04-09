@@ -8,7 +8,7 @@ import data_preprocessing
 import models
 import utils
 import neural_metrics
-import vit_pipeline
+import backbone_pipeline
 
 batch_size = 256
 scheduler_gamma = 0.9
@@ -236,14 +236,14 @@ def run_combined_evaluating_pipeline(data_str: str,
              - coarse_accuracy: Coarse-grained accuracy score.
     """
     preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        vit_pipeline.initiate(data_str=data_str,
-                              model_names=[model_name],
-                              lrs=lrs,
-                              combined=True,
-                              pretrained_path=pretrained_path,
-                              debug=debug,
-                              error_indices=indices,
-                              evaluation=True))
+        backbone_pipeline.initiate(data_str=data_str,
+                                   model_names=[model_name],
+                                   lrs=lrs,
+                                   combined=True,
+                                   pretrained_path=pretrained_path,
+                                   debug=debug,
+                                   error_indices=indices,
+                                   evaluation=True))
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
      fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy) = (
@@ -258,18 +258,18 @@ def run_combined_evaluating_pipeline(data_str: str,
             lower_predictions_indices=lower_predictions_indices))
 
     if save_files:
-        vit_pipeline.save_prediction_files(test=split == 'test',
-                                           fine_tuners=fine_tuners[0],
-                                           combined=True,
-                                           lrs=lrs[0],
-                                           loss=loss,
-                                           fine_prediction=fine_predictions,
-                                           coarse_prediction=coarse_predictions,
-                                           fine_ground_truths=fine_ground_truths,
-                                           coarse_ground_truths=coarse_ground_truths,
-                                           epoch=num_epochs,
-                                           fine_lower_predictions=fine_lower_predictions,
-                                           coarse_lower_predictions=coarse_lower_predictions)
+        backbone_pipeline.save_prediction_files(test=split == 'test',
+                                                fine_tuners=fine_tuners[0],
+                                                combined=True,
+                                                lrs=lrs[0],
+                                                loss=loss,
+                                                fine_prediction=fine_predictions,
+                                                coarse_prediction=coarse_predictions,
+                                                fine_ground_truths=fine_ground_truths,
+                                                coarse_ground_truths=coarse_ground_truths,
+                                                epoch=num_epochs,
+                                                fine_lower_predictions=fine_lower_predictions,
+                                                coarse_lower_predictions=coarse_lower_predictions)
 
     return fine_predictions, coarse_predictions
 
@@ -287,13 +287,13 @@ def run_binary_evaluating_pipeline(data_str: str,
                                    debug: bool = utils.is_debug_mode(),
                                    print_results: bool = True):
     preprocessor, fine_tuners, loaders, devices, weight = (
-        vit_pipeline.initiate(data_str=data_str,
-                              model_names=[model_name],
-                              l=l,
-                              lrs=lrs,
-                              pretrained_path=pretrained_path,
-                              debug=debug,
-                              evaluation=True))
+        backbone_pipeline.initiate(data_str=data_str,
+                                   model_names=[model_name],
+                                   l=l,
+                                   lrs=lrs,
+                                   pretrained_path=pretrained_path,
+                                   debug=debug,
+                                   evaluation=True))
 
     fine_tuner = fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner
 
@@ -308,14 +308,14 @@ def run_binary_evaluating_pipeline(data_str: str,
             print_results=print_results))
 
     if save_files:
-        vit_pipeline.save_binary_prediction_files(test=split == 'test',
-                                                  fine_tuner=fine_tuner,
-                                                  lr=lrs[0],
-                                                  epoch=num_epochs,
-                                                  l=l,
-                                                  predictions=predictions,
-                                                  ground_truths=ground_truths,
-                                                  evaluation=True)
+        backbone_pipeline.save_binary_prediction_files(test=split == 'test',
+                                                       fine_tuner=fine_tuner,
+                                                       lr=lrs[0],
+                                                       epoch=num_epochs,
+                                                       l=l,
+                                                       predictions=predictions,
+                                                       ground_truths=ground_truths,
+                                                       evaluation=True)
 
     return predictions, accuracy
 

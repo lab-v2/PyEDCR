@@ -7,7 +7,7 @@ import models
 import context_handlers
 import neural_evaluation
 import neural_metrics
-import vit_pipeline
+import backbone_pipeline
 import neural_fine_tuning
 
 

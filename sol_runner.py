@@ -1,6 +1,6 @@
 import PyEDCR
 import data_preprocessing
-import vit_pipeline
+import backbone_pipeline
 
 def run():
     epsilons = [0.1 * i for i in range(2, 3)]
