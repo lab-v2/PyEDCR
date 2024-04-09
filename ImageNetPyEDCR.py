@@ -19,6 +19,9 @@ import neural_evaluation
 import neural_fine_tuning
 import neural_metrics
 import models
+import utils
+
+preprocessor = data_preprocessing.DataPreprocessor(data_str='imagenet')
 
 imagenet100_folder_path = 'data/ImageNet100'
 
@@ -198,7 +201,6 @@ def prepare(batch, mode="train"):
     return inputs
 
 
-
 # see https://huggingface.co/docs/datasets/image_dataset to load your own custom dataset
 dataset = load_dataset("timm/oxford-iiit-pet")
 
@@ -211,7 +213,6 @@ eval_dataset = dataset["test"].map(prepare, num_proc=os.cpu_count(), batched=Tru
 
 train_dataset.set_format("torch")
 eval_dataset.set_format("torch")
-
 
 
 # the compute_metrics function takes a Named Tuple as input:
@@ -275,7 +276,7 @@ class EDCR_Imagenet100_experiment(EDCR):
                  secondary_model_name: str = None,
                  config=None):
         super().__init__(
-            data='',  # TODO: find the doc
+            data='imagenet',
             main_model_name=main_model_name,
             combined=combined,
             loss=loss,
@@ -358,10 +359,10 @@ class EDCR_Imagenet100_experiment(EDCR):
                     X, Y_fine_grain, Y_coarse_grain, indices = (
                         batch[0].to(device), batch[1].to(device), batch[3].to(device), batch[4])
 
-                    Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
-                        data_preprocessing.fine_grain_classes_str))
-                    Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
-                        data_preprocessing.coarse_grain_classes_str))
+                    Y_fine_grain_one_hot = torch.nn.functional.one_hot(
+                        Y_fine_grain, num_classes=preprocessor.num_fine_grain_classes)
+                    Y_coarse_grain_one_hot = torch.nn.functional.one_hot(
+                        Y_coarse_grain, num_classes=preprocessor.num_coarse_grain_classes)
 
                     Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
 
@@ -369,8 +370,8 @@ class EDCR_Imagenet100_experiment(EDCR):
                     # fine / coarse or both
                     Y_pred = fine_tuner(X)
 
-                    Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
-                    Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
+                    Y_pred_fine_grain = Y_pred[:, :preprocessor.num_fine_grain_classes]
+                    Y_pred_coarse_grain = Y_pred[:, preprocessor.num_coarse_grain_classes:]
 
                     if mode == 'train' and optimizer is not None and scheduler is not None:
                         optimizer.zero_grad()
@@ -425,26 +426,32 @@ class EDCR_Imagenet100_experiment(EDCR):
 
         print('Started learning pipeline...\n')
 
-        for g in data_preprocessing.granularities.values():
+        for g in preprocessor.granularities.values():
             self.learn_detection_rules(g=g)
 
-        # TODO: Get subset indices
-        error_indices = None
-        raise ValueError('No variable error_indices know')
+        perceived_examples_with_errors = set()
+        for g in preprocessor.granularities.values():
+            perceived_examples_with_errors = perceived_examples_with_errors.union(set(
+                np.where(self.get_predictions(test=False, g=g, stage='post_detection') == -1)[0]))
+
+        perceived_examples_with_errors = np.array(list(perceived_examples_with_errors))
+
+        print(utils.red_text(f'\nNumber of perceived train errors: {len(perceived_examples_with_errors)} / '
+                             f'{self.T_train}\n'))
 
         print('\nRule learning completed\n')
         print(f'\nStarted train model from the error for model {model_index}...\n')
 
         fine_tuners, loaders, devices, _, _ = (
             vit_pipeline.initiate(
-                data=self.data_str,
+                data=self.data,
                 lrs=[self.lr],
                 combined=self.combined,
                 debug=False,
                 pretrained_path=self.pretrain_path,
                 get_indices=True,
                 train_eval_split=0.8,
-                error_indices=error_indices,
+                error_indices=perceived_examples_with_errors,
                 get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
         train_fine_accuracies = []
