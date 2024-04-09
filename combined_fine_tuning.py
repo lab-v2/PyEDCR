@@ -1,4 +1,9 @@
 import os
+import utils
+
+if utils.is_local():
+    os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+
 import numpy as np
 import torch
 import torch.utils.data
@@ -6,7 +11,6 @@ import typing
 
 import data_preprocessing
 import models
-import utils
 import context_handlers
 import neural_evaluation
 import neural_metrics
@@ -273,7 +277,8 @@ def run_combined_fine_tuning_pipeline(data_str: str,
                                      loss=loss,
                                      num_epochs=num_epochs,
                                      save_files=save_files,
-                                     debug=debug)
+                                     debug=debug
+                                     )
             print('#' * 100)
 
 
@@ -283,4 +288,5 @@ if __name__ == '__main__':
                                       lrs=[0.000001],
                                       num_epochs=15,
                                       loss='BCE',
-                                      debug=True)
+                                      # debug=True
+                                      )

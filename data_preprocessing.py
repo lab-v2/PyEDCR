@@ -1,4 +1,6 @@
 import os
+
+
 import numpy as np
 import torch
 import torchvision
@@ -9,7 +11,7 @@ import typing
 import abc
 import random
 
-from typing import List
+
 
 random.seed(42)
 np.random.seed(42)
@@ -257,7 +259,7 @@ class DataPreprocessor:
 
     def get_ground_truths(self,
                           test: bool,
-                          K: List[int] = None,
+                          K: list[int] = None,
                           g: Granularity = None) -> np.array:
         if K is None:
             K = [idx for idx in range(0, len(self.test_true_coarse_data))]
@@ -448,7 +450,7 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
 
 
     def find_classes(self,
-                     directory: str) -> typing.Tuple[List[str], typing.Dict[str, int]]:
+                     directory: str) -> (list[str], typing.Dict[str, int]):
         classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir() and
                          not entry.name.startswith('.') and (self.relevant_classes is None
                                                              or entry.name in self.relevant_classes))
