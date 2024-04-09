@@ -12,7 +12,7 @@ import neural_evaluation
 
 class NeuralPyEDCR(PyEDCR.EDCR):
     def __init__(self,
-                 data: str,
+                 data_str: str,
                  main_model_name: str,
                  combined: bool,
                  loss: str,
@@ -28,7 +28,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  lower_predictions_indices: list[int] = [],
                  binary_models: list[str] = []
                  ):
-        super(NeuralPyEDCR, self).__init__(data=data,
+        super(NeuralPyEDCR, self).__init__(data_str=data_str,
                                            main_model_name=main_model_name,
                                            combined=combined,
                                            loss=loss,
@@ -61,7 +61,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         # new_model_name = 'efficientnet_v2_s'
         preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
             vit_pipeline.initiate(
-                data=self.data,
+                data_str=self.data_str,
                 model_names=[new_model_name],
                 # weights=['IMAGENET1K_SWAG_E2E_V1'],
                 lrs=[new_lr],
@@ -90,7 +90,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print('#' * 100)
 
         _, _, loaders, devices, _, _ = vit_pipeline.initiate(
-            data=self.data,
+            data_str=self.data_str,
             model_names=[new_model_name],
             lrs=[new_lr],
             combined=self.combined,
@@ -99,6 +99,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print_counts=False)
 
         evaluation_return_values = neural_evaluation.evaluate_combined_model(
+            preprocessor=self.preprocessor,
             fine_tuner=self.correction_model,
             loaders=loaders,
             loss=self.loss,
@@ -116,7 +117,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
     def apply_new_model_on_test(self,
                                 print_results: bool = True):
         new_fine_predictions, new_coarse_predictions = (
-            neural_evaluation.run_combined_evaluating_pipeline(model_name='vit_b_16',
+            neural_evaluation.run_combined_evaluating_pipeline(data_str=self.data_str,
+                                                               model_name='vit_b_16',
                                                                split='test',
                                                                lrs=[self.lr],
                                                                loss=self.loss,
@@ -173,7 +175,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 if __name__ == '__main__':
     epsilons = [0.2]
-    data = 'imagenet'
 
     for new_model in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l']:
         for new_lr in [0.01, 0.001, 0.0001]:
@@ -188,7 +189,7 @@ if __name__ == '__main__':
                           + '\n' + '#' * 100 + '\n')
                     for eps in epsilons:
                         print('#' * 25 + f'eps = {eps}' + '#' * 50)
-                        edcr = NeuralPyEDCR(data=data,
+                        edcr = NeuralPyEDCR(data_str='imagenet',
                                             epsilon=eps,
                                             main_model_name='vit_b_16',
                                             combined=True,

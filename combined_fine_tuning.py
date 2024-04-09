@@ -168,7 +168,8 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                         del X, Y_fine_grain, Y_coarse_grain, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
 
                 training_fine_accuracy, training_coarse_accuracy = (
-                    neural_metrics.get_and_print_post_epoch_metrics(epoch=epoch,
+                    neural_metrics.get_and_print_post_epoch_metrics(preprocessor=preprocessor,
+                                                                    epoch=epoch,
                                                                     num_epochs=num_epochs,
                                                                     # running_fine_loss=running_fine_loss.item(),
                                                                     # running_coarse_loss=running_coarse_loss.item(),
@@ -195,7 +196,8 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                     (test_fine_ground_truths, test_coarse_ground_truths, test_fine_predictions, test_coarse_predictions,
                      test_fine_lower_predictions, test_coarse_lower_predictions, test_fine_accuracy,
                      test_coarse_accuracy) = (
-                        neural_evaluation.evaluate_combined_model(fine_tuner=fine_tuner,
+                        neural_evaluation.evaluate_combined_model(preprocessor=preprocessor,
+                                                                  fine_tuner=fine_tuner,
                                                                   loaders=loaders,
                                                                   loss=loss,
                                                                   device=device,
@@ -219,6 +221,7 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 if evaluate_on_train_eval:
                     curr_train_eval_fine_accuracy, curr_train_eval_coarse_accuracy = \
                         neural_evaluation.evaluate_combined_model(
+                            preprocessor=preprocessor,
                             fine_tuner=fine_tuner,
                             loaders=loaders,
                             loss=loss,
@@ -247,7 +250,7 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
         return train_fine_predictions, train_coarse_predictions
 
 
-def run_combined_fine_tuning_pipeline(data: str,
+def run_combined_fine_tuning_pipeline(data_str: str,
                                       model_names: list[str],
                                       lrs: list[typing.Union[str, float]],
                                       num_epochs: int,
@@ -255,7 +258,7 @@ def run_combined_fine_tuning_pipeline(data: str,
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode()):
     preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        vit_pipeline.initiate(data=data,
+        vit_pipeline.initiate(data_str=data_str,
                               model_names=model_names,
                               lrs=lrs,
                               combined=True,
@@ -275,8 +278,9 @@ def run_combined_fine_tuning_pipeline(data: str,
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline(data='imagenet',
+    run_combined_fine_tuning_pipeline(data_str='imagenet',
                                       model_names=['dinov2_vits14'],
                                       lrs=[0.000001],
                                       num_epochs=15,
-                                      loss='BCE')
+                                      loss='BCE',
+                                      debug=True)
