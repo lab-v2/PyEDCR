@@ -160,6 +160,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 self.learn_detection_rules(g=g)
                 self.apply_detection_rules(test=False, g=g)
 
+
             self.run_training_new_model_pipeline(new_model_name=new_model_name,
                                                  new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
@@ -209,7 +210,9 @@ if __name__ == '__main__':
                                     # lower_predictions_indices=lower_predictions_indices,
                                     EDCR_num_epochs=EDCR_num_epochs,
                                     neural_num_epochs=neural_num_epochs)
-                edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
+                edcr.print_metrics(test=True,
+                                   prior=True,
+                                   print_actual_errors_num=True)
                 edcr.run_learning_pipeline(new_model_name=new_model_name,
                                            new_lr=new_lr)
                 edcr.run_error_detection_application_pipeline(test=True, print_results=False)

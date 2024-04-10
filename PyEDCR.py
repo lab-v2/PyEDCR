@@ -208,6 +208,13 @@ class EDCR:
 
         self.correction_model = None
 
+        self.original_test_inconsistencies = (
+            self.preprocessor.get_num_inconsistencies(
+                fine_labels=self.get_predictions(test=True,
+                                                 g=data_preprocessing.DataPreprocessor.granularities['fine']),
+                coarse_labels=self.get_predictions(test=True,
+                                                   g=data_preprocessing.DataPreprocessor.granularities['coarse'])))
+
         print(utils.blue_text(
             f"Num of fine conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['fine']])}\n"
@@ -343,6 +350,8 @@ class EDCR:
                                              model_name=self.main_model_name,
                                              lr=self.lr,
                                              print_inconsistencies=print_inconsistencies,
+                                             current_num_test_inconsistencies=self.get_num_recovered_constraints(),
+                                             original_test_inconsistencies=self.original_test_inconsistencies,
                                              original_pred_fine_data=original_pred_fine_data,
                                              original_pred_coarse_data=original_pred_coarse_data)
 
@@ -515,8 +524,9 @@ class EDCR:
                                    g: data_preprocessing.Granularity,
                                    stage: str = 'original',
                                    test_pred_fine_data: np.array = None,
-                                   test_pred_coarse_data: np.array = None) -> (typing.Dict[data_preprocessing.Label, float],
-                                                                               typing.Dict[data_preprocessing.Label, float]):
+                                   test_pred_coarse_data: np.array = None) -> (
+            typing.Dict[data_preprocessing.Label, float],
+            typing.Dict[data_preprocessing.Label, float]):
         p_g = {}
         r_g = {}
 
@@ -697,6 +707,12 @@ class EDCR:
                 if utils.is_local():
                     progress_bar.update(1)
 
+        current_recovered_constraints = self.get_num_recovered_constraints()
+        original_inconsistencies = len(self.original_test_inconsistencies[1])
+
+        print(f'Recovered constraints: {current_recovered_constraints}/'
+              f'{original_inconsistencies} ({round(current_recovered_constraints/original_inconsistencies * 100, 2)}')
+
     def apply_detection_rules(self,
                               test: bool,
                               g: data_preprocessing.Granularity):
@@ -777,6 +793,24 @@ class EDCR:
 
         if print_results:
             self.print_metrics(test=test, prior=False, stage='post_detection', print_inconsistencies=False)
+
+    def get_num_recovered_constraints(self):
+        recovered_constraints = set()
+
+        for l, error_detection_rule in self.error_detection_rules.items():
+            error_detection_rule: rules.ErrorDetectionRule
+
+            for cond in error_detection_rule.C_l:
+                if isinstance(cond, conditions.PredCondition) and cond.l.g != error_detection_rule.l.g:
+                    fine_index = cond.l.index if cond.l.g.g_str == 'fine' else error_detection_rule.l.index
+                    coarse_index = cond.l.index if cond.l.g.g_str == 'coarse' else error_detection_rule.l.index
+
+                    if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
+                        recovered_constraints = (
+                            recovered_constraints.union(f'fine index: {fine_index}, coarse index: coarse_index'))
+
+
+        return len(recovered_constraints)
 
 
 if __name__ == '__main__':

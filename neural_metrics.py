@@ -14,21 +14,27 @@ def get_change_str(change: typing.Union[float, str]):
 def print_num_inconsistencies(preprocessor: data_preprocessing.DataPreprocessor,
                               pred_fine_data: np.array,
                               pred_coarse_data: np.array,
+                              current_num_test_inconsistencies = None,
+                              original_test_inconsistencies = None,
                               prior: bool = True):
     """
     Prints the number of inconsistencies between fine and coarse predictions.
 
+    :param current_num_test_inconsistencies:
+    :param original_test_inconsistencies:
     :param preprocessor:
     :param pred_fine_data: NumPy array of predictions at the fine granularity.
     :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
     :param prior:
     """
-    inconsistencies, unique_inconsistencies = preprocessor.get_num_inconsistencies(fine_labels=pred_fine_data,
+    inconsistencies, _ = preprocessor.get_num_inconsistencies(fine_labels=pred_fine_data,
                                                                                    coarse_labels=pred_coarse_data)
 
     print(f"Total {'prior' if prior else 'post'} inconsistencies "
           f"{utils.red_text(inconsistencies)}/{utils.red_text(len(pred_fine_data))} "
-          f'({utils.red_text(round(inconsistencies / len(pred_fine_data) * 100, 2))}%)\n')
+          f'({utils.red_text(round(inconsistencies / len(pred_fine_data) * 100, 2))}%)\n'
+          f'Recovered inconsistencies: '
+          f'{round(current_num_test_inconsistencies / len(original_test_inconsistencies[1]) * 100, 2)}%')
 
 
 def get_binary_metrics(pred_data: np.array,
@@ -155,11 +161,15 @@ def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
                           model_name: str = '',
                           lr: typing.Union[str, float] = '',
                           print_inconsistencies: bool = True,
+                          current_num_test_inconsistencies = None,
+                          original_test_inconsistencies = None,
                           original_pred_fine_data: np.array = None,
                           original_pred_coarse_data: np.array = None):
     """
     Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
 
+    :param current_num_test_inconsistencies: 
+    :param original_test_inconsistencies:
     :param preprocessor:
     :param original_pred_coarse_data:
     :param original_pred_fine_data:
@@ -236,6 +246,8 @@ def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
         print_num_inconsistencies(preprocessor=preprocessor,
                                   pred_fine_data=pred_fine_data,
                                   pred_coarse_data=pred_coarse_data,
+                                  current_num_test_inconsistencies=current_num_test_inconsistencies,
+                                  original_test_inconsistencies=original_test_inconsistencies,
                                   prior=prior)
 
     return fine_accuracy, coarse_accuracy

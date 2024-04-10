@@ -1,6 +1,5 @@
 import os
 
-
 import numpy as np
 import torch
 import torchvision
@@ -10,8 +9,6 @@ import pathlib
 import typing
 import abc
 import random
-
-
 
 random.seed(42)
 np.random.seed(42)
@@ -219,8 +216,6 @@ class DataPreprocessor:
             coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
             self.coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
 
-
-
             self.fine_to_coarse = {}
 
             training_df = dataframes_by_sheet['Training']
@@ -261,8 +256,10 @@ class DataPreprocessor:
         self.coarse_grain_labels = {l: CoarseGrainLabel(l, coarse_grain_classes_str=self.coarse_grain_classes_str)
                                     for l in self.coarse_grain_classes_str}
 
-        assert self.get_num_inconsistencies(fine_labels=self.train_true_fine_data,
-                                            coarse_labels=self.train_true_coarse_data)[0] == 0
+        assert (self.get_num_inconsistencies(fine_labels=self.train_true_fine_data,
+                                             coarse_labels=self.train_true_coarse_data)[0] ==
+                self.get_num_inconsistencies(fine_labels=self.test_true_fine_data,
+                                             coarse_labels=self.test_true_coarse_data)[0] == 0)
 
     def get_ground_truths(self,
                           test: bool,
@@ -298,13 +295,12 @@ class DataPreprocessor:
                 if fine_prediction not in unique_inconsistencies:
                     unique_inconsistencies[fine_prediction] = {coarse_prediction}
                 else:
-                    unique_inconsistencies[fine_prediction]= (
+                    unique_inconsistencies[fine_prediction] = (
                         unique_inconsistencies[fine_prediction].union({coarse_prediction}))
 
                 inconsistencies += 1
 
         return inconsistencies, unique_inconsistencies
-
 
     def get_labels(self,
                    g: Granularity) -> typing.Dict[str, Label]:
@@ -312,7 +308,8 @@ class DataPreprocessor:
 
     def get_subset_indices_for_train_and_train_eval(self,
                                                     train_eval_split: float,
-                                                    get_fraction_of_example_with_label: typing.Dict[Label, float] = None, ):
+                                                    get_fraction_of_example_with_label: typing.Dict[
+                                                        Label, float] = None, ):
         """
             Splits indices into train and train_eval sets, respecting train_eval_split
             and removing examples from train based on get_fraction_of_example_with_label.
@@ -453,9 +450,9 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
     def __init__(
             self,
             root: str,
-            transform = None,
-            target_transform = None,
-            is_valid_file = None,
+            transform=None,
+            target_transform=None,
+            is_valid_file=None,
             relevant_classes: typing.List[str] = None
     ):
         self.relevant_classes = relevant_classes
@@ -463,7 +460,6 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
                          transform=transform,
                          target_transform=target_transform,
                          is_valid_file=is_valid_file)
-
 
     def find_classes(self,
                      directory: str) -> (typing.List[str], typing.Dict[str, int]):
@@ -485,8 +481,8 @@ class CombinedImageFolderWithName(EDCRImageFolder):
     def __init__(self,
                  root,
                  preprocessor: DataPreprocessor,
-                 transform = None,
-                 target_transform = None):
+                 transform=None,
+                 target_transform=None):
         self.preprocessor = preprocessor
         super(CombinedImageFolderWithName, self).__init__(root=root,
                                                           transform=transform,
