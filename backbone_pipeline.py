@@ -198,7 +198,7 @@ def initiate(data_str: str,
                                                weights=weights)
 
     device = torch.device('cpu') if debug else (
-        torch.device('mps' if torch.backends.mps.is_available() else
+        torch.device('mps' if utils.is_local() and torch.backends.mps.is_available() else
                      ("cuda" if torch.cuda.is_available() else 'cpu')))
     devices = [device]
     print(f'Using {device}')
