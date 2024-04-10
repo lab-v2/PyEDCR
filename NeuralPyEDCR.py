@@ -1,9 +1,14 @@
+import os
+import utils
+
+if utils.is_local():
+    os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+
 import numpy as np
 import typing
 
 import data_preprocessing
 import PyEDCR
-import utils
 import backbone_pipeline
 import context_handlers
 import combined_fine_tuning
@@ -174,35 +179,38 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 if __name__ == '__main__':
     epsilons = [0.2]
+    data_str = 'imagenet'
+    main_model_name = new_model_name = 'dinov2_vits14'
+    main_lr = new_lr = 1e-6
 
-    for new_model in ['dinov2_vits14']:
-        for EDCR_num_epochs in [5]:
-            for neural_num_epochs in [10]:
 
-                # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
-                print('\n' + '#' * 100 + '\n' +
-                      utils.blue_text(
-                          f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
-                          # f'lower_predictions_indices = {lower_predictions_indices}'
-                          )
-                      + '\n' + '#' * 100 + '\n')
-                for eps in epsilons:
-                    print('#' * 25 + f'eps = {eps}' + '#' * 50)
-                    edcr = NeuralPyEDCR(data_str='imagenet',
-                                        epsilon=eps,
-                                        main_model_name='dinov2_vits14',
-                                        combined=True,
-                                        loss='BCE',
-                                        lr=1e-6,
-                                        original_num_epochs=8,
-                                        include_inconsistency_constraint=False,
-                                        # secondary_model_name='vit_l_16_BCE',
-                                        # binary_models=data_preprocessing.fine_grain_classes_str,
-                                        # lower_predictions_indices=lower_predictions_indices,
-                                        EDCR_num_epochs=EDCR_num_epochs,
-                                        neural_num_epochs=neural_num_epochs)
-                    edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
-                    edcr.run_learning_pipeline(new_model_name='efficientnet_v2_l',
-                                               new_lr=0.000001)
-                    edcr.run_error_detection_application_pipeline(test=True, print_results=False)
-                    edcr.apply_new_model_on_test()
+    for EDCR_num_epochs in [3]:
+        for neural_num_epochs in [3]:
+
+            # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
+            print('\n' + '#' * 100 + '\n' +
+                  utils.blue_text(
+                      f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
+                      # f'lower_predictions_indices = {lower_predictions_indices}'
+                      )
+                  + '\n' + '#' * 100 + '\n')
+            for eps in epsilons:
+                print('#' * 25 + f'eps = {eps}' + '#' * 50)
+                edcr = NeuralPyEDCR(data_str=data_str,
+                                    epsilon=eps,
+                                    main_model_name=main_model_name,
+                                    combined=True,
+                                    loss='BCE',
+                                    lr=main_lr,
+                                    original_num_epochs=8,
+                                    include_inconsistency_constraint=False,
+                                    # secondary_model_name='vit_l_16_BCE',
+                                    # binary_models=data_preprocessing.fine_grain_classes_str,
+                                    # lower_predictions_indices=lower_predictions_indices,
+                                    EDCR_num_epochs=EDCR_num_epochs,
+                                    neural_num_epochs=neural_num_epochs)
+                edcr.print_metrics(test=True, prior=True, print_actual_errors_num=True)
+                edcr.run_learning_pipeline(new_model_name=new_model_name,
+                                           new_lr=new_lr)
+                edcr.run_error_detection_application_pipeline(test=True, print_results=False)
+                edcr.apply_new_model_on_test()
