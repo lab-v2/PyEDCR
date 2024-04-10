@@ -249,17 +249,20 @@ class DataPreprocessor:
         self.num_fine_grain_classes = len(self.fine_grain_classes_str)
         self.num_coarse_grain_classes = len(self.coarse_grain_classes_str)
 
-        # self.fine_unique, self.fine_counts = np.unique(self.train_true_fine_data, return_counts=True)
-        # self.coarse_unique, self.coarse_counts = np.unique(self.train_true_coarse_data, return_counts=True)
-        #
-        # # # Create dictionaries from unique labels and counts
-        # self.fine_data_counts = dict(zip(self.fine_unique, self.fine_counts))
-        # self.coarse_data_counts = dict(zip(self.coarse_unique, self.coarse_counts))
+        self.fine_unique, self.fine_counts = np.unique(self.train_true_fine_data, return_counts=True)
+        self.coarse_unique, self.coarse_counts = np.unique(self.train_true_coarse_data, return_counts=True)
+
+        # # Create dictionaries from unique labels and counts
+        self.fine_data_counts = dict(zip(self.fine_unique, self.fine_counts))
+        self.coarse_data_counts = dict(zip(self.coarse_unique, self.coarse_counts))
 
         self.fine_grain_labels = {l: FineGrainLabel(l, fine_grain_classes_str=self.fine_grain_classes_str)
                                   for l in self.fine_grain_classes_str}
         self.coarse_grain_labels = {l: CoarseGrainLabel(l, coarse_grain_classes_str=self.coarse_grain_classes_str)
                                     for l in self.coarse_grain_classes_str}
+
+        assert self.get_num_inconsistencies(fine_labels=self.train_true_fine_data,
+                                            coarse_labels=self.train_true_coarse_data)[0] == 0
 
     def get_ground_truths(self,
                           test: bool,
@@ -281,8 +284,10 @@ class DataPreprocessor:
 
     def get_num_inconsistencies(self,
                                 fine_labels: typing.Union[np.array, torch.Tensor],
-                                coarse_labels: typing.Union[np.array, torch.Tensor]) -> int:
+                                coarse_labels: typing.Union[np.array, torch.Tensor]) \
+            -> typing.Tuple[int, typing.Dict[str, typing.Set[int]]]:
         inconsistencies = 0
+        unique_inconsistencies = {}
 
         if isinstance(fine_labels, torch.Tensor):
             fine_labels = np.array(fine_labels.cpu())
@@ -290,9 +295,16 @@ class DataPreprocessor:
 
         for fine_prediction, coarse_prediction in zip(fine_labels, coarse_labels):
             if self.fine_to_course_idx[fine_prediction] != coarse_prediction:
+                if fine_prediction not in unique_inconsistencies:
+                    unique_inconsistencies[fine_prediction] = {coarse_prediction}
+                else:
+                    unique_inconsistencies[fine_prediction]= (
+                        unique_inconsistencies[fine_prediction].union({coarse_prediction}))
+
                 inconsistencies += 1
 
-        return inconsistencies
+        return inconsistencies, unique_inconsistencies
+
 
     def get_labels(self,
                    g: Granularity) -> typing.Dict[str, Label]:

@@ -23,8 +23,8 @@ def print_num_inconsistencies(preprocessor: data_preprocessing.DataPreprocessor,
     :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
     :param prior:
     """
-    inconsistencies = preprocessor.get_num_inconsistencies(fine_labels=pred_fine_data,
-                                                           coarse_labels=pred_coarse_data)
+    inconsistencies, unique_inconsistencies = preprocessor.get_num_inconsistencies(fine_labels=pred_fine_data,
+                                                                                   coarse_labels=pred_coarse_data)
 
     print(f"Total {'prior' if prior else 'post'} inconsistencies "
           f"{utils.red_text(inconsistencies)}/{utils.red_text(len(pred_fine_data))} "
