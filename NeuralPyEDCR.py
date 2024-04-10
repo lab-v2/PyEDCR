@@ -178,7 +178,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 if __name__ == '__main__':
-    epsilons = [0.05]
+    epsilons = [0.1]
     # data_str = 'military_vehicles'
     data_str = 'imagenet'
     main_model_name = new_model_name = 'dinov2_vits14'
@@ -188,8 +188,8 @@ if __name__ == '__main__':
     # original_num_epochs = 20
     original_num_epochs = 8
 
-    for EDCR_num_epochs in [5]:
-        for neural_num_epochs in [5]:
+    for EDCR_num_epochs in [1]:
+        for neural_num_epochs in [1]:
 
             # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
             print('\n' + '#' * 100 + '\n' +

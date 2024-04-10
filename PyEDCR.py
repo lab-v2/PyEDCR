@@ -754,7 +754,8 @@ class EDCR:
 
         # self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
 
-        inconsistency_error_ground_truths = (self.get_where_predicted_incorrect(test=test, g=g) *
+        total_error_ground_truth = self.get_where_predicted_incorrect(test=test, g=g)
+        inconsistency_error_ground_truths = (total_error_ground_truth *
                                              self.get_where_predicted_inconsistently(test=test))
         error_predictions = np.zeros_like(inconsistency_error_ground_truths)
 
@@ -774,12 +775,26 @@ class EDCR:
 
         error_accuracy, error_f1, error_precision, error_recall = neural_metrics.get_individual_metrics(
             pred_data=error_predictions,
+            true_data=total_error_ground_truth,
+            labels=[0, 1])
+
+        (inconsistency_error_accuracy, inconsistency_error_f1, inconsistency_error_precision,
+         inconsistency_error_recall) = neural_metrics.get_individual_metrics(
+            pred_data=error_predictions,
             true_data=inconsistency_error_ground_truths,
             labels=[0, 1])
 
-        print(utils.blue_text(f'{g}-grain:\n'
-                              f'Train error accuracy: {error_accuracy}, Train error f1: {error_f1}\n'
-                              f'Train error precision: {error_precision}, Train error recall: {error_recall}'))
+        test_str = 'Test' if test else 'Train'
+
+        print(utils.blue_text(f'\n{g}-grain:\n'
+                              f'{test_str} error accuracy: {error_accuracy}, {test_str} error f1: {error_f1}\n'
+                              f'{test_str} error precision: {error_precision}, '
+                              f'{test_str} error recall: {error_recall}'))
+
+        print(utils.blue_text(f'\nInconsistency Train error accuracy: {inconsistency_error_accuracy}, '
+                              f'Inconsistency {test_str} error f1: {inconsistency_error_f1}\n'
+                              f'Inconsistency {test_str} error precision: {inconsistency_error_precision}, '
+                              f'Inconsistency {test_str} error recall: {inconsistency_error_recall}'))
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
