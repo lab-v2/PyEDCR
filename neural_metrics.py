@@ -14,8 +14,8 @@ def get_change_str(change: typing.Union[float, str]):
 def print_num_inconsistencies(preprocessor: data_preprocessing.DataPreprocessor,
                               pred_fine_data: np.array,
                               pred_coarse_data: np.array,
-                              current_num_test_inconsistencies = None,
-                              original_test_inconsistencies = None,
+                              current_num_test_inconsistencies=None,
+                              original_test_inconsistencies=None,
                               prior: bool = True):
     """
     Prints the number of inconsistencies between fine and coarse predictions.
@@ -28,14 +28,16 @@ def print_num_inconsistencies(preprocessor: data_preprocessing.DataPreprocessor,
     :param prior:
     """
     inconsistencies, _ = preprocessor.get_num_inconsistencies(fine_labels=pred_fine_data,
-                                                                                   coarse_labels=pred_coarse_data)
+                                                              coarse_labels=pred_coarse_data)
 
     print(f"Total {'prior' if prior else 'post'} inconsistencies "
           f"{utils.red_text(inconsistencies)}/{utils.red_text(len(pred_fine_data))} "
-          f'({utils.red_text(round(inconsistencies / len(pred_fine_data) * 100, 2))}%)\n'
-          f'Recovered inconsistencies: '
-          # f'{round(current_num_test_inconsistencies / original_test_inconsistencies[1] * 100, 2)}%'
-          )
+          f'({utils.red_text(round(inconsistencies / len(pred_fine_data) * 100, 2))}%)\n')
+
+    if current_num_test_inconsistencies is not None and original_test_inconsistencies is not None:
+        print(f'Recovered inconsistencies: '
+              f'{round(current_num_test_inconsistencies / original_test_inconsistencies[1] * 100, 2)}%'
+              )
 
 
 def get_binary_metrics(pred_data: np.array,
@@ -162,8 +164,8 @@ def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
                           model_name: str = '',
                           lr: typing.Union[str, float] = '',
                           print_inconsistencies: bool = True,
-                          current_num_test_inconsistencies = None,
-                          original_test_inconsistencies = None,
+                          current_num_test_inconsistencies=None,
+                          original_test_inconsistencies=None,
                           original_pred_fine_data: np.array = None,
                           original_pred_coarse_data: np.array = None):
     """

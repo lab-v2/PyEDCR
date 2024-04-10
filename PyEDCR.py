@@ -710,13 +710,13 @@ class EDCR:
         current_recovered_constraints = self.get_num_recovered_constraints()
         inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
         all_possible_inconsistencies = (self.preprocessor.num_fine_grain_classes *
-                                    (self.preprocessor.num_coarse_grain_classes - 1))
+                                        (self.preprocessor.num_coarse_grain_classes - 1))
 
         print(f'Total unique recoverable constraints from the test predictions: '
               f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
               f' Recovered constraints: {utils.red_text(current_recovered_constraints)}/'
               f'{all_possible_inconsistencies} '
-              f'({utils.red_text(round(current_recovered_constraints/all_possible_inconsistencies * 100, 2))}%)')
+              f'({utils.red_text(round(current_recovered_constraints / all_possible_inconsistencies * 100, 2))}%)')
 
     def apply_detection_rules(self,
                               test: bool,
