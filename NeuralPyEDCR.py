@@ -21,12 +21,12 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  epsilon: typing.Union[str, float],
                  EDCR_num_epochs: int,
                  neural_num_epochs: int,
-                 K_train: list[(int, int)] = None,
-                 K_test: list[(int, int)] = None,
+                 K_train: typing.List[(int, int)] = None,
+                 K_test: typing.List[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
-                 lower_predictions_indices: list[int] = [],
-                 binary_models: list[str] = []
+                 lower_predictions_indices: typing.List[int] = [],
+                 binary_models: typing.List[str] = []
                  ):
         super(NeuralPyEDCR, self).__init__(data_str=data_str,
                                            main_model_name=main_model_name,

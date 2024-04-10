@@ -28,17 +28,17 @@ scheduler_step_size = config.scheduler_step_size
 
 
 def save_prediction_files(test: bool,
-                          fine_tuners: typing.Union[models.FineTuner, dict[str, models.FineTuner]],
+                          fine_tuners: typing.Union[models.FineTuner, typing.Dict[str, models.FineTuner]],
                           combined: bool,
-                          lrs: typing.Union[str, float, dict[str, typing.Union[str, float]]],
+                          lrs: typing.Union[str, float, typing.Dict[str, typing.Union[str, float]]],
                           fine_prediction: np.array,
                           coarse_prediction: np.array,
                           epoch: int = None,
                           loss: str = 'BCE',
                           fine_ground_truths: np.array = None,
                           coarse_ground_truths: np.array = None,
-                          fine_lower_predictions: dict[int, list] = {},
-                          coarse_lower_predictions: dict[int, list] = {}):
+                          fine_lower_predictions: typing.Dict[int, list] = {},
+                          coarse_lower_predictions: typing.Dict[int, list] = {}):
     """
     Saves prediction files and optional ground truth files.
 
@@ -106,7 +106,7 @@ def save_prediction_files(test: bool,
 
 
 def save_binary_prediction_files(test: bool,
-                                 fine_tuner: typing.Union[models.FineTuner, dict[str, models.FineTuner]],
+                                 fine_tuner: typing.Union[models.FineTuner, typing.Dict[str, models.FineTuner]],
                                  lr: typing.Union[str, float],
                                  predictions: np.array,
                                  l: data_preprocessing.Label,
@@ -147,9 +147,9 @@ def save_binary_prediction_files(test: bool,
 
 
 def initiate(data_str: str,
-             lrs: list[typing.Union[str, float]],
-             model_names: list[str] = ['vit_b_16'],
-             weights: list[str] = ['DEFAULT'],
+             lrs: typing.List[typing.Union[str, float]],
+             model_names: typing.List[str] = ['vit_b_16'],
+             weights: typing.List[str] = ['DEFAULT'],
              combined: bool = True,
              l: data_preprocessing.Label = None,
              pretrained_path: str = None,
@@ -158,7 +158,7 @@ def initiate(data_str: str,
              evaluation: bool = False,
              train_eval_split: float = None,
              get_indices: bool = False,
-             get_fraction_of_example_with_label: dict[data_preprocessing.Label, float] = None,
+             get_fraction_of_example_with_label: typing.Dict[data_preprocessing.Label, float] = None,
              print_counts: bool = True):
     """
     Initializes models, datasets, and devices for training.

@@ -19,10 +19,10 @@ import neural_fine_tuning
 
 
 def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
-                             lrs: list[typing.Union[str, float]],
+                             lrs: typing.List[typing.Union[str, float]],
                              fine_tuner: models.FineTuner,
                              device: torch.device,
-                             loaders: dict[str, torch.utils.data.DataLoader],
+                             loaders: typing.Dict[str, torch.utils.data.DataLoader],
                              loss: str,
                              num_epochs: int,
                              beta: float = 0.1,
@@ -255,8 +255,8 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
 
 def run_combined_fine_tuning_pipeline(data_str: str,
-                                      model_names: list[str],
-                                      lrs: list[typing.Union[str, float]],
+                                      model_names: typing.List[str],
+                                      lrs: typing.List[typing.Union[str, float]],
                                       num_epochs: int,
                                       loss: str = 'BCE',
                                       pretrained_path: str = None,

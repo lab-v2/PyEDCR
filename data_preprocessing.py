@@ -56,7 +56,7 @@ class Label(typing.Hashable, abc.ABC):
 class FineGrainLabel(Label):
     def __init__(self,
                  l_str: str,
-                 fine_grain_classes_str: list[str]):
+                 fine_grain_classes_str: typing.List[str]):
         super().__init__(l_str=l_str,
                          index=fine_grain_classes_str.index(l_str))
         assert l_str in fine_grain_classes_str
@@ -65,7 +65,7 @@ class FineGrainLabel(Label):
 
     @classmethod
     def with_index(cls,
-                   fine_grain_classes_str: list[str],
+                   fine_grain_classes_str: typing.List[str],
                    l_index: int):
         l = fine_grain_classes_str[l_index]
         instance = cls(l_str=l,
@@ -77,7 +77,7 @@ class FineGrainLabel(Label):
 class CoarseGrainLabel(Label):
     def __init__(self,
                  l_str: str,
-                 coarse_grain_classes_str: list[str]):
+                 coarse_grain_classes_str: typing.List[str]):
         super().__init__(l_str=l_str,
                          index=coarse_grain_classes_str.index(l_str))
         assert l_str in coarse_grain_classes_str
@@ -86,7 +86,7 @@ class CoarseGrainLabel(Label):
     @classmethod
     def with_index(cls,
                    i_l: int,
-                   coarse_grain_classes_str: list[str]):
+                   coarse_grain_classes_str: typing.List[str]):
         l = coarse_grain_classes_str[i_l]
         instance = cls(l_str=l,
                        coarse_grain_classes_str=coarse_grain_classes_str)
@@ -259,7 +259,7 @@ class DataPreprocessor:
 
     def get_ground_truths(self,
                           test: bool,
-                          K: list[int] = None,
+                          K: typing.List[int] = None,
                           g: Granularity = None) -> np.array:
         if K is None:
             K = [idx for idx in range(0, len(self.test_true_coarse_data))]
@@ -291,12 +291,12 @@ class DataPreprocessor:
         return inconsistencies
 
     def get_labels(self,
-                   g: Granularity) -> dict[str, Label]:
+                   g: Granularity) -> typing.Dict[str, Label]:
         return self.fine_grain_labels if str(g) == 'fine' else self.coarse_grain_labels
 
     def get_subset_indices_for_train_and_train_eval(self,
                                                     train_eval_split: float,
-                                                    get_fraction_of_example_with_label: dict[Label, float] = None, ):
+                                                    get_fraction_of_example_with_label: typing.Dict[Label, float] = None, ):
         """
             Splits indices into train and train_eval sets, respecting train_eval_split
             and removing examples from train based on get_fraction_of_example_with_label.
@@ -345,7 +345,7 @@ class DataPreprocessor:
     def get_imbalance_weight(self,
                              l: Label,
                              train_images_num: int,
-                             evaluation: bool = False) -> list[float]:
+                             evaluation: bool = False) -> typing.List[float]:
         g_ground_truth = self.train_true_fine_data if l.g.g_str == 'fine' else self.train_true_coarse_data
         positive_examples_num = np.sum(np.where(g_ground_truth == l.index, 1, 0))
         # negative_examples_num = train_images_num - positive_examples_num
@@ -440,7 +440,7 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
             transform = None,
             target_transform = None,
             is_valid_file = None,
-            relevant_classes: list[str] = None
+            relevant_classes: typing.List[str] = None
     ):
         self.relevant_classes = relevant_classes
         super().__init__(root=root,
@@ -450,7 +450,7 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
 
 
     def find_classes(self,
-                     directory: str) -> (list[str], typing.Dict[str, int]):
+                     directory: str) -> (typing.List[str], typing.Dict[str, int]):
         classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir() and
                          not entry.name.startswith('.') and (self.relevant_classes is None
                                                              or entry.name in self.relevant_classes))
@@ -598,14 +598,14 @@ class IndividualImageFolderWithName(EDCRImageFolder):
 
 
 def get_datasets(preprocessor: DataPreprocessor,
-                 model_names: list[str],
-                 weights: list[str] = ['DEFAULT'],
+                 model_names: typing.List[str],
+                 weights: typing.List[str] = ['DEFAULT'],
                  cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
                  binary_label: Label = None,
                  evaluation: bool = False,
                  error_fixing: bool = False) -> \
-        (dict[str, torchvision.datasets.ImageFolder], int, int):
+        (typing.Dict[str, torchvision.datasets.ImageFolder], int, int):
     """
     Instantiates and returns train and test datasets
 
@@ -657,15 +657,15 @@ def get_datasets(preprocessor: DataPreprocessor,
 
 
 def get_loaders(preprocessor: DataPreprocessor,
-                datasets: dict[str, torchvision.datasets.ImageFolder],
+                datasets: typing.Dict[str, torchvision.datasets.ImageFolder],
                 batch_size: int,
                 subset_indices: typing.Sequence = None,
                 evaluation: bool = None,
                 train_eval_split: float = None,
                 get_indices: bool = False,
-                get_fraction_of_example_with_label: dict[Label, float] = None,
+                get_fraction_of_example_with_label: typing.Dict[Label, float] = None,
                 binary: bool = False
-                ) -> dict[str, torch.utils.data.DataLoader]:
+                ) -> typing.Dict[str, torch.utils.data.DataLoader]:
     """
     Instantiates and returns train and test torch data loaders
 

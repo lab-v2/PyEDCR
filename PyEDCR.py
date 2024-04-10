@@ -40,12 +40,12 @@ class EDCR:
                  lr: typing.Union[str, float],
                  original_num_epochs: int,
                  epsilon: typing.Union[str, float],
-                 K_train: list[(int, int)] = None,
-                 K_test: list[(int, int)] = None,
+                 K_train: typing.List[(int, int)] = None,
+                 K_test: typing.List[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
-                 lower_predictions_indices: list[int] = [],
-                 binary_l_strs: list[str] = []):
+                 lower_predictions_indices: typing.List[int] = [],
+                 binary_l_strs: typing.List[str] = []):
         self.data_str = data_str
         self.preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
         self.main_model_name = main_model_name
@@ -58,7 +58,7 @@ class EDCR:
         self.lower_predictions_indices = lower_predictions_indices
         self.binary_l_strs = binary_l_strs
 
-        pred_paths: dict[str, dict] = {
+        pred_paths: typing.Dict[str, dict] = {
             'test' if test else 'train': {g_str: models.get_filepath(model_name=main_model_name,
                                                                      combined=combined,
                                                                      test=test,
@@ -199,8 +199,8 @@ class EDCR:
 
         self.actual_examples_with_errors = np.array(list(actual_examples_with_errors))
 
-        self.error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
-        self.error_correction_rules: dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
+        self.error_detection_rules: typing.Dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
+        self.error_correction_rules: typing.Dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
 
         self.correction_model = None
 
@@ -511,8 +511,8 @@ class EDCR:
                                    g: data_preprocessing.Granularity,
                                    stage: str = 'original',
                                    test_pred_fine_data: np.array = None,
-                                   test_pred_coarse_data: np.array = None) -> (dict[data_preprocessing.Label, float],
-                                                                               dict[data_preprocessing.Label, float]):
+                                   test_pred_coarse_data: np.array = None) -> (typing.Dict[data_preprocessing.Label, float],
+                                                                               typing.Dict[data_preprocessing.Label, float]):
         p_g = {}
         r_g = {}
 
@@ -802,12 +802,12 @@ if __name__ == '__main__':
         # edcr.run_error_correction_application_pipeline(test=test_bool)
         # edcr.apply_reversion_rules(g=gra)
 
-        # precision_dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
-        # recall_dict[gra]['initial'][epsilon] = edcr.original_test_recalls[gra]
-        # precision_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_precisions[gra]
-        # recall_dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_recalls[gra]
-        # precision_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
-        # recall_dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
+        # precision_typing.Dict[gra]['initial'][epsilon] = edcr.original_test_precisions[gra]
+        # recall_typing.Dict[gra]['initial'][epsilon] = edcr.original_test_recalls[gra]
+        # precision_typing.Dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_precisions[gra]
+        # recall_typing.Dict[gra]['pre_correction'][epsilon] = edcr.post_detection_test_recalls[gra]
+        # precision_typing.Dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_precisions[gra]
+        # recall_typing.Dict[gra]['post_correction'][epsilon] = edcr.post_correction_test_recalls[gra]
 
     # folder = "experiment_1"
     #
