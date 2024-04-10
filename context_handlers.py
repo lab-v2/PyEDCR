@@ -2,14 +2,12 @@ import abc
 import torch
 import matplotlib.pyplot as plt
 import time
-
-if torch.backends.mps.is_available():
-    from torch import mps
-
 import utils
 
 if utils.is_local():
-    import tqdm
+    if torch.backends.mps.is_available():
+        from torch import mps
+        import tqdm
 
 
 class Context(abc.ABC):
