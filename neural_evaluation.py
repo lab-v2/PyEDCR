@@ -17,10 +17,10 @@ vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 
 def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor,
-                               fine_tuners: list[models.FineTuner],
-                               loaders: dict[str, torch.utils.data.DataLoader],
-                               devices: list[torch.device],
-                               test: bool) -> (list[int], list[int], float,):
+                               fine_tuners: typing.List[models.FineTuner],
+                               loaders: typing.Dict[str, torch.utils.data.DataLoader],
+                               devices: typing.List[torch.device],
+                               test: bool) -> (typing.List[int], typing.List[int], float,):
     loader = loaders[f'test' if test else f'train']
     fine_fine_tuner, coarse_fine_tuner = fine_tuners
 
@@ -83,13 +83,13 @@ def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor
 
 def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                             fine_tuner: models.FineTuner,
-                            loaders: dict[str, torch.utils.data.DataLoader],
+                            loaders: typing.Dict[str, torch.utils.data.DataLoader],
                             loss: str,
                             device: torch.device,
                             split: str,
                             print_results: bool = True,
-                            lower_predictions_indices: list[int] = []) -> \
-        (list[int], list[int], list[int], list[int], float, float):
+                            lower_predictions_indices: typing.List[int] = []) -> \
+        (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
     loader = loaders[split]
     fine_tuner.to(device)
     fine_tuner.eval()
@@ -155,12 +155,12 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
 def evaluate_binary_model(l: data_preprocessing.Label,
                           fine_tuner: models.FineTuner,
-                          loaders: dict[str, torch.utils.data.DataLoader],
+                          loaders: typing.Dict[str, torch.utils.data.DataLoader],
                           loss: str,
                           device: torch.device,
                           split: str,
                           print_results: bool = True) -> \
-        (list[int], list[int], list[int], list[int], float, float):
+        (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
     loader = loaders[split]
     fine_tuner.to(device)
     fine_tuner.eval()
@@ -200,7 +200,7 @@ def evaluate_binary_model(l: data_preprocessing.Label,
 def run_combined_evaluating_pipeline(data_str: str,
                                      model_name: str,
                                      split: str,
-                                     lrs: list[typing.Union[str, float]],
+                                     lrs: typing.List[typing.Union[str, float]],
                                      loss: str,
                                      num_epochs: int,
                                      pretrained_path: str = None,
@@ -209,7 +209,7 @@ def run_combined_evaluating_pipeline(data_str: str,
                                      debug: bool = utils.is_debug_mode(),
                                      print_results: bool = True,
                                      indices: np.array = None,
-                                     lower_predictions_indices: list[int] = []):
+                                     lower_predictions_indices: typing.List[int] = []):
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
@@ -278,7 +278,7 @@ def run_binary_evaluating_pipeline(data_str: str,
                                    model_name: str,
                                    l: data_preprocessing.Label,
                                    split: str,
-                                   lrs: list[typing.Union[str, float]],
+                                   lrs: typing.List[typing.Union[str, float]],
                                    loss: str,
                                    num_epochs: int,
                                    pretrained_path: str = None,
@@ -322,7 +322,7 @@ def run_binary_evaluating_pipeline(data_str: str,
 
 def evaluate_binary_models_from_files(g_str: str,
                                       test: bool,
-                                      lrs: typing.Union[float, list[float]],
+                                      lrs: typing.Union[float, typing.List[float]],
                                       num_epochs: int,
                                       model_name: str = 'vit_b_16',
                                       loss: str = 'BCE'):
