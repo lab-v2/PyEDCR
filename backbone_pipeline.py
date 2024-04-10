@@ -187,8 +187,6 @@ def initiate(data_str: str,
     print(f'Models: {model_names}\n'
           f'Learning rates: {lrs}')
 
-    print(utils.is_local())
-
     preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
 
     datasets = data_preprocessing.get_datasets(preprocessor=preprocessor,
