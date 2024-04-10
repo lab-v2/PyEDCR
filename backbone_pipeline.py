@@ -187,6 +187,8 @@ def initiate(data_str: str,
     print(f'Models: {model_names}\n'
           f'Learning rates: {lrs}')
 
+    print(utils.is_local())
+
     preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
 
     datasets = data_preprocessing.get_datasets(preprocessor=preprocessor,
@@ -197,7 +199,7 @@ def initiate(data_str: str,
                                                model_names=model_names,
                                                weights=weights)
 
-    print(utils.is_local())
+
     device = torch.device('cpu') if debug else (
         torch.device('mps' if utils.is_local() and torch.backends.mps.is_available() else
                      ("cuda" if torch.cuda.is_available() else 'cpu')))
