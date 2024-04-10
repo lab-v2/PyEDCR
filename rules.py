@@ -243,7 +243,7 @@ class ErrorCorrectionRule(Rule):
             # Check if cond_set is a set (adjust for other iterable types if needed)
             if isinstance(cond_set, set) or isinstance(cond_set, tuple):
                 # Use set comprehension for concise condition representation
-                condition_str = " ^ ".join(f"{c}(x)" for c in cond_set)
+                condition_str = " v ".join(f"{c}(x)" for c in cond_set)
                 conditions_str.append(f'corr_{self.l}(x) <- {condition_str} ^ pred_{l_prime}(x)')
             else:
                 # Handle cases where cond_set isn't a set (optional, add logic as needed)

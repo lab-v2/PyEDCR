@@ -300,7 +300,6 @@ class DataPreprocessor:
                         = (unique_inconsistencies[fine_prediction].union({coarse_prediction}))
 
 
-
         unique_inconsistencies_num = sum(len(coarse_dict) for coarse_dict in unique_inconsistencies.values())
 
         return inconsistencies, unique_inconsistencies_num
