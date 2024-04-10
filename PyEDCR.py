@@ -427,6 +427,19 @@ class EDCR:
         """
         return 1 - self.get_where_predicted_correct(test=test, g=g, stage=stage)
 
+    def get_where_predicted_inconsistently(self,
+                                           test: bool,
+                                           stage: str = 'original'
+                                           ):
+        predicted_derived_coarse = np.array([self.preprocessor.fine_to_course_idx[i]
+                                             for i in self.get_predictions(test=test,
+                                                                           g=self.preprocessor.granularities['fine'],
+                                                                           stage=stage)])
+        predicted_coarse = self.get_predictions(test=test,
+                                                g=self.preprocessor.granularities['coarse'],
+                                                stage=stage)
+        return np.where(predicted_derived_coarse != predicted_coarse, 1, 0)
+
     def get_where_predicted_incorrect_in_data(self,
                                               g: data_preprocessing.Granularity,
                                               test_pred_fine_data: np.array,
@@ -741,8 +754,9 @@ class EDCR:
 
         # self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
 
-        error_ground_truths = self.get_where_predicted_incorrect(test=test, g=g)
-        error_predictions = np.zeros_like(error_ground_truths)
+        inconsistency_error_ground_truths = (self.get_where_predicted_incorrect(test=test, g=g) *
+                                             self.get_where_predicted_inconsistently(test=test))
+        error_predictions = np.zeros_like(inconsistency_error_ground_truths)
 
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
             altered_pred_data_l = rule_g_l(pred_fine_data=pred_fine_data,
@@ -760,7 +774,7 @@ class EDCR:
 
         error_accuracy, error_f1, error_precision, error_recall = neural_metrics.get_individual_metrics(
             pred_data=error_predictions,
-            true_data=error_ground_truths,
+            true_data=inconsistency_error_ground_truths,
             labels=[0, 1])
 
         print(utils.blue_text(f'{g}-grain:\n'
@@ -809,14 +823,22 @@ class EDCR:
                 if isinstance(cond, conditions.PredCondition) and cond.l.g != l.g:
                     fine_index = cond.l.index if cond.l.g.g_str == 'fine' else l.index
                     coarse_index = cond.l.index if cond.l.g.g_str == 'coarse' else l.index
+                    fine_label_str = self.preprocessor.fine_grain_classes_str[fine_index]
+                    coarse_label_str = self.preprocessor.coarse_grain_classes_str[coarse_index]
 
                     if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
-                        if fine_index not in recovered_constraints:
-                            recovered_constraints[fine_index] = {coarse_index}
+                        if fine_label_str not in recovered_constraints:
+                            recovered_constraints[fine_label_str] = {coarse_label_str}
                         else:
-                            recovered_constraints[fine_index] = recovered_constraints[fine_index].union({coarse_index})
+                            recovered_constraints[fine_label_str] = (
+                                recovered_constraints[fine_label_str].union({coarse_label_str}))
 
-        return sum(len(coarse_dict) for coarse_dict in recovered_constraints.values())
+        assert all(self.preprocessor.fine_to_coarse[fine_label_str] not in coarse_dict
+                   for fine_label_str, coarse_dict in recovered_constraints.items())
+
+        num_recovered_constraints = sum(len(coarse_dict) for coarse_dict in recovered_constraints.values())
+
+        return num_recovered_constraints
 
 
 if __name__ == '__main__':

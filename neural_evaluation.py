@@ -351,8 +351,10 @@ def evaluate_binary_models_from_files(g_str: str,
 
 if __name__ == '__main__':
     data_str = 'military_vehicles'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    # pretrained_path = 'vit_b_16_BCE_lr0.0001.pth'
+    main_model_name = 'vit_b_16'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    pretrained_path = 'models/vit_b_16_BCE_lr0.0001.pth'
+    lr = 0.0001
 
 
     # evaluate_binary_models_from_files(model_name='vit_b_16',
@@ -381,10 +383,11 @@ if __name__ == '__main__':
     run_combined_evaluating_pipeline(data_str=data_str,
                                      model_name=main_model_name,
                                      split='train',
-                                     lrs=[0.000001],
+                                     lrs=[lr],
                                      loss='BCE',
-                                     num_epochs=8,
-                                     pretrained_path=f'models/dinov2_vits14_lr1e-06_BCE.pth',
+                                     num_epochs=20,
+                                     pretrained_path=pretrained_path,
+                                     # f'models/dinov2_vits14_lr1e-06_BCE.pth',
                                      save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,

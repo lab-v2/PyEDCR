@@ -160,7 +160,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 self.learn_detection_rules(g=g)
                 self.apply_detection_rules(test=False, g=g)
 
-
             self.run_training_new_model_pipeline(new_model_name=new_model_name,
                                                  new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
@@ -179,14 +178,18 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 if __name__ == '__main__':
-    epsilons = [0.2]
+    epsilons = [0.05]
+    # data_str = 'military_vehicles'
     data_str = 'imagenet'
     main_model_name = new_model_name = 'dinov2_vits14'
+    # main_model_name = new_model_name = 'vit_b_16'
+    # main_lr = new_lr = 0.0001
     main_lr = new_lr = 0.000001
+    # original_num_epochs = 20
+    original_num_epochs = 8
 
-
-    for EDCR_num_epochs in [3]:
-        for neural_num_epochs in [3]:
+    for EDCR_num_epochs in [5]:
+        for neural_num_epochs in [5]:
 
             # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
             print('\n' + '#' * 100 + '\n' +
@@ -203,7 +206,7 @@ if __name__ == '__main__':
                                     combined=True,
                                     loss='BCE',
                                     lr=main_lr,
-                                    original_num_epochs=8,
+                                    original_num_epochs=original_num_epochs,
                                     include_inconsistency_constraint=False,
                                     # secondary_model_name='vit_l_16_BCE',
                                     # binary_models=data_preprocessing.fine_grain_classes_str,
