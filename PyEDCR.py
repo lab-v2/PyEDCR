@@ -708,10 +708,10 @@ class EDCR:
                     progress_bar.update(1)
 
         current_recovered_constraints = self.get_num_recovered_constraints()
-        original_inconsistencies = len(self.original_test_inconsistencies[1])
+        original_inconsistencies = self.original_test_inconsistencies[1]
 
         print(f'Recovered constraints: {current_recovered_constraints}/'
-              f'{original_inconsistencies} ({round(current_recovered_constraints/original_inconsistencies * 100, 2)}')
+              f'{original_inconsistencies} ({round(current_recovered_constraints/original_inconsistencies * 100, 2)}%)')
 
     def apply_detection_rules(self,
                               test: bool,
@@ -795,22 +795,23 @@ class EDCR:
             self.print_metrics(test=test, prior=False, stage='post_detection', print_inconsistencies=False)
 
     def get_num_recovered_constraints(self):
-        recovered_constraints = set()
+        recovered_constraints = {}
 
         for l, error_detection_rule in self.error_detection_rules.items():
             error_detection_rule: rules.ErrorDetectionRule
 
             for cond in error_detection_rule.C_l:
-                if isinstance(cond, conditions.PredCondition) and cond.l.g != error_detection_rule.l.g:
-                    fine_index = cond.l.index if cond.l.g.g_str == 'fine' else error_detection_rule.l.index
-                    coarse_index = cond.l.index if cond.l.g.g_str == 'coarse' else error_detection_rule.l.index
+                if isinstance(cond, conditions.PredCondition) and cond.l.g != l.g:
+                    fine_index = cond.l.index if cond.l.g.g_str == 'fine' else l.index
+                    coarse_index = cond.l.index if cond.l.g.g_str == 'coarse' else l.index
 
                     if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
-                        recovered_constraints = (
-                            recovered_constraints.union(f'fine index: {fine_index}, coarse index: coarse_index'))
+                        if fine_index not in recovered_constraints:
+                            recovered_constraints[fine_index] = {coarse_index}
+                        else:
+                            recovered_constraints[fine_index] = recovered_constraints[fine_index].union({coarse_index})
 
-
-        return len(recovered_constraints)
+        return sum(len(coarse_dict) for coarse_dict in recovered_constraints.values())
 
 
 if __name__ == '__main__':

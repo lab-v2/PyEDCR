@@ -281,8 +281,7 @@ class DataPreprocessor:
 
     def get_num_inconsistencies(self,
                                 fine_labels: typing.Union[np.array, torch.Tensor],
-                                coarse_labels: typing.Union[np.array, torch.Tensor]) \
-            -> typing.Tuple[int, typing.Dict[str, typing.Set[int]]]:
+                                coarse_labels: typing.Union[np.array, torch.Tensor]) -> typing.Tuple[int, int]:
         inconsistencies = 0
         unique_inconsistencies = {}
 
@@ -292,15 +291,19 @@ class DataPreprocessor:
 
         for fine_prediction, coarse_prediction in zip(fine_labels, coarse_labels):
             if self.fine_to_course_idx[fine_prediction] != coarse_prediction:
+                inconsistencies += 1
+
                 if fine_prediction not in unique_inconsistencies:
                     unique_inconsistencies[fine_prediction] = {coarse_prediction}
                 else:
-                    unique_inconsistencies[fine_prediction] = (
-                        unique_inconsistencies[fine_prediction].union({coarse_prediction}))
+                    unique_inconsistencies[fine_prediction] \
+                        = (unique_inconsistencies[fine_prediction].union({coarse_prediction}))
 
-                inconsistencies += 1
 
-        return inconsistencies, unique_inconsistencies
+
+        unique_inconsistencies_num = sum(len(coarse_dict) for coarse_dict in unique_inconsistencies.values())
+
+        return inconsistencies, unique_inconsistencies_num
 
     def get_labels(self,
                    g: Granularity) -> typing.Dict[str, Label]:
