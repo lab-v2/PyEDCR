@@ -112,8 +112,8 @@ class ErrorDetectionRule(Rule):
                                     lower_predictions_coarse_data: np.array,
                                     binary_data: dict
                                     ) -> np.array:
-        test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
-            else pred_coarse_data
+        test_pred_granularity_data = pred_fine_data \
+            if self.l.g == data_preprocessing.DataPreprocessor.granularities['fine'] else pred_coarse_data
         where_predicted_l = self.get_where_predicted_l(data=test_pred_granularity_data)
         where_any_conditions_satisfied = (
             self.get_where_any_conditions_satisfied(C=self.C_l,
@@ -143,8 +143,8 @@ class ErrorDetectionRule(Rule):
         :return: modified prediction contains -1 at examples that have errors for a specific granularity as
         derived from Label l.
         """
-        test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
-            else pred_coarse_data
+        test_pred_granularity_data = pred_fine_data \
+            if self.l.g == data_preprocessing.DataPreprocessor.granularities['fine'] else pred_coarse_data
         where_predicted_l_and_any_conditions_satisfied = (
             self.get_where_body_is_satisfied(pred_fine_data=pred_fine_data,
                                              pred_coarse_data=pred_coarse_data,
@@ -185,8 +185,8 @@ class ErrorCorrectionRule(Rule):
                                     lower_predictions_fine_data: dict,
                                     lower_predictions_coarse_data: dict,
                                     binary_data: dict) -> np.array:
-        test_pred_granularity_data = pred_fine_data if self.l.g == data_preprocessing.granularities['fine'] \
-            else pred_coarse_data
+        test_pred_granularity_data = pred_fine_data \
+            if self.l.g == data_preprocessing.DataPreprocessor.granularities['fine'] else pred_coarse_data
 
         where_any_pair_satisfied = np.zeros_like(test_pred_granularity_data)
 

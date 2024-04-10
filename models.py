@@ -190,7 +190,8 @@ class VITFineTuner(FineTuner):
         return self.vit(X)
 
 
-def get_filepath(model_name: typing.Union[str, FineTuner],
+def get_filepath(data_str: str,
+                 model_name: typing.Union[str, FineTuner],
                  test: bool,
                  loss: str,
                  lr: typing.Union[str, float],
@@ -203,6 +204,7 @@ def get_filepath(model_name: typing.Union[str, FineTuner],
     """
     Constructs the file path to the model output / ground truth data.
 
+    :param data_str:
     :param l:
     :param lower_prediction_index:
     :param model_name: The name of the model or `FineTuner` object.
@@ -225,5 +227,5 @@ def get_filepath(model_name: typing.Union[str, FineTuner],
     l_str = f'_{l}' if l is not None else ''
 
     return (f"{folder_str}_results/{lower_prediction_folder_str}"
-            f"{model_name}_{test_str}{granularity_str}_{pred_str}_{loss}_lr{lr}{epoch_str}"
+            f"{data_str}_{model_name}_{test_str}{granularity_str}_{pred_str}_{loss}_lr{lr}{epoch_str}"
             f"{lower_prediction_index_str}{l_str}.npy")

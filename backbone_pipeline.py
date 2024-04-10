@@ -27,7 +27,8 @@ scheduler_step_size = config.scheduler_step_size
 # vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 
-def save_prediction_files(test: bool,
+def save_prediction_files(data_str: str,
+                          test: bool,
                           fine_tuners: typing.Union[models.FineTuner, typing.Dict[str, models.FineTuner]],
                           combined: bool,
                           lrs: typing.Union[str, float, typing.Dict[str, typing.Union[str, float]]],
@@ -42,6 +43,7 @@ def save_prediction_files(test: bool,
     """
     Saves prediction files and optional ground truth files.
 
+    :param data_str:
     :param coarse_lower_predictions:
     :param fine_lower_predictions:
     :param test: True for test data, False for training data.
@@ -62,7 +64,8 @@ def save_prediction_files(test: bool,
     if combined:
         for g_str in data_preprocessing.DataPreprocessor.granularities_str:
             prediction = fine_prediction if g_str == 'fine' else coarse_prediction
-            np.save(models.get_filepath(model_name=fine_tuners,
+            np.save(models.get_filepath(data_str=data_str,
+                                        model_name=fine_tuners,
                                         combined=True,
                                         test=test,
                                         granularity=g_str,
@@ -74,7 +77,8 @@ def save_prediction_files(test: bool,
 
             lower_predictions = fine_lower_predictions if g_str == 'fine' else coarse_lower_predictions
             for lower_prediction_index, lower_prediction_values in lower_predictions.items():
-                np.save(models.get_filepath(model_name=fine_tuners,
+                np.save(models.get_filepath(data_str=data_str,
+                                            model_name=fine_tuners,
                                             combined=True,
                                             test=test,
                                             granularity=g_str,
@@ -85,10 +89,12 @@ def save_prediction_files(test: bool,
                                             lower_prediction_index=lower_prediction_index),
                         lower_prediction_values)
 
+        data_path_str = 'ImageNet100/' if data_str == 'imagenet' else ''
+
         if fine_ground_truths is not None:
-            np.save(f"data/{test_str}_fine/{test_str}_true_fine.npy",
+            np.save(f"data/{data_path_str}{test_str}_fine/{test_str}_true_fine.npy",
                     fine_ground_truths)
-            np.save(f"data/{test_str}_coarse/{test_str}_true_coarse.npy",
+            np.save(f"data/{data_path_str}{test_str}_coarse/{test_str}_true_coarse.npy",
                     coarse_ground_truths)
     else:
         np.save(f"{individual_results_path}_{test_str}_{fine_tuners['fine']}"

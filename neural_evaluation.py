@@ -1,4 +1,9 @@
 import os
+import utils
+
+if utils.is_local():
+    os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+
 import torch
 import torch.utils.data
 import numpy as np
@@ -6,14 +11,8 @@ import typing
 
 import data_preprocessing
 import models
-import utils
 import neural_metrics
 import backbone_pipeline
-
-batch_size = 256
-scheduler_gamma = 0.9
-ltn_num_epochs = 5
-vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
 
 
 def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor,
@@ -258,7 +257,8 @@ def run_combined_evaluating_pipeline(data_str: str,
             lower_predictions_indices=lower_predictions_indices))
 
     if save_files:
-        backbone_pipeline.save_prediction_files(test=split == 'test',
+        backbone_pipeline.save_prediction_files(data_str=data_str,
+                                                test=split == 'test',
                                                 fine_tuners=fine_tuners[0],
                                                 combined=True,
                                                 lrs=lrs[0],
@@ -358,27 +358,29 @@ if __name__ == '__main__':
     #                                   loss='BCE'
     #                                   )
 
-    l = data_preprocessing.fine_grain_labels[data_preprocessing.fine_grain_classes_str[1]]
-    run_binary_evaluating_pipeline(model_name='vit_b_16',
-                                   l=l,
-                                   split='train',
-                                   lrs=[0.0001],
-                                   loss='BCE',
-                                   num_epochs=5,
-                                   pretrained_path=
-                                   f'models/binary_models/binary_{l}_vit_b_16_lr0.0001_loss_BCE_e5.pth')
+    # l = data_preprocessing.fine_grain_labels[data_preprocessing.fine_grain_classes_str[1]]
+    # run_binary_evaluating_pipeline(model_name='vit_b_16',
+    #                                l=l,
+    #                                split='train',
+    #                                lrs=[0.0001],
+    #                                loss='BCE',
+    #                                num_epochs=5,
+    #                                pretrained_path=
+    #                                f'models/binary_models/binary_{l}_vit_b_16_lr0.0001_loss_BCE_e5.pth')
 
     # evaluate_binary_models_from_files(g_str='fine',
     #                                   test=False,
     #                                   lrs=0.0001,
     #                                   num_epochs=10)
-    # run_combined_evaluating_pipeline(model_name='vit_l_16',
-    #                                  split='train',
-    #                                  lrs=[0.0001],
-    #                                  loss='BCE',
-    #                                  num_epochs=20,
-    #                                  pretrained_path='vit_l_16_lr0.0001_BCE.pth',
-    #                                  save_files=True)
+
+    run_combined_evaluating_pipeline(data_str='imagenet',
+                                     model_name='dinov2_vits14',
+                                     split='test',
+                                     lrs=[0.000001],
+                                     loss='BCE',
+                                     num_epochs=8,
+                                     pretrained_path='models/dinov2_vits14_lr1e-06_BCE.pth',
+                                     save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],

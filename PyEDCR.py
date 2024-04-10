@@ -59,7 +59,8 @@ class EDCR:
         self.binary_l_strs = binary_l_strs
 
         pred_paths: typing.Dict[str, dict] = {
-            'test' if test else 'train': {g_str: models.get_filepath(model_name=main_model_name,
+            'test' if test else 'train': {g_str: models.get_filepath(data_str=data_str,
+                                                                     model_name=main_model_name,
                                                                      combined=combined,
                                                                      test=test,
                                                                      granularity=g_str,
@@ -100,7 +101,8 @@ class EDCR:
         if self.secondary_model_name is not None:
             secondary_loss = secondary_model_name.split('_')[-1]
             pred_paths['secondary_model'] = {
-                'test' if test else 'train': {g_str: models.get_filepath(model_name=main_model_name,
+                'test' if test else 'train': {g_str: models.get_filepath(data_str=data_str,
+                                                                         model_name=main_model_name,
                                                                          combined=combined,
                                                                          test=test,
                                                                          granularity=g_str,
@@ -126,7 +128,8 @@ class EDCR:
 
             pred_paths[lower_prediction_key] = {
                 'test' if test else 'train':
-                    {g_str: models.get_filepath(model_name=main_model_name,
+                    {g_str: models.get_filepath(data_str=data_str,
+                                                model_name=main_model_name,
                                                 combined=combined,
                                                 test=test,
                                                 granularity=g_str,
@@ -153,7 +156,8 @@ class EDCR:
         for l_str in binary_l_strs:
             l = self.preprocessor.fine_grain_labels[l_str]
             pred_paths[l] = {
-                'test' if test else 'train': models.get_filepath(model_name=main_model_name,
+                'test' if test else 'train': models.get_filepath(data_str=data_str,
+                                                                 model_name=main_model_name,
                                                                  l=l,
                                                                  test=test,
                                                                  loss=loss,

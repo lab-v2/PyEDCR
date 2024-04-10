@@ -219,11 +219,7 @@ class DataPreprocessor:
             coarse_grain_results_df = dataframes_by_sheet['Coarse-Grain Results']
             self.coarse_grain_classes_str = sorted(coarse_grain_results_df['Class Name'].to_list())
 
-            self.test_true_fine_data = np.load(r'data/test_fine/test_true_fine.npy')
-            self.test_true_coarse_data = np.load(r'data/test_coarse/test_true_coarse.npy')
 
-            self.train_true_fine_data = np.load(r'data/train_fine/train_true_fine.npy')
-            self.train_true_coarse_data = np.load(r'data/train_coarse/train_true_coarse.npy')
 
             self.fine_to_coarse = {}
 
@@ -241,6 +237,14 @@ class DataPreprocessor:
 
                 self.fine_to_coarse[fine_grain_class] = coarse_grain_class
                 self.fine_to_course_idx[fine_grain_class_idx] = coarse_grain_class_idx
+
+        data_path_str = 'ImageNet100/' if data_str == 'imagenet' else ''
+
+        self.test_true_fine_data = np.load(rf'data/{data_path_str}test_fine/test_true_fine.npy')
+        self.test_true_coarse_data = np.load(rf'data/{data_path_str}test_coarse/test_true_coarse.npy')
+
+        self.train_true_fine_data = np.load(rf'data/{data_path_str}train_fine/train_true_fine.npy')
+        self.train_true_coarse_data = np.load(rf'data/{data_path_str}train_coarse/train_true_coarse.npy')
 
         self.num_fine_grain_classes = len(self.fine_grain_classes_str)
         self.num_coarse_grain_classes = len(self.coarse_grain_classes_str)
