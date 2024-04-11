@@ -119,21 +119,20 @@ def run_l_binary_fine_tuning_pipeline(data: str,
                                       save_files: bool = True):
     # if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
     #                       f"loss_BCE_e{num_epochs}.pth"):
-    fine_tuners, loaders, devices, positive_class_weight = vit_pipeline.initiate(data=data,
-                                                                                 model_names=vit_model_names,
-                                                                                 lrs=[lr],
-                                                                                 l=l)
+    fine_tuners, loaders, devices, positive_class_weight = backbone_pipeline.initiate(data=data,
+                                                                                      model_names=vit_model_names,
+                                                                                      lrs=[lr],
+                                                                                      l=l)
     for fine_tuner in fine_tuners:
-        with context_handlers.ClearSession():
-            fine_tune_binary_model(l=l,
-                                   lrs=[lr],
-                                   fine_tuner=fine_tuner,
-                                   device=devices[0],
-                                   loaders=loaders,
-                                   num_epochs=num_epochs,
-                                   save_files=save_files,
-                                   positive_class_weight=positive_class_weight)
-            print('#' * 100)
+        fine_tune_binary_model(l=l,
+                               lrs=[lr],
+                               fine_tuner=fine_tuner,
+                               device=devices[0],
+                               loaders=loaders,
+                               num_epochs=num_epochs,
+                               save_files=save_files,
+                               positive_class_weight=positive_class_weight)
+        print('#' * 100)
 
 
 # else:

@@ -16,8 +16,8 @@ def get_l_detection_rule_support(edcr,
     r_l = edcr.error_detection_rules[l]
     where_l_detection_rule_body_is_satisfied = (
         r_l.get_where_body_is_satisfied(
-            pred_fine_data=edcr.pred_data[test_or_train]['original'][data_preprocessing.granularities['fine']],
-            pred_coarse_data=edcr.pred_data[test_or_train]['original'][data_preprocessing.granularities['coarse']]))
+            pred_fine_data=edcr.pred_data[test_or_train]['original'][edcr.preprocessor.granularities['fine']],
+            pred_coarse_data=edcr.pred_data[test_or_train]['original'][edcr.preprocessor.granularities['coarse']]))
     num_predicted_l_and_any_conditions_satisfied = np.sum(where_l_detection_rule_body_is_satisfied)
     s_l = num_predicted_l_and_any_conditions_satisfied / N_l
 
@@ -37,8 +37,8 @@ def get_l_detection_rule_confidence(edcr,
     r_l = edcr.error_detection_rules[l]
     where_l_detection_rule_body_is_satisfied = (
         r_l.get_where_body_is_satisfied(
-            pred_fine_data=edcr.pred_data[test_or_train]['original'][data_preprocessing.granularities['fine']],
-            pred_coarse_data=edcr.pred_data[test_or_train]['original'][data_preprocessing.granularities['coarse']]))
+            pred_fine_data=edcr.pred_data[test_or_train]['original'][edcr.preprocessor.granularities['fine']],
+            pred_coarse_data=edcr.pred_data[test_or_train]['original'][edcr.preprocessor.granularities['coarse']]))
     where_l_fp = edcr.get_where_fp_l(test=test, l=l)
     where_head_and_body_is_satisfied = where_l_detection_rule_body_is_satisfied * where_l_fp
 
@@ -69,7 +69,7 @@ def get_g_detection_rule_theoretical_precision_increase(edcr,
                                                         test: bool,
                                                         g: data_preprocessing.Granularity):
     precision_increases = [edcr.get_l_detection_rule_theoretical_precision_increase(test=test, l=l)
-                           for l in data_preprocessing.get_labels(g).values()]
+                           for l in edcr.preprocessor.get_labels(g).values()]
     return np.mean(precision_increases)
 
 
@@ -87,7 +87,7 @@ def get_g_detection_rule_theoretical_recall_decrease(edcr,
                                                      test: bool,
                                                      g: data_preprocessing.Granularity):
     recall_decreases = [edcr.get_l_detection_rule_theoretical_recall_decrease(test=test, l=l)
-                        for l in data_preprocessing.get_labels(g).values()]
+                        for l in edcr.preprocessor.get_labels(g).values()]
     return np.mean(recall_decreases)
 
 
@@ -105,9 +105,9 @@ def get_l_correction_rule_confidence(edcr,
     r_l = edcr.error_correction_rules[l]
     where_l_correction_rule_body_is_satisfied = (
         r_l.get_where_body_is_satisfied(
-            fine_data=edcr.pred_data[test_or_train]['post_correction'][data_preprocessing.granularities['fine']]
+            fine_data=edcr.pred_data[test_or_train]['post_correction'][edcr.preprocessor.granularities['fine']]
             if pred_fine_data is None else pred_fine_data,
-            coarse_data=edcr.pred_data[test_or_train]['post_correction'][data_preprocessing.granularities['coarse']]
+            coarse_data=edcr.pred_data[test_or_train]['post_correction'][edcr.preprocessor.granularities['coarse']]
             if pred_coarse_data is None else pred_coarse_data))
     where_l_gt = edcr.get_where_label_is_l(pred=False, test=test, l=l)
 
@@ -143,10 +143,10 @@ def get_l_correction_rule_support(edcr,
     r_l = edcr.error_correction_rules[l]
     where_rule_body_is_satisfied = (
         r_l.get_where_body_is_satisfied(
-            fine_data=edcr.pred_data[test_or_train]['post_correction'][data_preprocessing.granularities['fine']]
+            fine_data=edcr.pred_data[test_or_train]['post_correction'][edcr.preprocessor.granularities['fine']]
             if pred_fine_data is None else pred_fine_data,
             coarse_data=edcr.pred_data[test_or_train]['post_correction'][
-                data_preprocessing.granularities['coarse']]
+                edcr.preprocessor.granularities['coarse']]
             if pred_coarse_data is None else pred_coarse_data))
 
     s_l = np.sum(where_rule_body_is_satisfied) / N_l
@@ -170,7 +170,7 @@ def get_g_correction_rule_theoretical_precision_increase(edcr,
                                                          test: bool,
                                                          g: data_preprocessing.Granularity):
     precision_increases = [edcr.get_l_correction_rule_theoretical_precision_increase(test=test, l=l)
-                           for l in data_preprocessing.get_labels(g).values()]
+                           for l in edcr.preprocessor.get_labels(g).values()]
     return np.mean(precision_increases)
 
 

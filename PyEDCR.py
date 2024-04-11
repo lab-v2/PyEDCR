@@ -181,7 +181,7 @@ class EDCR:
                 self.condition_datas[g] = self.condition_datas[g].union(
                     {conditions.InconsistencyCondition(preprocessor=self.preprocessor)})
 
-        # self.CC_all = {g: set() for g in data_preprocessing.DataPreprocessor.granularities.values()}
+        self.CC_all = {g: set() for g in data_preprocessing.DataPreprocessor.granularities.values()}
 
         self.num_predicted_l = {'original': {g: {}
                                              for g in data_preprocessing.DataPreprocessor.granularities.values()},

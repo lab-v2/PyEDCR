@@ -78,20 +78,19 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         if self.correction_model is None:
             self.correction_model = fine_tuners[0]
 
-        with context_handlers.ClearSession():
-            combined_fine_tuning.fine_tune_combined_model(
-                preprocessor=preprocessor,
-                lrs=[new_lr],
-                fine_tuner=self.correction_model,
-                device=devices[0],
-                loaders=loaders,
-                loss=self.loss,
-                save_files=False,
-                evaluate_on_test=False,
-                num_epochs=self.neural_num_epochs
-                # debug=True
-            )
-            print('#' * 100)
+        combined_fine_tuning.fine_tune_combined_model(
+            preprocessor=preprocessor,
+            lrs=[new_lr],
+            fine_tuner=self.correction_model,
+            device=devices[0],
+            loaders=loaders,
+            loss=self.loss,
+            save_files=False,
+            evaluate_on_test=False,
+            num_epochs=self.neural_num_epochs
+            # debug=True
+        )
+        print('#' * 100)
 
         _, _, loaders, devices, _, _ = backbone_pipeline.initiate(
             data_str=self.data_str,

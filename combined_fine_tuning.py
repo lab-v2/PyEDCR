@@ -213,7 +213,8 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 print('#' * 100)
 
                 if (epoch == num_epochs) and save_files:
-                    backbone_pipeline.save_prediction_files(test=False,
+                    backbone_pipeline.save_prediction_files(data_str=preprocessor.data_str,
+                                                            test=False,
                                                             fine_tuners=fine_tuner,
                                                             combined=True,
                                                             lrs=lr,
@@ -270,18 +271,17 @@ def run_combined_fine_tuning_pipeline(data_str: str,
                                    pretrained_path=pretrained_path,
                                    debug=debug))
     for fine_tuner in fine_tuners:
-        with context_handlers.ClearSession():
-            fine_tune_combined_model(preprocessor=preprocessor,
-                                     lrs=lrs,
-                                     fine_tuner=fine_tuner,
-                                     device=devices[0],
-                                     loaders=loaders,
-                                     loss=loss,
-                                     num_epochs=num_epochs,
-                                     save_files=save_files,
-                                     debug=debug
-                                     )
-            print('#' * 100)
+        fine_tune_combined_model(preprocessor=preprocessor,
+                                 lrs=lrs,
+                                 fine_tuner=fine_tuner,
+                                 device=devices[0],
+                                 loaders=loaders,
+                                 loss=loss,
+                                 num_epochs=num_epochs,
+                                 save_files=save_files,
+                                 debug=debug
+                                 )
+        print('#' * 100)
 
 
 if __name__ == '__main__':

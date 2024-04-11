@@ -20,25 +20,6 @@ class Context(abc.ABC):
         pass
 
 
-class ClearSession(Context):
-    def __init__(self):
-        self.colab = False
-        if utils.is_running_in_colab():
-            from google.colab import drive
-
-            # Mount Google Drive
-            self.drive = drive
-            self.drive.mount('/content/drive')
-            self.colab = True
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.colab:
-            self.drive.flush_and_unmount()
-
-
 class ClearCache(Context):
     def __init__(self,
                  device: torch.device):

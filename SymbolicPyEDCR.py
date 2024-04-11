@@ -31,7 +31,9 @@ class SymbolicPyEDCR(PyEDCR.EDCR):
         """
         error_correction_rules = {}
         for label, CC_l in input_rules.items():
-            error_correction_rules[label] = rules.ErrorCorrectionRule(label, CC_l=CC_l)
+            error_correction_rules[label] = rules.ErrorCorrectionRule(l=label,
+                                                                      CC_l=CC_l,
+                                                                      preprocessor=self.preprocessor)
         self.error_correction_rules = error_correction_rules
 
     def apply_reversion_rules(self,
@@ -170,14 +172,14 @@ class SymbolicPyEDCR(PyEDCR.EDCR):
 
         if not utils.is_local():
             shared_index.value += 1
-            print(f'Completed {shared_index.value}/{len(data_preprocessing.get_labels(l.g).values())}')
+            print(f'Completed {shared_index.value}/{len(self.preprocessor.get_labels(l.g).values())}')
 
         return l, CC_l
 
     def learn_correction_rules(self,
                                g: data_preprocessing.Granularity):
 
-        granularity_labels = data_preprocessing.get_labels(g).values()
+        granularity_labels = self.preprocessor.get_labels(g).values()
 
         print(f'\nLearning {g}-grain error correction rules...')
         processes_num = min(len(granularity_labels), mp.cpu_count())
@@ -195,10 +197,11 @@ class SymbolicPyEDCR(PyEDCR.EDCR):
 
         for l, CC_l in CC_ls:
             if len(CC_l):
-                self.error_correction_rules[l] = rules.ErrorCorrectionRule(l=l, CC_l=CC_l)
+                self.error_correction_rules[l] = rules.ErrorCorrectionRule(l=l,
+                                                                           CC_l=CC_l,
+                                                                           preprocessor=self.preprocessor)
             else:
                 print(utils.red_text('\n' + '#' * 10 + f' {l} does not have an error correction rule!\n'))
-
 
     def evaluate_and_print_l_correction_rule_precision_increase(self,
                                                                 test: bool,
@@ -270,10 +273,11 @@ class SymbolicPyEDCR(PyEDCR.EDCR):
                                                                                       stage='post_correction')
 
             correction_rule_theoretical_precision_increase = (
-                metrics.get_l_correction_rule_theoretical_precision_increase(edcr=self, test=test, l=l))
+                symbolic_metrics.get_l_correction_rule_theoretical_precision_increase(edcr=self, test=test, l=l))
             correction_rule_theoretical_recall_increase = (
-                metrics.get_l_correction_rule_theoretical_recall_increase(edcr=self, test=test, l=l,
-                                                                          CC_l=self.error_correction_rules[l].C_l))
+                symbolic_metrics.get_l_correction_rule_theoretical_recall_increase(edcr=self, test=test, l=l,
+                                                                                   CC_l=self.error_correction_rules[
+                                                                                       l].C_l))
 
             fine_data, coarse_data = self.get_predictions(test=test, stage='post_correction')
 
@@ -316,7 +320,7 @@ class SymbolicPyEDCR(PyEDCR.EDCR):
 
         # for l, altered_pred_data_l in altered_pred_granularity_datas.items():
 
-        for l in data_preprocessing.get_labels(g).values():
+        for l in self.preprocessor.get_labels(g).values():
             self.num_predicted_l['post_correction'][g][l] = np.sum(self.get_where_label_is_l(pred=True,
                                                                                              test=True,
                                                                                              l=l,
@@ -328,7 +332,7 @@ class SymbolicPyEDCR(PyEDCR.EDCR):
                                                   test: bool):
         print('\n' + '#' * 50 + 'post correction' + '#' * 50)
 
-        for g in data_preprocessing.granularities.values():
+        for g in self.preprocessor.granularities.values():
             self.apply_correction_rules(test=test, g=g)
 
         self.print_metrics(test=test, prior=False, stage='post_correction', print_inconsistencies=False)

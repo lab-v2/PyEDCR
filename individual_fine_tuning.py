@@ -4,6 +4,7 @@ import torch
 import torch.utils.data
 import typing
 
+import data_preprocessing
 import models
 import utils
 import context_handlers
@@ -13,7 +14,8 @@ import backbone_pipeline
 import neural_fine_tuning
 
 
-def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
+def fine_tune_individual_models(preprocessor: data_preprocessing.DataPreprocessor,
+                                fine_tuners: list[models.FineTuner],
                                 devices: list[torch.device],
                                 loaders: dict[str, torch.utils.data.DataLoader],
                                 num_epochs: int,
@@ -124,7 +126,8 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             predicted_coarse_labels = np.array(train_coarse_predictions)
 
             training_fine_accuracy, training_coarse_accuracy = (
-                neural_metrics.get_and_print_post_epoch_metrics(epoch=epoch,
+                neural_metrics.get_and_print_post_epoch_metrics(preprocessor=preprocessor,
+                                                                epoch=epoch,
                                                                 num_epochs=num_epochs,
                                                                 # running_fine_loss=running_fine_loss,
                                                                 # running_coarse_loss=running_coarse_loss,
@@ -145,7 +148,8 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
 
             (test_true_fine_data, test_true_coarse_data, test_pred_fine_data, test_pred_coarse_data,
              test_fine_accuracy, test_coarse_accuracy) = (
-                neural_evaluation.evaluate_individual_models(fine_tuners=fine_tuners,
+                neural_evaluation.evaluate_individual_models(preprocessor=preprocessor,
+                                                             fine_tuners=fine_tuners,
                                                              loaders=loaders,
                                                              devices=devices,
                                                              test=True))
@@ -154,51 +158,54 @@ def fine_tune_individual_models(fine_tuners: list[models.FineTuner],
             test_coarse_accuracies += [test_coarse_accuracy]
             print('#' * 100)
 
-            np.save(f"{vit_pipeline.individual_results_path}{fine_fine_tuner}"
+            np.save(f"{backbone_pipeline.individual_results_path}{fine_fine_tuner}"
                     f"_test_pred_lr{fine_lr}_e{epoch}_fine_individual.npy",
                     test_pred_fine_data)
-            np.save(f"{vit_pipeline.individual_results_path}{coarse_fine_tuner}"
+            np.save(f"{backbone_pipeline.individual_results_path}{coarse_fine_tuner}"
                     f"_test_pred_lr{coarse_lr}_e{epoch}_coarse_individual.npy",
                     test_pred_coarse_data)
 
             if save_files:
-                vit_pipeline.save_prediction_files(test=True,
-                                                   fine_tuners={'fine': fine_fine_tuner,
-                                                                'coarse': coarse_fine_tuner},
-                                                   combined=False,
-                                                   lrs={'fine': fine_lr,
-                                                        'coarse': coarse_lr},
-                                                   epoch=epoch,
-                                                   fine_prediction=test_pred_fine_data,
-                                                   coarse_prediction=test_pred_coarse_data)
+                backbone_pipeline.save_prediction_files(data_str=preprocessor.data_str,
+                                                        test=True,
+                                                        fine_tuners={'fine': fine_fine_tuner,
+                                                                     'coarse': coarse_fine_tuner},
+                                                        combined=False,
+                                                        lrs={'fine': fine_lr,
+                                                             'coarse': coarse_lr},
+                                                        epoch=epoch,
+                                                        fine_prediction=test_pred_fine_data,
+                                                        coarse_prediction=test_pred_coarse_data)
 
     torch.save(fine_fine_tuner.state_dict(), f"{fine_fine_tuner}_lr{fine_lr}_fine_individual.pth")
     torch.save(coarse_fine_tuner.state_dict(), f"{coarse_fine_tuner}_lr{coarse_lr}_coarse_individual.pth")
 
-    if not os.path.exists(f"{vit_pipeline.individual_results_path}test_true_fine_individual.npy"):
-        np.save(f"{vit_pipeline.individual_results_path}test_true_fine_individual.npy", test_true_fine_data)
-    if not os.path.exists(f"{vit_pipeline.individual_results_path}test_true_coarse_individual.npy"):
-        np.save(f"{vit_pipeline.individual_results_path}test_true_coarse_individual.npy", test_true_coarse_data)
+    if not os.path.exists(f"{backbone_pipeline.individual_results_path}test_true_fine_individual.npy"):
+        np.save(f"{backbone_pipeline.individual_results_path}test_true_fine_individual.npy", test_true_fine_data)
+    if not os.path.exists(f"{backbone_pipeline.individual_results_path}test_true_coarse_individual.npy"):
+        np.save(f"{backbone_pipeline.individual_results_path}test_true_coarse_individual.npy", test_true_coarse_data)
 
 
-def run_individual_fine_tuning_pipeline(vit_model_names: list[str],
+def run_individual_fine_tuning_pipeline(preprocessor: data_preprocessing.DataPreprocessor,
+                                        vit_model_names: list[str],
                                         lrs: list[typing.Union[str, float]],
                                         num_epochs: int,
                                         save_files: bool = True,
                                         debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices = (
-        vit_pipeline.initiate(model_names=vit_model_names,
-                              lrs=lrs,
-                              combined=False,
-                              debug=debug))
+        backbone_pipeline.initiate(data_str=preprocessor.data_str,
+                                   model_names=vit_model_names,
+                                   lrs=lrs,
+                                   combined=False,
+                                   debug=debug))
 
     for fine_tuner in fine_tuners:
         print(f'Initiating {fine_tuner}')
 
-        with context_handlers.ClearSession():
-            fine_tune_individual_models(fine_tuners=fine_tuners,
-                                        devices=devices,
-                                        loaders=loaders,
-                                        num_epochs=num_epochs,
-                                        save_files=save_files)
-            print('#' * 100)
+        fine_tune_individual_models(preprocessor=preprocessor,
+                                    fine_tuners=fine_tuners,
+                                    devices=devices,
+                                    loaders=loaders,
+                                    num_epochs=num_epochs,
+                                    save_files=save_files)
+        print('#' * 100)

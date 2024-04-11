@@ -15,7 +15,8 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
 
     def __init__(self,
                  l: data_preprocessing.Label,
-                 C_l: set[typing.Union[conditions.Condition, tuple[conditions.Condition, data_preprocessing.Label]]],
+                 C_l: typing.Set[typing.Union[conditions.Condition,
+                 typing.Tuple[conditions.Condition, data_preprocessing.Label]]],
                  preprocessor: data_preprocessing.DataPreprocessor):
         self.l = l
         self.C_l = C_l
