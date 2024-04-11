@@ -725,8 +725,7 @@ class EDCR:
                 #             and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
                 #         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
-                if utils.is_local():
-                    progress_bar.update(1)
+                progress_bar.update(1)
 
         current_recovered_constraints = self.get_num_recovered_constraints()
         inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
