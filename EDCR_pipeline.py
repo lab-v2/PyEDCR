@@ -218,7 +218,7 @@ def GreedyNegRuleSelect(i: int,
         if neg_i < q_i:
             DC_star.append(condition_index)
 
-    with context_handlers.WrapTQDM(total=len(DC_star)) as progress_bar:
+    with tqdm.tqdm(total=len(DC_star)) as pbar:
         while len(DC_star):
             best_score = -1
             best_index = -1

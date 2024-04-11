@@ -4,12 +4,13 @@ import multiprocessing.managers
 import typing
 import random
 
+import tqdm
+
 import data_preprocessing
 import PyEDCR
 import rules
 import conditions
 import utils
-import context_handlers
 import symbolic_metrics
 
 randomized: bool = False
@@ -138,7 +139,7 @@ class SymbolicPyEDCR(PyEDCR.EDCR):
         CC_l_prime = CC_all
         CC_sorted = sorted(CC_l_prime, key=lambda c_l: self.get_CON_l_CC(test=False, l=l, CC={c_l}))
 
-        with context_handlers.WrapTQDM(total=len(CC_sorted)) as progress_bar:
+        with tqdm.tqdm(total=len(CC_sorted)) as progress_bar:
             for cond_and_l in CC_sorted:
                 a = self.get_CON_l_CC(test=False, l=l, CC=CC_l.union({cond_and_l})) - self.get_CON_l_CC(test=False,
                                                                                                         l=l, CC=CC_l)

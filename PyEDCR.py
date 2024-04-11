@@ -4,12 +4,13 @@ import typing
 import numpy as np
 import warnings
 
+import tqdm
+
 warnings.filterwarnings('ignore')
 
 import utils
 import data_preprocessing
 import neural_metrics
-import context_handlers
 import symbolic_metrics
 import conditions
 import rules
@@ -710,7 +711,7 @@ class EDCR:
         granularity_labels = self.preprocessor.get_labels(g).values()
 
         print(f'\nLearning {g}-grain error detection rules...')
-        with context_handlers.WrapTQDM(total=len(granularity_labels)) as progress_bar:
+        with tqdm.tqdm(total=len(granularity_labels)) as progress_bar:
             for l in granularity_labels:
                 DC_l = self.DetRuleLearn(l=l)
 
