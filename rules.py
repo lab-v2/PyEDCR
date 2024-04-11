@@ -183,7 +183,7 @@ class ErrorDetectionRule(Rule):
 class ErrorCorrectionRule(Rule):
     def __init__(self,
                  l: data_preprocessing.Label,
-                 CC_l: typing.Set[(conditions.Condition, data_preprocessing.Label)],
+                 CC_l: typing.Set[typing.Tuple[conditions.Condition, data_preprocessing.Label]],
                  preprocessor: data_preprocessing.DataPreprocessor):
         """Construct a detection rule for evaluating predictions based on conditions and labels.
 
@@ -191,8 +191,9 @@ class ErrorCorrectionRule(Rule):
         :param CC_l: The set of condition-class pair that define the rule.
         """
         C_l = {(cond, l_prime) for cond, l_prime in CC_l if (isinstance(cond, conditions.InconsistencyCondition)
-                                                             or cond.l.g != l_prime.g
-                                                             or cond.secondary_model) and l_prime != l}
+                                                             or (isinstance(cond, conditions.PredCondition) and
+                                                                 (cond.l.g != l_prime.g or cond.secondary_model))
+                                                             and l_prime != l)}
 
         super().__init__(l=l,
                          C_l=C_l,
