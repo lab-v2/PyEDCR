@@ -15,9 +15,11 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
 
     def __init__(self,
                  l: data_preprocessing.Label,
-                 C_l: set[typing.Union[conditions.Condition, tuple[conditions.Condition, data_preprocessing.Label]]]):
+                 C_l: set[typing.Union[conditions.Condition, tuple[conditions.Condition, data_preprocessing.Label]]],
+                 preprocessor: data_preprocessing.DataPreprocessor):
         self.l = l
         self.C_l = C_l
+        self.preprocessor = preprocessor
 
     def get_where_predicted_l(self,
                               data: np.array,
@@ -92,16 +94,28 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
 class ErrorDetectionRule(Rule):
     def __init__(self,
                  l: data_preprocessing.Label,
-                 DC_l: set[conditions.Condition]):
+                 DC_l: set[conditions.Condition],
+                 preprocessor: data_preprocessing.DataPreprocessor):
         """Construct a detection rule for evaluating predictions based on conditions and labels.
 
         :param l: The label associated with the rule.
         :param DC_l: The set of conditions that define the rule.
         """
-        super().__init__(l=l, C_l=DC_l)
-        assert all(cond.l != self.l for cond in {cond_prime for cond_prime in self.C_l
+        super().__init__(l=l,
+                         C_l=DC_l,
+                         preprocessor=preprocessor)
+        assert all(self.l != cond.l for cond in {cond_prime for cond_prime in self.C_l
                                                  if isinstance(cond_prime, conditions.PredCondition)
-                                                 and not cond_prime.secondary_model and not cond_prime.binary})
+                                                 and not cond_prime.secondary_model and not cond_prime.binary}), \
+            f'We have an error rule for l={l} with the same label!'
+
+        assert all((self.preprocessor.fine_to_coarse[self.l.l_str] != cond.l) if self.l.g.g_str == 'fine'
+                   else (self.l != self.preprocessor.fine_to_coarse[cond.l.l_str])
+                   for cond in {cond_prime for cond_prime in self.C_l
+                                if isinstance(cond_prime, conditions.PredCondition)
+                                and not cond_prime.secondary_model and not cond_prime.binary
+                                and self.l.g != cond_prime.l.g}), \
+            f'We have an error rule for l={l} with consistent labels!'
 
     def get_where_body_is_satisfied(self,
                                     pred_fine_data: np.array,
@@ -165,7 +179,8 @@ class ErrorDetectionRule(Rule):
 class ErrorCorrectionRule(Rule):
     def __init__(self,
                  l: data_preprocessing.Label,
-                 CC_l: set[(conditions.Condition, data_preprocessing.Label)]):
+                 CC_l: set[(conditions.Condition, data_preprocessing.Label)],
+                 preprocessor: data_preprocessing.DataPreprocessor):
         """Construct a detection rule for evaluating predictions based on conditions and labels.
 
         :param l: The label associated with the rule.
@@ -175,7 +190,9 @@ class ErrorCorrectionRule(Rule):
                                                              or cond.l.g != l_prime.g
                                                              or cond.secondary_model) and l_prime != l}
 
-        super().__init__(l=l, C_l=C_l)
+        super().__init__(l=l,
+                         C_l=C_l,
+                         preprocessor=preprocessor)
 
     def get_where_body_is_satisfied(self,
                                     pred_fine_data: np.array,

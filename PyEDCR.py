@@ -180,7 +180,7 @@ class EDCR:
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union({conditions.InconsistencyCondition()})
 
-        self.CC_all = {g: set() for g in data_preprocessing.DataPreprocessor.granularities.values()}
+        # self.CC_all = {g: set() for g in data_preprocessing.DataPreprocessor.granularities.values()}
 
         self.num_predicted_l = {'original': {g: {}
                                              for g in data_preprocessing.DataPreprocessor.granularities.values()},
@@ -229,7 +229,8 @@ class EDCR:
         """
         error_detection_rules = {}
         for label, DC_l in input_rules.items():
-            error_detection_rules[label] = rules.ErrorDetectionRule(label, DC_l)
+            error_detection_rules[label] = rules.ErrorDetectionRule(l=label,
+                                                                    DC_l=DC_l)
         self.error_detection_rules = error_detection_rules
 
     @staticmethod
@@ -673,15 +674,16 @@ class EDCR:
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l, stage=stage))
 
         if N_l:
-            other_g_str = 'fine' if str(l.g) == 'coarse' else 'coarse'
-            other_g = data_preprocessing.DataPreprocessor.granularities[other_g_str]
-
             P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage=stage)
             q_l = self.epsilon * N_l * P_l / R_l
 
-            DC_star = {cond for cond in self.condition_datas[other_g] if self.get_NEG_l_C(l=l,
-                                                                                          C={cond},
-                                                                                          stage=stage) <= q_l}
+            other_g_str = 'fine' if str(l.g) == 'coarse' else 'coarse'
+            other_g = data_preprocessing.DataPreprocessor.granularities[other_g_str]
+
+            DC_star = {cond for cond in self.condition_datas[l.g].union(self.condition_datas[other_g])
+                       if self.get_NEG_l_C(l=l,
+                                           C={cond},
+                                           stage=stage) <= q_l}
 
             while DC_star:
                 best_score = -1
@@ -694,14 +696,15 @@ class EDCR:
                         best_cond = cond
 
                 DC_l = DC_l.union({best_cond})
-                DC_star = {cond for cond in self.condition_datas[other_g].difference(DC_l)
+                DC_star = {cond for cond in
+                           self.condition_datas[l.g].union(self.condition_datas[other_g]).difference(DC_l)
                            if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l}
 
         return DC_l
 
     def learn_detection_rules(self,
                               g: data_preprocessing.Granularity):
-        self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
+        # self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
         granularity_labels = self.preprocessor.get_labels(g).values()
 
         print(f'\nLearning {g}-grain error detection rules...')
@@ -710,12 +713,14 @@ class EDCR:
                 DC_l = self.DetRuleLearn(l=l)
 
                 if len(DC_l):
-                    self.error_detection_rules[l] = rules.ErrorDetectionRule(l=l, DC_l=DC_l)
+                    self.error_detection_rules[l] = rules.ErrorDetectionRule(l=l,
+                                                                             DC_l=DC_l,
+                                                                             preprocessor=self.preprocessor)
 
-                for cond_l in DC_l:
-                    if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary_model)
-                            and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
-                        self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
+                # for cond_l in DC_l:
+                #     if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary_model)
+                #             and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
+                #         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
                 if utils.is_local():
                     progress_bar.update(1)
