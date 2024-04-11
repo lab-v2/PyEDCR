@@ -177,8 +177,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print('\nRule learning completed\n')
 
 
-if __name__ == '__main__':
-    epsilons = [0.2]
+def main():
+    epsilons = [0.1]
 
     data_str = 'imagenet'
     main_model_name = new_model_name = 'dinov2_vits14'
@@ -190,7 +190,6 @@ if __name__ == '__main__':
     # main_lr = new_lr = 0.0001
     # original_num_epochs = 20
 
-
     for EDCR_num_epochs in [1]:
         for neural_num_epochs in [1]:
 
@@ -199,7 +198,7 @@ if __name__ == '__main__':
                   utils.blue_text(
                       f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
                       # f'lower_predictions_indices = {lower_predictions_indices}'
-                      )
+                  )
                   + '\n' + '#' * 100 + '\n')
             for eps in epsilons:
                 print('#' * 25 + f'eps = {eps}' + '#' * 50)
@@ -223,3 +222,7 @@ if __name__ == '__main__':
                                            new_lr=new_lr)
                 edcr.run_error_detection_application_pipeline(test=True, print_results=False)
                 edcr.apply_new_model_on_test()
+
+
+if __name__ == '__main__':
+    main()
