@@ -97,12 +97,17 @@ class PredCondition(Condition):
 
 
 class InconsistencyCondition(Condition):
+    def __init__(self,
+                 preprocessor: data_preprocessing.DataPreprocessor):
+        super().__init__()
+        self.preprocessor = preprocessor
+
     def __call__(self,
                  fine_data: np.array,
                  coarse_data: np.array) -> np.array:
         values = []
         for fine_prediction_index, coarse_prediction_index in zip(fine_data, coarse_data):
-            values += [int(data_preprocessing.fine_to_course_idx[fine_prediction_index]
+            values += [int(self.preprocessor.fine_to_course_idx[fine_prediction_index]
                            != coarse_prediction_index)]
 
         return np.array(values)

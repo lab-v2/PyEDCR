@@ -178,7 +178,8 @@ class EDCR:
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.DataPreprocessor.granularities.values():
-                self.condition_datas[g] = self.condition_datas[g].union({conditions.InconsistencyCondition()})
+                self.condition_datas[g] = self.condition_datas[g].union(
+                    {conditions.InconsistencyCondition(preprocessor=self.preprocessor)})
 
         # self.CC_all = {g: set() for g in data_preprocessing.DataPreprocessor.granularities.values()}
 
@@ -230,7 +231,8 @@ class EDCR:
         error_detection_rules = {}
         for label, DC_l in input_rules.items():
             error_detection_rules[label] = rules.ErrorDetectionRule(l=label,
-                                                                    DC_l=DC_l)
+                                                                    DC_l=DC_l,
+                                                                    preprocessor=self.preprocessor)
         self.error_detection_rules = error_detection_rules
 
     @staticmethod
@@ -881,6 +883,7 @@ if __name__ == '__main__':
                     include_inconsistency_constraint=False,
                     secondary_model_name='vit_b_16_soft_marginal',
                     lower_predictions_indices=[2, 3, 4, 5])
+
         # edcr.print_metrics(test=test_bool, prior=True)
         # edcr.run_learning_pipeline(EDCR_epoch_num=20)
         # edcr.run_error_detection_application_pipeline(test=test_bool, print_results=False)
