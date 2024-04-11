@@ -52,7 +52,7 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
         pass
 
     @staticmethod
-    def get_where_any_conditions_satisfied(C: set[conditions.Condition],
+    def get_where_any_conditions_satisfied(C: typing.Set[conditions.Condition],
                                            fine_data: np.array,
                                            coarse_data: np.array,
                                            secondary_fine_data: np.array,
@@ -95,7 +95,7 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
 class ErrorDetectionRule(Rule):
     def __init__(self,
                  l: data_preprocessing.Label,
-                 DC_l: set[conditions.Condition],
+                 DC_l: typing.Set[conditions.Condition],
                  preprocessor: data_preprocessing.DataPreprocessor):
         """Construct a detection rule for evaluating predictions based on conditions and labels.
 
@@ -183,7 +183,7 @@ class ErrorDetectionRule(Rule):
 class ErrorCorrectionRule(Rule):
     def __init__(self,
                  l: data_preprocessing.Label,
-                 CC_l: set[(conditions.Condition, data_preprocessing.Label)],
+                 CC_l: typing.Set[(conditions.Condition, data_preprocessing.Label)],
                  preprocessor: data_preprocessing.DataPreprocessor):
         """Construct a detection rule for evaluating predictions based on conditions and labels.
 
