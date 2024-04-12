@@ -3,8 +3,10 @@ from __future__ import annotations
 import typing
 import numpy as np
 import warnings
+import multiprocessing as mp
+import multiprocessing.managers
 
-import tqdm
+from tqdm.contrib.concurrent import process_map
 
 warnings.filterwarnings('ignore')
 
@@ -708,24 +710,25 @@ class EDCR:
     def learn_detection_rules(self,
                               g: data_preprocessing.Granularity):
         # self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
-        granularity_labels = self.preprocessor.get_labels(g).values()
+        granularity_labels = list(self.preprocessor.get_labels(g).values())
+        processes_num = min(len(granularity_labels), mp.cpu_count())
 
         print(f'\nLearning {g}-grain error detection rules...')
-        with tqdm.tqdm(total=len(granularity_labels)) as progress_bar:
-            for l in granularity_labels:
-                DC_l = self.DetRuleLearn(l=l)
 
-                if len(DC_l):
-                    self.error_detection_rules[l] = rules.ErrorDetectionRule(l=l,
-                                                                             DC_l=DC_l,
-                                                                             preprocessor=self.preprocessor)
+        DC_ls = process_map(self.DetRuleLearn,
+                            granularity_labels,
+                            max_workers=processes_num)
 
-                # for cond_l in DC_l:
-                #     if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary_model)
-                #             and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
-                #         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
+        for l, DC_l in zip(granularity_labels, DC_ls):
+            if len(DC_l):
+                self.error_detection_rules[l] = rules.ErrorDetectionRule(l=l,
+                                                                         DC_l=DC_l,
+                                                                         preprocessor=self.preprocessor)
 
-                progress_bar.update(1)
+            # for cond_l in DC_l:
+            #     if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary_model)
+            #             and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
+            #         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
         current_recovered_constraints = self.get_num_recovered_constraints()
         inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
