@@ -4,7 +4,6 @@ import typing
 import numpy as np
 import warnings
 import multiprocessing as mp
-import multiprocessing.managers
 
 from tqdm.contrib.concurrent import process_map
 

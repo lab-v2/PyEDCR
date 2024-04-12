@@ -176,7 +176,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 def main():
-    epsilons = [0.1]
+    epsilons = [0.01]
 
     data_str = 'imagenet'
     main_model_name = new_model_name = 'dinov2_vits14'
