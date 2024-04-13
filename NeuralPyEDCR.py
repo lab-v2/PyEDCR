@@ -120,7 +120,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                 print_results: bool = True):
         new_fine_predictions, new_coarse_predictions = (
             neural_evaluation.run_combined_evaluating_pipeline(data_str=self.data_str,
-                                                               model_name='vit_b_16',
+                                                               model_name=self.main_model_name,
                                                                split='test',
                                                                lrs=[self.lr],
                                                                loss=self.loss,
@@ -175,8 +175,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print('\nRule learning completed\n')
 
 
+
 def main():
-    epsilons = [0.01]
+    epsilons = [0.1]
 
     data_str = 'imagenet'
     main_model_name = new_model_name = 'dinov2_vits14'

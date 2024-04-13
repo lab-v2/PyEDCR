@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import os
 import typing
 import numpy as np
 import warnings
 import multiprocessing as mp
+import google_auth_oauthlib.flow
+import google.auth.transport.requests
+import google.oauth2.credentials
+import googleapiclient.discovery
+import googleapiclient.errors
 
 from tqdm.contrib.concurrent import process_map
 
@@ -729,16 +735,106 @@ class EDCR:
             #             and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
             #         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
-        current_recovered_constraints = self.get_num_recovered_constraints()
-        inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
-        all_possible_inconsistencies = (self.preprocessor.num_fine_grain_classes *
-                                        (self.preprocessor.num_coarse_grain_classes - 1))
 
-        print(f'Total unique recoverable constraints from the test predictions: '
-              f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
-              f' Recovered constraints: {utils.red_text(current_recovered_constraints)}/'
-              f'{all_possible_inconsistencies} '
-              f'({utils.red_text(round(current_recovered_constraints / all_possible_inconsistencies * 100, 2))}%)')
+
+    def save_error_detection_results_to_google_sheets(self,
+                                                      input_values: typing.List[float],
+                                                      g: data_preprocessing.Granularity):
+        method_name = f'{self.main_model_name} on {self.preprocessor.data_str} with eps={self.epsilon}'
+
+        creds = None
+        # The file token.json stores the user's access and refresh tokens, and is
+        # created automatically when the authorization flow completes for the first
+        # time.
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        if os.path.exists("token.json"):
+            creds = (google.oauth2.credentials.Credentials.
+                     from_authorized_user_file(filename="token.json",
+                                               scopes=scopes))
+
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(google.auth.transport.requests.Request())
+            else:
+                flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
+                    client_secrets_file="credentials.json",
+                    scopes=scopes)
+                creds = flow.run_local_server(port=0)
+            # Save the credentials for the next run
+            with open("token.json", "w") as token:
+                token.write(creds.to_json())
+
+        try:
+            service = googleapiclient.discovery.build(serviceName="sheets",
+                                                      version="v4",
+                                                      credentials=creds)
+
+            # Call the Sheets API
+            sheet = service.spreadsheets()
+
+            # Define the range for batch update
+            sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
+            value_input_option = 'USER_ENTERED'
+            methods_column = 'A'
+            sheet_tab = 'Errors'
+
+            # Read the data from the sheet
+            result = sheet.values().get(spreadsheetId=sheet_id,
+                                        range=f'{sheet_tab}!{methods_column}:{methods_column}').execute()
+            values = result.get('values', [])
+
+            # Search for the string and find the first empty row
+            row_number = 1  # Start counting from 1 to match Google Sheets' row indexing
+            found = False
+            for row in values:
+                if row:  # Check if the row is not empty
+                    if row[0] == method_name:
+                        found = True
+                        break
+                else:
+                    break  # Return the first empty row number
+                row_number += 1
+
+            body = {
+                'values': [input_values[0:4]]
+            }
+
+            # Determine start and end columns based on granularity
+            range_start = 'B' if g.g_str == 'fine' else 'F'
+            range_end = 'E' if g.g_str == 'fine' else 'I'
+
+            if not found:
+                # Call the Sheets API to update the sheet
+                result = sheet.values().update(
+                    spreadsheetId=sheet_id,
+                    range=f'{sheet_tab}!A{row_number}',
+                    valueInputOption=value_input_option,
+                    body={'values': [[method_name]]}).execute()
+
+                print(f"{result.get('updatedCells')} cell updated.")
+
+            # Update the sheet with new data
+            update_range = f'{sheet_tab}!{range_start}{row_number}:{range_end}{row_number}'
+
+            # Call the Sheets API to update the sheet
+            result = sheet.values().update(
+                spreadsheetId=sheet_id,
+                range=update_range,
+                valueInputOption=value_input_option,
+                body=body).execute()
+
+            print(f"{result.get('updatedCells')} cells updated.")
+
+            if g.g_str == 'fine':
+                result = sheet.values().update(
+                    spreadsheetId=sheet_id,
+                    range=f'{sheet_tab}!J{row_number}',
+                    valueInputOption=value_input_option,
+                    body={'values': [[input_values[-1]]]}).execute()
+                print(f"{result.get('updatedCells')} cell updated.")
+
+        except googleapiclient.errors.HttpError as err:
+            print(err)
 
     def apply_detection_rules(self,
                               test: bool,
@@ -782,16 +878,19 @@ class EDCR:
 
         self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
 
-        error_accuracy, error_f1, error_precision, error_recall = neural_metrics.get_individual_metrics(
-            pred_data=error_predictions,
-            true_data=total_error_ground_truth,
-            labels=[0, 1])
+        error_accuracy, error_f1, error_precision, error_recall = [f'{round(metric_result * 100, 2)}%'
+                                                                   for metric_result in
+                                                                   neural_metrics.get_individual_metrics(
+                                                                       pred_data=error_predictions,
+                                                                       true_data=total_error_ground_truth,
+                                                                       labels=[0, 1])]
 
         (inconsistency_error_accuracy, inconsistency_error_f1, inconsistency_error_precision,
-         inconsistency_error_recall) = neural_metrics.get_individual_metrics(
-            pred_data=error_predictions,
-            true_data=inconsistency_error_ground_truths,
-            labels=[0, 1])
+         inconsistency_error_recall) = [f'{round(metric_result * 100, 2)}%' for metric_result in
+                                        neural_metrics.get_individual_metrics(
+                                            pred_data=error_predictions,
+                                            true_data=inconsistency_error_ground_truths,
+                                            labels=[0, 1])]
 
         test_str = 'Test' if test else 'Train'
 
@@ -804,6 +903,30 @@ class EDCR:
                               f'Inconsistency {test_str} error f1: {inconsistency_error_f1}\n'
                               f'Inconsistency {test_str} error precision: {inconsistency_error_precision}, '
                               f'Inconsistency {test_str} error recall: {inconsistency_error_recall}'))
+
+        input_values = [error_accuracy,
+                        error_f1,
+                        inconsistency_error_accuracy,
+                        inconsistency_error_f1]
+
+        if g.g_str == 'fine':
+            current_recovered_constraints = self.get_num_recovered_constraints()
+            inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
+            all_possible_inconsistencies = (self.preprocessor.num_fine_grain_classes *
+                                            (self.preprocessor.num_coarse_grain_classes - 1))
+
+            recovered_constraints_str = \
+                f'{current_recovered_constraints}/{all_possible_inconsistencies} '\
+                f'({round(current_recovered_constraints / all_possible_inconsistencies * 100, 2)}%)'
+
+            print(f'Total unique recoverable constraints from the test predictions: '
+                  f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
+                  f'Recovered constraints: {recovered_constraints_str}')
+
+            input_values += [recovered_constraints_str]
+
+        self.save_error_detection_results_to_google_sheets(input_values=input_values,
+                                                           g=g)
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
