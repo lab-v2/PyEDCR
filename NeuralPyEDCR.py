@@ -16,8 +16,6 @@ import backbone_pipeline
 import combined_fine_tuning
 import neural_evaluation
 
-lock = mp.Lock()
-
 
 class NeuralPyEDCR(PyEDCR.EDCR):
     def __init__(self,
@@ -30,6 +28,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  epsilon: typing.Union[str, float],
                  EDCR_num_epochs: int,
                  neural_num_epochs: int,
+                 epsilon_index: int = None,
                  K_train: typing.List[typing.Tuple[int]] = None,
                  K_test: typing.List[typing.Tuple[int]] = None,
                  include_inconsistency_constraint: bool = False,
@@ -43,6 +42,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            lr=lr,
                                            original_num_epochs=original_num_epochs,
                                            epsilon=epsilon,
+                                           epsilon_index=epsilon_index,
                                            K_train=K_train,
                                            K_test=K_test,
                                            include_inconsistency_constraint=include_inconsistency_constraint,
@@ -161,7 +161,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.learn_detection_rules(g=g)
-                self.apply_detection_rules(test=False, g=g, lock=lock)
+                self.apply_detection_rules(test=False, g=g)
 
             # self.run_training_new_model_pipeline(new_model_name=new_model_name,
             #                                      new_lr=new_lr)
@@ -180,7 +180,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print('\nRule learning completed\n')
 
 
-def work_on_epsilon(epsilon: float):
+def work_on_epsilon(epsilon: typing.Tuple[int, float]):
     data_str = 'imagenet'
     main_model_name = new_model_name = 'dinov2_vits14'
     main_lr = new_lr = 0.000001
@@ -193,7 +193,8 @@ def work_on_epsilon(epsilon: float):
 
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
-                        epsilon=epsilon,
+                        epsilon=epsilon[1],
+                        epsilon_index=epsilon[0],
                         main_model_name=main_model_name,
                         combined=True,
                         loss='BCE',
@@ -215,7 +216,7 @@ def work_on_epsilon(epsilon: float):
 
 
 def main():
-    epsilons = np.linspace(start=0.1 / 100, stop=0.1, num=100)
+    epsilons = [(i, epsilon) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.1, num=100))]
 
 
     processes_num = min(len(epsilons), mp.cpu_count())
