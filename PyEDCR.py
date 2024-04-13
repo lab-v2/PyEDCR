@@ -11,8 +11,6 @@ import google.oauth2.credentials
 import googleapiclient.discovery
 import googleapiclient.errors
 
-from tqdm.contrib.concurrent import process_map
-
 warnings.filterwarnings('ignore')
 
 import utils
@@ -716,13 +714,11 @@ class EDCR:
                               g: data_preprocessing.Granularity):
         # self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
         granularity_labels = list(self.preprocessor.get_labels(g).values())
-        processes_num = min(len(granularity_labels), mp.cpu_count())
+        # processes_num = min(len(granularity_labels), mp.cpu_count())
 
         print(f'\nLearning {g}-grain error detection rules...')
 
-        DC_ls = process_map(self.DetRuleLearn,
-                            granularity_labels,
-                            max_workers=processes_num)
+        DC_ls = [self.DetRuleLearn(l=l) for l in granularity_labels]
 
         for l, DC_l in zip(granularity_labels, DC_ls):
             if len(DC_l):
@@ -735,11 +731,10 @@ class EDCR:
             #             and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
             #         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
-
-
     def save_error_detection_results_to_google_sheets(self,
                                                       input_values: typing.List[float],
-                                                      g: data_preprocessing.Granularity):
+                                                      g: data_preprocessing.Granularity,
+                                                      lock: mp.Lock):
         method_name = f'{self.main_model_name} on {self.preprocessor.data_str} with eps={self.epsilon}'
 
         creds = None
@@ -783,17 +778,21 @@ class EDCR:
                                         range=f'{sheet_tab}!{methods_column}:{methods_column}').execute()
             values = result.get('values', [])
 
-            # Search for the string and find the first empty row
-            row_number = 1  # Start counting from 1 to match Google Sheets' row indexing
-            found = False
-            for row in values:
-                if row:  # Check if the row is not empty
-                    if row[0] == method_name:
-                        found = True
-                        break
-                else:
-                    break  # Return the first empty row number
-                row_number += 1
+            # Acquire the lock for the critical section
+            with lock:
+                # Search for the string and find the first empty row
+                row_number = 1  # Start counting from 1 to match Google Sheets' row indexing
+                found = False
+                for row in values:
+                    if row:  # Check if the row is not empty
+                        if row[0] == method_name:
+                            found = True
+                            break
+                    else:
+                        break  # Return the first empty row number
+                    row_number += 1
+
+            print(f'{method_name} row_number: {row_number}')
 
             body = {
                 'values': [input_values[0:4]]
@@ -838,7 +837,8 @@ class EDCR:
 
     def apply_detection_rules(self,
                               test: bool,
-                              g: data_preprocessing.Granularity):
+                              g: data_preprocessing.Granularity,
+                              lock: mp.Lock):
         """Applies error detection rules to test predictions for a given granularity. If a rule is satisfied for
         a particular label, the prediction data for that label is modified with a value of -1,
         indicating a potential error.
@@ -916,7 +916,7 @@ class EDCR:
                                             (self.preprocessor.num_coarse_grain_classes - 1))
 
             recovered_constraints_str = \
-                f'{current_recovered_constraints}/{all_possible_inconsistencies} '\
+                f'{current_recovered_constraints}/{all_possible_inconsistencies} ' \
                 f'({round(current_recovered_constraints / all_possible_inconsistencies * 100, 2)}%)'
 
             print(f'Total unique recoverable constraints from the test predictions: '
@@ -926,7 +926,8 @@ class EDCR:
             input_values += [recovered_constraints_str]
 
         self.save_error_detection_results_to_google_sheets(input_values=input_values,
-                                                           g=g)
+                                                           g=g,
+                                                           lock=lock)
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 

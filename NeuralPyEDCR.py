@@ -6,12 +6,17 @@ if utils.is_local():
 
 import numpy as np
 import typing
+import multiprocessing as mp
+from tqdm.contrib.concurrent import process_map
+
 
 import data_preprocessing
 import PyEDCR
 import backbone_pipeline
 import combined_fine_tuning
 import neural_evaluation
+
+lock = mp.Lock()
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
@@ -156,10 +161,10 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.learn_detection_rules(g=g)
-                self.apply_detection_rules(test=False, g=g)
+                self.apply_detection_rules(test=False, g=g, lock=lock)
 
-            self.run_training_new_model_pipeline(new_model_name=new_model_name,
-                                                 new_lr=new_lr)
+            # self.run_training_new_model_pipeline(new_model_name=new_model_name,
+            #                                      new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
@@ -175,10 +180,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print('\nRule learning completed\n')
 
 
-
-def main():
-    epsilons = [0.1]
-
+def work_on_epsilon(epsilon: float):
     data_str = 'imagenet'
     main_model_name = new_model_name = 'dinov2_vits14'
     main_lr = new_lr = 0.000001
@@ -189,38 +191,50 @@ def main():
     # main_lr = new_lr = 0.0001
     # original_num_epochs = 20
 
-    for EDCR_num_epochs in [1]:
-        for neural_num_epochs in [1]:
+    print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
+    edcr = NeuralPyEDCR(data_str=data_str,
+                        epsilon=epsilon,
+                        main_model_name=main_model_name,
+                        combined=True,
+                        loss='BCE',
+                        lr=main_lr,
+                        original_num_epochs=original_num_epochs,
+                        include_inconsistency_constraint=False,
+                        # secondary_model_name='vit_l_16_BCE',
+                        # binary_models=data_preprocessing.fine_grain_classes_str,
+                        # lower_predictions_indices=lower_predictions_indices,
+                        EDCR_num_epochs=1,
+                        neural_num_epochs=1)
+    edcr.print_metrics(test=True,
+                       prior=True,
+                       print_actual_errors_num=True)
+    edcr.run_learning_pipeline(new_model_name=new_model_name,
+                               new_lr=new_lr)
+    # edcr.run_error_detection_application_pipeline(test=True, print_results=False)
+    # edcr.apply_new_model_on_test()
 
-            # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
-            print('\n' + '#' * 100 + '\n' +
-                  utils.blue_text(
-                      f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
-                      # f'lower_predictions_indices = {lower_predictions_indices}'
-                  )
-                  + '\n' + '#' * 100 + '\n')
-            for eps in epsilons:
-                print('#' * 25 + f'eps = {eps}' + '#' * 50)
-                edcr = NeuralPyEDCR(data_str=data_str,
-                                    epsilon=eps,
-                                    main_model_name=main_model_name,
-                                    combined=True,
-                                    loss='BCE',
-                                    lr=main_lr,
-                                    original_num_epochs=original_num_epochs,
-                                    include_inconsistency_constraint=False,
-                                    # secondary_model_name='vit_l_16_BCE',
-                                    # binary_models=data_preprocessing.fine_grain_classes_str,
-                                    # lower_predictions_indices=lower_predictions_indices,
-                                    EDCR_num_epochs=EDCR_num_epochs,
-                                    neural_num_epochs=neural_num_epochs)
-                edcr.print_metrics(test=True,
-                                   prior=True,
-                                   print_actual_errors_num=True)
-                edcr.run_learning_pipeline(new_model_name=new_model_name,
-                                           new_lr=new_lr)
-                edcr.run_error_detection_application_pipeline(test=True, print_results=False)
-                edcr.apply_new_model_on_test()
+
+def main():
+    epsilons = np.linspace(start=0.1 / 100, stop=0.1, num=100)
+
+
+    processes_num = min(len(epsilons), mp.cpu_count())
+
+
+    process_map(work_on_epsilon,
+                epsilons,
+                max_workers=processes_num)
+
+    # for EDCR_num_epochs in [1]:
+    #     for neural_num_epochs in [1]:
+
+    # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
+    # print('\n' + '#' * 100 + '\n' +
+    #       utils.blue_text(
+    #           f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
+    #           # f'lower_predictions_indices = {lower_predictions_indices}'
+    #       )
+    #       + '\n' + '#' * 100 + '\n')
 
 
 if __name__ == '__main__':
