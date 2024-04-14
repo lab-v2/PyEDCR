@@ -889,6 +889,32 @@ class EDCR:
                                             true_data=inconsistency_error_ground_truths,
                                             labels=[0, 1])]
 
+        # Consistency error acc and f1:
+        # f(x1) = (f_1, c_1)
+        # Define: (gt_f_1!= f1 or gt_c_1 != c1) and coarse(f1) != c1
+
+        # f1, c1
+        pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
+
+        # gt_f_1, gt_c_1
+        true_fine_data, true_coarse_data = self.get_predictions(test=test)
+
+        # gt_f_1!= f1, gt_c_1 != c1
+        false_pred_fine_mask = np.where(true_fine_data != pred_fine_data, 1, 0)
+        false_pred_coarse_mask = np.where(true_coarse_data != pred_coarse_data, 1, 0)
+
+        # coarse(f1) != c1
+        inconsistency_mask = self.get_where_predicted_inconsistently(test=test)
+
+        consistency_error_mask = (false_pred_fine_mask | false_pred_coarse_mask) & inconsistency_mask
+
+        (consistency_error_accuracy, consistency_error_f1, consistency_error_precision,
+         consistency_error_recall) = [f'{round(metric_result * 100, 2)}%' for metric_result in
+                                      neural_metrics.get_individual_metrics(
+                                          pred_data=error_predictions,
+                                          true_data=consistency_error_mask,
+                                          labels=[0, 1])]
+
         test_str = 'Test' if test else 'Train'
 
         print(utils.blue_text(f'\n{g}-grain:\n'
@@ -896,10 +922,15 @@ class EDCR:
                               f'{test_str} error precision: {error_precision}, '
                               f'{test_str} error recall: {error_recall}'))
 
-        print(utils.blue_text(f'\nInconsistency Train error accuracy: {inconsistency_error_accuracy}, '
+        print(utils.blue_text(f'\nInconsistency {test_str} error accuracy: {inconsistency_error_accuracy}, '
                               f'Inconsistency {test_str} error f1: {inconsistency_error_f1}\n'
                               f'Inconsistency {test_str} error precision: {inconsistency_error_precision}, '
                               f'Inconsistency {test_str} error recall: {inconsistency_error_recall}'))
+
+        print(utils.blue_text(f'\nConsistency {test_str} error accuracy: {consistency_error_accuracy}, '
+                              f'Consistency {test_str} error f1: {consistency_error_f1}\n'
+                              f'Consistency {test_str} error precision: {consistency_error_precision}, '
+                              f'Consistency {test_str} error recall: {consistency_error_recall}'))
 
         input_values = [error_accuracy,
                         error_f1,
@@ -921,6 +952,9 @@ class EDCR:
                   f'Recovered constraints: {recovered_constraints_str}')
 
             input_values += [recovered_constraints_str]
+
+            input_values += [consistency_error_accuracy,
+                             consistency_error_f1]
 
         self.save_error_detection_results_to_google_sheets(input_values=input_values,
                                                            g=g)
