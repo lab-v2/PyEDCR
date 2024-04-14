@@ -181,15 +181,15 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 def work_on_epsilon(epsilon: typing.Tuple[int, float]):
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    main_lr = new_lr = 0.000001
-    original_num_epochs = 8
+    # data_str = 'imagenet'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    # main_lr = new_lr = 0.000001
+    # original_num_epochs = 8
 
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # main_lr = new_lr = 0.0001
-    # original_num_epochs = 20
+    data_str = 'military_vehicles'
+    main_model_name = new_model_name = 'vit_b_16'
+    main_lr = new_lr = 0.0001
+    original_num_epochs = 20
 
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
@@ -216,15 +216,19 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
 
 
 def main():
+    # For multiprocessing
     epsilons = [(i, epsilon) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.1, num=100))]
-
-
     processes_num = min(len(epsilons), mp.cpu_count())
-
-
     process_map(work_on_epsilon,
                 epsilons,
                 max_workers=processes_num)
+
+    # For normal
+    # epsilons = [(i, epsilon) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.1, num=100))]
+    #
+    # # Loop through epsilons sequentially (no multiprocessing)
+    # for epsilon in epsilons:
+    #     work_on_epsilon(epsilon)  # Call your work function
 
     # for EDCR_num_epochs in [1]:
     #     for neural_num_epochs in [1]:

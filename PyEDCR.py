@@ -797,7 +797,9 @@ class EDCR:
         sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
         value_input_option = 'USER_ENTERED'
         methods_column = 'A'
-        sheet_tab = f"Errors {'ImageNet' if self.data_str == 'imagenet' else 'Military Vehicles'}"
+        sheet_tab = (f"{'VIT_b_16' if self.main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
+                     f"on {'ImageNet' if self.data_str == 'imagenet' else 'Military Vehicles'} Errors")
+        # sheet_tab = 'VIT_b_16 on Military Vehicles Errors'
 
         service = googleapiclient.discovery.build(serviceName="sheets",
                                                   version="v4",
@@ -809,7 +811,7 @@ class EDCR:
                           spreadsheet_id=sheet_id,
                           range_=f'{sheet_tab}!{methods_column}{self.epsilon_index}',
                           value_input_option=value_input_option,
-                          body={'values': [[method_name]]})
+                          body={'values': [[round(self.epsilon, 3)]]})
 
         print(f'{method_name} row_number: {self.epsilon_index}')
 
@@ -829,9 +831,9 @@ class EDCR:
         if g.g_str == 'fine':
             self.update_sheet(sheet=sheet,
                               spreadsheet_id=sheet_id,
-                              range_=f'{sheet_tab}!J{self.epsilon_index}',
+                              range_=f'{sheet_tab}!J{self.epsilon_index}:L{self.epsilon_index}',
                               value_input_option=value_input_option,
-                              body={'values': [[input_values[-1]]]})
+                              body={'values': [input_values[-3:]]})
 
     def apply_detection_rules(self,
                               test: bool,
