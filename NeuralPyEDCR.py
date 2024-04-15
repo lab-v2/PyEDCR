@@ -178,8 +178,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                                                            true_data=total_error_ground_truth,
                                                                            labels=[1])]
 
-            self.save_error_detection_results_to_google_sheets(input_values=[error_accuracy, error_f1],
-                                                           g=g)
+            self.save_error_detection_results_to_google_sheets(input_values=[error_accuracy, error_f1])
             # self.run_training_new_model_pipeline(new_model_name=new_model_name,
             #                                      new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
@@ -198,15 +197,15 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 def work_on_epsilon(epsilon: typing.Tuple[int, float]):
-    # data_str = 'imagenet'
-    # main_model_name = new_model_name = 'dinov2_vits14'
-    # main_lr = new_lr = 0.000001
-    # original_num_epochs = 8
+    data_str = 'imagenet'
+    main_model_name = new_model_name = 'dinov2_vits14'
+    main_lr = new_lr = 0.000001
+    original_num_epochs = 8
 
-    data_str = 'military_vehicles'
-    main_model_name = new_model_name = 'vit_b_16'
-    main_lr = new_lr = 0.0001
-    original_num_epochs = 20
+    # data_str = 'military_vehicles'
+    # main_model_name = new_model_name = 'vit_b_16'
+    # main_lr = new_lr = 0.0001
+    # original_num_epochs = 20
 
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
