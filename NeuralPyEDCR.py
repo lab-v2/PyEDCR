@@ -227,7 +227,7 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
                        print_actual_errors_num=True)
     edcr.run_learning_pipeline(new_model_name=new_model_name,
                                new_lr=new_lr)
-    # edcr.run_error_detection_application_pipeline(test=True, print_results=False)
+    edcr.run_error_detection_application_pipeline(test=True, print_results=False)
     # edcr.apply_new_model_on_test()
 
 

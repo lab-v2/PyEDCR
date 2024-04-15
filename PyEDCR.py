@@ -855,6 +855,7 @@ class EDCR:
         :params g: The granularity of the predictions to be processed.
         """
         stage = 'original' if self.correction_model is None else 'post_detection'
+        test_str = 'test' if test else 'train'
         pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
 
         secondary_pred_fine_data, secondary_pred_coarse_data = (
@@ -885,7 +886,7 @@ class EDCR:
 
             error_predictions |= np.where(altered_pred_data_l == -1, 1, 0)
 
-        self.pred_data['test' if test else 'train']['post_detection'][g] = altered_pred_granularity_data
+        self.pred_data[test_str]['post_detection'][g] = altered_pred_granularity_data
 
         error_accuracy, error_f1, error_precision, error_recall = [f'{round(metric_result * 100, 2)}%'
                                                                    for metric_result in
@@ -905,8 +906,6 @@ class EDCR:
 
         self.predicted_errors[g] = error_predictions
         self.ground_truth_errors[g] = inconsistency_error_ground_truths
-
-        test_str = 'Test' if test else 'Train'
 
         print(utils.blue_text(f'\n{g}-grain:\n'
                               f'{test_str} error accuracy: {error_accuracy}, {test_str} error f1: {error_f1}\n'
@@ -933,14 +932,15 @@ class EDCR:
                 f'{current_recovered_constraints}/{all_possible_inconsistencies} ' \
                 f'({round(current_recovered_constraints / all_possible_inconsistencies * 100, 2)}%)'
 
-            print(f'Total unique recoverable constraints from the test predictions: '
+            print(f'Total unique recoverable constraints from the {test_str} predictions: '
                   f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
                   f'Recovered constraints: {recovered_constraints_str}')
 
             input_values += [recovered_constraints_str]
 
-        self.save_error_detection_results_to_google_sheets(input_values=input_values,
-                                                           g=g)
+        if test:
+            self.save_error_detection_results_to_google_sheets(input_values=input_values,
+                                                               g=g)
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
