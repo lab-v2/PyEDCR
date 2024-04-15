@@ -215,7 +215,11 @@ class EDCR:
         self.error_detection_rules: typing.Dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
         self.error_correction_rules: typing.Dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
 
+        self.predicted_errors = {}
+        self.ground_truth_errors ={}
+
         self.correction_model = None
+
 
         self.original_test_inconsistencies = (
             self.preprocessor.get_num_inconsistencies(
@@ -806,7 +810,7 @@ class EDCR:
                                                   credentials=self.creds)
         sheet = service.spreadsheets()
 
-        # Call the Sheets API to update the sheet
+        # update epsilon value
         self.update_sheet(sheet=sheet,
                           spreadsheet_id=sheet_id,
                           range_=f'{sheet_tab}!{methods_column}{self.epsilon_index}',
@@ -815,25 +819,24 @@ class EDCR:
 
         print(f'{method_name} row_number: {self.epsilon_index}')
 
-        body = {'values': [input_values[0:4]]}
-
         # Determine start and end columns based on granularity
         range_start = 'B' if g.g_str == 'fine' else 'F'
         range_end = 'E' if g.g_str == 'fine' else 'I'
 
-        # Update the sheet with new data
+        # Update granularity data
         self.update_sheet(sheet=sheet,
                           spreadsheet_id=sheet_id,
                           range_=f'{sheet_tab}!{range_start}{self.epsilon_index}:{range_end}{self.epsilon_index}',
                           value_input_option=value_input_option,
-                          body=body)
+                          body={'values': [input_values[0:4]]})
 
         if g.g_str == 'fine':
+            # Update RCC ratio
             self.update_sheet(sheet=sheet,
                               spreadsheet_id=sheet_id,
                               range_=f'{sheet_tab}!J{self.epsilon_index}:L{self.epsilon_index}',
                               value_input_option=value_input_option,
-                              body={'values': [input_values[-3:]]})
+                              body={'values': [input_values[-1:]]})
 
     def apply_detection_rules(self,
                               test: bool,
@@ -882,40 +885,19 @@ class EDCR:
                                                                    neural_metrics.get_individual_metrics(
                                                                        pred_data=error_predictions,
                                                                        true_data=total_error_ground_truth,
-                                                                       labels=[0, 1])]
+                                                                       labels=[1])]
+
+
 
         (inconsistency_error_accuracy, inconsistency_error_f1, inconsistency_error_precision,
          inconsistency_error_recall) = [f'{round(metric_result * 100, 2)}%' for metric_result in
                                         neural_metrics.get_individual_metrics(
                                             pred_data=error_predictions,
                                             true_data=inconsistency_error_ground_truths,
-                                            labels=[0, 1])]
+                                            labels=[1])]
 
-        # Consistency error acc and f1:
-        # f(x1) = (f_1, c_1)
-        # Define: (gt_f_1!= f1 or gt_c_1 != c1) and coarse(f1) != c1
-
-        # f1, c1
-        pred_fine_data, pred_coarse_data = self.get_predictions(test=test, stage=stage)
-
-        # gt_f_1, gt_c_1
-        true_fine_data, true_coarse_data = self.get_predictions(test=test)
-
-        # gt_f_1!= f1, gt_c_1 != c1
-        false_pred_fine_mask = np.where(true_fine_data != pred_fine_data, 1, 0)
-        false_pred_coarse_mask = np.where(true_coarse_data != pred_coarse_data, 1, 0)
-
-        # coarse(f1) != c1
-        inconsistency_mask = self.get_where_predicted_inconsistently(test=test)
-
-        consistency_error_mask = (false_pred_fine_mask | false_pred_coarse_mask) & inconsistency_mask
-
-        (consistency_error_accuracy, consistency_error_f1, consistency_error_precision,
-         consistency_error_recall) = [f'{round(metric_result * 100, 2)}%' for metric_result in
-                                      neural_metrics.get_individual_metrics(
-                                          pred_data=error_predictions,
-                                          true_data=consistency_error_mask,
-                                          labels=[0, 1])]
+        self.predicted_errors[g] = error_predictions
+        self.ground_truth_errors[g] = inconsistency_error_ground_truths
 
         test_str = 'Test' if test else 'Train'
 
@@ -928,11 +910,6 @@ class EDCR:
                               f'Inconsistency {test_str} error f1: {inconsistency_error_f1}\n'
                               f'Inconsistency {test_str} error precision: {inconsistency_error_precision}, '
                               f'Inconsistency {test_str} error recall: {inconsistency_error_recall}'))
-
-        print(utils.blue_text(f'\nConsistency {test_str} error accuracy: {consistency_error_accuracy}, '
-                              f'Consistency {test_str} error f1: {consistency_error_f1}\n'
-                              f'Consistency {test_str} error precision: {consistency_error_precision}, '
-                              f'Consistency {test_str} error recall: {consistency_error_recall}'))
 
         input_values = [error_accuracy,
                         error_f1,
@@ -954,9 +931,6 @@ class EDCR:
                   f'Recovered constraints: {recovered_constraints_str}')
 
             input_values += [recovered_constraints_str]
-
-            input_values += [consistency_error_accuracy,
-                             consistency_error_f1]
 
         self.save_error_detection_results_to_google_sheets(input_values=input_values,
                                                            g=g)

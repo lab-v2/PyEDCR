@@ -9,12 +9,12 @@ import typing
 import multiprocessing as mp
 from tqdm.contrib.concurrent import process_map
 
-
 import data_preprocessing
 import PyEDCR
 import backbone_pipeline
 import combined_fine_tuning
 import neural_evaluation
+import neural_metrics
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
@@ -163,6 +163,22 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 self.learn_detection_rules(g=g)
                 self.apply_detection_rules(test=False, g=g)
 
+            total_error_prediction = (self.predicted_errors[data_preprocessing.DataPreprocessor.granularities['fine']] |
+                                      self.predicted_errors[data_preprocessing.DataPreprocessor.granularities['coarse']]
+                                      )
+            total_error_ground_truth = (
+                        self.ground_truth_errors[data_preprocessing.DataPreprocessor.granularities['fine']] |
+                        self.ground_truth_errors[data_preprocessing.DataPreprocessor.granularities['coarse']]
+                        )
+
+            error_accuracy, error_f1, error_precision, error_recall = [f'{round(metric_result * 100, 2)}%'
+                                                                       for metric_result in
+                                                                       neural_metrics.get_individual_metrics(
+                                                                           pred_data=total_error_prediction,
+                                                                           true_data=total_error_ground_truth,
+                                                                           labels=[1])]
+
+
             # self.run_training_new_model_pipeline(new_model_name=new_model_name,
             #                                      new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
@@ -219,6 +235,7 @@ def main():
     # For multiprocessing
     epsilons = [(i, epsilon) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.1, num=100))]
     processes_num = min(len(epsilons), mp.cpu_count())
+
     process_map(work_on_epsilon,
                 epsilons,
                 max_workers=processes_num)
