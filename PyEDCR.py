@@ -888,59 +888,60 @@ class EDCR:
 
             error_predictions |= np.where(altered_pred_data_l == -1, 1, 0)
 
-        self.pred_data[test_str]['post_detection'][g] = altered_pred_granularity_data
-
-        error_accuracy, error_f1, error_precision, error_recall = [f'{round(metric_result * 100, 2)}%'
-                                                                   for metric_result in
-                                                                   neural_metrics.get_individual_metrics(
-                                                                       pred_data=error_predictions,
-                                                                       true_data=total_error_ground_truth,
-                                                                       labels=[1])]
-
-
-
-        (inconsistency_error_accuracy, inconsistency_error_f1, inconsistency_error_precision,
-         inconsistency_error_recall) = [f'{round(metric_result * 100, 2)}%' for metric_result in
-                                        neural_metrics.get_individual_metrics(
-                                            pred_data=error_predictions,
-                                            true_data=inconsistency_error_ground_truths,
-                                            labels=[1])]
-
-        self.predicted_errors[g] = error_predictions
-        self.ground_truth_errors[g] = inconsistency_error_ground_truths
-
-        print(utils.blue_text(f'\n{g}-grain:\n'
-                              f'{test_str} error accuracy: {error_accuracy}, {test_str} error f1: {error_f1}\n'
-                              f'{test_str} error precision: {error_precision}, '
-                              f'{test_str} error recall: {error_recall}'))
-
-        print(utils.blue_text(f'\nInconsistency {test_str} error accuracy: {inconsistency_error_accuracy}, '
-                              f'Inconsistency {test_str} error f1: {inconsistency_error_f1}\n'
-                              f'Inconsistency {test_str} error precision: {inconsistency_error_precision}, '
-                              f'Inconsistency {test_str} error recall: {inconsistency_error_recall}'))
-
-        input_values = [error_accuracy,
-                        error_f1,
-                        inconsistency_error_accuracy,
-                        inconsistency_error_f1]
-
-        if g.g_str == 'fine':
-            current_recovered_constraints = self.get_num_recovered_constraints()
-            inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
-            all_possible_inconsistencies = (self.preprocessor.num_fine_grain_classes *
-                                            (self.preprocessor.num_coarse_grain_classes - 1))
-
-            recovered_constraints_str = \
-                f'{current_recovered_constraints}/{all_possible_inconsistencies} ' \
-                f'({round(current_recovered_constraints / all_possible_inconsistencies * 100, 2)}%)'
-
-            print(f'Total unique recoverable constraints from the {test_str} predictions: '
-                  f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
-                  f'Recovered constraints: {recovered_constraints_str}')
-
-            input_values += [recovered_constraints_str]
-
         if test:
+            self.pred_data[test_str]['post_detection'][g] = altered_pred_granularity_data
+
+            error_accuracy, error_f1, error_precision, error_recall = [f'{round(metric_result * 100, 2)}%'
+                                                                       for metric_result in
+                                                                       neural_metrics.get_individual_metrics(
+                                                                           pred_data=error_predictions,
+                                                                           true_data=total_error_ground_truth,
+                                                                           labels=[1])]
+
+
+
+            (inconsistency_error_accuracy, inconsistency_error_f1, inconsistency_error_precision,
+             inconsistency_error_recall) = [f'{round(metric_result * 100, 2)}%' for metric_result in
+                                            neural_metrics.get_individual_metrics(
+                                                pred_data=error_predictions,
+                                                true_data=inconsistency_error_ground_truths,
+                                                labels=[1])]
+
+            self.predicted_errors[g] = error_predictions
+            self.ground_truth_errors[g] = inconsistency_error_ground_truths
+
+            print(utils.blue_text(f'\n{g}-grain:\n'
+                                  f'{test_str} error accuracy: {error_accuracy}, {test_str} error f1: {error_f1}\n'
+                                  f'{test_str} error precision: {error_precision}, '
+                                  f'{test_str} error recall: {error_recall}'))
+
+            print(utils.blue_text(f'\nInconsistency {test_str} error accuracy: {inconsistency_error_accuracy}, '
+                                  f'Inconsistency {test_str} error f1: {inconsistency_error_f1}\n'
+                                  f'Inconsistency {test_str} error precision: {inconsistency_error_precision}, '
+                                  f'Inconsistency {test_str} error recall: {inconsistency_error_recall}'))
+
+            input_values = [error_accuracy,
+                            error_f1,
+                            inconsistency_error_accuracy,
+                            inconsistency_error_f1]
+
+            if g.g_str == 'fine':
+                current_recovered_constraints = self.get_num_recovered_constraints()
+                inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
+                all_possible_inconsistencies = (self.preprocessor.num_fine_grain_classes *
+                                                (self.preprocessor.num_coarse_grain_classes - 1))
+
+                recovered_constraints_str = \
+                    f'{current_recovered_constraints}/{all_possible_inconsistencies} ' \
+                    f'({round(current_recovered_constraints / all_possible_inconsistencies * 100, 2)}%)'
+
+                print(f'Total unique recoverable constraints from the {test_str} predictions: '
+                      f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
+                      f'Recovered constraints: {recovered_constraints_str}')
+
+                input_values += [recovered_constraints_str]
+
+
             self.save_error_detection_results_to_google_sheets(input_values=input_values,
                                                                g=g)
 
@@ -972,6 +973,24 @@ class EDCR:
                 symbolic_metrics.evaluate_and_print_g_detection_rule_precision_increase(edcr=self, test=test, g=g)
                 symbolic_metrics.evaluate_and_print_g_detection_rule_recall_decrease(edcr=self, test=test, g=g)
                 self.print_how_many_not_assigned(test=test, g=g, stage='post_detection')
+
+        if test:
+            total_error_prediction = (self.predicted_errors[data_preprocessing.DataPreprocessor.granularities['fine']] |
+                                      self.predicted_errors[data_preprocessing.DataPreprocessor.granularities['coarse']]
+                                      )
+            total_error_ground_truth = (
+                    self.ground_truth_errors[data_preprocessing.DataPreprocessor.granularities['fine']] |
+                    self.ground_truth_errors[data_preprocessing.DataPreprocessor.granularities['coarse']]
+            )
+
+            error_accuracy, error_f1, error_precision, error_recall = [f'{round(metric_result * 100, 2)}%'
+                                                                       for metric_result in
+                                                                       neural_metrics.get_individual_metrics(
+                                                                           pred_data=total_error_prediction,
+                                                                           true_data=total_error_ground_truth,
+                                                                           labels=[1])]
+
+            self.save_error_detection_results_to_google_sheets(input_values=[error_accuracy, error_f1])
 
         if print_results:
             self.print_metrics(test=test, prior=False, stage='post_detection', print_inconsistencies=False)
