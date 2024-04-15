@@ -772,6 +772,7 @@ class EDCR:
                         time.sleep(wait)
                         wait *= 1.1  # Exponential backoff
                     else:
+                        time.sleep(60)
                         print(e)
 
         return wrapper
@@ -805,48 +806,45 @@ class EDCR:
                      f"on {'ImageNet' if self.data_str == 'imagenet' else 'Military Vehicles'} Errors")
         # sheet_tab = 'VIT_b_16 on Military Vehicles Errors'
 
-        try:
-            service = googleapiclient.discovery.build(serviceName="sheets",
-                                                      version="v4",
-                                                      credentials=self.creds)
-            sheet = service.spreadsheets()
+        service = googleapiclient.discovery.build(serviceName="sheets",
+                                                  version="v4",
+                                                  credentials=self.creds)
+        sheet = service.spreadsheets()
 
-            # update epsilon value
+        # update epsilon value
+        self.update_sheet(sheet=sheet,
+                          spreadsheet_id=sheet_id,
+                          range_=f'{sheet_tab}!{methods_column}{self.epsilon_index}',
+                          value_input_option=value_input_option,
+                          body={'values': [[round(self.epsilon, 3)]]})
+
+        print(f'{method_name} row_number: {self.epsilon_index}')
+
+        if g is not None:
+            # Determine start and end columns based on granularity
+            range_start = 'B' if g.g_str == 'fine' else 'F'
+            range_end = 'E' if g.g_str == 'fine' else 'I'
+
+            # Update granularity data
             self.update_sheet(sheet=sheet,
                               spreadsheet_id=sheet_id,
-                              range_=f'{sheet_tab}!{methods_column}{self.epsilon_index}',
+                              range_=f'{sheet_tab}!{range_start}{self.epsilon_index}:{range_end}{self.epsilon_index}',
                               value_input_option=value_input_option,
-                              body={'values': [[round(self.epsilon, 3)]]})
+                              body={'values': [input_values[0:4]]})
 
-            print(f'{method_name} row_number: {self.epsilon_index}')
-
-            if g is not None:
-                # Determine start and end columns based on granularity
-                range_start = 'B' if g.g_str == 'fine' else 'F'
-                range_end = 'E' if g.g_str == 'fine' else 'I'
-
-                # Update granularity data
+            if g.g_str == 'fine':
+                # Update RCC ratio
                 self.update_sheet(sheet=sheet,
                                   spreadsheet_id=sheet_id,
-                                  range_=f'{sheet_tab}!{range_start}{self.epsilon_index}:{range_end}{self.epsilon_index}',
+                                  range_=f'{sheet_tab}!J{self.epsilon_index}:L{self.epsilon_index}',
                                   value_input_option=value_input_option,
-                                  body={'values': [input_values[0:4]]})
-
-                if g.g_str == 'fine':
-                    # Update RCC ratio
-                    self.update_sheet(sheet=sheet,
-                                      spreadsheet_id=sheet_id,
-                                      range_=f'{sheet_tab}!J{self.epsilon_index}:L{self.epsilon_index}',
-                                      value_input_option=value_input_option,
-                                      body={'values': [input_values[-1:]]})
-            else:
-                self.update_sheet(sheet=sheet,
-                                  spreadsheet_id=sheet_id,
-                                  range_=f'{sheet_tab}!K{self.epsilon_index}:L{self.epsilon_index}',
-                                  value_input_option=value_input_option,
-                                  body={'values': [input_values]})
-        except googleapiclient.errors.HttpError as err:
-            print(err)
+                                  body={'values': [input_values[-1:]]})
+        else:
+            self.update_sheet(sheet=sheet,
+                              spreadsheet_id=sheet_id,
+                              range_=f'{sheet_tab}!K{self.epsilon_index}:L{self.epsilon_index}',
+                              value_input_option=value_input_option,
+                              body={'values': [input_values]})
 
     def apply_detection_rules(self,
                               test: bool,
