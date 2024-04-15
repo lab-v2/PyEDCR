@@ -772,8 +772,9 @@ class EDCR:
                         time.sleep(wait)
                         wait *= 1.1  # Exponential backoff
                     else:
-                        time.sleep(60)
                         print(e)
+                        time.sleep(60)
+
 
         return wrapper
 
