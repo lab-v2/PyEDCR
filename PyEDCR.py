@@ -794,7 +794,7 @@ class EDCR:
 
     def save_error_detection_results_to_google_sheets(self,
                                                       input_values: typing.List[float],
-                                                      g: data_preprocessing.Granularity):
+                                                      g: data_preprocessing.Granularity = None):
         method_name = f'{self.main_model_name} on {self.preprocessor.data_str} with eps={round(self.epsilon, 3)}'
 
         # Define the range for batch update
@@ -819,24 +819,31 @@ class EDCR:
 
         print(f'{method_name} row_number: {self.epsilon_index}')
 
-        # Determine start and end columns based on granularity
-        range_start = 'B' if g.g_str == 'fine' else 'F'
-        range_end = 'E' if g.g_str == 'fine' else 'I'
+        if g is not None:
+            # Determine start and end columns based on granularity
+            range_start = 'B' if g.g_str == 'fine' else 'F'
+            range_end = 'E' if g.g_str == 'fine' else 'I'
 
-        # Update granularity data
-        self.update_sheet(sheet=sheet,
-                          spreadsheet_id=sheet_id,
-                          range_=f'{sheet_tab}!{range_start}{self.epsilon_index}:{range_end}{self.epsilon_index}',
-                          value_input_option=value_input_option,
-                          body={'values': [input_values[0:4]]})
-
-        if g.g_str == 'fine':
-            # Update RCC ratio
+            # Update granularity data
             self.update_sheet(sheet=sheet,
                               spreadsheet_id=sheet_id,
-                              range_=f'{sheet_tab}!J{self.epsilon_index}:L{self.epsilon_index}',
+                              range_=f'{sheet_tab}!{range_start}{self.epsilon_index}:{range_end}{self.epsilon_index}',
                               value_input_option=value_input_option,
-                              body={'values': [input_values[-1:]]})
+                              body={'values': [input_values[0:4]]})
+
+            if g.g_str == 'fine':
+                # Update RCC ratio
+                self.update_sheet(sheet=sheet,
+                                  spreadsheet_id=sheet_id,
+                                  range_=f'{sheet_tab}!J{self.epsilon_index}:L{self.epsilon_index}',
+                                  value_input_option=value_input_option,
+                                  body={'values': [input_values[-1:]]})
+        else:
+            self.update_sheet(sheet=sheet,
+                              spreadsheet_id=sheet_id,
+                              range_=f'{sheet_tab}!K{self.epsilon_index}:L{self.epsilon_index}',
+                              value_input_option=value_input_option,
+                              body={'values': [input_values]})
 
     def apply_detection_rules(self,
                               test: bool,

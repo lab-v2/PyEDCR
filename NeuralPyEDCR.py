@@ -178,7 +178,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                                                            true_data=total_error_ground_truth,
                                                                            labels=[1])]
 
-
+            self.save_error_detection_results_to_google_sheets(input_values=[error_accuracy, error_f1],
+                                                           g=g)
             # self.run_training_new_model_pipeline(new_model_name=new_model_name,
             #                                      new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
