@@ -803,8 +803,9 @@ class EDCR:
         sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
         value_input_option = 'USER_ENTERED'
         methods_column = 'A'
-        sheet_tab = (f"{'VIT_b_16' if self.main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
-                     f"on {'ImageNet' if self.data_str == 'imagenet' else 'Military Vehicles'} Errors")
+        sheet_tab = ((f"{'VIT_b_16' if self.main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
+                     f"on {'ImageNet' if self.data_str == 'imagenet' else 'Military Vehicles'} Errors") +
+                     " with VIT_l_16" if self.secondary_model_name is not None else '')
         # sheet_tab = 'VIT_b_16 on Military Vehicles Errors'
 
         service = googleapiclient.discovery.build(serviceName="sheets",
