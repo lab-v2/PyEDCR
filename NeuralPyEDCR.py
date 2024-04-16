@@ -201,7 +201,7 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
                         lr=main_lr,
                         original_num_epochs=original_num_epochs,
                         include_inconsistency_constraint=False,
-                        secondary_model_name='vit_l_16_BCE',
+                        # secondary_model_name='vit_l_16_BCE',
                         # binary_models=data_preprocessing.fine_grain_classes_str,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
