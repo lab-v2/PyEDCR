@@ -217,9 +217,11 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
 
 def main():
     # For multiprocessing
-    epsilons = [(i, epsilon) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.1, num=100))]
+    epsilons = [(x, y) for x, y in
+                [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.1, num=100))]
+                # if y in [0.014]
+                ]
     processes_num = min([len(epsilons), mp.cpu_count(), 50])
-
     process_map(work_on_epsilon,
                 epsilons,
                 max_workers=processes_num)
