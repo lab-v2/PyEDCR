@@ -257,20 +257,18 @@ class EDCR:
             with open("token.json", "w") as token:
                 token.write(self.creds.to_json())
 
-        self.method_name = f'{self.main_model_name} on {self.preprocessor.data_str} with eps={round(self.epsilon, 3)}'
-
         # Define the range for batch update
         self.sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
         self.value_input_option = 'USER_ENTERED'
-        self.methods_column = 'A'
         self.sheet_tab = ((f"{'VIT_b_16' if self.main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
                            f"on {'ImageNet' if self.data_str == 'imagenet' else 'Military Vehicles'} Errors") +
-                          " with VIT_l_16" if self.secondary_model_name is not None else '')
+                          (" with VIT_l_16" if self.secondary_model_name is not None else ''))
 
         self.service = googleapiclient.discovery.build(serviceName="sheets",
                                                        version="v4",
                                                        credentials=self.creds)
         self.sheet = self.service.spreadsheets()
+        self.RCC_ratio = 0
 
     def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
         """
@@ -811,12 +809,6 @@ class EDCR:
 
         print(f"{result.get('updatedCells')} cell updated.")
 
-    def set_epsilon_value_in_sheet(self):
-        self.update_sheet(sheet=self.sheet,
-                          spreadsheet_id=self.sheet_id,
-                          range_=f'{self.sheet_tab}!{self.methods_column}{self.epsilon_index}',
-                          value_input_option=self.value_input_option,
-                          body={'values': [[round(self.epsilon, 3)]]})
 
     def apply_detection_rules(self,
                               test: bool,
@@ -862,49 +854,49 @@ class EDCR:
         if test:
             self.pred_data[test_str]['post_detection'][g] = altered_pred_granularity_data
 
-            error_accuracy, error_f1, error_precision, error_recall = [f'{round(metric_result * 100, 2)}%'
-                                                                       for metric_result in
-                                                                       neural_metrics.get_individual_metrics(
-                                                                           pred_data=error_predictions,
-                                                                           true_data=error_ground_truths,
-                                                                           labels=[1])]
-
-            (inconsistency_error_accuracy, inconsistency_error_f1, inconsistency_error_precision,
-             inconsistency_error_recall) = [f'{round(metric_result * 100, 2)}%' for metric_result in
-                                            neural_metrics.get_individual_metrics(
-                                                pred_data=error_predictions,
-                                                true_data=inconsistency_error_ground_truths,
-                                                labels=[1])]
+            # error_accuracy, error_f1, error_precision, error_recall = [f'{round(metric_result * 100, 2)}%'
+            #                                                            for metric_result in
+            #                                                            neural_metrics.get_individual_metrics(
+            #                                                                pred_data=error_predictions,
+            #                                                                true_data=error_ground_truths,
+            #                                                                labels=[1])]
+            #
+            # (inconsistency_error_accuracy, inconsistency_error_f1, inconsistency_error_precision,
+            #  inconsistency_error_recall) = [f'{round(metric_result * 100, 2)}%' for metric_result in
+            #                                 neural_metrics.get_individual_metrics(
+            #                                     pred_data=error_predictions,
+            #                                     true_data=inconsistency_error_ground_truths,
+            #                                     labels=[1])]
 
             self.predicted_errors |= error_predictions
             self.error_ground_truths |= error_ground_truths
             self.inconsistency_error_ground_truths |= inconsistency_error_ground_truths
 
-            print(utils.blue_text(f'\n{g}-grain:\n'
-                                  f'{test_str} error accuracy: {error_accuracy}, {test_str} error f1: {error_f1}\n'
-                                  f'{test_str} error precision: {error_precision}, '
-                                  f'{test_str} error recall: {error_recall}'))
+            # print(utils.blue_text(f'\n{g}-grain:\n'
+            #                       f'{test_str} error accuracy: {error_accuracy}, {test_str} error f1: {error_f1}\n'
+            #                       f'{test_str} error precision: {error_precision}, '
+            #                       f'{test_str} error recall: {error_recall}'))
+            #
+            # print(utils.blue_text(f'\nInconsistency {test_str} error accuracy: {inconsistency_error_accuracy}, '
+            #                       f'Inconsistency {test_str} error f1: {inconsistency_error_f1}\n'
+            #                       f'Inconsistency {test_str} error precision: {inconsistency_error_precision}, '
+            #                       f'Inconsistency {test_str} error recall: {inconsistency_error_recall}'))
 
-            print(utils.blue_text(f'\nInconsistency {test_str} error accuracy: {inconsistency_error_accuracy}, '
-                                  f'Inconsistency {test_str} error f1: {inconsistency_error_f1}\n'
-                                  f'Inconsistency {test_str} error precision: {inconsistency_error_precision}, '
-                                  f'Inconsistency {test_str} error recall: {inconsistency_error_recall}'))
+            # input_values = [error_accuracy,
+            #                 error_f1,
+            #                 inconsistency_error_accuracy,
+            #                 inconsistency_error_f1]
 
-            input_values = [error_accuracy,
-                            error_f1,
-                            inconsistency_error_accuracy,
-                            inconsistency_error_f1]
-
-            range_start = 'B' if g.g_str == 'fine' else 'F'
-            range_end = 'E' if g.g_str == 'fine' else 'I'
-
-            # Update granularity data
-            self.update_sheet(sheet=self.sheet,
-                              spreadsheet_id=self.sheet_id,
-                              range_=f'{self.sheet_tab}!{range_start}{self.epsilon_index}:'
-                                     f'{range_end}{self.epsilon_index}',
-                              value_input_option=self.value_input_option,
-                              body={'values': [input_values]})
+            # range_start = 'B' if g.g_str == 'fine' else 'F'
+            # range_end = 'E' if g.g_str == 'fine' else 'I'
+            #
+            # # Update granularity data
+            # self.update_sheet(sheet=self.sheet,
+            #                   spreadsheet_id=self.sheet_id,
+            #                   range_=f'{self.sheet_tab}!{range_start}{self.epsilon_index}:'
+            #                          f'{range_end}{self.epsilon_index}',
+            #                   value_input_option=self.value_input_option,
+            #                   body={'values': [input_values]})
 
             if g.g_str == 'fine':
                 current_recovered_constraints = self.get_num_recovered_constraints()
@@ -920,14 +912,7 @@ class EDCR:
                       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
                       f'Recovered constraints: {recovered_constraints_str}')
 
-                input_values = [recovered_constraints_str]
-
-                # Update RCC ratio
-                self.update_sheet(sheet=self.sheet,
-                                  spreadsheet_id=self.sheet_id,
-                                  range_=f'{self.sheet_tab}!N{self.epsilon_index}',
-                                  value_input_option=self.value_input_option,
-                                  body={'values': [input_values]})
+                self.RCC_ratio = recovered_constraints_str
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
@@ -977,15 +962,17 @@ class EDCR:
                     true_data=self.inconsistency_error_ground_truths,
                     labels=[1])]
 
-            self.set_epsilon_value_in_sheet()
-
-            input_values = [error_accuracy,
+            # set values
+            input_values = [round(self.epsilon, 3),
+                            error_accuracy,
                             error_f1,
                             inconsistency_error_accuracy,
-                            inconsistency_error_f1]
+                            inconsistency_error_f1,
+                            self.RCC_ratio]
+
             self.update_sheet(sheet=self.sheet,
                               spreadsheet_id=self.sheet_id,
-                              range_=f'{self.sheet_tab}!J{self.epsilon_index}:M{self.epsilon_index}',
+                              range_=f'{self.sheet_tab}!A{self.epsilon_index}:F{self.epsilon_index}',
                               value_input_option=self.value_input_option,
                               body={'values': [input_values]})
 
