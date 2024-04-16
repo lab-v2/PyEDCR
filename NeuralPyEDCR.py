@@ -201,7 +201,7 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
                         lr=main_lr,
                         original_num_epochs=original_num_epochs,
                         include_inconsistency_constraint=False,
-                        secondary_model_name='vit_l_16_BCE',
+                        # secondary_model_name='vit_l_16_BCE',
                         # binary_models=data_preprocessing.fine_grain_classes_str,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
@@ -218,7 +218,7 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
 def main():
     # For multiprocessing
     epsilons = [(x, y) for x, y in
-                [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.2, num=200))]
+                [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.3, num=300))]
                 # if y in [0.001]
                 ]
     processes_num = min([len(epsilons), mp.cpu_count(), 50])
