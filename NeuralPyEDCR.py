@@ -181,15 +181,15 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 def work_on_epsilon(epsilon: typing.Tuple[int, float]):
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    main_lr = new_lr = 0.000001
-    original_num_epochs = 8
+    # data_str = 'imagenet'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    # main_lr = new_lr = 0.000001
+    # original_num_epochs = 8
 
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # main_lr = new_lr = 0.0001
-    # original_num_epochs = 20
+    data_str = 'military_vehicles'
+    main_model_name = new_model_name = 'vit_b_16'
+    main_lr = new_lr = 0.0001
+    original_num_epochs = 20
 
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
@@ -201,7 +201,7 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
                         lr=main_lr,
                         original_num_epochs=original_num_epochs,
                         include_inconsistency_constraint=False,
-                        # secondary_model_name='vit_l_16_BCE',
+                        secondary_model_name='vit_l_16_BCE',
                         # binary_models=data_preprocessing.fine_grain_classes_str,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
