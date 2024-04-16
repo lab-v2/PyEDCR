@@ -219,7 +219,7 @@ def main():
     # For multiprocessing
     epsilons = [(x, y) for x, y in
                 [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.3, num=300))]
-                # if y in [0.001]
+                if y in [0.014, 0.022, 0.025, 0.032, 0.044, 0.050, 0.055, 0.056, 0.060, 0.063, 0.067, 0.071, 0.072, 0.073, 0.075]
                 ]
 
     processes_num = min([len(epsilons), mp.cpu_count(), 100])

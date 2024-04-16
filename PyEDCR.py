@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-import os
 import typing
 import numpy as np
 import warnings
-import google_auth_oauthlib.flow
-import google.auth.transport.requests
-import google.oauth2.credentials
-import googleapiclient.discovery
-import googleapiclient.errors
-import time
 
 warnings.filterwarnings('ignore')
 
@@ -20,6 +13,7 @@ import symbolic_metrics
 import conditions
 import rules
 import models
+import google_sheets_api
 
 
 class EDCR:
@@ -218,9 +212,10 @@ class EDCR:
         self.predicted_errors = np.zeros_like(self.pred_data['test']['original'][
                                                   data_preprocessing.DataPreprocessor.granularities['fine']])
         self.error_ground_truths = np.zeros_like(self.pred_data['test']['original'][
-                                                  data_preprocessing.DataPreprocessor.granularities['fine']])
+                                                     data_preprocessing.DataPreprocessor.granularities['fine']])
         self.inconsistency_error_ground_truths = np.zeros_like(self.pred_data['test']['original'][
-                                                  data_preprocessing.DataPreprocessor.granularities['fine']])
+                                                                   data_preprocessing.DataPreprocessor.granularities[
+                                                                       'fine']])
 
         self.correction_model = None
 
@@ -237,37 +232,12 @@ class EDCR:
             f"Num of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
-        self.creds = None
-        # The file token.json stores the user's access and refresh tokens, and is
-        # created automatically when the authorization flow completes for the first time.
-        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        if os.path.exists("token.json"):
-            self.creds = (google.oauth2.credentials.Credentials.from_authorized_user_file(filename="token.json",
-                                                                                          scopes=scopes))
-
-        if not self.creds or not self.creds.valid:
-            if self.creds and self.creds.expired and self.creds.refresh_token:
-                self.creds.refresh(google.auth.transport.requests.Request())
-            else:
-                flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-                    client_secrets_file="credentials.json",
-                    scopes=scopes)
-                self.creds = flow.run_local_server(port=0)
-            # Save the credentials for the next run
-            with open("token.json", "w") as token:
-                token.write(self.creds.to_json())
-
-        # Define the range for batch update
         self.sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
-        self.value_input_option = 'USER_ENTERED'
-        self.sheet_tab = ((f"{'VIT_b_16' if self.main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
-                           f"on {'ImageNet' if self.data_str == 'imagenet' else 'Military Vehicles'} Errors") +
-                          (" with VIT_l_16" if self.secondary_model_name is not None else ''))
+        self.sheet_tab = ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
+                      f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
+                     (" with VIT_l_16" if secondary_model_name is not None else ''))
 
-        self.service = googleapiclient.discovery.build(serviceName="sheets",
-                                                       version="v4",
-                                                       credentials=self.creds)
-        self.sheet = self.service.spreadsheets()
+        self.sheet = google_sheets_api.initiate_api()
         self.RCC_ratio = 0
 
     def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
@@ -773,43 +743,6 @@ class EDCR:
             #             and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
             #         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
-    def exponential_backoff(func: typing.Callable):
-        """Decorator to retry with exponential backoff when rate limited."""
-
-        def wrapper(*args, **kwargs):
-            wait = 30  # Start with 30 seconds
-            while True:
-                try:
-                    return func(*args, **kwargs)
-                except googleapiclient.errors.HttpError as e:
-                    error_code = e.resp.status
-                    if error_code == 429:
-                        print(f"Rate limit exceeded, waiting {wait} seconds...")
-                        time.sleep(wait)
-                        wait *= 1.1  # Exponential backoff
-                    else:
-                        print(e)
-                        time.sleep(60)
-
-        return wrapper
-
-    @exponential_backoff
-    def update_sheet(self,
-                     sheet: googleapiclient.discovery.Resource,
-                     spreadsheet_id: str,
-                     range_: str,
-                     value_input_option: str,
-                     body: typing.Dict[str, typing.List[typing.List[typing.Union[float, str]]]]):
-        """Function to update Google Sheet and handle retries on rate limits."""
-        result = sheet.values().update(
-            spreadsheetId=spreadsheet_id,
-            range=range_,
-            valueInputOption=value_input_option,
-            body=body).execute()
-
-        print(f"{result.get('updatedCells')} cell updated.")
-
-
     def apply_detection_rules(self,
                               test: bool,
                               g: data_preprocessing.Granularity):
@@ -970,11 +903,10 @@ class EDCR:
                             inconsistency_error_f1,
                             self.RCC_ratio]
 
-            self.update_sheet(sheet=self.sheet,
-                              spreadsheet_id=self.sheet_id,
-                              range_=f'{self.sheet_tab}!A{self.epsilon_index}:F{self.epsilon_index}',
-                              value_input_option=self.value_input_option,
-                              body={'values': [input_values]})
+            google_sheets_api.update_sheet(sheet=self.sheet,
+                                           spreadsheet_id=self.sheet_id,
+                                           range_=f'{self.sheet_tab}!A{self.epsilon_index}:F{self.epsilon_index}',
+                                           body={'values': [input_values]})
 
         if print_results:
             self.print_metrics(test=test,
@@ -1008,8 +940,6 @@ class EDCR:
         num_recovered_constraints = sum(len(coarse_dict) for coarse_dict in recovered_constraints.values())
 
         return num_recovered_constraints
-
-    exponential_backoff = staticmethod(exponential_backoff)
 
 
 if __name__ == '__main__':
