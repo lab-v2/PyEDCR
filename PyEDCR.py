@@ -205,19 +205,22 @@ class EDCR:
                                                                                           l=l,
                                                                                           stage='original'))
 
-        actual_examples_with_errors = set()
+        actual_test_examples_with_errors = set()
         for g in data_preprocessing.DataPreprocessor.granularities.values():
-            actual_examples_with_errors = actual_examples_with_errors.union(set(
+            actual_test_examples_with_errors = actual_test_examples_with_errors.union(set(
                 np.where(self.get_where_predicted_incorrect(test=True, g=g) == 1)[0]))
 
-        self.actual_examples_with_errors = np.array(list(actual_examples_with_errors))
+        self.actual_examples_with_errors = np.array(list(actual_test_examples_with_errors))
 
         self.error_detection_rules: typing.Dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
         self.error_correction_rules: typing.Dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
 
-        self.predicted_errors = np.zeros_like(actual_examples_with_errors)
-        self.error_ground_truths = np.zeros_like(actual_examples_with_errors)
-        self.inconsistency_error_ground_truths = np.zeros_like(actual_examples_with_errors)
+        self.predicted_errors = np.zeros_like(self.pred_data['test']['original'][
+                                                  data_preprocessing.DataPreprocessor.granularities['fine']])
+        self.error_ground_truths = np.zeros_like(self.pred_data['test']['original'][
+                                                  data_preprocessing.DataPreprocessor.granularities['fine']])
+        self.inconsistency_error_ground_truths = np.zeros_like(self.pred_data['test']['original'][
+                                                  data_preprocessing.DataPreprocessor.granularities['fine']])
 
         self.correction_model = None
 
