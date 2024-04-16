@@ -29,8 +29,6 @@ def initiate_api():
         with open("token.json", "w") as token:
             token.write(creds.to_json())
 
-
-
     service = googleapiclient.discovery.build(serviceName="sheets",
                                               version="v4",
                                               credentials=creds)
@@ -61,11 +59,15 @@ def exponential_backoff(func: typing.Callable):
 
 
 @exponential_backoff
-def update_sheet(sheet: googleapiclient.discovery.Resource,
-                 spreadsheet_id: str,
+def update_sheet(spreadsheet_id: str,
                  range_: str,
-                 body: typing.Dict[str, typing.List[typing.List[typing.Union[float, str]]]]):
+                 body: typing.Dict[str, typing.List[typing.List[typing.Union[float, str]]]],
+                 sheet: googleapiclient.discovery.Resource = None):
     """Function to update Google Sheet and handle retries on rate limits."""
+
+    if sheet is None:
+        sheet = initiate_api()
+
     result = sheet.values().update(
         spreadsheetId=spreadsheet_id,
         range=range_,
@@ -73,3 +75,25 @@ def update_sheet(sheet: googleapiclient.discovery.Resource,
         body=body).execute()
 
     print(f"{result.get('updatedCells')} cell updated.")
+
+
+@exponential_backoff
+def find_empty_rows_in_column(sheet_id: str,
+                              tab_name: str,
+                              column: str,
+                              sheet: googleapiclient.discovery.Resource = None):
+    if sheet is None:
+        sheet = initiate_api()
+
+    # Fetch the column data
+    result = sheet.values().get(spreadsheetId=sheet_id,
+                                range=f'{tab_name}!{column}:{column}').execute()
+    values = result.get('values', [])
+
+    # Identify empty rows
+    empty_row_indices = []
+    for index, value in enumerate(values, start=1):  # Starts counting from 1 (Google Sheets row numbers)
+        if not value:  # If the list is empty, the row is empty
+            empty_row_indices.append(index)
+
+    return empty_row_indices

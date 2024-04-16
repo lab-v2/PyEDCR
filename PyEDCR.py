@@ -234,10 +234,10 @@ class EDCR:
 
         self.sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
         self.sheet_tab = ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
-                      f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
-                     (" with VIT_l_16" if secondary_model_name is not None else ''))
+                           f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
+                          (" with VIT_l_16" if secondary_model_name is not None else ''))
 
-        self.sheet = google_sheets_api.initiate_api()
+        # self.sheet = google_sheets_api.initiate_api()
         self.RCC_ratio = 0
 
     def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
@@ -903,8 +903,7 @@ class EDCR:
                             inconsistency_error_f1,
                             self.RCC_ratio]
 
-            google_sheets_api.update_sheet(sheet=self.sheet,
-                                           spreadsheet_id=self.sheet_id,
+            google_sheets_api.update_sheet(spreadsheet_id=self.sheet_id,
                                            range_=f'{self.sheet_tab}!A{self.epsilon_index}:F{self.epsilon_index}',
                                            body={'values': [input_values]})
 
