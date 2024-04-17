@@ -14,7 +14,24 @@ import PyEDCR
 import backbone_pipeline
 import combined_fine_tuning
 import neural_evaluation
-# import neural_metrics
+import google_sheets_api
+
+data_str = 'military_vehicles'
+main_model_name = new_model_name = 'vit_b_16'
+main_lr = new_lr = 0.0001
+original_num_epochs = 20
+
+# data_str = 'imagenet'
+# main_model_name = new_model_name = 'dinov2_vits14'
+# main_lr = new_lr = 0.000001
+# original_num_epochs = 8
+
+secondary_model_name = 'vit_l_16_BCE'
+
+sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
+sheet_tab = ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
+              f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
+             (" with VIT_l_16" if secondary_model_name is not None else ''))
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
@@ -181,16 +198,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 def work_on_epsilon(epsilon: typing.Tuple[int, float]):
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    main_lr = new_lr = 0.000001
-    original_num_epochs = 8
-
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # main_lr = new_lr = 0.0001
-    # original_num_epochs = 20
-
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
                         epsilon=epsilon[1],
@@ -201,7 +208,7 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
                         lr=main_lr,
                         original_num_epochs=original_num_epochs,
                         include_inconsistency_constraint=False,
-                        # secondary_model_name='vit_l_16_BCE',
+                        secondary_model_name=secondary_model_name,
                         # binary_models=data_preprocessing.fine_grain_classes_str,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
@@ -215,12 +222,28 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
     # edcr.apply_new_model_on_test()
 
 
-def main():
+if __name__ == '__main__':
+    empty_row_indices, total_value_num = google_sheets_api.find_empty_rows_in_column(sheet_id=sheet_id,
+                                                                                     tab_name=sheet_tab,
+                                                                                     column='A')
+
+    total_number_of_points = 300
+    min_value = 0.1
+    max_value = 0.3
+
+    values_to_complete = total_number_of_points - total_value_num
+
+    epsilons_to_take = [round((eps - 1) / 1000, 3) for eps in empty_row_indices
+                        + [total_number_of_points - val for val in list(range(values_to_complete))]]
+    print(epsilons_to_take)
+
     # For multiprocessing
     epsilons = [(x, y) for x, y in
-                [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.3, num=300))]
-                # if y in [0.001]
-                ]
+                [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
+                                                                                stop=max_value,
+                                                                                num=total_number_of_points))]
+                if y in epsilons_to_take]
+
     processes_num = min([len(epsilons), mp.cpu_count(), 100])
     process_map(work_on_epsilon,
                 epsilons,
@@ -243,7 +266,3 @@ def main():
     #           # f'lower_predictions_indices = {lower_predictions_indices}'
     #       )
     #       + '\n' + '#' * 100 + '\n')
-
-
-if __name__ == '__main__':
-    main()
