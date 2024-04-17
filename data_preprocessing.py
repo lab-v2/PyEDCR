@@ -252,7 +252,8 @@ class DataPreprocessor:
                     "Cowboy hat"
                 ]
             }
-            self.fine_grain_classes_str = sorted([item for category, items in self.coarse_to_fine.items() for item in items])
+            self.fine_grain_classes_str = sorted(
+                [item for category, items in self.coarse_to_fine.items() for item in items])
             self.coarse_grain_classes_str = sorted([item for item in self.coarse_to_fine.keys()])
 
             self.fine_to_coarse = {}
@@ -366,7 +367,6 @@ class DataPreprocessor:
                 else:
                     unique_inconsistencies[fine_prediction] \
                         = (unique_inconsistencies[fine_prediction].union({coarse_prediction}))
-
 
         unique_inconsistencies_num = sum(len(coarse_dict) for coarse_dict in unique_inconsistencies.values())
 
