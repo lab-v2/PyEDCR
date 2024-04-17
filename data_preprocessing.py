@@ -252,8 +252,9 @@ class DataPreprocessor:
                     "Cowboy hat"
                 ]
             }
-            self.fine_grain_class_str = sorted([item for category, items in self.coarse_to_fine.items() for item in items])
-            self.coarse_grain_class_str = sorted([item for item in self.coarse_to_fine.keys()])
+            self.fine_grain_classes_str = sorted(
+                [item for category, items in self.coarse_to_fine.items() for item in items])
+            self.coarse_grain_classes_str = sorted([item for item in self.coarse_to_fine.keys()])
 
             self.fine_to_coarse = {}
             for fine_grain_class_idx, fine_grain_class in enumerate(self.fine_grain_classes_str):
@@ -299,7 +300,7 @@ class DataPreprocessor:
         if data_str == 'imagenet':
             data_path_str = 'data/ImageNet100/'
         elif data_str == 'openimage':
-            data_path_str = 'scratch/ngocbach/OpenImage'
+            data_path_str = '/scratch/ngocbach/OpenImage'
         else:
             data_path_str = 'data/'
 
@@ -366,7 +367,6 @@ class DataPreprocessor:
                 else:
                     unique_inconsistencies[fine_prediction] \
                         = (unique_inconsistencies[fine_prediction].union({coarse_prediction}))
-
 
         unique_inconsistencies_num = sum(len(coarse_dict) for coarse_dict in unique_inconsistencies.values())
 
@@ -710,9 +710,13 @@ def get_datasets(preprocessor: DataPreprocessor,
     datasets = {}
 
     for train_or_test in ['train', 'test']:
-        data_dir_name = f'ImageNet100/{train_or_test}_fine' if preprocessor.data_str == 'imagenet' \
-            else f'{train_or_test}_fine'
-        full_data_dir = os.path.join(data_dir, data_dir_name)
+
+        if preprocessor.data_str == 'openimage':
+            full_data_dir = f'scratch/ngocbach/OpenImage/{train_or_test}_fine'
+        else:
+            data_dir_name = f'ImageNet100/{train_or_test}_fine' if preprocessor.data_str == 'imagenet' \
+                else f'{train_or_test}_fine'
+            full_data_dir = os.path.join(data_dir, data_dir_name)
 
         if binary_label is not None:
             datasets[train_or_test] = BinaryImageFolder(root=full_data_dir,
