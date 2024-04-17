@@ -16,7 +16,6 @@ import combined_fine_tuning
 import neural_evaluation
 import google_sheets_api
 
-
 data_str = 'military_vehicles'
 main_model_name = new_model_name = 'vit_b_16'
 main_lr = new_lr = 0.0001
@@ -199,7 +198,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 def work_on_epsilon(epsilon: typing.Tuple[int, float]):
-
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
                         epsilon=epsilon[1],
@@ -225,18 +223,26 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
 
 
 if __name__ == '__main__':
-    empty_row_indices = google_sheets_api.find_empty_rows_in_column(sheet_id=sheet_id,
-                                                                    tab_name=sheet_tab,
-                                                                    column='A')
+    empty_row_indices, total_value_num = google_sheets_api.find_empty_rows_in_column(sheet_id=sheet_id,
+                                                                                     tab_name=sheet_tab,
+                                                                                     column='A')
 
-    epsilons_to_take = [round((eps-1)/1000, 3) for eps in empty_row_indices]
+    total_number_of_points = 300
+    min_value = 0.1
+    max_value = 0.3
+
+    values_to_complete = total_number_of_points - total_value_num
+
+    epsilons_to_take = [round((eps - 1) / 1000, 3) for eps in empty_row_indices
+                        + [total_number_of_points - val for val in list(range(values_to_complete))]]
     print(epsilons_to_take)
 
     # For multiprocessing
     epsilons = [(x, y) for x, y in
-                [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.3, num=300))]
-                if
-                y in epsilons_to_take]
+                [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
+                                                                                stop=max_value,
+                                                                                num=total_number_of_points))]
+                if y in epsilons_to_take]
 
     processes_num = min([len(epsilons), mp.cpu_count(), 100])
     process_map(work_on_epsilon,

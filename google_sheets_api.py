@@ -90,10 +90,12 @@ def find_empty_rows_in_column(sheet_id: str,
                                 range=f'{tab_name}!{column}:{column}').execute()
     values = result.get('values', [])
 
+    total_value_num = len(values)
+
     # Identify empty rows
     empty_row_indices = []
     for index, value in enumerate(values, start=1):  # Starts counting from 1 (Google Sheets row numbers)
         if not value:  # If the list is empty, the row is empty
             empty_row_indices.append(index)
 
-    return empty_row_indices
+    return empty_row_indices, total_value_num
