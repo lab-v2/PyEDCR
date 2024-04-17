@@ -89,12 +89,17 @@ def save_prediction_files(data_str: str,
                                             lower_prediction_index=lower_prediction_index),
                         lower_prediction_values)
 
-        data_path_str = 'ImageNet100/' if data_str == 'imagenet' else ''
+        if data_str == 'imagenet':
+            data_path_str = 'data/ImageNet100/'
+        elif data_str == 'openimage':
+            data_path_str = 'scratch/ngocbach/OpenImage'
+        else:
+            data_path_str = 'data/'
 
         if fine_ground_truths is not None:
-            np.save(f"data/{data_path_str}{test_str}_fine/{test_str}_true_fine.npy",
+            np.save(f"{data_path_str}{test_str}_fine/{test_str}_true_fine.npy",
                     fine_ground_truths)
-            np.save(f"data/{data_path_str}{test_str}_coarse/{test_str}_true_coarse.npy",
+            np.save(f"{data_path_str}{test_str}_coarse/{test_str}_true_coarse.npy",
                     coarse_ground_truths)
     else:
         np.save(f"{individual_results_path}_{test_str}_{fine_tuners['fine']}"
