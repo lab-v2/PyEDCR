@@ -207,6 +207,69 @@ class DataPreprocessor:
                 else:
                     coarse_to_fine[coarse_class].append(fine_class)
 
+        elif data_str == 'openimage':
+            self.coarse_to_fine = {
+                "Animal": [
+                    "Mammal",
+                    "Bird",
+                    "Invertebrate",
+                    "Fish",
+                    "Reptile",
+                ],
+                "Building": [
+                    "House",
+                    "Skyscraper",
+                    "Tower",
+                    "Office building",
+                    "Castle",
+                    "Lighthouse",
+                    "Convenience store"
+                ],
+                "Clothing": [
+                    "Footwear",
+                    "Fashion accessory",
+                    "Dress",
+                    "Suit",
+                    "Hat",
+                    "Trousers",
+                    "Jacket"
+                ],
+                "Drink": [
+                    "Beer",
+                    "Wine",
+                    "Cocktail",
+                    "Coffee",
+                    "Juice",
+                ],
+                "Vehicle": [
+                    "Land vehicle",
+                    "Watercraft",
+                    "Aircraft",
+                ],
+                "Hat": [  # Handle case where a category appears as both coarse and fine label
+                    "Sun hat",
+                    "Fedora",
+                    "Cowboy hat"
+                ]
+            }
+            self.fine_grain_class_str = sorted([item for category, items in self.coarse_to_fine.items() for item in items])
+            self.coarse_grain_class_str = sorted([item for item in self.coarse_to_fine.keys()])
+
+            self.fine_to_coarse = {}
+            for fine_grain_class_idx, fine_grain_class in enumerate(self.fine_grain_classes_str):
+                for coarse_grain_class, fine_grain_class_list in self.coarse_to_fine.items():
+                    if fine_grain_class in fine_grain_class_list:
+                        self.fine_to_coarse[fine_grain_class] = coarse_grain_class
+
+            for fine_idx, (fine_class, coarse_class) in enumerate(self.fine_to_coarse.items()):
+                coarse_idx = self.coarse_grain_classes_str.index(coarse_class)
+                self.fine_to_course_idx[fine_idx] = coarse_idx
+
+                if coarse_class not in coarse_to_fine:
+                    coarse_to_fine[coarse_class] = [fine_class]
+                else:
+                    coarse_to_fine[coarse_class].append(fine_class)
+
         else:
             data_file_path = rf'data/WEO_Data_Sheet.xlsx'
             dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
@@ -233,13 +296,18 @@ class DataPreprocessor:
                 self.fine_to_coarse[fine_grain_class] = coarse_grain_class
                 self.fine_to_course_idx[fine_grain_class_idx] = coarse_grain_class_idx
 
-        data_path_str = 'ImageNet100/' if data_str == 'imagenet' else ''
+        if data_str == 'imagenet':
+            data_path_str = 'data/ImageNet100/'
+        elif data_str == 'openimage':
+            data_path_str = 'scratch/ngocbach/OpenImage'
+        else:
+            data_path_str = 'data/'
 
-        self.test_true_fine_data = np.load(rf'data/{data_path_str}test_fine/test_true_fine.npy')
-        self.test_true_coarse_data = np.load(rf'data/{data_path_str}test_coarse/test_true_coarse.npy')
+        self.test_true_fine_data = np.load(rf'{data_path_str}test_fine/test_true_fine.npy')
+        self.test_true_coarse_data = np.load(rf'{data_path_str}test_coarse/test_true_coarse.npy')
 
-        self.train_true_fine_data = np.load(rf'data/{data_path_str}train_fine/train_true_fine.npy')
-        self.train_true_coarse_data = np.load(rf'data/{data_path_str}train_coarse/train_true_coarse.npy')
+        self.train_true_fine_data = np.load(rf'{data_path_str}train_fine/train_true_fine.npy')
+        self.train_true_coarse_data = np.load(rf'{data_path_str}train_coarse/train_true_coarse.npy')
 
         self.num_fine_grain_classes = len(self.fine_grain_classes_str)
         self.num_coarse_grain_classes = len(self.coarse_grain_classes_str)
