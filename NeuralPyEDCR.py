@@ -16,15 +16,15 @@ import combined_fine_tuning
 import neural_evaluation
 import google_sheets_api
 
-data_str = 'military_vehicles'
-main_model_name = new_model_name = 'vit_b_16'
-main_lr = new_lr = 0.0001
-original_num_epochs = 20
+# data_str = 'military_vehicles'
+# main_model_name = new_model_name = 'vit_b_16'
+# main_lr = new_lr = 0.0001
+# original_num_epochs = 20
 
-# data_str = 'imagenet'
-# main_model_name = new_model_name = 'dinov2_vits14'
-# main_lr = new_lr = 0.000001
-# original_num_epochs = 8
+data_str = 'imagenet'
+main_model_name = new_model_name = 'dinov2_vits14'
+main_lr = new_lr = 0.000001
+original_num_epochs = 8
 
 secondary_model_name = 'vit_l_16_BCE'
 
