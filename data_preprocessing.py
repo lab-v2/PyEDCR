@@ -473,7 +473,6 @@ def get_dataset_transforms(data: str,
     """
 
     if data == 'imagenet':
-        model_size = model_name.split('dinov2_vit')[-1][0]
         normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                      std=[0.229, 0.224, 0.225])
 
@@ -486,8 +485,7 @@ def get_dataset_transforms(data: str,
             torchvision.transforms.RandomHorizontalFlip()
         ]
 
-        print(f'Model size: {model_size}')
-        test_transforms = [torchvision.transforms.Resize(256 if model_size == 's' else 1024),
+        test_transforms = [torchvision.transforms.Resize(256),
                            torchvision.transforms.CenterCrop(224)
                            ]
 

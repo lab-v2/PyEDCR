@@ -69,10 +69,11 @@ class DINOV2FineTuner(FineTuner):
                  num_classes: int):
         super().__init__(model_name=dino_v2_model_name,
                          num_classes=num_classes)
+        self.model_size = dino_v2_model_name.split('dinov2_vit')[-1][0]
         self.transformer = torch.hub.load(repo_or_dir='facebookresearch/dinov2',
                                           model=dino_v2_model_name)
         self.classifier = torch.nn.Sequential(
-            torch.nn.Linear(in_features=384, out_features=256),
+            torch.nn.Linear(in_features=384 if self.model_size == 's' else 1024, out_features=256),
             torch.nn.ReLU(),
             torch.nn.Linear(in_features=256, out_features=num_classes)
         )
