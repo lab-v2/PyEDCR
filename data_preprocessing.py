@@ -486,6 +486,7 @@ def get_dataset_transforms(data: str,
             torchvision.transforms.RandomHorizontalFlip()
         ]
 
+        print(f'Model size: {model_size}')
         test_transforms = [torchvision.transforms.Resize(256 if model_size == 's' else 1024),
                            torchvision.transforms.CenterCrop(224)
                            ]
