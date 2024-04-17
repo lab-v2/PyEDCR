@@ -10,6 +10,7 @@ import typing
 import abc
 import random
 
+
 random.seed(42)
 np.random.seed(42)
 

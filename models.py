@@ -2,12 +2,11 @@ import abc
 import torch
 import torchvision
 import typing
-import pytorch_lightning as pl
 
 import data_preprocessing
 
 
-class FineTuner(pl.LightningModule, abc.ABC):
+class FineTuner(torch.nn.Module, abc.ABC):
     """
     Base class for fine-tuning transformers for image classification tasks.
     """
