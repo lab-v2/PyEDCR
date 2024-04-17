@@ -397,7 +397,7 @@ def expand_ranges(tuples):
 
 def get_dataset_transforms(data: str,
                            train_or_test: str,
-                           vit_model_name='vit_b_16',
+                           model_name: str = 'vit_b_16',
                            error_fixing: bool = False,
                            weight: str = 'DEFAULT') -> torchvision.transforms.Compose:
     """
@@ -405,6 +405,7 @@ def get_dataset_transforms(data: str,
     """
 
     if data == 'imagenet':
+        model_size = model_name.split('dinov2_vit')[-1][0]
         normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                      std=[0.229, 0.224, 0.225])
 
@@ -417,13 +418,13 @@ def get_dataset_transforms(data: str,
             torchvision.transforms.RandomHorizontalFlip()
         ]
 
-        test_transforms = [torchvision.transforms.Resize(256),
+        test_transforms = [torchvision.transforms.Resize(256 if model_size == 's' else 1024),
                            torchvision.transforms.CenterCrop(224)
                            ]
 
     else:
 
-        resize_num = 518 if vit_model_name == 'vit_h_14' else (224 if weight == 'DEFAULT' else 512)
+        resize_num = 518 if model_name == 'vit_h_14' else (224 if weight == 'DEFAULT' else 512)
         means = stds = [0.5] * 3
 
         standard_transforms = [torchvision.transforms.ToTensor(),
@@ -657,7 +658,7 @@ def get_datasets(preprocessor: DataPreprocessor,
                                                                       data=preprocessor.data_str,
                                                                       train_or_test=train_or_test,
                                                                       error_fixing=error_fixing,
-                                                                      vit_model_name=model_names[0],
+                                                                      model_name=model_names[0],
                                                                       weight=weights[0],
                                                                   ))
         else:
