@@ -301,7 +301,7 @@ class DataPreprocessor:
         if data_str == 'imagenet':
             data_path_str = 'data/ImageNet100/'
         elif data_str == 'openimage':
-            data_path_str = '/scratch/ngocbach/OpenImage'
+            data_path_str = '/scratch/ngocbach/OpenImage/'
         else:
             data_path_str = 'data/'
 
@@ -711,7 +711,7 @@ def get_datasets(preprocessor: DataPreprocessor,
     for train_or_test in ['train', 'test']:
 
         if preprocessor.data_str == 'openimage':
-            full_data_dir = f'scratch/ngocbach/OpenImage/{train_or_test}_fine'
+            full_data_dir = f'/scratch/ngocbach/OpenImage/{train_or_test}_fine'
         else:
             data_dir_name = f'ImageNet100/{train_or_test}_fine' if preprocessor.data_str == 'imagenet' \
                 else f'{train_or_test}_fine'
