@@ -385,7 +385,7 @@ if __name__ == '__main__':
 
     run_combined_evaluating_pipeline(data_str=data_str,
                                      model_name=main_model_name,
-                                     split='train',
+                                     split='test',
                                      lrs=[lr],
                                      loss='BCE',
                                      num_epochs=2,
