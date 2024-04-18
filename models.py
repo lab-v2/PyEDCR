@@ -70,13 +70,21 @@ class DINOV2FineTuner(FineTuner):
         super().__init__(model_name=dino_v2_model_name,
                          num_classes=num_classes)
         self.model_size = dino_v2_model_name.split('dinov2_vit')[-1][0]
+        if self.model_size == 's':
+            in_features = 384
+        elif self.model_size == 'm':
+            in_features = 768
+        elif self.model_size == 'l':
+            in_features = 1024
+        else:
+            raise ValueError("Unsupported model size")
+
         self.transformer = torch.hub.load(repo_or_dir='facebookresearch/dinov2',
                                           model=dino_v2_model_name)
         self.classifier = torch.nn.Sequential(
-            torch.nn.Linear(in_features=384 if self.model_size == 's' else 1024, out_features=256),
+            torch.nn.Linear(in_features=in_features, out_features=256),
             torch.nn.ReLU(),
-            torch.nn.Linear(in_features=256, out_features=num_classes)
-        )
+            torch.nn.Linear(in_features=256, out_features=num_classes))
 
     @classmethod
     def from_pretrained(cls,
@@ -97,20 +105,18 @@ class DINOV2FineTuner(FineTuner):
         instance = cls(dino_v2_model_name, num_classes)
         predefined_weights = torch.load(pretrained_path,
                                         map_location=device)
+        transformer_weights = {'.'.join(k.split('.')[1:]): v for k, v in predefined_weights.items()
+                               if k.split('.')[0] == 'transformer'}
+        instance.transformer.load_state_dict(transformer_weights)
 
-        # if 'model_state_dict' in predefined_weights.keys():
-        #     predefined_weights = predefined_weights['model_state_dict']
-        #
-        # new_predefined_weights = {}
-        # for key, value in predefined_weights.items():
-        #     new_key = key.replace('vit.', '')
-        #     new_predefined_weights[new_key] = value
-
-        instance.load_state_dict(predefined_weights)
+        classifier_weights = {'.'.join(k.split('.')[1:]): v for k, v in predefined_weights.items()
+                              if k.split('.')[0] == 'classifier'}
+        instance.classifier.load_state_dict(classifier_weights)
 
         return instance
 
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
+    def forward(self,
+                X: torch.Tensor) -> torch.Tensor:
         X = self.transformer(X)
         X = self.transformer.norm(X)
         X = self.classifier(X)
@@ -146,7 +152,6 @@ class VITFineTuner(FineTuner):
         self.vit = vit_model(weights=vit_weights)
         self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
                                              out_features=num_classes)
-
 
     @classmethod
     def from_pretrained(cls,
