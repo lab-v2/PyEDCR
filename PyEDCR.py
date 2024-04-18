@@ -3,6 +3,8 @@ from __future__ import annotations
 import typing
 import numpy as np
 import warnings
+import multiprocessing as mp
+from tqdm.contrib.concurrent import process_map
 
 warnings.filterwarnings('ignore')
 
@@ -732,10 +734,13 @@ class EDCR:
                               g: data_preprocessing.Granularity):
         # self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
         granularity_labels = list(self.preprocessor.get_labels(g).values())
-        # processes_num = min(len(granularity_labels), mp.cpu_count())
+        processes_num = min(len(granularity_labels), mp.cpu_count())
 
         print(f'\nLearning {g}-grain error detection rules...')
 
+        DC_ls = process_map(self.DetRuleLearn,
+                            granularity_labels,
+                            max_workers=processes_num)
         DC_ls = [self.DetRuleLearn(l=l) for l in granularity_labels]
 
         for l, DC_l in zip(granularity_labels, DC_ls):

@@ -253,17 +253,16 @@ if __name__ == '__main__':
 
     # For multiprocessing
 
-    # processes_num = min([len(epsilons), mp.cpu_count(), 100])
-    # process_map(work_on_epsilon,
-    #             epsilons,
-    #             max_workers=processes_num)
+    processes_num = min([len(epsilons), mp.cpu_count(), 30])
+    process_map(work_on_epsilon,
+                epsilons,
+                max_workers=processes_num)
 
     # For normal
-    epsilons = [(i, epsilon) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.1, num=100))]
 
     # Loop through epsilons sequentially (no multiprocessing)
-    for epsilon in epsilons:
-        work_on_epsilon(epsilon)  # Call your work function
+    # for epsilon in epsilons:
+    #     work_on_epsilon(epsilon)  # Call your work function
 
     # for EDCR_num_epochs in [1]:
     #     for neural_num_epochs in [1]:
