@@ -217,7 +217,7 @@ class TResnetFineTuner(FineTuner):
                          num_classes=num_classes)
         self.tresnet_model_name = tresnet_model_name
 
-        self.model = timm.create_model(tresnet_model_name, pretrained=False, num_classes=self.num_classes)
+        self.model = timm.create_model(tresnet_model_name, pretrained=True, num_classes=self.num_classes)
 
     @classmethod
     def from_pretrained(cls,
