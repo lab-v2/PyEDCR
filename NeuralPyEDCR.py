@@ -16,17 +16,18 @@ import combined_fine_tuning
 import neural_evaluation
 import google_sheets_api
 
-data_str = 'military_vehicles'
-main_model_name = new_model_name = 'vit_b_16'
-main_lr = new_lr = 0.0001
-original_num_epochs = 20
+# data_str = 'military_vehicles'
+# main_model_name = new_model_name = 'vit_b_16'
+# main_lr = new_lr = 0.0001
+# original_num_epochs = 20
 
-# data_str = 'imagenet'
-# main_model_name = new_model_name = 'dinov2_vits14'
-# main_lr = new_lr = 0.000001
-# original_num_epochs = 8
+data_str = 'imagenet'
+main_model_name = new_model_name = 'dinov2_vits14'
+main_lr = new_lr = 0.000001
+original_num_epochs = 8
 
-secondary_model_name = 'vit_l_16_BCE'
+# secondary_model_name = 'vit_l_16_BCE'
+secondary_model_name = None
 
 sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
 sheet_tab = ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
@@ -208,7 +209,7 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
                         lr=main_lr,
                         original_num_epochs=original_num_epochs,
                         include_inconsistency_constraint=False,
-                        secondary_model_name=secondary_model_name,
+                        # secondary_model_name=secondary_model_name,
                         # binary_models=data_preprocessing.fine_grain_classes_str,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
@@ -238,16 +239,16 @@ if __name__ == '__main__':
     print(epsilons_to_take)
 
     # For multiprocessing
-    epsilons = [(x, y) for x, y in
-                [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
-                                                                                stop=max_value,
-                                                                                num=total_number_of_points))]
-                if y in epsilons_to_take]
-
-    processes_num = min([len(epsilons), mp.cpu_count(), 100])
-    process_map(work_on_epsilon,
-                epsilons,
-                max_workers=processes_num)
+    # epsilons = [(x, y) for x, y in
+    #             [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
+    #                                                                             stop=max_value,
+    #                                                                             num=total_number_of_points))]
+    #             if y in epsilons_to_take]
+    #
+    # processes_num = min([len(epsilons), mp.cpu_count(), 100])
+    # process_map(work_on_epsilon,
+    #             epsilons,
+    #             max_workers=processes_num)
 
     # For normal
     # epsilons = [(i, epsilon) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.1, num=100))]

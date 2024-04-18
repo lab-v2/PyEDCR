@@ -9,6 +9,7 @@ import torch
 import torch.utils.data
 import typing
 
+
 import data_preprocessing
 import models
 import context_handlers
@@ -288,7 +289,7 @@ if __name__ == '__main__':
     run_combined_fine_tuning_pipeline(data_str='imagenet',
                                       model_names=['dinov2_vitl14'],
                                       lrs=[0.000001],
-                                      num_epochs=10,
+                                      num_epochs=2,
                                       loss='BCE',
                                       # pretrained_path='models/dinov2_vits14_lr1e-06_BCE.pth'
                                       # debug=True
