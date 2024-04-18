@@ -739,10 +739,10 @@ class EDCR:
 
         print(f'\nLearning {g}-grain error detection rules...')
 
-        # DC_ls = process_map(self.DetRuleLearn,
-        #                     granularity_labels,
-        #                     max_workers=processes_num)
-        DC_ls = [self.DetRuleLearn(l=l) for l in granularity_labels]
+        DC_ls = process_map(self.DetRuleLearn,
+                            granularity_labels,
+                            max_workers=processes_num)
+        # DC_ls = [self.DetRuleLearn(l=l) for l in granularity_labels]
 
         for l, DC_l in zip(granularity_labels, DC_ls):
             if len(DC_l):
