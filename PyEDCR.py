@@ -45,6 +45,8 @@ class EDCR:
                  K_test: typing.List[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
+                 secondary_model_loss: str = None,
+                 secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_l_strs: typing.List[str] = []):
         self.data_str = data_str
@@ -104,14 +106,18 @@ class EDCR:
             secondary_loss = secondary_model_name.split('_')[-1]
             pred_paths['secondary_model'] = {
                 'test' if test else 'train': {g_str: models.get_filepath(data_str=data_str,
-                                                                         model_name=main_model_name,
+                                                                         model_name=secondary_model_name,
                                                                          combined=combined,
                                                                          test=test,
                                                                          granularity=g_str,
-                                                                         loss=secondary_loss,
+                                                                         loss=secondary_model_loss
+                                                                         if secondary_model_loss is not None
+                                                                         else (secondary_loss
+                                                                               if secondary_model_name.split('_')[0]
+                                                                                  != 'dinov2' else 'BCE'),
                                                                          lr=lr,
                                                                          pred=True,
-                                                                         epoch=original_num_epochs)
+                                                                         epoch=secondary_num_epochs)
                                               for g_str in data_preprocessing.DataPreprocessor.granularities_str}
                 for test in [True, False]}
 
