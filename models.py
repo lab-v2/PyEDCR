@@ -189,6 +189,78 @@ class VITFineTuner(FineTuner):
         """
         return self.vit(X)
 
+class TResnetFineTuner(FineTuner):
+    """
+    This class inherits from `FineTuner` to provide specific functionalities for
+    fine-tuning TResnet models.
+    """
+
+    def __init__(self,
+                 tresnet_model_name: str,
+                 num_classes: int,
+                 weights: str = 'DEFAULT'):
+        """
+        Initializes the TResnetFineTuner with a pre-trained TResnet model and number of classes.
+
+        :param tresnet_model_name: The name of the pre-trained TResnet model to use (e.g., 'tresnet_m').
+        :param num_classes: The number of output classes for classification.
+        """
+        super().__init__(model_name=tresnet_model_name,
+                         num_classes=num_classes)
+        self.tresnet_model_name = tresnet_model_name
+
+        tresnet_model = getattr(torchvision.models, tresnet_model_name)
+
+        tresnet_weights = getattr(getattr(
+            torchvision.models,
+            f"Tresnet{tresnet_model_name.split('_')[-1].upper()}_Weights"),
+            weights)
+        self.tresnet = tresnet_model(weights=tresnet_weights)
+        self.tresnet.fc = torch.nn.Linear(in_features=self.tresnet.fc.in_features,
+                                          out_features=num_classes)  # Update the last layer
+
+    @classmethod
+    def from_pretrained(cls,
+                        tresnet_model_name: str,
+                        num_classes: int,
+                        pretrained_path: str,
+                        device: torch.device):
+        """
+        Loads a pre-trained TResnetFineTuner model from a specified path.
+
+        :param tresnet_model_name: The name of the pre-trained TResnet model used during training.
+        :param num_classes: The number of output classes for the loaded model.
+        :param pretrained_path: The path to the saved pre-trained model checkpoint.
+        :param device: The device (CPU or GPU) to load the model onto.
+
+        :return: An instance of TResnetFineTuner loaded with pre-trained weights.
+        """
+        instance = cls(tresnet_model_name, num_classes)
+        predefined_weights = torch.load(pretrained_path,
+                                        map_location=device)
+
+        if 'model_state_dict' in predefined_weights.keys():
+            predefined_weights = predefined_weights['model_state_dict']
+
+        new_predefined_weights = {}
+        for key, value in predefined_weights.items():
+            new_key = key.replace('tresnet.', '')
+            new_predefined_weights[new_key] = value
+
+        instance.tresnet.load_state_dict(new_predefined_weights)
+
+        return instance
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """
+        Performs a forward pass through the fine-tuned TResnet model for prediction.
+
+        :param X: Input tensor of image data (batch_num, channels_num, height, width).
+
+        :return: Predicted class probabilities for each input image (batch_num, classes_num).
+        """
+        return self.tresnet(X)
+
 
 def get_filepath(data_str: str,
                  model_name: typing.Union[str, FineTuner],
