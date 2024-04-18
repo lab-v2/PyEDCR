@@ -227,25 +227,39 @@ def initiate(data_str: str,
 
             if pretrained_path is not None:
                 print(f'Loading pretrained model from {pretrained_path}')
-                fine_tuners = [models.VITFineTuner.from_pretrained(vit_model_name=model_name,
-                                                                   num_classes=num_classes,
-                                                                   pretrained_path=pretrained_path,
-                                                                   device=device) if model_name.startswith('vit')
-                               else models.DINOV2FineTuner.from_pretrained(dino_v2_model_name=model_name,
-                                                                           num_classes=num_classes,
-                                                                           pretrained_path=pretrained_path,
-                                                                           device=device)
-                               for model_name in model_names]
+                fine_tuners = []
+                for model_name in model_names:
+                    if model_name.startswith('vit'):
+                        fine_tuners.append(models.VITFineTuner.from_pretrained(vit_model_name=model_name,
+                                                                               num_classes=num_classes,
+                                                                               pretrained_path=pretrained_path,
+                                                                               device=device))
+                    elif model_name.startswith('tresnet'):
+                        fine_tuners.append(models.TResnetFineTuner.from_pretrained(tresnet_model_name=model_name,
+                                                                                   num_classes=num_classes,
+                                                                                   pretrained_path=pretrained_path,
+                                                                                   device=device))
+                    else:
+                        fine_tuners.append(models.DINOV2FineTuner.from_pretrained(dino_v2_model_name=model_name,
+                                                                                  num_classes=num_classes,
+                                                                                  pretrained_path=pretrained_path,
+                                                                                  device=device))
             else:
-                fine_tuners = [models.VITFineTuner(vit_model_name=model_name,
-                                                   weights=weight,
-                                                   num_classes=num_classes) if model_name.startswith('vit')
-                               else (models.EfficientNetV2FineTuner(efficient_net_v2_model_name=model_name,
-                                                                    num_classes=num_classes)
-                                     if model_name.startswith('efficient_net_v2') else
-                                     models.DINOV2FineTuner(dino_v2_model_name=model_name,
-                                                            num_classes=num_classes))
-                               for model_name, weight in zip(model_names, weights)]
+                fine_tuners = []
+                for model_name, weight in zip(model_names, weights):
+                    if model_name.startswith('vit'):
+                        fine_tuners.append(models.VITFineTuner(vit_model_name=model_name,
+                                                               weights=weight,
+                                                               num_classes=num_classes))
+                    elif model_name.startswith('efficient_net_v2'):
+                        fine_tuners.append(models.EfficientNetV2FineTuner(efficient_net_v2_model_name=model_name,
+                                                                          num_classes=num_classes))
+                    elif model_name.startswith('tresnet'):
+                        fine_tuners.append(models.TResnetFineTuner(tresnet_model_name=model_name,
+                                                                   num_classes=num_classes))
+                    else:
+                        fine_tuners.append(models.DINOV2FineTuner(dino_v2_model_name=model_name,
+                                                                  num_classes=num_classes))
 
             results_path = combined_results_path
         else:

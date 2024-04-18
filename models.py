@@ -2,6 +2,7 @@ import abc
 import torch
 import torchvision
 import typing
+import timm
 
 import data_preprocessing
 
@@ -195,6 +196,7 @@ class VITFineTuner(FineTuner):
         """
         return self.vit(X)
 
+
 class TResnetFineTuner(FineTuner):
     """
     This class inherits from `FineTuner` to provide specific functionalities for
@@ -204,7 +206,7 @@ class TResnetFineTuner(FineTuner):
     def __init__(self,
                  tresnet_model_name: str,
                  num_classes: int,
-                 weights: str = 'DEFAULT'):
+                 weights: str = 'DEFAULT', ):
         """
         Initializes the TResnetFineTuner with a pre-trained TResnet model and number of classes.
 
@@ -215,15 +217,7 @@ class TResnetFineTuner(FineTuner):
                          num_classes=num_classes)
         self.tresnet_model_name = tresnet_model_name
 
-        tresnet_model = getattr(torchvision.models, tresnet_model_name)
-
-        tresnet_weights = getattr(getattr(
-            torchvision.models,
-            f"Tresnet{tresnet_model_name.split('_')[-1].upper()}_Weights"),
-            weights)
-        self.tresnet = tresnet_model(weights=tresnet_weights)
-        self.tresnet.fc = torch.nn.Linear(in_features=self.tresnet.fc.in_features,
-                                          out_features=num_classes)  # Update the last layer
+        self.model = timm.create_model(tresnet_model_name, pretrained=False, num_classes=self.num_classes)
 
     @classmethod
     def from_pretrained(cls,
@@ -242,18 +236,10 @@ class TResnetFineTuner(FineTuner):
         :return: An instance of TResnetFineTuner loaded with pre-trained weights.
         """
         instance = cls(tresnet_model_name, num_classes)
-        predefined_weights = torch.load(pretrained_path,
-                                        map_location=device)
-
-        if 'model_state_dict' in predefined_weights.keys():
-            predefined_weights = predefined_weights['model_state_dict']
-
-        new_predefined_weights = {}
-        for key, value in predefined_weights.items():
-            new_key = key.replace('tresnet.', '')
-            new_predefined_weights[new_key] = value
-
-        instance.tresnet.load_state_dict(new_predefined_weights)
+        instance.model = timm.create_model(tresnet_model_name,
+                                           pretrained=False,
+                                           num_classes=instance.num_classes,
+                                           checkpoint_path=pretrained_path)
 
         return instance
 
@@ -265,7 +251,7 @@ class TResnetFineTuner(FineTuner):
 
         :return: Predicted class probabilities for each input image (batch_num, classes_num).
         """
-        return self.tresnet(X)
+        return self.model(X)
 
 
 def get_filepath(data_str: str,
