@@ -32,7 +32,7 @@ secondary_model_name = 'dinov2_vitl14'
 sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
 sheet_tab = ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'} "
               f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
-             ((" with VIT_l_16" if data_str == 'military_vehicles' else ' with DINO V2 VIT14_l')
+             ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
               if secondary_model_name is not None else ''))
 
 
@@ -253,16 +253,16 @@ if __name__ == '__main__':
 
     # For multiprocessing
 
-    processes_num = min([len(epsilons), mp.cpu_count(), 30])
-    process_map(work_on_epsilon,
-                epsilons,
-                max_workers=processes_num)
+    # processes_num = min([len(epsilons), mp.cpu_count(), 30])
+    # process_map(work_on_epsilon,
+    #             epsilons,
+    #             max_workers=processes_num)
 
     # For normal
 
     # Loop through epsilons sequentially (no multiprocessing)
-    # for epsilon in epsilons:
-    #     work_on_epsilon(epsilon)  # Call your work function
+    for epsilon in epsilons:
+        work_on_epsilon(epsilon)  # Call your work function
 
     # for EDCR_num_epochs in [1]:
     #     for neural_num_epochs in [1]:

@@ -241,9 +241,10 @@ class EDCR:
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
         self.sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
-        self.sheet_tab = ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
+        self.sheet_tab = ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'} "
                            f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
-                          (" with VIT_l_16" if secondary_model_name is not None else ''))
+                          ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
+                           if secondary_model_name is not None else ''))
 
         # self.sheet = google_sheets_api.initiate_api()
         self.RCC_ratio = 0
@@ -741,7 +742,7 @@ class EDCR:
         DC_ls = process_map(self.DetRuleLearn,
                             granularity_labels,
                             max_workers=processes_num)
-        DC_ls = [self.DetRuleLearn(l=l) for l in granularity_labels]
+        # DC_ls = [self.DetRuleLearn(l=l) for l in granularity_labels]
 
         for l, DC_l in zip(granularity_labels, DC_ls):
             if len(DC_l):
