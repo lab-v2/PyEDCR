@@ -248,7 +248,7 @@ if __name__ == '__main__':
                 [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
                                                                                 stop=max_value,
                                                                                 num=total_number_of_points))]
-                # if y in epsilons_to_take
+                if y in epsilons_to_take
                 ]
 
     # For multiprocessing
