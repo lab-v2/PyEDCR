@@ -12,9 +12,9 @@ import torch.optim
 import torch.utils.data.distributed
 import numpy as np
 
-from ML_Decoder.src_files.helper_functions.bn_fusion import fuse_bn_recursively
-from ML_Decoder.src_files.models import create_model
-from ML_Decoder.src_files.models.tresnet.tresnet import InplacABN_to_ABN
+from src_files.helper_functions.bn_fusion import fuse_bn_recursively
+from src_files.models import create_model
+from src_files.models.tresnet.tresnet import InplacABN_to_ABN
 
 import data_preprocessing
 
@@ -269,14 +269,14 @@ class TResnetFineTuner(FineTuner):
 
         # Setup model
         print('creating model {}...'.format(args.model_name))
-        model = create_model(args, load_head=True)
-        state = torch.load(args.model_path, map_location='cpu')
-        model.load_state_dict(state['model'], strict=True)
+        instance.model = create_model(args, load_head=True)
+        state = torch.load(args.model_path, map_location='mps')
+        instance.model.load_state_dict(state['model'], strict=True)
 
         ########### eliminate BN for faster inference ###########
-        instance.model = instance.model.to(device)
         instance.model = InplacABN_to_ABN(instance.model)
         instance.model = fuse_bn_recursively(instance.model)
+        instance.model.to(device)
         #######################################################
 
         instance.classes_list = np.array(list(state['idx_to_class'].values()))
@@ -341,14 +341,16 @@ class TResnetFineTuner(FineTuner):
         fine_grain_classes_str = sorted(
             [item for category, items in coarse_to_fine_dict.items() for item in items])
         class_positions = np.array([np.where(self.classes_list == cls)[0] for cls in fine_grain_classes_str])
-        fine_grain_classes_prediction = torch.tensor(np_output[class_positions])
+        fine_grain_classes_prediction = np_output[:, class_positions]
 
-        coarse_grain_classes_str = sorted([item for item in self.coarse_to_fine.keys()])
+        coarse_grain_classes_str = sorted([item for item in coarse_to_fine_dict.keys()])
         class_positions = np.array([np.where(self.classes_list == cls)[0] for cls in coarse_grain_classes_str])
-        coarse_grain_classes_prediction = torch.tensor(np_output[class_positions])
+        coarse_grain_classes_prediction = np_output[:, class_positions]
 
-        fine_and_coarse_output = torch.cat([fine_grain_classes_prediction, coarse_grain_classes_prediction])
-        return fine_and_coarse_output
+        fine_and_coarse_output = np.concatenate(
+            [fine_grain_classes_prediction, coarse_grain_classes_prediction],
+            axis=1)
+        return torch.squeeze(torch.tensor(fine_and_coarse_output))
 
 
 def get_filepath(data_str: str,

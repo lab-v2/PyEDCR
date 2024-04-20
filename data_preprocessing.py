@@ -497,12 +497,12 @@ def get_dataset_transforms(data: str,
             torchvision.transforms.ToTensor(),
         ]
         train_transforms = [
-            torchvision.transforms.Resize(224),
-            # CutoutPIL(cutout_factor=0.5),
-            # RandAugment(),
+            torchvision.transforms.Resize(256),
+            torchvision.transforms.CenterCrop(224),
         ]
 
-        test_transforms = [torchvision.transforms.Resize(224),
+        test_transforms = [torchvision.transforms.Resize(256),
+                           torchvision.transforms.CenterCrop(224),
                            ]
     else:
         resize_num = 518 if model_name == 'vit_h_14' else (224 if weight == 'DEFAULT' else 512)
