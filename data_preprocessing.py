@@ -490,8 +490,21 @@ def get_dataset_transforms(data: str,
                            torchvision.transforms.CenterCrop(224)
                            ]
 
-    else:
+    elif data == 'openimage':
+        normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                     std=[0.229, 0.224, 0.225])
+        standard_transforms = [
+            torchvision.transforms.ToTensor(),
+        ]
+        train_transforms = [
+            torchvision.transforms.Resize(224),
+            # CutoutPIL(cutout_factor=0.5),
+            # RandAugment(),
+        ]
 
+        test_transforms = [torchvision.transforms.Resize(224),
+                           ]
+    else:
         resize_num = 518 if model_name == 'vit_h_14' else (224 if weight == 'DEFAULT' else 512)
         means = stds = [0.5] * 3
 

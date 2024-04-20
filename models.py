@@ -3,6 +3,18 @@ import torch
 import torchvision
 import typing
 import timm
+import os
+import argparse
+import time
+import torch
+import torch.nn.parallel
+import torch.optim
+import torch.utils.data.distributed
+import numpy as np
+
+from ML_Decoder.src_files.helper_functions.bn_fusion import fuse_bn_recursively
+from ML_Decoder.src_files.models import create_model
+from ML_Decoder.src_files.models.tresnet.tresnet import InplacABN_to_ABN
 
 import data_preprocessing
 
@@ -215,16 +227,16 @@ class TResnetFineTuner(FineTuner):
         """
         super().__init__(model_name=tresnet_model_name,
                          num_classes=num_classes)
-        self.tresnet_model_name = tresnet_model_name
-
-        self.model = timm.create_model(tresnet_model_name, pretrained=True, num_classes=self.num_classes)
+        self.model = None
 
     @classmethod
     def from_pretrained(cls,
                         tresnet_model_name: str,
                         num_classes: int,
                         pretrained_path: str,
-                        device: torch.device):
+                        device: torch.device,
+                        # preprocessor: data_preprocessing.DataPreprocessor=None,
+                        ):
         """
         Loads a pre-trained TResnetFineTuner model from a specified path.
 
@@ -236,10 +248,38 @@ class TResnetFineTuner(FineTuner):
         :return: An instance of TResnetFineTuner loaded with pre-trained weights.
         """
         instance = cls(tresnet_model_name, num_classes)
-        instance.model = timm.create_model(tresnet_model_name,
-                                           pretrained=False,
-                                           num_classes=instance.num_classes,
-                                           checkpoint_path=pretrained_path)
+        # Fixed configuration
+        parser = argparse.ArgumentParser(description='PyTorch Open Image infer')
+        parser.add_argument('--num-classes', default=9605, type=int)
+        parser.add_argument('--model-path', type=str, default=pretrained_path)
+        parser.add_argument('--pic-path', type=str, default='./pics/000000000885.jpg')
+        parser.add_argument('--model-name', type=str, default=tresnet_model_name)
+        parser.add_argument('--image-size', type=int, default=224)
+        # parser.add_argument('--dataset-type', type=str, default='MS-COCO')
+        parser.add_argument('--th', type=float, default=0.75)
+        parser.add_argument('--top-k', type=float, default=20)
+        # ML-Decoder
+        parser.add_argument('--use-ml-decoder', default=1, type=int)
+        parser.add_argument('--num-of-groups', default=200, type=int)  # full-decoding
+        parser.add_argument('--decoder-embedding', default=768, type=int)
+        parser.add_argument('--zsl', default=0, type=int)
+
+        # Setup model
+        args = parser.parse_args()
+
+        # Setup model
+        print('creating model {}...'.format(args.model_name))
+        model = create_model(args, load_head=True)
+        state = torch.load(args.model_path, map_location='cpu')
+        model.load_state_dict(state['model'], strict=True)
+
+        ########### eliminate BN for faster inference ###########
+        instance.model = instance.model.to(device)
+        instance.model = InplacABN_to_ABN(instance.model)
+        instance.model = fuse_bn_recursively(instance.model)
+        #######################################################
+
+        instance.classes_list = np.array(list(state['idx_to_class'].values()))
 
         return instance
 
@@ -251,7 +291,64 @@ class TResnetFineTuner(FineTuner):
 
         :return: Predicted class probabilities for each input image (batch_num, classes_num).
         """
-        return self.model(X)
+        output = torch.squeeze(torch.sigmoid(self.model(X)))
+        np_output = output.cpu().detach().numpy()
+        coarse_to_fine_dict = {
+            "Animal": [
+                "Mammal",
+                "Bird",
+                "Invertebrate",
+                "Fish",
+                "Reptile",
+            ],
+            "Building": [
+                "House",
+                "Skyscraper",
+                "Tower",
+                "Office building",
+                "Castle",
+                "Lighthouse",
+                "Convenience store"
+            ],
+            "Clothing": [
+                "Footwear",
+                "Fashion accessory",
+                "Dress",
+                "Suit",
+                "Hat",
+                "Trousers",
+                "Jacket"
+            ],
+            "Drink": [
+                "Beer",
+                "Wine",
+                "Cocktail",
+                "Coffee",
+                "Juice",
+            ],
+            "Vehicle": [
+                "Land vehicle",
+                "Watercraft",
+                "Aircraft",
+            ],
+            "Hat": [  # Handle case where a category appears as both coarse and fine label
+                "Sun hat",
+                "Fedora",
+                "Cowboy hat"
+            ]
+        }
+
+        fine_grain_classes_str = sorted(
+            [item for category, items in coarse_to_fine_dict.items() for item in items])
+        class_positions = np.array([np.where(self.classes_list == cls)[0] for cls in fine_grain_classes_str])
+        fine_grain_classes_prediction = torch.tensor(np_output[class_positions])
+
+        coarse_grain_classes_str = sorted([item for item in self.coarse_to_fine.keys()])
+        class_positions = np.array([np.where(self.classes_list == cls)[0] for cls in coarse_grain_classes_str])
+        coarse_grain_classes_prediction = torch.tensor(np_output[class_positions])
+
+        fine_and_coarse_output = torch.cat([fine_grain_classes_prediction, coarse_grain_classes_prediction])
+        return fine_and_coarse_output
 
 
 def get_filepath(data_str: str,
