@@ -23,7 +23,7 @@ main_lr = new_lr = 0.000001
 original_num_epochs = 0
 
 # secondary_model_name = 'vit_l_16_BCE'
-secondary_model_name = None
+# secondary_model_name = None
 
 sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
 sheet_tab = f"Tresnet M on OpenImage Errors"
