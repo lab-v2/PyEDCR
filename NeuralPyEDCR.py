@@ -89,12 +89,10 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print(utils.red_text(f'\nNumber of perceived train errors: {len(perceived_examples_with_errors)} / '
                              f'{self.T_train}\n'))
 
-        # new_model_name = 'efficientnet_v2_s'
         preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
             backbone_pipeline.initiate(
                 data_str=self.data_str,
                 model_names=[new_model_name],
-                # weights=['IMAGENET1K_SWAG_E2E_V1'],
                 lrs=[new_lr],
                 combined=self.combined,
                 error_indices=perceived_examples_with_errors,
@@ -186,9 +184,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 self.learn_detection_rules(g=g)
                 self.apply_detection_rules(test=False, g=g)
 
-            # self.run_training_new_model_pipeline(new_model_name=new_model_name,
-            #                                      new_lr=new_lr)
-            # self.print_metrics(test=False, prior=False, stage='post_detection')
+            self.run_training_new_model_pipeline(new_model_name=new_model_name,
+                                                 new_lr=new_lr)
+            self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
 
@@ -226,17 +224,15 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
     edcr.run_learning_pipeline(new_model_name=new_model_name,
                                new_lr=new_lr)
     edcr.run_error_detection_application_pipeline(test=True, print_results=False)
-    # edcr.apply_new_model_on_test()
+    edcr.apply_new_model_on_test()
 
 
-if __name__ == '__main__':
+def simulate_for_epsilons(total_number_of_points: int = 300,
+                          min_value: float = 0.1,
+                          max_value: float = 0.3):
     empty_row_indices, total_value_num = google_sheets_api.find_empty_rows_in_column(sheet_id=sheet_id,
                                                                                      tab_name=sheet_tab,
                                                                                      column='A')
-
-    total_number_of_points = 300
-    min_value = 0.1
-    max_value = 0.3
 
     values_to_complete = total_number_of_points - total_value_num
 
@@ -253,16 +249,18 @@ if __name__ == '__main__':
 
     # For multiprocessing
 
-    processes_num = min([len(epsilons), mp.cpu_count(), 10])
+    processes_num = min([len(epsilons), mp.cpu_count()])
     process_map(work_on_epsilon,
                 epsilons,
                 max_workers=processes_num)
 
-    # For normal
-
     # Loop through epsilons sequentially (no multiprocessing)
-    # for epsilon in epsilons:
-    #     work_on_epsilon(epsilon)  # Call your work function
+    for epsilon in epsilons:
+        work_on_epsilon(epsilon)  # Call your work function
+
+
+if __name__ == '__main__':
+    simulate_for_epsilons()
 
     # for EDCR_num_epochs in [1]:
     #     for neural_num_epochs in [1]:

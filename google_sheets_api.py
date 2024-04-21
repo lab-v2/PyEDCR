@@ -6,6 +6,7 @@ import google.auth.transport.requests
 import google.oauth2.credentials
 import googleapiclient.discovery
 import googleapiclient.errors
+import numpy as np
 
 
 def initiate_api():
@@ -62,7 +63,7 @@ def exponential_backoff(func: typing.Callable):
 def update_sheet(spreadsheet_id: str,
                  range_: str,
                  body: typing.Dict[str, typing.List[typing.List[typing.Union[float, str]]]],
-                 sheet: googleapiclient.discovery.Resource = None):
+                 sheet: googleapiclient.discovery.Resource = initiate_api()):
     """Function to update Google Sheet and handle retries on rate limits."""
 
     if sheet is None:
@@ -81,14 +82,10 @@ def update_sheet(spreadsheet_id: str,
 def find_empty_rows_in_column(sheet_id: str,
                               tab_name: str,
                               column: str,
-                              sheet: googleapiclient.discovery.Resource = None):
-    if sheet is None:
-        sheet = initiate_api()
-
+                              sheet: googleapiclient.discovery.Resource = initiate_api()):
     # Fetch the column data
-    result = sheet.values().get(spreadsheetId=sheet_id,
-                                range=f'{tab_name}!{column}:{column}').execute()
-    values = result.get('values', [])
+    values = sheet.values().get(spreadsheetId=sheet_id,
+                                range=f'{tab_name}!{column}:{column}').execute().get('values', [])
 
     total_value_num = len(values)
 
@@ -99,3 +96,35 @@ def find_empty_rows_in_column(sheet_id: str,
             empty_row_indices.append(index)
 
     return empty_row_indices, total_value_num
+
+
+def get_maximal_epsilon(sheet_id: str,
+                        tab_name: str,
+                        sheet: googleapiclient.discovery.Resource = initiate_api()):
+    # Specify the ranges to fetch
+    data_range = f'{tab_name}!B:E,G:G'
+    column_a_range = f'{tab_name}!A:A'
+
+    # Fetch the data using batchGet
+    response = sheet.values().batchGet(
+        spreadsheetId=sheet_id,
+        ranges=[data_range, column_a_range]
+    ).execute()
+
+    data_values = response['valueRanges'][0].get('values', [])
+    column_a_values = response['valueRanges'][1].get('values', [])
+
+    # Convert data_values to a NumPy array for efficient numerical operations
+    data_array = np.array([[float(item) if item else 0 for item in row] for row in data_values])
+
+    # Calculate the sum of each row using NumPy's sum function along axis 1 (rows)
+    row_sums = np.sum(data_array, axis=1)
+
+    # Find the index of the row with the maximum sum
+    max_index = np.argmax(row_sums)
+
+    # Retrieve the value from column A for the row with the maximum sum
+    if max_index < len(column_a_values):
+        return column_a_values[max_index][0]
+    else:
+        return None
