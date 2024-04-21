@@ -92,7 +92,7 @@ def save_prediction_files(data_str: str,
         if data_str == 'imagenet':
             data_path_str = 'data/ImageNet100/'
         elif data_str == 'openimage':
-            data_path_str = '/scratch/ngocbach/OpenImage'
+            data_path_str = 'scratch/ngocbach/OpenImage/'
         else:
             data_path_str = 'data/'
 

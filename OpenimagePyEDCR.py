@@ -16,24 +16,17 @@ import combined_fine_tuning
 import neural_evaluation
 import google_sheets_api
 
-# data_str = 'military_vehicles'
-# main_model_name = new_model_name = 'vit_b_16'
-# main_lr = new_lr = 0.0001
-# original_num_epochs = 20
-
-# data_str = 'imagenet'
-# main_model_name = new_model_name = 'dinov2_vits14'
-# main_lr = new_lr = 0.000001
-# original_num_epochs = 8
 
 data_str = 'openimage'
-main_model_name = new_model_name = 'dinov2_vits14'
+main_model_name = new_model_name = 'tresnet_m'
 main_lr = new_lr = 0.000001
-original_num_epochs = 8
+original_num_epochs = 0
+
+# secondary_model_name = 'vit_l_16_BCE'
+secondary_model_name = None
 
 sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
-sheet_tab = (f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14'} "
-             f"on OpenImage Errors")
+sheet_tab = f"Tresnet M on OpenImage Errors"
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
@@ -52,6 +45,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  K_test: typing.List[typing.Tuple[int]] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
+                 secondary_model_loss: str = None,
+                 secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_models: typing.List[str] = []):
         super(NeuralPyEDCR, self).__init__(data_str=data_str,
@@ -66,6 +61,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            K_test=K_test,
                                            include_inconsistency_constraint=include_inconsistency_constraint,
                                            secondary_model_name=secondary_model_name,
+                                           secondary_model_loss=secondary_model_loss,
+                                           secondary_num_epochs=secondary_num_epochs,
                                            lower_predictions_indices=lower_predictions_indices,
                                            binary_l_strs=binary_models)
         self.EDCR_num_epochs = EDCR_num_epochs
@@ -211,6 +208,7 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
                         original_num_epochs=original_num_epochs,
                         include_inconsistency_constraint=False,
                         secondary_model_name=secondary_model_name,
+                        secondary_num_epochs=2,
                         # binary_models=data_preprocessing.fine_grain_classes_str,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
@@ -239,22 +237,23 @@ if __name__ == '__main__':
                         + [total_number_of_points - val for val in list(range(values_to_complete))]]
     print(epsilons_to_take)
 
-    # For multiprocessing
     epsilons = [(x, y) for x, y in
                 [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
                                                                                 stop=max_value,
                                                                                 num=total_number_of_points))]
-                if y in epsilons_to_take]
-
-    processes_num = min([len(epsilons), mp.cpu_count(), 100])
+                if y in epsilons_to_take
+                ]
+    #
+    # # For multiprocessing
+    #
+    processes_num = min([len(epsilons), mp.cpu_count(), 10])
     process_map(work_on_epsilon,
                 epsilons,
                 max_workers=processes_num)
 
     # For normal
-    # epsilons = [(i, epsilon) for i, epsilon in enumerate(np.linspace(start=0.1 / 100, stop=0.1, num=100))]
 
-    # # Loop through epsilons sequentially (no multiprocessing)
+    # Loop through epsilons sequentially (no multiprocessing)
     # for epsilon in epsilons:
     #     work_on_epsilon(epsilon)  # Call your work function
 
