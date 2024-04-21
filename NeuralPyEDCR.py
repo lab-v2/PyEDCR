@@ -16,25 +16,6 @@ import combined_fine_tuning
 import neural_evaluation
 import google_sheets_api
 
-# data_str = 'military_vehicles'
-# main_model_name = new_model_name = 'vit_b_16'
-# main_lr = new_lr = 0.0001
-# original_num_epochs = 20
-
-data_str = 'imagenet'
-main_model_name = new_model_name = 'dinov2_vits14'
-main_lr = new_lr = 0.000001
-original_num_epochs = 8
-
-# secondary_model_name = 'vit_l_16_BCE'
-secondary_model_name = 'dinov2_vitl14'
-
-sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
-sheet_tab = ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'} "
-              f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
-             ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
-              if secondary_model_name is not None else ''))
-
 
 class NeuralPyEDCR(PyEDCR.EDCR):
     def __init__(self,
@@ -175,13 +156,15 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
     def run_learning_pipeline(self,
                               new_model_name: str,
-                              new_lr: float):
+                              new_lr: float,
+                              multi_process: bool = True):
         print('Started learning pipeline...\n')
         self.print_metrics(test=False, prior=True)
 
         for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.DataPreprocessor.granularities.values():
-                self.learn_detection_rules(g=g)
+                self.learn_detection_rules(g=g,
+                                           multi_process=multi_process)
                 self.apply_detection_rules(test=False, g=g)
 
             self.run_training_new_model_pipeline(new_model_name=new_model_name,
@@ -201,11 +184,19 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print('\nRule learning completed\n')
 
 
-def work_on_epsilon(epsilon: typing.Tuple[int, float]):
+def work_on_epsilon(epsilon_index: int,
+                    epsilon: float,
+                    data_str: str,
+                    main_model_name: str,
+                    main_lr: float,
+                    original_num_epochs: int,
+                    secondary_model_name: str = None,
+                    new_model_name: str = None,
+                    new_lr: float = None):
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
-                        epsilon=epsilon[1],
-                        epsilon_index=epsilon[0],
+                        epsilon=epsilon,
+                        epsilon_index=epsilon_index,
                         main_model_name=main_model_name,
                         combined=True,
                         loss='BCE',
@@ -229,9 +220,9 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
 
 def simulate_for_epsilons(total_number_of_points: int = 300,
                           min_value: float = 0.1,
-                          max_value: float = 0.3):
-    empty_row_indices, total_value_num = google_sheets_api.find_empty_rows_in_column(sheet_id=sheet_id,
-                                                                                     tab_name=sheet_tab,
+                          max_value: float = 0.3,
+                          multi_process: bool = True):
+    empty_row_indices, total_value_num = google_sheets_api.find_empty_rows_in_column(tab_name=sheet_tab,
                                                                                      column='A')
 
     values_to_complete = total_number_of_points - total_value_num
@@ -240,27 +231,51 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
                         + [total_number_of_points - val for val in list(range(values_to_complete))]]
     print(epsilons_to_take)
 
-    epsilons = [(x, y) for x, y in
-                [(i, round(epsilon, 3)) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
-                                                                                stop=max_value,
-                                                                                num=total_number_of_points))]
-                if y in epsilons_to_take
-                ]
+    epsilons_datas = [(i,
+                       round(epsilon, 3),
+                       data_str,
+                       main_model_name,
+                       main_lr,
+                       original_num_epochs,
+                       secondary_model_name,
+                       new_model_name,
+                       new_lr) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
+                                                                       stop=max_value,
+                                                                       num=total_number_of_points))
+                      if epsilon in epsilons_to_take
+                      ]
 
-    # For multiprocessing
-
-    processes_num = min([len(epsilons), mp.cpu_count()])
-    process_map(work_on_epsilon,
-                epsilons,
-                max_workers=processes_num)
-
-    # Loop through epsilons sequentially (no multiprocessing)
-    for epsilon in epsilons:
-        work_on_epsilon(epsilon)  # Call your work function
+    if multi_process:
+        processes_num = min([len(epsilons_datas), mp.cpu_count()])
+        process_map(work_on_epsilon,
+                    epsilons_datas,
+                    max_workers=processes_num)
+    else:
+        for epsilon_data in epsilons_datas:
+            work_on_epsilon(*epsilon_data)
 
 
 if __name__ == '__main__':
-    simulate_for_epsilons()
+    # data_str = 'military_vehicles'
+    # main_model_name = new_model_name = 'vit_b_16'
+    # main_lr = new_lr = 0.0001
+    # original_num_epochs = 20
+
+    data_str = 'imagenet'
+    main_model_name = new_model_name = 'dinov2_vits14'
+    main_lr = new_lr = 0.000001
+    original_num_epochs = 8
+
+    # secondary_model_name = 'vit_l_16_BCE'
+    secondary_model_name = 'dinov2_vitl14'
+
+    sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                     data_str=data_str,
+                                                     secondary_model_name=secondary_model_name)
+
+    print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
+
+    # simulate_for_epsilons()
 
     # for EDCR_num_epochs in [1]:
     #     for neural_num_epochs in [1]:
