@@ -221,16 +221,9 @@ def work_on_epsilon(epsilon_index: int,
 def simulate_for_epsilons(total_number_of_points: int = 300,
                           min_value: float = 0.1,
                           max_value: float = 0.3,
-                          multi_process: bool = True):
-    empty_row_indices, total_value_num = google_sheets_api.find_empty_rows_in_column(tab_name=sheet_tab,
-                                                                                     column='A')
-
-    values_to_complete = total_number_of_points - total_value_num
-
-    epsilons_to_take = [round((eps - 1) / 1000, 3) for eps in empty_row_indices
-                        + [total_number_of_points - val for val in list(range(values_to_complete))]]
-    print(epsilons_to_take)
-
+                          multi_process: bool = True,
+                          secondary_model_name: str = None,
+                          only_missing_epsilons: bool = False):
     epsilons_datas = [(i,
                        round(epsilon, 3),
                        data_str,
@@ -242,8 +235,21 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
                        new_lr) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
                                                                        stop=max_value,
                                                                        num=total_number_of_points))
-                      if epsilon in epsilons_to_take
                       ]
+
+    if only_missing_epsilons:
+        empty_row_indices, total_value_num = google_sheets_api.find_empty_rows_in_column(tab_name=sheet_tab,
+                                                                                         column='A')
+
+        values_to_complete = total_number_of_points - total_value_num
+
+        epsilons_to_take = [round((eps - 1) / 1000, 3) for eps in empty_row_indices
+                            + [total_number_of_points - val for val in list(range(values_to_complete))]]
+        print(epsilons_to_take)
+
+        epsilons_datas = [epsilon_data for epsilon_data in epsilons_datas if epsilon_data[1] in epsilons_to_take]
+
+
 
     if multi_process:
         processes_num = min([len(epsilons_datas), mp.cpu_count()])
@@ -267,11 +273,12 @@ if __name__ == '__main__':
     original_num_epochs = 8
 
     # secondary_model_name = 'vit_l_16_BCE'
-    secondary_model_name = 'dinov2_vitl14'
+    # secondary_model_name = 'dinov2_vitl14'
 
     sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                      data_str=data_str,
-                                                     secondary_model_name=secondary_model_name)
+                                                     # secondary_model_name=secondary_model_name
+                                                     )
 
     print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 

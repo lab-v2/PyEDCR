@@ -230,17 +230,17 @@ def initiate(data_str: str,
                 fine_tuners = []
                 for model_name in model_names:
                     if model_name.startswith('vit'):
-                        fine_tuners.append(models.VITFineTuner.from_pretrained(vit_model_name=model_name,
+                        fine_tuners.append(models.VITFineTuner.from_pretrained(model_name=model_name,
                                                                                num_classes=num_classes,
                                                                                pretrained_path=pretrained_path,
                                                                                device=device))
                     elif model_name.startswith('tresnet'):
-                        fine_tuners.append(models.TResnetFineTuner.from_pretrained(tresnet_model_name=model_name,
+                        fine_tuners.append(models.TResnetFineTuner.from_pretrained(model_name=model_name,
                                                                                    num_classes=num_classes,
                                                                                    pretrained_path=pretrained_path,
                                                                                    device=device))
                     else:
-                        fine_tuners.append(models.DINOV2FineTuner.from_pretrained(dino_v2_model_name=model_name,
+                        fine_tuners.append(models.DINOV2FineTuner.from_pretrained(model_name=model_name,
                                                                                   num_classes=num_classes,
                                                                                   pretrained_path=pretrained_path,
                                                                                   device=device))

@@ -97,21 +97,21 @@ class DINOV2FineTuner(FineTuner):
 
     @classmethod
     def from_pretrained(cls,
-                        dino_v2_model_name: str,
+                        model_name: str,
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device):
         """
         Loads a pre-trained DINO V2 model from a specified path.
 
-        :param dino_v2_model_name: The name of the pre-trained ViT model used during training.
+        :param model_name: The name of the pre-trained ViT model used during training.
         :param num_classes: The number of output classes for the loaded model.
         :param pretrained_path: The path to the saved pre-trained model checkpoint.
         :param device: The device (CPU or GPU) to load the model onto.
 
         :return: An instance of VITFineTuner loaded with pre-trained weights.
         """
-        instance = cls(dino_v2_model_name, num_classes)
+        instance = cls(model_name, num_classes)
         predefined_weights = torch.load(pretrained_path,
                                         map_location=device)
         transformer_weights = {'.'.join(k.split('.')[1:]): v for k, v in predefined_weights.items()
@@ -164,21 +164,21 @@ class VITFineTuner(FineTuner):
 
     @classmethod
     def from_pretrained(cls,
-                        vit_model_name: str,
+                        model_name: str,
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device):
         """
         Loads a pre-trained VITFineTuner model from a specified path.
 
-        :param vit_model_name: The name of the pre-trained ViT model used during training.
+        :param model_name: The name of the pre-trained ViT model used during training.
         :param num_classes: The number of output classes for the loaded model.
         :param pretrained_path: The path to the saved pre-trained model checkpoint.
         :param device: The device (CPU or GPU) to load the model onto.
 
         :return: An instance of VITFineTuner loaded with pre-trained weights.
         """
-        instance = cls(vit_model_name, num_classes)
+        instance = cls(model_name, num_classes)
         predefined_weights = torch.load(pretrained_path,
                                         map_location=device)
 
@@ -227,7 +227,7 @@ class TResnetFineTuner(FineTuner):
 
     @classmethod
     def from_pretrained(cls,
-                        tresnet_model_name: str,
+                        model_name: str,
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device,
@@ -236,20 +236,20 @@ class TResnetFineTuner(FineTuner):
         """
         Loads a pre-trained TResnetFineTuner model from a specified path.
 
-        :param tresnet_model_name: The name of the pre-trained TResnet model used during training.
+        :param model_name: The name of the pre-trained TResnet model used during training.
         :param num_classes: The number of output classes for the loaded model.
         :param pretrained_path: The path to the saved pre-trained model checkpoint.
         :param device: The device (CPU or GPU) to load the model onto.
 
         :return: An instance of TResnetFineTuner loaded with pre-trained weights.
         """
-        instance = cls(tresnet_model_name, num_classes)
+        instance = cls(model_name, num_classes)
         # Fixed configuration
         parser = argparse.ArgumentParser(description='PyTorch Open Image infer')
         parser.add_argument('--num-classes', default=9605, type=int)
         parser.add_argument('--model-path', type=str, default=pretrained_path)
         parser.add_argument('--pic-path', type=str, default='./pics/000000000885.jpg')
-        parser.add_argument('--model-name', type=str, default=tresnet_model_name)
+        parser.add_argument('--model-name', type=str, default=model_name)
         parser.add_argument('--image-size', type=int, default=224)
         # parser.add_argument('--dataset-type', type=str, default='MS-COCO')
         parser.add_argument('--th', type=float, default=0.75)
