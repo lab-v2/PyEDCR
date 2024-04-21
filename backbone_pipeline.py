@@ -1,6 +1,9 @@
 import numpy as np
 import torch.utils.data
 import typing
+import inspect
+import importlib.util
+import sys
 
 import models
 import utils
@@ -157,10 +160,43 @@ def save_binary_prediction_files(test: bool,
                    f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
 
 
+def load_module_from_file(module_name, filepath):
+    """
+    Dynamically loads a module from the specified file path.
+
+    Args:
+    - module_name (str): The name of the module.
+    - filepath (str): The path to the .py file to load.
+
+    Returns:
+    - module: The loaded module.
+    """
+    spec = importlib.util.spec_from_file_location(module_name, filepath)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def find_subclasses_in_module(module, parent_class):
+    """
+    Finds all subclasses of a specified class within a given module.
+
+    Args:
+    - module (module): The module to inspect.
+    - parent_class (type): The parent class to find subclasses for.
+
+    Returns:
+    - list[type]: A list of subclasses of the parent_class found in the module.
+    """
+    return [cls for name, cls in inspect.getmembers(module, inspect.isclass) if
+            issubclass(cls, parent_class) and cls is not parent_class]
+
+
 def initiate(data_str: str,
-             lrs: typing.List[typing.Union[str, float]],
-             model_names: typing.List[str] = ['vit_b_16'],
-             weights: typing.List[str] = ['DEFAULT'],
+             lr: typing.Union[str, float],
+             model_name: str = 'vit_b_16',
+             weights: str = 'DEFAULT',
              combined: bool = True,
              l: data_preprocessing.Label = None,
              pretrained_path: str = None,
@@ -180,11 +216,11 @@ def initiate(data_str: str,
     :param get_indices:
     :param train_eval_split:
     :param weights:
-    :param model_names:
+    :param model_name:
     :param l:
     :param evaluation:
     :param error_indices:
-    :param lrs: List of learning rates for the models.
+    :param lr: List of learning rates for the models.
     :param combined: Whether the model are individual or combine one.
     :param pretrained_path: Path to a pretrained model (optional).
     :param debug: True to force CPU usage for debugging.
@@ -195,8 +231,8 @@ def initiate(data_str: str,
              - num_fine_grain_classes: The number of fine-grained classes.
              - num_coarse_grain_classes: The number of coarse-grained classes.
     """
-    print(f'Models: {model_names}\n'
-          f'Learning rates: {lrs}')
+    print(f'Models: {model_name}\n'
+          f'Learning rates: {lr}')
 
     preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
 
@@ -205,7 +241,7 @@ def initiate(data_str: str,
                                                binary_label=l,
                                                evaluation=evaluation,
                                                error_fixing=error_indices is not None,
-                                               model_names=model_names,
+                                               model_names=model_name,
                                                weights=weights)
 
     device = torch.device('cpu') if debug else (
@@ -216,49 +252,45 @@ def initiate(data_str: str,
 
     num_fine_grain_classes, num_coarse_grain_classes = None, None
 
+    available_models = find_subclasses_in_module(module=models,
+                                                 parent_class=models.FineTuner)
+
     if l is not None:
         results_path = binary_results_path
-        fine_tuners = [models.VITFineTuner(vit_model_name=vit_model_name,
+        fine_tuners = [models.VITFineTuner(model_name=vit_model_name,
                                            num_classes=2)
-                       for vit_model_name in model_names]
+                       for vit_model_name in model_name]
     else:
         if combined:
             num_classes = preprocessor.num_fine_grain_classes + preprocessor.num_coarse_grain_classes
+            fine_tuners = []
 
             if pretrained_path is not None:
                 print(f'Loading pretrained model from {pretrained_path}')
-                fine_tuners = []
-                for model_name in model_names:
-                    if model_name.startswith('vit'):
-                        fine_tuners.append(models.VITFineTuner.from_pretrained(model_name=model_name,
-                                                                               num_classes=num_classes,
-                                                                               pretrained_path=pretrained_path,
-                                                                               device=device))
-                    elif model_name.startswith('tresnet'):
-                        fine_tuners.append(models.TResnetFineTuner.from_pretrained(model_name=model_name,
-                                                                                   num_classes=num_classes,
-                                                                                   pretrained_path=pretrained_path,
-                                                                                   device=device))
-                    else:
-                        fine_tuners.append(models.DINOV2FineTuner.from_pretrained(model_name=model_name,
-                                                                                  num_classes=num_classes,
-                                                                                  pretrained_path=pretrained_path,
-                                                                                  device=device))
+                for model_name in model_name:
+                    model_class = next(curr_model_class for curr_model_class in available_models
+                                       if curr_model_class.__name__.split('FineTuner')[0].lower().
+                                       startswith(model_name[:3]))
+                    fine_tuner = model_class.from_pretrained(model_name=model_name,
+                                                             num_classes=num_classes,
+                                                             pretrained_path=pretrained_path,
+                                                             device=device)
+                    fine_tuners.append(fine_tuner)
             else:
-                fine_tuners = []
-                for model_name, weight in zip(model_names, weights):
+                for model_name, weight in zip(model_name, weights):
+
                     if model_name.startswith('vit'):
-                        fine_tuners.append(models.VITFineTuner(vit_model_name=model_name,
+                        fine_tuners.append(models.VITFineTuner(model_name=model_name,
                                                                weights=weight,
                                                                num_classes=num_classes))
                     elif model_name.startswith('efficient_net_v2'):
-                        fine_tuners.append(models.EfficientNetV2FineTuner(efficient_net_v2_model_name=model_name,
+                        fine_tuners.append(models.EfficientNetV2FineTuner(model_name=model_name,
                                                                           num_classes=num_classes))
                     elif model_name.startswith('tresnet'):
-                        fine_tuners.append(models.TResnetFineTuner(tresnet_model_name=model_name,
+                        fine_tuners.append(models.TResnetFineTuner(model_name=model_name,
                                                                    num_classes=num_classes))
                     else:
-                        fine_tuners.append(models.DINOV2FineTuner(dino_v2_model_name=model_name,
+                        fine_tuners.append(models.DINOV2FineTuner(model_name=model_name,
                                                                   num_classes=num_classes))
 
             results_path = combined_results_path
@@ -270,12 +302,12 @@ def initiate(data_str: str,
 
             devices = [torch.device("cuda:0"), torch.device("cuda:1")]
 
-            fine_tuners = ([models.VITFineTuner(vit_model_name=vit_model_name,
+            fine_tuners = ([models.VITFineTuner(model_name=vit_model_name,
                                                 num_classes=preprocessor.num_fine_grain_classes)
-                            for vit_model_name in model_names] +
-                           [models.VITFineTuner(vit_model_name=vit_model_name,
+                            for vit_model_name in model_name] +
+                           [models.VITFineTuner(model_name=vit_model_name,
                                                 num_classes=preprocessor.num_coarse_grain_classes)
-                            for vit_model_name in model_names])
+                            for vit_model_name in model_name])
             results_path = individual_results_path
 
     utils.create_directory(results_path)

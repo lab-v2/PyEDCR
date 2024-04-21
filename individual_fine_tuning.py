@@ -194,8 +194,8 @@ def run_individual_fine_tuning_pipeline(preprocessor: data_preprocessing.DataPre
                                         debug: bool = utils.is_debug_mode()):
     fine_tuners, loaders, devices = (
         backbone_pipeline.initiate(data_str=preprocessor.data_str,
-                                   model_names=vit_model_names,
-                                   lrs=lrs,
+                                   model_name=vit_model_names,
+                                   lr=lrs,
                                    combined=False,
                                    debug=debug))
 

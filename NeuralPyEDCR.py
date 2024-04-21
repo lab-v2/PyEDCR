@@ -73,8 +73,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
             backbone_pipeline.initiate(
                 data_str=self.data_str,
-                model_names=[new_model_name],
-                lrs=[new_lr],
+                model_name=new_model_name,
+                lr=new_lr,
                 combined=self.combined,
                 error_indices=perceived_examples_with_errors,
                 print_counts=False
@@ -86,7 +86,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         combined_fine_tuning.fine_tune_combined_model(
             preprocessor=preprocessor,
-            lrs=[new_lr],
+            lr=new_lr,
             fine_tuner=self.correction_model,
             device=devices[0],
             loaders=loaders,
@@ -100,8 +100,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         _, _, loaders, devices, _, _ = backbone_pipeline.initiate(
             data_str=self.data_str,
-            model_names=[new_model_name],
-            lrs=[new_lr],
+            model_name=new_model_name,
+            lr=new_lr,
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
             evaluation=True,
@@ -129,7 +129,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             neural_evaluation.run_combined_evaluating_pipeline(data_str=self.data_str,
                                                                model_name=self.main_model_name,
                                                                split='test',
-                                                               lrs=[self.lr],
+                                                               lr=self.lr,
                                                                loss=self.loss,
                                                                num_epochs=self.neural_num_epochs,
                                                                pretrained_fine_tuner=self.correction_model,
