@@ -101,7 +101,7 @@ class EDCR_LTN_experiment(EDCR):
 
         self.fine_tuners, self.loaders, self.devices, _, _ = (
             vit_pipeline.initiate(
-                lrs=[self.lr],
+                lr=[self.lr],
                 combined=self.combined,
                 debug=False,
                 pretrained_path=self.pretrain_path,

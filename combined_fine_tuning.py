@@ -20,7 +20,7 @@ import neural_fine_tuning
 
 
 def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
-                             lrs: typing.List[typing.Union[str, float]],
+                             lr: typing.Union[str, float],
                              fine_tuner: models.FineTuner,
                              device: torch.device,
                              loaders: typing.Dict[str, torch.utils.data.DataLoader],
@@ -39,7 +39,7 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
     train_fine_predictions = None
     train_coarse_predictions = None
 
-    for lr in lrs:
+    for lr in lr:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                      lr=lr)
 
@@ -257,8 +257,8 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
 
 def run_combined_fine_tuning_pipeline(data_str: str,
-                                      model_names: typing.List[str],
-                                      lrs: typing.List[typing.Union[str, float]],
+                                      model_name: str,
+                                      lr: typing.Union[str, float],
                                       num_epochs: int,
                                       loss: str = 'BCE',
                                       pretrained_path: str = None,
@@ -266,14 +266,14 @@ def run_combined_fine_tuning_pipeline(data_str: str,
                                       debug: bool = utils.is_debug_mode()):
     preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
         backbone_pipeline.initiate(data_str=data_str,
-                                   model_names=model_names,
-                                   lrs=lrs,
+                                   model_name=model_name,
+                                   lr=lr,
                                    combined=True,
                                    pretrained_path=pretrained_path,
                                    debug=debug))
     for fine_tuner in fine_tuners:
         fine_tune_combined_model(preprocessor=preprocessor,
-                                 lrs=lrs,
+                                 lr=lr,
                                  fine_tuner=fine_tuner,
                                  device=devices[0],
                                  loaders=loaders,
@@ -287,8 +287,8 @@ def run_combined_fine_tuning_pipeline(data_str: str,
 
 if __name__ == '__main__':
     run_combined_fine_tuning_pipeline(data_str='imagenet',
-                                      model_names=['dinov2_vitl14'],
-                                      lrs=[0.000001],
+                                      model_name='dinov2_vitl14',
+                                      lr=0.000001,
                                       num_epochs=2,
                                       loss='BCE',
                                       # pretrained_path='models/dinov2_vits14_lr1e-06_BCE.pth'

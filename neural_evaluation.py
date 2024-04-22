@@ -203,7 +203,7 @@ def evaluate_binary_model(l: data_preprocessing.Label,
 def run_combined_evaluating_pipeline(data_str: str,
                                      model_name: str,
                                      split: str,
-                                     lrs: typing.List[typing.Union[str, float]],
+                                     lr: typing.Union[str, float],
                                      loss: str,
                                      num_epochs: int,
                                      pretrained_path: str = None,
@@ -224,7 +224,7 @@ def run_combined_evaluating_pipeline(data_str: str,
     :param indices:
     :param print_results:
     :param pretrained_fine_tuner:
-    :param lrs: List of learning rates used during training.
+    :param lr: List of learning rates used during training.
     :param loss: The loss function used during training.
     :param pretrained_path: Path to a pre-trained model (optional).
     :param save_files: Whether to save predictions and ground truth labels
@@ -240,8 +240,8 @@ def run_combined_evaluating_pipeline(data_str: str,
     """
     preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
         backbone_pipeline.initiate(data_str=data_str,
-                                   model_names=[model_name],
-                                   lrs=lrs,
+                                   model_name=model_name,
+                                   lr=lr,
                                    combined=True,
                                    pretrained_path=pretrained_path,
                                    debug=debug,
@@ -265,7 +265,7 @@ def run_combined_evaluating_pipeline(data_str: str,
                                                 test=split == 'test',
                                                 fine_tuners=fine_tuners[0],
                                                 combined=True,
-                                                lrs=lrs[0],
+                                                lrs=lr[0],
                                                 loss=loss,
                                                 fine_prediction=fine_predictions,
                                                 coarse_prediction=coarse_predictions,
@@ -282,7 +282,7 @@ def run_binary_evaluating_pipeline(data_str: str,
                                    model_name: str,
                                    l: data_preprocessing.Label,
                                    split: str,
-                                   lrs: typing.List[typing.Union[str, float]],
+                                   lr: typing.Union[str, float],
                                    loss: str,
                                    num_epochs: int,
                                    pretrained_path: str = None,
@@ -292,9 +292,9 @@ def run_binary_evaluating_pipeline(data_str: str,
                                    print_results: bool = True):
     preprocessor, fine_tuners, loaders, devices, weight = (
         backbone_pipeline.initiate(data_str=data_str,
-                                   model_names=[model_name],
+                                   model_name=model_name,
                                    l=l,
-                                   lrs=lrs,
+                                   lr=lr,
                                    pretrained_path=pretrained_path,
                                    debug=debug,
                                    evaluation=True))
@@ -314,7 +314,7 @@ def run_binary_evaluating_pipeline(data_str: str,
     if save_files:
         backbone_pipeline.save_binary_prediction_files(test=split == 'test',
                                                        fine_tuner=fine_tuner,
-                                                       lr=lrs[0],
+                                                       lr=lr[0],
                                                        epoch=num_epochs,
                                                        l=l,
                                                        predictions=predictions,
@@ -390,7 +390,7 @@ if __name__ == '__main__':
     run_combined_evaluating_pipeline(data_str=data_str,
                                      model_name=main_model_name,
                                      split='train',
-                                     lrs=[lr],
+                                     lr=lr,
                                      loss='BCE',
                                      num_epochs=2,
                                      pretrained_path=pretrained_path,

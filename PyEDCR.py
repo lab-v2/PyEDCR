@@ -239,11 +239,9 @@ class EDCR:
             f"Num of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
-        self.sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
-        self.sheet_tab = ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'} "
-                           f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
-                          ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
-                           if secondary_model_name is not None else ''))
+        self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                              data_str=data_str,
+                                                              secondary_model_name=secondary_model_name)
 
         # self.sheet = google_sheets_api.initiate_api()
         self.RCC_ratio = 0
@@ -731,17 +729,19 @@ class EDCR:
         return DC_l
 
     def learn_detection_rules(self,
-                              g: data_preprocessing.Granularity):
+                              g: data_preprocessing.Granularity,
+                              multi_process: bool = True):
         # self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
         granularity_labels = list(self.preprocessor.get_labels(g).values())
         processes_num = min(len(granularity_labels), mp.cpu_count())
 
         print(f'\nLearning {g}-grain error detection rules...')
 
+
         DC_ls = process_map(self.DetRuleLearn,
                             granularity_labels,
-                            max_workers=processes_num)
-        # DC_ls = [self.DetRuleLearn(l=l) for l in granularity_labels]
+                            max_workers=processes_num) if multi_process else \
+            [self.DetRuleLearn(l=l) for l in granularity_labels]
 
         for l, DC_l in zip(granularity_labels, DC_ls):
             if len(DC_l):
@@ -914,8 +914,7 @@ class EDCR:
                             inconsistency_error_f1,
                             self.RCC_ratio]
 
-            google_sheets_api.update_sheet(spreadsheet_id=self.sheet_id,
-                                           range_=f'{self.sheet_tab}!A{self.epsilon_index}:F{self.epsilon_index}',
+            google_sheets_api.update_sheet(range_=f'{self.sheet_tab}!A{self.epsilon_index}:F{self.epsilon_index}',
                                            body={'values': [input_values]})
 
         if print_results:

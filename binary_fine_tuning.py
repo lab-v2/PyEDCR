@@ -91,14 +91,14 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                         neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
                                                                          l=l,
                                                                          split='train',
-                                                                         lrs=[lr],
+                                                                         lr=[lr],
                                                                          loss='BCE',
                                                                          num_epochs=num_epochs,
                                                                          pretrained_fine_tuner=fine_tuner)
                         neural_evaluation.run_binary_evaluating_pipeline(model_name='vit_b_16',
                                                                          l=l,
                                                                          split='test',
-                                                                         lrs=[lr],
+                                                                         lr=[lr],
                                                                          loss='BCE',
                                                                          num_epochs=num_epochs,
                                                                          pretrained_fine_tuner=fine_tuner)
@@ -120,8 +120,8 @@ def run_l_binary_fine_tuning_pipeline(data: str,
     # if not os.path.exists(f"{os.getcwd()}/models/binary_models/binary_{l}_vit_b_16_lr{lr}_"
     #                       f"loss_BCE_e{num_epochs}.pth"):
     fine_tuners, loaders, devices, positive_class_weight = backbone_pipeline.initiate(data=data,
-                                                                                      model_names=vit_model_names,
-                                                                                      lrs=[lr],
+                                                                                      model_name=vit_model_names,
+                                                                                      lr=[lr],
                                                                                       l=l)
     for fine_tuner in fine_tuners:
         fine_tune_binary_model(l=l,

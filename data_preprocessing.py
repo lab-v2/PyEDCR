@@ -696,8 +696,8 @@ class IndividualImageFolderWithName(EDCRImageFolder):
 
 
 def get_datasets(preprocessor: DataPreprocessor,
-                 model_names: typing.List[str],
-                 weights: typing.List[str] = ['DEFAULT'],
+                 model_names: str,
+                 weights: str = 'DEFAULT',
                  cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
                  binary_label: Label = None,
@@ -724,7 +724,6 @@ def get_datasets(preprocessor: DataPreprocessor,
     datasets = {}
 
     for train_or_test in ['train', 'test']:
-
         if preprocessor.data_str == 'openimage':
             full_data_dir = f'scratch/ngocbach/OpenImage/{train_or_test}_fine' if not config.running_on_sol \
                 else f'/scratch/ngocbach/OpenImage/{train_or_test}_fine'

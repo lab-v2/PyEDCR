@@ -49,16 +49,16 @@ class FineTuner(torch.nn.Module, abc.ABC):
 
 class EfficientNetV2FineTuner(FineTuner):
     def __init__(self,
-                 efficient_net_v2_model_name: str,
+                 model_name: str,
                  num_classes: int):
-        super().__init__(model_name=efficient_net_v2_model_name,
+        super().__init__(model_name=model_name,
                          num_classes=num_classes)
-        self.efficient_net_v2_model_name = efficient_net_v2_model_name
-        efficient_net_v2_model = getattr(torchvision.models, efficient_net_v2_model_name)
+        self.efficient_net_v2_model_name = model_name
+        efficient_net_v2_model = getattr(torchvision.models, model_name)
 
         efficient_net_v2_weights = getattr(getattr(
             torchvision.models,
-            f"EfficientNet_V2_{efficient_net_v2_model_name.split('efficientnet_v2_')[-1].upper()}_Weights"),
+            f"EfficientNet_V2_{model_name.split('efficientnet_v2_')[-1].upper()}_Weights"),
             'DEFAULT')
 
         self.efficient_net_v2 = efficient_net_v2_model(weights=efficient_net_v2_weights)
@@ -74,22 +74,17 @@ class EfficientNetV2FineTuner(FineTuner):
 
 class DINOV2FineTuner(FineTuner):
     def __init__(self,
-                 dino_v2_model_name: str,
+                 model_name: str,
                  num_classes: int):
-        super().__init__(model_name=dino_v2_model_name,
+        super().__init__(model_name=model_name,
                          num_classes=num_classes)
-        self.model_size = dino_v2_model_name.split('dinov2_vit')[-1][0]
-        if self.model_size == 's':
-            in_features = 384
-        elif self.model_size == 'm':
-            in_features = 768
-        elif self.model_size == 'l':
-            in_features = 1024
-        else:
-            raise ValueError("Unsupported model size")
+        self.model_size = model_name.split('dinov2_vit')[-1][0]
+        in_features = {'s': 384,
+                       'm': 768,
+                       'l': 1024}[self.model_size]
 
         self.transformer = torch.hub.load(repo_or_dir='facebookresearch/dinov2',
-                                          model=dino_v2_model_name)
+                                          model=model_name)
         self.classifier = torch.nn.Sequential(
             torch.nn.Linear(in_features=in_features, out_features=256),
             torch.nn.ReLU(),
@@ -97,21 +92,21 @@ class DINOV2FineTuner(FineTuner):
 
     @classmethod
     def from_pretrained(cls,
-                        dino_v2_model_name: str,
+                        model_name: str,
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device):
         """
         Loads a pre-trained DINO V2 model from a specified path.
 
-        :param dino_v2_model_name: The name of the pre-trained ViT model used during training.
+        :param model_name: The name of the pre-trained ViT model used during training.
         :param num_classes: The number of output classes for the loaded model.
         :param pretrained_path: The path to the saved pre-trained model checkpoint.
         :param device: The device (CPU or GPU) to load the model onto.
 
         :return: An instance of VITFineTuner loaded with pre-trained weights.
         """
-        instance = cls(dino_v2_model_name, num_classes)
+        instance = cls(model_name, num_classes)
         predefined_weights = torch.load(pretrained_path,
                                         map_location=device)
         transformer_weights = {'.'.join(k.split('.')[1:]): v for k, v in predefined_weights.items()
@@ -140,19 +135,19 @@ class VITFineTuner(FineTuner):
     """
 
     def __init__(self,
-                 vit_model_name: str,
+                 model_name: str,
                  num_classes: int,
                  weights: str = 'DEFAULT'):
         """
         Initializes the VITFineTuner with a pre-trained ViT model and number of classes.
 
-        :param vit_model_name: The name of the pre-trained ViT model to use (e.g., 'vit_base_patch16').
+        :param model_name: The name of the pre-trained ViT model to use (e.g., 'vit_base_patch16').
         :param num_classes: The number of output classes for classification.
         """
-        super().__init__(model_name=vit_model_name,
+        super().__init__(model_name=model_name,
                          num_classes=num_classes)
-        self.vit_model_name = vit_model_name
-        vit_model = getattr(torchvision.models, vit_model_name)
+        self.vit_model_name = model_name
+        vit_model = getattr(torchvision.models, model_name)
 
         vit_weights = getattr(getattr(
             torchvision.models,
@@ -164,21 +159,21 @@ class VITFineTuner(FineTuner):
 
     @classmethod
     def from_pretrained(cls,
-                        vit_model_name: str,
+                        model_name: str,
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device):
         """
         Loads a pre-trained VITFineTuner model from a specified path.
 
-        :param vit_model_name: The name of the pre-trained ViT model used during training.
+        :param model_name: The name of the pre-trained ViT model used during training.
         :param num_classes: The number of output classes for the loaded model.
         :param pretrained_path: The path to the saved pre-trained model checkpoint.
         :param device: The device (CPU or GPU) to load the model onto.
 
         :return: An instance of VITFineTuner loaded with pre-trained weights.
         """
-        instance = cls(vit_model_name, num_classes)
+        instance = cls(model_name, num_classes)
         predefined_weights = torch.load(pretrained_path,
                                         map_location=device)
 
@@ -194,12 +189,11 @@ class VITFineTuner(FineTuner):
 
         return instance
 
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
+    def forward(self,
+                X: torch.Tensor) -> torch.Tensor:
         """
         Performs a forward pass through the fine-tuned ViT model for prediction.
-
         :param X: Input tensor of image data (batch_num, channels_num, height, width).
-
         :return: Predicted class probabilities for each input image (batch_num, classes_num).
         """
         return self.vit(X)
