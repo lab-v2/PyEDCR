@@ -898,13 +898,13 @@ class EDCR:
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_errors,
                     true_data=self.error_ground_truths,
-                    labels=[1])]
+                    labels=[0, 1])]
 
             inconsistency_error_accuracy, inconsistency_error_f1, _, _ = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_errors,
                     true_data=self.inconsistency_error_ground_truths,
-                    labels=[1])]
+                    labels=[0, 1])]
 
             # set values
             input_values = [round(self.epsilon, 3),

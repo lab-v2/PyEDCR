@@ -9,7 +9,7 @@ import pathlib
 import typing
 import abc
 import random
-
+import config
 
 random.seed(42)
 np.random.seed(42)
@@ -210,48 +210,48 @@ class DataPreprocessor:
 
         elif data_str == 'openimage':
             self.coarse_to_fine = {
-                "Animal": [
-                    "Mammal",
-                    "Bird",
-                    "Invertebrate",
-                    "Fish",
-                    "Reptile",
-                ],
-                "Building": [
-                    "House",
-                    "Skyscraper",
-                    "Tower",
-                    "Office building",
-                    "Castle",
-                    "Lighthouse",
-                    "Convenience store"
-                ],
                 "Clothing": [
                     "Footwear",
                     "Fashion accessory",
                     "Dress",
                     "Suit",
-                    "Hat",
+                    "Sports uniform",
                     "Trousers",
+                    "Shorts",
+                    "Swimwear",
                     "Jacket"
                 ],
-                "Drink": [
-                    "Beer",
-                    "Wine",
-                    "Cocktail",
-                    "Coffee",
-                    "Juice",
+                "Food": [
+                    "Snack",
+                    "Baked goods",
+                    "Dessert",
+                    "Fruit",
+                    "Vegetable",
+                    "Fast food",
+                    "Seafood"
                 ],
-                "Vehicle": [
-                    "Land vehicle",
-                    "Watercraft",
-                    "Aircraft",
+                "Furniture": [
+                    "Table",
+                    "Chair",
+                    "Shelf",
+                    "Desk"
                 ],
-                "Hat": [  # Handle case where a category appears as both coarse and fine label
-                    "Sun hat",
-                    "Fedora",
-                    "Cowboy hat"
-                ]
+                "Land vehicle": [
+                    "Car",
+                    "Truck",
+                    "Bicycle",
+                    "Motorcycle"
+                ],
+                "Mammal": [
+                    "Carnivore",
+                    "Horse",
+                    "Monkey"
+                ],
+                "Plant": [
+                    "Tree",
+                    "Flower",
+                    "Houseplant"
+                ],
             }
             self.fine_grain_classes_str = sorted(
                 [item for category, items in self.coarse_to_fine.items() for item in items])
@@ -301,35 +301,37 @@ class DataPreprocessor:
         if data_str == 'imagenet':
             data_path_str = 'data/ImageNet100/'
         elif data_str == 'openimage':
-            data_path_str = 'scratch/ngocbach/OpenImage/'
+            data_path_str = 'scratch/ngocbach/OpenImage/' if not config.running_on_sol \
+                else '/scratch/ngocbach/OpenImage/'
         else:
             data_path_str = 'data/'
-
-        self.test_true_fine_data = np.load(rf'{data_path_str}test_fine/test_true_fine.npy')
-        self.test_true_coarse_data = np.load(rf'{data_path_str}test_coarse/test_true_coarse.npy')
-
-        self.train_true_fine_data = np.load(rf'{data_path_str}train_fine/train_true_fine.npy')
-        self.train_true_coarse_data = np.load(rf'{data_path_str}train_coarse/train_true_coarse.npy')
 
         self.num_fine_grain_classes = len(self.fine_grain_classes_str)
         self.num_coarse_grain_classes = len(self.coarse_grain_classes_str)
 
-        self.fine_unique, self.fine_counts = np.unique(self.train_true_fine_data, return_counts=True)
-        self.coarse_unique, self.coarse_counts = np.unique(self.train_true_coarse_data, return_counts=True)
+        if not config.get_ground_truth:
+            self.test_true_fine_data = np.load(rf'{data_path_str}test_fine/test_true_fine.npy')
+            self.test_true_coarse_data = np.load(rf'{data_path_str}test_coarse/test_true_coarse.npy')
 
-        # # Create dictionaries from unique labels and counts
-        self.fine_data_counts = dict(zip(self.fine_unique, self.fine_counts))
-        self.coarse_data_counts = dict(zip(self.coarse_unique, self.coarse_counts))
+            self.train_true_fine_data = np.load(rf'{data_path_str}train_fine/train_true_fine.npy')
+            self.train_true_coarse_data = np.load(rf'{data_path_str}train_coarse/train_true_coarse.npy')
 
-        self.fine_grain_labels = {l: FineGrainLabel(l, fine_grain_classes_str=self.fine_grain_classes_str)
-                                  for l in self.fine_grain_classes_str}
-        self.coarse_grain_labels = {l: CoarseGrainLabel(l, coarse_grain_classes_str=self.coarse_grain_classes_str)
-                                    for l in self.coarse_grain_classes_str}
+            self.fine_unique, self.fine_counts = np.unique(self.train_true_fine_data, return_counts=True)
+            self.coarse_unique, self.coarse_counts = np.unique(self.train_true_coarse_data, return_counts=True)
 
-        assert (self.get_num_inconsistencies(fine_labels=self.train_true_fine_data,
-                                             coarse_labels=self.train_true_coarse_data)[0] ==
-                self.get_num_inconsistencies(fine_labels=self.test_true_fine_data,
-                                             coarse_labels=self.test_true_coarse_data)[0] == 0)
+            # # Create dictionaries from unique labels and counts
+            self.fine_data_counts = dict(zip(self.fine_unique, self.fine_counts))
+            self.coarse_data_counts = dict(zip(self.coarse_unique, self.coarse_counts))
+
+            self.fine_grain_labels = {l: FineGrainLabel(l, fine_grain_classes_str=self.fine_grain_classes_str)
+                                      for l in self.fine_grain_classes_str}
+            self.coarse_grain_labels = {l: CoarseGrainLabel(l, coarse_grain_classes_str=self.coarse_grain_classes_str)
+                                        for l in self.coarse_grain_classes_str}
+
+            assert (self.get_num_inconsistencies(fine_labels=self.train_true_fine_data,
+                                                 coarse_labels=self.train_true_coarse_data)[0] ==
+                    self.get_num_inconsistencies(fine_labels=self.test_true_fine_data,
+                                                 coarse_labels=self.test_true_coarse_data)[0] == 0)
 
     def get_ground_truths(self,
                           test: bool,
@@ -724,7 +726,8 @@ def get_datasets(preprocessor: DataPreprocessor,
     for train_or_test in ['train', 'test']:
 
         if preprocessor.data_str == 'openimage':
-            full_data_dir = f'scratch/ngocbach/OpenImage/{train_or_test}_fine'
+            full_data_dir = f'scratch/ngocbach/OpenImage/{train_or_test}_fine' if not config.running_on_sol \
+                else f'/scratch/ngocbach/OpenImage/{train_or_test}_fine'
         else:
             data_dir_name = f'ImageNet100/{train_or_test}_fine' if preprocessor.data_str == 'imagenet' \
                 else f'{train_or_test}_fine'

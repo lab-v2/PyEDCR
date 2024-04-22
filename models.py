@@ -214,7 +214,8 @@ class TResnetFineTuner(FineTuner):
     def __init__(self,
                  tresnet_model_name: str,
                  num_classes: int,
-                 weights: str = 'DEFAULT', ):
+                 weights: str = 'DEFAULT',
+                 preprocessor: data_preprocessing.DataPreprocessor = None):
         """
         Initializes the TResnetFineTuner with a pre-trained TResnet model and number of classes.
 
@@ -224,6 +225,7 @@ class TResnetFineTuner(FineTuner):
         super().__init__(model_name=tresnet_model_name,
                          num_classes=num_classes)
         self.model = None
+        self.preprocessor = preprocessor
 
     @classmethod
     def from_pretrained(cls,
@@ -231,7 +233,7 @@ class TResnetFineTuner(FineTuner):
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device,
-                        # preprocessor: data_preprocessing.DataPreprocessor=None,
+                        preprocessor: data_preprocessing.DataPreprocessor = None,
                         ):
         """
         Loads a pre-trained TResnetFineTuner model from a specified path.
@@ -256,7 +258,7 @@ class TResnetFineTuner(FineTuner):
         parser.add_argument('--top-k', type=float, default=20)
         # ML-Decoder
         parser.add_argument('--use-ml-decoder', default=1, type=int)
-        parser.add_argument('--num-of-groups', default=200, type=int)  # full-decoding
+        parser.add_argument('--num-of-groups', default=200, type=int)
         parser.add_argument('--decoder-embedding', default=768, type=int)
         parser.add_argument('--zsl', default=0, type=int)
 
@@ -276,6 +278,7 @@ class TResnetFineTuner(FineTuner):
         #######################################################
 
         instance.classes_list = np.array(list(state['idx_to_class'].values()))
+        instance.preprocessor = preprocessor
 
         return instance
 
@@ -289,58 +292,13 @@ class TResnetFineTuner(FineTuner):
         """
         output = torch.squeeze(torch.sigmoid(self.model(X)))
         np_output = output.cpu().detach().numpy()
-        coarse_to_fine_dict = {
-            "Animal": [
-                "Mammal",
-                "Bird",
-                "Invertebrate",
-                "Fish",
-                "Reptile",
-            ],
-            "Building": [
-                "House",
-                "Skyscraper",
-                "Tower",
-                "Office building",
-                "Castle",
-                "Lighthouse",
-                "Convenience store"
-            ],
-            "Clothing": [
-                "Footwear",
-                "Fashion accessory",
-                "Dress",
-                "Suit",
-                "Hat",
-                "Trousers",
-                "Jacket"
-            ],
-            "Drink": [
-                "Beer",
-                "Wine",
-                "Cocktail",
-                "Coffee",
-                "Juice",
-            ],
-            "Vehicle": [
-                "Land vehicle",
-                "Watercraft",
-                "Aircraft",
-            ],
-            "Hat": [  # Handle case where a category appears as both coarse and fine label
-                "Sun hat",
-                "Fedora",
-                "Cowboy hat"
-            ]
-        }
 
-        fine_grain_classes_str = sorted(
-            [item for category, items in coarse_to_fine_dict.items() for item in items])
-        class_positions = np.array([np.where(self.classes_list == cls)[0] for cls in fine_grain_classes_str])
+        class_positions = np.array([np.where(self.classes_list == cls)[0]
+                                    for cls in self.preprocessor.fine_grain_classes_str])
         fine_grain_classes_prediction = np_output[:, class_positions]
 
-        coarse_grain_classes_str = sorted([item for item in coarse_to_fine_dict.keys()])
-        class_positions = np.array([np.where(self.classes_list == cls)[0] for cls in coarse_grain_classes_str])
+        class_positions = np.array([np.where(self.classes_list == cls)[0]
+                                    for cls in self.preprocessor.coarse_grain_classes_str])
         coarse_grain_classes_prediction = np_output[:, class_positions]
 
         fine_and_coarse_output = np.concatenate(

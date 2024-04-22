@@ -23,7 +23,7 @@ main_lr = new_lr = 0.000001
 original_num_epochs = 0
 
 # secondary_model_name = 'vit_l_16_BCE'
-# secondary_model_name = None
+secondary_model_name = None
 
 sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
 sheet_tab = f"Tresnet M on OpenImage Errors"
@@ -172,7 +172,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                               new_model_name: str,
                               new_lr: float):
         print('Started learning pipeline...\n')
-        self.print_metrics(test=False, prior=True)
+        self.print_metrics(test=True, prior=True)
 
         for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -246,10 +246,10 @@ if __name__ == '__main__':
     #
     # # For multiprocessing
     #
-    processes_num = min([len(epsilons), mp.cpu_count(), 10])
-    process_map(work_on_epsilon,
-                epsilons,
-                max_workers=processes_num)
+    # processes_num = min([len(epsilons), mp.cpu_count(), 10])
+    # process_map(work_on_epsilon,
+    #             epsilons,
+    #             max_workers=processes_num)
 
     # For normal
 

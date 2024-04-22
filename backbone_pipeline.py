@@ -63,6 +63,8 @@ def save_prediction_files(data_str: str,
 
     if combined:
         for g_str in data_preprocessing.DataPreprocessor.granularities_str:
+            if config.get_ground_truth:
+                break
             prediction = fine_prediction if g_str == 'fine' else coarse_prediction
             np.save(models.get_filepath(data_str=data_str,
                                         model_name=fine_tuners,
@@ -92,7 +94,8 @@ def save_prediction_files(data_str: str,
         if data_str == 'imagenet':
             data_path_str = 'data/ImageNet100/'
         elif data_str == 'openimage':
-            data_path_str = 'scratch/ngocbach/OpenImage/'
+            data_path_str = 'scratch/ngocbach/OpenImage/' if not config.running_on_sol \
+                else '/scratch/ngocbach/OpenImage/'
         else:
             data_path_str = 'data/'
 
@@ -238,7 +241,8 @@ def initiate(data_str: str,
                         fine_tuners.append(models.TResnetFineTuner.from_pretrained(tresnet_model_name=model_name,
                                                                                    num_classes=num_classes,
                                                                                    pretrained_path=pretrained_path,
-                                                                                   device=device))
+                                                                                   device=device,
+                                                                                   preprocessor=preprocessor))
                     else:
                         fine_tuners.append(models.DINOV2FineTuner.from_pretrained(dino_v2_model_name=model_name,
                                                                                   num_classes=num_classes,

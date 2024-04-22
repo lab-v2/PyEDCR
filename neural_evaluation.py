@@ -13,6 +13,7 @@ import data_preprocessing
 import models
 import neural_metrics
 import backbone_pipeline
+import config
 
 
 def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor,
@@ -115,6 +116,12 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
         for i, data in gen:
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
 
+            fine_ground_truths += Y_true_fine.tolist()
+            coarse_ground_truths += Y_true_coarse.tolist()
+
+            if config.get_ground_truth:
+                continue
+
             Y_pred = fine_tuner(X)
             Y_pred_fine = Y_pred[:, :len(preprocessor.fine_grain_classes_str)]
             Y_pred_coarse = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
@@ -124,9 +131,6 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
             sorted_probs_coarse = torch.sort(Y_pred_coarse, descending=True)[1]
             predicted_coarse = sorted_probs_coarse[:, 0]
-
-            fine_ground_truths += Y_true_fine.tolist()
-            coarse_ground_truths += Y_true_coarse.tolist()
 
             fine_predictions += predicted_fine.tolist()
             coarse_predictions += predicted_coarse.tolist()
