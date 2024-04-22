@@ -5,4 +5,5 @@
 /.idea/inspectionProfiles/profiles_settings.xml
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/PyEDCR.iml
+/src_files/helper_functions/__pycache__/bn_fusion.cpython-311.pyc
 config.py
