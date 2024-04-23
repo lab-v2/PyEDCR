@@ -16,7 +16,6 @@ import combined_fine_tuning
 import neural_evaluation
 import google_sheets_api
 
-
 data_str = 'openimage'
 main_model_name = new_model_name = 'tresnet_m'
 main_lr = new_lr = 0.000001
@@ -41,8 +40,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  EDCR_num_epochs: int,
                  neural_num_epochs: int,
                  epsilon_index: int = None,
-                 K_train: typing.List[typing.Tuple[int]] = None,
-                 K_test: typing.List[typing.Tuple[int]] = None,
+                 K_train=None,
+                 K_test=None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
                  secondary_model_loss: str = None,
@@ -197,6 +196,16 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
 
 def work_on_epsilon(epsilon: typing.Tuple[int, float]):
+    preprocessor = data_preprocessing.DataPreprocessor(data_str)
+    data = preprocessor.train_true_fine_data
+    num_examples_per_class = 1
+
+    example_indices = []
+
+    for i in range(len(preprocessor.fine_grain_classes_str)):
+        cls_idx = np.where(data == i)[0]
+        example_indices.extend(cls_idx[:num_examples_per_class])
+
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
                         epsilon=epsilon[1],
@@ -212,7 +221,8 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
                         # binary_models=data_preprocessing.fine_grain_classes_str,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
-                        neural_num_epochs=1)
+                        neural_num_epochs=1,
+                        K_train=np.array(example_indices))
     edcr.print_metrics(test=True,
                        prior=True,
                        print_actual_errors_num=True)

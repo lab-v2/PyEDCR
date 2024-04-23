@@ -83,6 +83,12 @@ def get_individual_metrics(pred_data: np.array,
                           labels=labels,
                           average='macro')
 
+    # if len(labels) > 3:
+    #     for idx in labels:
+    #         precision_per_class = precision_score(y_true=true_data, y_pred=pred_data, labels=labels, average=None)[idx]
+    #         recall_per_class = recall_score(y_true=true_data, y_pred=pred_data, labels=labels, average=None)[idx]
+    #         print(f'class {idx} has precision {precision_per_class} and recall {recall_per_class}')
+
     return accuracy, f1, precision, recall
 
 

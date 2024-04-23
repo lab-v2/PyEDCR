@@ -76,10 +76,20 @@ class EDCR:
                                           for g_str in data_preprocessing.DataPreprocessor.granularities_str}
             for test in [True, False]}
 
-        self.K_train = data_preprocessing.expand_ranges(K_train) if K_train is not None \
-            else data_preprocessing.expand_ranges([(0, np.load(pred_paths['train']['fine']).shape[0] - 1)])
-        self.K_test = data_preprocessing.expand_ranges(K_test) if K_test is not None \
-            else data_preprocessing.expand_ranges([(0, np.load(pred_paths['test']['fine']).shape[0] - 1)])
+        if isinstance(K_train, typing.List):
+            self.K_train = data_preprocessing.expand_ranges(K_train)
+        elif isinstance(K_train, np.ndarray):
+            self.K_train = K_train
+        else:
+            self.K_train = data_preprocessing.expand_ranges([(0, np.load(pred_paths['train']['fine']).shape[0] - 1)])
+
+        if isinstance(K_test, typing.List):
+            self.K_test = data_preprocessing.expand_ranges(K_test)
+        elif isinstance(K_test, np.ndarray):
+            self.K_test = K_test
+        else:
+            self.K_test = data_preprocessing.expand_ranges([(0, np.load(pred_paths['test']['fine']).shape[0] - 1)])
+
         self.T_train = np.load(pred_paths['train']['fine']).shape[0]
         self.T_test = np.load(pred_paths['test']['fine']).shape[0]
 
