@@ -92,7 +92,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                               data_str=data_str,
                                                               secondary_model_name=secondary_model_name,
-                                                              experiment_name=experiment_information,
+                                                              experiment_name=experiment_name,
                                                               )
 
         print(utils.red_text(f"{'#' * 50} Start experiment in {self.sheet_tab} {'#' * 50}"))
