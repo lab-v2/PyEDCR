@@ -77,7 +77,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             train_pred_inconsistency_mask = np.ones_like(self.pred_data['train']['original']['fine'])
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
-                train_pred_inconsistency_mask &= self.get_where_predicted_correct(test=False, g=g)
+                train_pred_inconsistency_mask &= self.get_where_predicted_inconsistently(test=False)
 
             self.K_train = np.where(train_pred_inconsistency_mask == 1)[0]
 
@@ -316,10 +316,12 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
         epsilons_datas = [epsilon_data for epsilon_data in epsilons_datas if epsilon_data[1] in epsilons_to_take]
 
     if multi_process:
-        processes_num = min([len(epsilons_datas), mp.cpu_count()])
-        process_map(work_on_epsilon,
-                    epsilons_datas,
-                    max_workers=processes_num)
+        # processes_num = min([len(epsilons_datas), mp.cpu_count()])
+        # process_map(work_on_epsilon,
+        #             epsilons_datas,
+        #             max_workers=processes_num)
+        with mp.Pool(processes=processes_num) as pool:
+            results = pool.starmap(work_on_epsilon, epsilons_datas)
     else:
         for epsilon_data in epsilons_datas:
             work_on_epsilon(*epsilon_data)
@@ -359,7 +361,7 @@ if __name__ == '__main__':
                           min_value=0.0,
                           max_value=0.1,
                           experiment_name=experiment_information,
-                          multi_process=False)
+                          multi_process=True)
 
     # for EDCR_num_epochs in [1]:
     #     for neural_num_epochs in [1]:
