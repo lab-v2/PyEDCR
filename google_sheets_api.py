@@ -56,7 +56,7 @@ def get_sheet_tab_name(main_model_name: str,
              f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
             ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
              if secondary_model_name is not None else '') +
-            (f'{num_train_images_per_class} shot' if num_train_images_per_class is not None else '') +
+            (f' {num_train_images_per_class} shot' if num_train_images_per_class is not None else '') +
             (f' {experiment_name}' if experiment_name is not None else ''))
 
 
