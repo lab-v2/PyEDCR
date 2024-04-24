@@ -316,7 +316,7 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
         epsilons_datas = [epsilon_data for epsilon_data in epsilons_datas if epsilon_data[1] in epsilons_to_take]
 
     if multi_process:
-        # processes_num = min([len(epsilons_datas), mp.cpu_count()])
+        processes_num = min([len(epsilons_datas), mp.cpu_count()])
         # process_map(work_on_epsilon,
         #             epsilons_datas,
         #             max_workers=processes_num)
