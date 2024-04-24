@@ -45,13 +45,19 @@ __sheet = initiate_api()
 
 def get_sheet_tab_name(main_model_name: str,
                        data_str: str,
-                       secondary_model_name: str = None) -> str:
-    if main_model_name == 'tresnet_m' and data_str == 'openimage':
+                       secondary_model_name: str = None,
+                       num_train_images_per_class: int = None,
+                       additional_info: str = None) -> str:
+    if main_model_name == 'tresnet_m' or data_str == 'openimage':
+        if num_train_images_per_class is not None:
+            raise ValueError('Open Image do not implement fraction of example yet')
         return f"Tresnet M on OpenImage Errors"
     return ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'} "
              f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
             ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
-             if secondary_model_name is not None else ''))
+             if secondary_model_name is not None else '') +
+            (f'{num_train_images_per_class} shot' if num_train_images_per_class is not None else '') +
+            (f' {additional_info}' if additional_info is not None else ''))
 
 
 def exponential_backoff(func: typing.Callable) -> typing.Callable:
@@ -108,6 +114,7 @@ def find_empty_rows_in_column(tab_name: str,
 
 
 def get_maximal_epsilon(tab_name: str):
+    print(f'connect to sheet: {tab_name}')
     # Specify the separate ranges to fetch
     data_range_b_to_e = f'{tab_name}!B2:E'
     data_range_g = f'{tab_name}!G2:G'

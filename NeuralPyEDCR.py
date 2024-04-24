@@ -29,14 +29,15 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  EDCR_num_epochs: int,
                  neural_num_epochs: int,
                  epsilon_index: int = None,
-                 K_train: typing.List[typing.Tuple[int]] = None,
+                 K_train: typing.Union[typing.List[typing.Tuple[int]], np.ndarray] = None,
                  K_test: typing.List[typing.Tuple[int]] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
                  secondary_model_loss: str = None,
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
-                 binary_models: typing.List[str] = []):
+                 binary_models: typing.List[str] = [],
+                 additional_info: str = None):
         super(NeuralPyEDCR, self).__init__(data_str=data_str,
                                            main_model_name=main_model_name,
                                            combined=combined,
@@ -56,6 +57,22 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
+        if additional_info == 'correct example on train only':
+            train_pred_correct_mask = np.ones_like(self.pred_data['train']['original']['fine'])
+
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                train_pred_correct_mask &= self.get_where_predicted_correct(test=False, g=g)
+
+            self.K_train = np.where(train_pred_correct_mask == 1)[0]
+
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                self.pred_data['train']['original'][g] = self.pred_data['train']['original'][g][self.K_train]
+
+            random_idx = np.random.choice(len(self.K_train), 100)
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                print(f"prediction train {g.g_str} (100 examples) is {self.pred_data['train']['original'][g][random_idx]}")
+                print(f"and its ground truth is {self.pred_data['train']['original'][g][random_idx]}")
+        print('hi')
     def run_training_new_model_pipeline(self,
                                         new_model_name: str,
                                         new_lr: float):
@@ -167,9 +184,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            multi_process=multi_process)
                 self.apply_detection_rules(test=False, g=g)
 
-            self.run_training_new_model_pipeline(new_model_name=new_model_name,
-                                                 new_lr=new_lr)
-            self.print_metrics(test=False, prior=False, stage='post_detection')
+            # self.run_training_new_model_pipeline(new_model_name=new_model_name,
+            #                                      new_lr=new_lr)
+            # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
 
@@ -192,7 +209,25 @@ def work_on_epsilon(epsilon_index: int,
                     original_num_epochs: int,
                     secondary_model_name: str = None,
                     new_model_name: str = None,
-                    new_lr: float = None):
+                    new_lr: float = None,
+                    num_train_images_per_class: int = None,
+                    additional_info: str = None):
+    # Get fraction of example per class (train dataset)
+    example_indices = None
+    if num_train_images_per_class is not None:
+        preprocessor = data_preprocessing.DataPreprocessor(data_str)
+        data = preprocessor.train_true_fine_data
+        num_examples_per_class = num_train_images_per_class
+
+        example_indices = []
+
+        for i in range(len(preprocessor.fine_grain_classes_str)):
+            cls_idx = np.where(data == i)[0]
+            example_indices.extend(cls_idx[:num_examples_per_class])
+
+        example_indices = np.array(example_indices)
+        del preprocessor
+
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
                         epsilon=epsilon,
@@ -208,14 +243,16 @@ def work_on_epsilon(epsilon_index: int,
                         # binary_models=data_preprocessing.fine_grain_classes_str,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
-                        neural_num_epochs=1)
+                        neural_num_epochs=1,
+                        K_train=example_indices,
+                        additional_info=additional_info)
     edcr.print_metrics(test=True,
                        prior=True,
                        print_actual_errors_num=True)
     edcr.run_learning_pipeline(new_model_name=new_model_name,
                                new_lr=new_lr)
     edcr.run_error_detection_application_pipeline(test=True, print_results=False)
-    edcr.apply_new_model_on_test()
+    # edcr.apply_new_model_on_test()
 
 
 def simulate_for_epsilons(total_number_of_points: int = 300,
@@ -223,7 +260,9 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
                           max_value: float = 0.3,
                           multi_process: bool = True,
                           secondary_model_name: str = None,
-                          only_missing_epsilons: bool = False):
+                          num_train_images_per_class: int = None,
+                          only_missing_epsilons: bool = False,
+                          additional_info: str = None):
     epsilons_datas = [(i,
                        round(epsilon, 3),
                        data_str,
@@ -232,9 +271,12 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
                        original_num_epochs,
                        secondary_model_name,
                        new_model_name,
-                       new_lr) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
-                                                                       stop=max_value,
-                                                                       num=total_number_of_points))
+                       new_lr,
+                       num_train_images_per_class,
+                       additional_info,
+                       ) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
+                                                                 stop=max_value,
+                                                                 num=total_number_of_points))
                       ]
 
     if only_missing_epsilons:
@@ -248,8 +290,6 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
         print(epsilons_to_take)
 
         epsilons_datas = [epsilon_data for epsilon_data in epsilons_datas if epsilon_data[1] in epsilons_to_take]
-
-
 
     if multi_process:
         processes_num = min([len(epsilons_datas), mp.cpu_count()])
@@ -275,14 +315,27 @@ if __name__ == '__main__':
     # secondary_model_name = 'vit_l_16_BCE'
     # secondary_model_name = 'dinov2_vitl14'
 
+    # data_str = 'openimage'
+    # main_model_name = new_model_name = 'tresnet_m'
+    # main_lr = new_lr = 0.000001
+    # original_num_epochs = 0
+
+    additional_infomation = 'correct example on train only'
+
     sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                      data_str=data_str,
                                                      # secondary_model_name=secondary_model_name
+                                                     num_train_images_per_class=None,
+                                                     additional_info=additional_infomation,
                                                      )
 
-    print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
+    # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    # simulate_for_epsilons()
+    simulate_for_epsilons(total_number_of_points=100,
+                          min_value=0.0,
+                          max_value=0.1,
+                          additional_info=additional_infomation,
+                          multi_process=False)
 
     # for EDCR_num_epochs in [1]:
     #     for neural_num_epochs in [1]:
