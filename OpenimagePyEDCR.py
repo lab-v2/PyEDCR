@@ -69,8 +69,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         for g in data_preprocessing.DataPreprocessor.granularities.values():
             self.pred_data['train']['original'][g] = self.preprocessor.train_true_fine_data if g.g_str == 'fine' \
                 else self.preprocessor.train_true_coarse_data
-            self.pred_data['test']['original'][g] = self.preprocessor.test_true_fine_data if g.g_str == 'fine' \
-                else self.preprocessor.test_true_coarse_data
 
         for g in data_preprocessing.DataPreprocessor.granularities.values():
             print(f"prediction train {g.g_str} is {self.pred_data['train']['original'][g]}")
