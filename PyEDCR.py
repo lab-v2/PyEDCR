@@ -228,11 +228,8 @@ class EDCR:
 
         self.predicted_errors = np.zeros_like(self.pred_data['test']['original'][
                                                   data_preprocessing.DataPreprocessor.granularities['fine']])
-        self.error_ground_truths = np.zeros_like(self.pred_data['test']['original'][
-                                                     data_preprocessing.DataPreprocessor.granularities['fine']])
-        self.inconsistency_error_ground_truths = np.zeros_like(self.pred_data['test']['original'][
-                                                                   data_preprocessing.DataPreprocessor.granularities[
-                                                                       'fine']])
+        self.error_ground_truths = np.zeros_like(self.predicted_errors)
+        self.inconsistency_error_ground_truths = np.zeros_like(self.predicted_errors)
 
         self.correction_model = None
 
@@ -249,7 +246,6 @@ class EDCR:
             f"Num of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
-        # self.sheet = google_sheets_api.initiate_api()
         self.RCC_ratio = 0
 
     def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):

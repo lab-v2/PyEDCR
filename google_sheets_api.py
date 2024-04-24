@@ -100,7 +100,7 @@ def find_empty_rows_in_column(tab_name: str,
                               column: str):
     # Fetch the column data
     values = __sheet.values().get(spreadsheetId=spreadsheet_id,
-                                range=f'{tab_name}!{column}:{column}').execute().get('values', [])
+                                  range=f'{tab_name}!{column}:{column}').execute().get('values', [])
 
     total_value_num = len(values)
 

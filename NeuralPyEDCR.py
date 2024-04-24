@@ -76,7 +76,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         if experiment_name == 'inconsistency example on train only':
             train_pred_inconsistency_mask = np.ones_like(self.pred_data['train']['original']['fine'])
 
-            for g in data_preprocessing.DataPreprocessor.granularities.values():
+            for _ in data_preprocessing.DataPreprocessor.granularities.values():
                 train_pred_inconsistency_mask &= self.get_where_predicted_inconsistently(test=False)
 
             self.K_train = np.where(train_pred_inconsistency_mask == 1)[0]
@@ -317,11 +317,9 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
 
     if multi_process:
         processes_num = min([len(epsilons_datas), mp.cpu_count()])
-        # process_map(work_on_epsilon,
-        #             epsilons_datas,
-        #             max_workers=processes_num)
-        with mp.Pool(processes=processes_num) as pool:
-            results = pool.starmap(work_on_epsilon, epsilons_datas)
+        process_map(work_on_epsilon,
+                    epsilons_datas,
+                    max_workers=processes_num)
     else:
         for epsilon_data in epsilons_datas:
             work_on_epsilon(*epsilon_data)
