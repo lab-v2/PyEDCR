@@ -320,13 +320,13 @@ if __name__ == '__main__':
     # main_lr = new_lr = 0.000001
     # original_num_epochs = 0
 
-    additional_infomation = 'correct example on train only'
+    additional_information = 'correct example on train only'
 
     sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                      data_str=data_str,
                                                      # secondary_model_name=secondary_model_name
                                                      num_train_images_per_class=None,
-                                                     additional_info=additional_infomation,
+                                                     additional_info=additional_information,
                                                      )
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
@@ -334,7 +334,7 @@ if __name__ == '__main__':
     simulate_for_epsilons(total_number_of_points=100,
                           min_value=0.0,
                           max_value=0.1,
-                          additional_info=additional_infomation,
+                          additional_info=additional_information,
                           multi_process=False)
 
     # for EDCR_num_epochs in [1]:
