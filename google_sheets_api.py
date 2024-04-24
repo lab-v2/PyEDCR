@@ -45,13 +45,16 @@ __sheet = initiate_api()
 
 def get_sheet_tab_name(main_model_name: str,
                        data_str: str,
-                       secondary_model_name: str = None) -> str:
+                       secondary_model_name: str = None,
+                       one_shot: bool = False) -> str:
     if main_model_name == 'tresnet_m' and data_str == 'openimage':
         return f"Tresnet M on OpenImage Errors"
     return ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'} "
              f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
             ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
-             if secondary_model_name is not None else ''))
+             if secondary_model_name is not None else '') +
+            (" 1-shot") if one_shot else ''
+            )
 
 
 def exponential_backoff(func: typing.Callable) -> typing.Callable:

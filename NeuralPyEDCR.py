@@ -29,14 +29,15 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  EDCR_num_epochs: int,
                  neural_num_epochs: int,
                  epsilon_index: int = None,
-                 K_train: typing.List[typing.Tuple[int]] = None,
+                 K_train: typing.Union[typing.List[typing.Tuple[int]], np.array] = None,
                  K_test: typing.List[typing.Tuple[int]] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
                  secondary_model_loss: str = None,
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
-                 binary_models: typing.List[str] = []):
+                 binary_models: typing.List[str] = []
+                 ):
         super(NeuralPyEDCR, self).__init__(data_str=data_str,
                                            main_model_name=main_model_name,
                                            combined=combined,
@@ -193,6 +194,17 @@ def work_on_epsilon(epsilon_index: int,
                     secondary_model_name: str = None,
                     new_model_name: str = None,
                     new_lr: float = None):
+
+    preprocessor = data_preprocessing.DataPreprocessor(data_str)
+    data = preprocessor.train_true_fine_data
+    num_examples_per_class = 1
+
+    example_indices = []
+
+    for i in range(len(preprocessor.fine_grain_classes_str)):
+        cls_idx = np.where(data == i)[0]
+        example_indices.extend(cls_idx[:num_examples_per_class])
+
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
                         epsilon=epsilon,
@@ -208,7 +220,9 @@ def work_on_epsilon(epsilon_index: int,
                         # binary_models=data_preprocessing.fine_grain_classes_str,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
-                        neural_num_epochs=1)
+                        neural_num_epochs=1,
+                        K_train=np.array(example_indices))
+
     edcr.print_metrics(test=True,
                        prior=True,
                        print_actual_errors_num=True)
@@ -262,27 +276,29 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # main_lr = new_lr = 0.0001
-    # original_num_epochs = 20
+    data_str = 'military_vehicles'
+    main_model_name = new_model_name = 'vit_b_16'
+    main_lr = new_lr = 0.0001
+    original_num_epochs = 20
+    one_shot = True
 
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    main_lr = new_lr = 0.000001
-    original_num_epochs = 8
+    # data_str = 'imagenet'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    # main_lr = new_lr = 0.000001
+    # original_num_epochs = 8
 
     # secondary_model_name = 'vit_l_16_BCE'
     # secondary_model_name = 'dinov2_vitl14'
 
     sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                      data_str=data_str,
+                                                     one_shot=one_shot
                                                      # secondary_model_name=secondary_model_name
                                                      )
 
-    print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
+    # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    # simulate_for_epsilons()
+    simulate_for_epsilons()
 
     # for EDCR_num_epochs in [1]:
     #     for neural_num_epochs in [1]:
