@@ -37,7 +37,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_models: typing.List[str] = [],
-                 additional_info: str = None):
+                 experiment_name: str = None):
         super(NeuralPyEDCR, self).__init__(data_str=data_str,
                                            main_model_name=main_model_name,
                                            combined=combined,
@@ -57,7 +57,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
-        if additional_info == 'correct example on train only':
+        if experiment_name == 'correct example on train only':
             train_pred_correct_mask = np.ones_like(self.pred_data['train']['original']['fine'])
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -72,7 +72,31 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 print(f"prediction train {g.g_str} (100 examples) is {self.pred_data['train']['original'][g][random_idx]}")
                 print(f"and its ground truth is {self.pred_data['train']['original'][g][random_idx]}")
-        print('hi')
+
+        if experiment_name == 'inconsistency example on train only':
+            train_pred_inconsistency_mask = np.ones_like(self.pred_data['train']['original']['fine'])
+
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                train_pred_inconsistency_mask &= self.get_where_predicted_correct(test=False, g=g)
+
+            self.K_train = np.where(train_pred_inconsistency_mask == 1)[0]
+
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                self.pred_data['train']['original'][g] = self.pred_data['train']['original'][g][self.K_train]
+
+            random_idx = np.random.choice(len(self.K_train), 100)
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                print(f"prediction train {g.g_str} (100 examples) is {self.pred_data['train']['original'][g][random_idx]}")
+                print(f"and its ground truth is {self.pred_data['train']['original'][g][random_idx]}")
+
+        self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                              data_str=data_str,
+                                                              secondary_model_name=secondary_model_name,
+                                                              experiment_name=experiment_information,
+                                                              )
+
+        print(utils.red_text(f"{'#' * 50} Start experiment in {self.sheet_tab} {'#' * 50}"))
+
     def run_training_new_model_pipeline(self,
                                         new_model_name: str,
                                         new_lr: float):
@@ -211,7 +235,7 @@ def work_on_epsilon(epsilon_index: int,
                     new_model_name: str = None,
                     new_lr: float = None,
                     num_train_images_per_class: int = None,
-                    additional_info: str = None):
+                    experiment_name: str = None):
     # Get fraction of example per class (train dataset)
     example_indices = None
     if num_train_images_per_class is not None:
@@ -245,7 +269,7 @@ def work_on_epsilon(epsilon_index: int,
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
                         K_train=example_indices,
-                        additional_info=additional_info)
+                        experiment_name=experiment_name)
     edcr.print_metrics(test=True,
                        prior=True,
                        print_actual_errors_num=True)
@@ -262,7 +286,7 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
                           secondary_model_name: str = None,
                           num_train_images_per_class: int = None,
                           only_missing_epsilons: bool = False,
-                          additional_info: str = None):
+                          experiment_name: str = None):
     epsilons_datas = [(i,
                        round(epsilon, 3),
                        data_str,
@@ -273,7 +297,7 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
                        new_model_name,
                        new_lr,
                        num_train_images_per_class,
-                       additional_info,
+                       experiment_name,
                        ) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
                                                                  stop=max_value,
                                                                  num=total_number_of_points))
@@ -320,13 +344,13 @@ if __name__ == '__main__':
     # main_lr = new_lr = 0.000001
     # original_num_epochs = 0
 
-    additional_information = 'correct example on train only'
+    experiment_information = 'correct example on train only'
 
     sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                      data_str=data_str,
                                                      # secondary_model_name=secondary_model_name
                                                      num_train_images_per_class=None,
-                                                     additional_info=additional_information,
+                                                     experiment_name=experiment_information,
                                                      )
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
@@ -334,7 +358,7 @@ if __name__ == '__main__':
     simulate_for_epsilons(total_number_of_points=100,
                           min_value=0.0,
                           max_value=0.1,
-                          additional_info=additional_information,
+                          experiment_name=experiment_information,
                           multi_process=False)
 
     # for EDCR_num_epochs in [1]:
