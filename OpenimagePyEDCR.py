@@ -66,6 +66,15 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            binary_l_strs=binary_models)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
+            self.pred_data['train']['original'][g] = self.preprocessor.train_true_fine_data if g.g_str == 'fine' \
+                else self.preprocessor.train_true_coarse_data
+            self.pred_data['test']['original'][g] = self.preprocessor.test_true_fine_data if g.g_str == 'fine' \
+                else self.preprocessor.test_true_coarse_data
+
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
+            print(f"prediction train {g.g_str} is {self.pred_data['train']['original'][g]}")
+            print(f"and its ground truth is {self.pred_data['train']['original'][g]}")
 
     def run_training_new_model_pipeline(self,
                                         new_model_name: str,
