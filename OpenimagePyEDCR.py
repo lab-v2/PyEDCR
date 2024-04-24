@@ -26,6 +26,40 @@ secondary_model_name = None
 
 sheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
 sheet_tab = f"Tresnet M on OpenImage Errors"
+fraction_modify_ground_truth = 1
+
+
+def modify_array_fraction(A, fraction):
+    """
+    Modifies a random fraction of elements in a 1D NumPy array to have different values.
+
+    Args:
+      A (np.ndarray): The original 1D NumPy array.
+      fraction (float): The fraction of elements to modify (0.0 to 1.0).
+
+    Returns:
+      np.ndarray: A new 1D NumPy array with the specified modifications.
+    """
+
+    if fraction is None:
+        return A
+
+    # Find the maximum value in the array
+    max_val = np.max(A)
+
+    # Calculate the number of elements to modify
+    num_diff = int(fraction * len(A))
+
+    # Select random indices to modify
+    random_indices = np.random.choice(len(A), num_diff, replace=False)  # Avoid duplicates
+
+    # Create a copy of A
+    B = A.copy()
+
+    # Update elements at the random indices with new random values
+    B[random_indices] = np.random.randint(0, max_val + 1, num_diff)
+
+    return B
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
@@ -66,13 +100,20 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            binary_l_strs=binary_models)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
-        for g in data_preprocessing.DataPreprocessor.granularities.values():
-            self.pred_data['train']['original'][g] = self.preprocessor.train_true_fine_data if g.g_str == 'fine' \
-                else self.preprocessor.train_true_coarse_data
+
+        train_pred_correct_mask = np.ones_like(self.pred_data['train']['original'][g])
 
         for g in data_preprocessing.DataPreprocessor.granularities.values():
-            print(f"prediction train {g.g_str} is {self.pred_data['train']['original'][g]}")
-            print(f"and its ground truth is {self.pred_data['train']['original'][g]}")
+            train_pred_correct_mask &= self.get_where_predicted_correct(test=False, g=g)
+
+        self.K_train = np.where(train_pred_correct_mask == 1)[0]
+
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
+            self.pred_data['train']['original'][g] = self.pred_data['train']['original'][g][self.K_train]
+
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
+            print(f"prediction train {g.g_str} (100 examples) is {self.pred_data['train']['original'][g][:100]}")
+            print(f"and its ground truth is {self.pred_data['train']['original'][g][:100]}")
 
     def run_training_new_model_pipeline(self,
                                         new_model_name: str,
@@ -229,7 +270,8 @@ def work_on_epsilon(epsilon: typing.Tuple[int, float]):
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
-                        K_train=np.array(example_indices))
+                        K_train=np.array(example_indices),
+                        fraction_modify_ground_truth=fraction_modify_ground_truth)
     edcr.print_metrics(test=True,
                        prior=True,
                        print_actual_errors_num=True)
