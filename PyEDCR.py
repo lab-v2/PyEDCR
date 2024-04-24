@@ -781,8 +781,7 @@ class EDCR:
         # self.pred_data['test' if test else 'train']['mid_learning'][g] = altered_pred_granularity_data
 
         error_ground_truths = self.get_where_predicted_incorrect(test=test, g=g)
-        inconsistency_error_ground_truths = (error_ground_truths *
-                                             self.get_where_predicted_inconsistently(test=test))
+        inconsistency_error_ground_truths = self.get_where_predicted_inconsistently(test=test)
         error_predictions = np.zeros_like(inconsistency_error_ground_truths)
 
         for rule_g_l in {l: rule_l for l, rule_l in self.error_detection_rules.items() if l.g == g}.values():
@@ -873,14 +872,16 @@ class EDCR:
     def print_how_many_not_assigned(self,
                                     test: bool,
                                     g: data_preprocessing.Granularity,
-                                    stage: str):
+                                    stage: str,
+                                    ):
         test_or_train = 'test' if test else 'train'
         print(f'\nNum not assigned in {test_or_train} {stage} {g}-grain predictions: ' +
               utils.red_text(f"{np.sum(np.where(self.get_predictions(test=test, g=g, stage=stage) == -1, 1, 0))}\n"))
 
     def run_error_detection_application_pipeline(self,
                                                  test: bool,
-                                                 print_results: bool = True):
+                                                 print_results: bool = True,
+                                                 save_to_google_sheets: bool = True):
         for g in data_preprocessing.DataPreprocessor.granularities.values():
             self.apply_detection_rules(test=test, g=g)
 
@@ -895,7 +896,7 @@ class EDCR:
                                                  g=g,
                                                  stage='post_detection')
 
-        if test:
+        if test and save_to_google_sheets:
             error_accuracy, error_f1, _, _ = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_errors,
@@ -907,6 +908,7 @@ class EDCR:
                     pred_data=self.predicted_errors,
                     true_data=self.inconsistency_error_ground_truths,
                     labels=[0, 1])]
+
 
             # set values
             input_values = [round(self.epsilon, 3),

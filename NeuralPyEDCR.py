@@ -60,30 +60,33 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
+        relevant_predicted_indices = None
+
         if experiment_name == 'correct example':
-            train_pred_correct_mask = np.ones_like(self.pred_data['train']['original']['fine'])
+            train_pred_correct_mask = np.ones_like(self.pred_data['train']['original'][
+                                                  data_preprocessing.DataPreprocessor.granularities['fine']])
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 train_pred_correct_mask &= self.get_where_predicted_correct(test=False, g=g)
 
-            self.K_train = np.where(train_pred_correct_mask == 1)[0]
+            relevant_predicted_indices = np.where(train_pred_correct_mask == 1)[0]
 
-        if experiment_name == 'inconsistency example':
-            train_pred_inconsistency_mask = np.ones_like(self.pred_data['train']['original']['fine'])
-
+        elif experiment_name == 'inconsistency example':
+            train_pred_inconsistency_mask = np.ones_like(self.pred_data['train']['original'][
+                                                  data_preprocessing.DataPreprocessor.granularities['fine']])
             train_pred_inconsistency_mask &= self.get_where_predicted_inconsistently(test=False)
 
-            self.K_train = np.where(train_pred_inconsistency_mask == 1)[0]
+            relevant_predicted_indices = np.where(train_pred_inconsistency_mask == 1)[0]
 
         if num_train_images_per_class is not None:
             data = self.preprocessor.train_true_fine_data
-            num_examples_per_class = num_train_images_per_class
 
             example_indices = []
 
             for i in range(len(self.preprocessor.fine_grain_classes_str)):
-                cls_idx = np.intersect1d(np.where(data == i)[0], self.K_train)
-                example_indices.extend(cls_idx[:num_examples_per_class])
+                i_indices_in_ground_truth = np.where(data == i)[0]
+                cls_idx = np.intersect1d(i_indices_in_ground_truth, relevant_predicted_indices)
+                example_indices.extend(cls_idx[:num_train_images_per_class])
 
             self.K_train = np.array(example_indices)
 
@@ -94,12 +97,13 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print(f"prediction train {g.g_str} is {self.pred_data['train']['original'][g]}")
             print(f"and its ground truth is {self.pred_data['train']['original'][g]}")
 
-        self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-                                                              data_str=data_str,
-                                                              secondary_model_name=secondary_model_name,
-                                                              experiment_name=experiment_name,
-                                                              num_train_images_per_class=num_train_images_per_class
-                                                              )
+        self.sheet_tab = 'VIT_b_16 on Military Vehicles Errors 1shot correct'
+        # self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+        #                                                       data_str=data_str,
+        #                                                       secondary_model_name=secondary_model_name,
+        #                                                       experiment_name=experiment_name,
+        #                                                       num_train_images_per_class=num_train_images_per_class
+        #                                                       )
 
         print(utils.red_text(f"{'#' * 50} Start experiment in {self.sheet_tab} {'#' * 50}"))
 
@@ -268,7 +272,9 @@ def work_on_epsilon(args):
                        print_actual_errors_num=True)
     edcr.run_learning_pipeline(new_model_name=new_model_name,
                                new_lr=new_lr)
-    edcr.run_error_detection_application_pipeline(test=True, print_results=False)
+    edcr.run_error_detection_application_pipeline(test=True,
+                                                  print_results=False,
+                                                  save_to_google_sheets=True)
     # edcr.apply_new_model_on_test()
 
 
@@ -319,15 +325,15 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # main_lr = new_lr = 0.0001
-    # original_num_epochs = 20
+    data_str = 'military_vehicles'
+    main_model_name = new_model_name = 'vit_b_16'
+    main_lr = new_lr = 0.0001
+    original_num_epochs = 20
 
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    main_lr = new_lr = 0.000001
-    original_num_epochs = 8
+    # data_str = 'imagenet'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    # main_lr = new_lr = 0.000001
+    # original_num_epochs = 8
 
     # secondary_model_name = 'vit_l_16_BCE'
     # secondary_model_name = 'dinov2_vitl14'
@@ -338,7 +344,7 @@ if __name__ == '__main__':
     # original_num_epochs = 0
 
     num_train_images_per_class = 1
-    experiment_information = 'inconsistency example'
+    experiment_information = 'correct example'
 
     sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                      data_str=data_str,
@@ -350,7 +356,7 @@ if __name__ == '__main__':
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
     simulate_for_epsilons(total_number_of_points=10,
-                          min_value=0.0,
+                          min_value=0.1,
                           max_value=0.3,
                           experiment_name=experiment_information,
                           num_train_images_per_class=num_train_images_per_class,
