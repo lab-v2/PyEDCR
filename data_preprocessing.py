@@ -814,9 +814,8 @@ def get_datasets(preprocessor: DataPreprocessor,
         else:
             datasets[train_or_test] = IndividualImageFolderWithName(
                 root=full_data_dir,
-                transform=
-                get_dataset_transforms(data=preprocessor.data_str,
-                                       train_or_test=train_or_test))
+                transform=get_dataset_transforms(data=preprocessor.data_str,
+                                                 train_or_test=train_or_test))
 
     return datasets
 
@@ -827,18 +826,18 @@ def get_loaders(preprocessor: DataPreprocessor,
                 subset_indices: typing.Sequence = None,
                 evaluation: bool = None,
                 train_eval_split: float = None,
-                get_indices: bool = False,
                 get_fraction_of_example_with_label: typing.Dict[Label, float] = None,
-                binary: bool = False
+                binary: bool = False,
+                debug: bool = False
                 ) -> typing.Dict[str, torch.utils.data.DataLoader]:
     """
     Instantiates and returns train and test torch data loaders
 
     Parameters
     ----------
+        :param debug:
         :param preprocessor:
         :param binary:
-        :param get_indices:
         :param get_fraction_of_example_with_label:
         :param train_eval_split:
         :param evaluation:
@@ -854,19 +853,21 @@ def get_loaders(preprocessor: DataPreprocessor,
         # Shuffle the indices in-place
         train_indices, train_eval_indices = preprocessor.get_subset_indices_for_train_and_train_eval(
             train_eval_split=train_eval_split,
-            get_fraction_of_example_with_label=get_fraction_of_example_with_label
-        )
+            get_fraction_of_example_with_label=get_fraction_of_example_with_label)
 
     for split in ['train', 'test'] + (['train_eval'] if train_eval_split is not None else []):
         relevant_dataset = datasets[split if split != 'train_eval' else 'train']
 
-        if subset_indices is None or split != 'train':
+        if not debug and (subset_indices is None or split != 'train'):
             loader_dataset = relevant_dataset
         else:
             loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
-                                                     indices=subset_indices)
+                                                     indices=subset_indices if not debug else [0])
 
-        if split == 'train' and train_eval_split is not None:
+        if debug:
+            loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
+                                                     indices=[0])
+        elif split == 'train' and train_eval_split is not None:
             loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
                                                      indices=train_indices)
         elif split == 'train_eval' and train_eval_split is not None:

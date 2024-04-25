@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import torch.utils.data
 import typing
+from tqdm import tqdm
 
 
 import data_preprocessing
@@ -28,7 +29,6 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                              num_epochs: int,
                              beta: float = 0.1,
                              save_files: bool = True,
-                             debug: bool = False,
                              evaluate_on_test: bool = True,
                              evaluate_on_train_eval: bool = False):
     fine_tuner.to(device)
@@ -49,13 +49,6 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
     alpha = preprocessor.num_fine_grain_classes / (preprocessor.num_fine_grain_classes +
                                                    preprocessor.num_coarse_grain_classes)
-
-    train_total_losses = []
-    train_fine_losses = []
-    train_coarse_losses = []
-
-    train_fine_accuracies = []
-    train_coarse_accuracies = []
 
     test_fine_ground_truths = []
     test_coarse_ground_truths = []
@@ -94,9 +87,11 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
             train_fine_ground_truths = []
             train_coarse_ground_truths = []
 
-            batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=train_loader,
-                                                                 num_batches=num_batches,
-                                                                 debug=debug)
+            error_predictions = []
+            error_ground_truths = []
+
+            batches = tqdm(enumerate(train_loader, 0),
+                           total=num_batches)
 
             for batch_num, batch in batches:
                 with context_handlers.ClearCache(device=device):
@@ -113,6 +108,9 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                         E_pred = fine_tuner(X, Y_pred)
                         criterion = torch.nn.BCEWithLogitsLoss()
                         batch_total_loss = criterion(E_pred, E_true.float())
+
+                        error_predictions += torch.where(E_pred > 0.5, 1, 0).tolist()
+                        error_ground_truths += E_true.tolist()
 
                         del X, Y_pred_fine, Y_pred_coarse, E_true
                     else:
@@ -186,28 +184,30 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                     batch_total_loss.backward()
                     optimizer.step()
 
-            training_fine_accuracy, training_coarse_accuracy = (
-                neural_metrics.get_and_print_post_epoch_metrics(preprocessor=preprocessor,
-                                                                epoch=epoch,
-                                                                num_epochs=num_epochs,
-                                                                # running_fine_loss=running_fine_loss.item(),
-                                                                # running_coarse_loss=running_coarse_loss.item(),
-                                                                # num_batches=num_batches,
-                                                                train_fine_ground_truth=np.array(
-                                                                    train_fine_ground_truths),
-                                                                train_fine_prediction=np.array(
-                                                                    train_fine_predictions),
-                                                                train_coarse_ground_truth=np.array(
-                                                                    train_coarse_ground_truths),
-                                                                train_coarse_prediction=np.array(
-                                                                    train_coarse_predictions)))
-
-            train_fine_accuracies += [training_fine_accuracy]
-            train_coarse_accuracies += [training_coarse_accuracy]
-
-            train_total_losses += [total_running_loss.item() / num_batches]
-            train_fine_losses += [running_fine_loss.item() / num_batches]
-            train_coarse_losses += [running_coarse_loss.item() / num_batches]
+            if loss == "error_BCE":
+                error_accuracy, error_f1 = neural_metrics.get_and_print_post_epoch_binary_metrics(
+                    epoch=epoch,
+                    num_epochs=num_epochs,
+                    train_predictions=error_predictions,
+                    train_ground_truths=error_ground_truths,
+                    total_running_loss=total_running_loss.item()
+                )
+            else:
+                training_fine_accuracy, training_coarse_accuracy = (
+                    neural_metrics.get_and_print_post_epoch_metrics(preprocessor=preprocessor,
+                                                                    epoch=epoch,
+                                                                    num_epochs=num_epochs,
+                                                                    # running_fine_loss=running_fine_loss.item(),
+                                                                    # running_coarse_loss=running_coarse_loss.item(),
+                                                                    # num_batches=num_batches,
+                                                                    train_fine_ground_truth=np.array(
+                                                                        train_fine_ground_truths),
+                                                                    train_fine_prediction=np.array(
+                                                                        train_fine_predictions),
+                                                                    train_coarse_ground_truth=np.array(
+                                                                        train_coarse_ground_truths),
+                                                                    train_coarse_prediction=np.array(
+                                                                        train_coarse_predictions)))
 
             # scheduler.step()
 
@@ -294,7 +294,6 @@ def run_combined_fine_tuning_pipeline(data_str: str,
                                  loss=loss,
                                  num_epochs=num_epochs,
                                  save_files=save_files,
-                                 debug=debug
                                  )
         print('#' * 100)
 

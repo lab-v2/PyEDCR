@@ -202,7 +202,6 @@ def initiate(data_str: str,
              error_indices: typing.Sequence = None,
              evaluation: bool = False,
              train_eval_split: float = None,
-             get_indices: bool = False,
              get_fraction_of_example_with_label: typing.Dict[data_preprocessing.Label, float] = None,
              print_counts: bool = True,
              fine_predictions: np.array = None,
@@ -216,7 +215,6 @@ def initiate(data_str: str,
     :param data_str:
     :param print_counts:
     :param get_fraction_of_example_with_label:
-    :param get_indices:
     :param train_eval_split:
     :param weights:
     :param model_name:
@@ -307,8 +305,8 @@ def initiate(data_str: str,
                                              evaluation=evaluation,
                                              subset_indices=error_indices,
                                              train_eval_split=train_eval_split,
-                                             get_indices=get_indices,
-                                             get_fraction_of_example_with_label=get_fraction_of_example_with_label)
+                                             get_fraction_of_example_with_label=get_fraction_of_example_with_label,
+                                             debug=debug)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of eval images: {len(loaders['train_eval'].dataset) if train_eval_split else 0}\n"

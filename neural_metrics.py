@@ -40,31 +40,6 @@ def print_num_inconsistencies(preprocessor: data_preprocessing.DataPreprocessor,
               )
 
 
-def get_binary_metrics(pred_data: np.array,
-                       true_data: np.array):
-    """
-    Calculates and returns performance metrics for fine and coarse granularities.
-    :return: A tuple containing the accuracy, F1, precision, and recall metrics
-             for both fine and coarse granularities.
-    """
-    accuracy = accuracy_score(y_true=pred_data,
-                              y_pred=true_data)
-    f1 = f1_score(y_true=pred_data,
-                  y_pred=true_data,
-                  labels=[0, 1],
-                  average='macro')
-    precision = precision_score(y_true=pred_data,
-                                y_pred=true_data,
-                                labels=[0, 1],
-                                average='macro')
-    recall = recall_score(y_true=pred_data,
-                          y_pred=true_data,
-                          labels=[0, 1],
-                          average='macro')
-
-    return accuracy, f1, precision, recall
-
-
 def get_individual_metrics(pred_data: np.array,
                            true_data: np.array,
                            labels=None):
@@ -140,8 +115,9 @@ def get_and_print_binary_metrics(pred_data: np.array,
     :param lr: The learning rate used during training (optional).
     :return: fine_accuracy, coarse_accuracy
     """
-    accuracy, f1, precision, recall = get_binary_metrics(pred_data=pred_data,
-                                                         true_data=true_data)
+    accuracy, f1, precision, recall = get_individual_metrics(pred_data=pred_data,
+                                                             true_data=true_data,
+                                                             labels=[0, 1])
     prior_str = 'prior' if prior else 'post'
     test_str = 'Test' if test else 'Train'
 
@@ -152,8 +128,7 @@ def get_and_print_binary_metrics(pred_data: np.array,
           f' {test_str} {prior_str} macro f1: {utils.green_text(round(f1 * 100, 2))}%'
           f'\n {test_str} {prior_str}  macro precision: '
           f'{utils.green_text(round(precision * 100, 2))}%'
-          f',  {test_str} {prior_str} macro recall: {utils.green_text(round(recall * 100, 2))}%\n'
-          )
+          f',  {test_str} {prior_str} macro recall: {utils.green_text(round(recall * 100, 2))}%\n')
 
     return accuracy, f1, precision, recall
 
@@ -272,8 +247,7 @@ def get_and_print_post_epoch_binary_metrics(epoch: int,
                                        y_pred=train_predictions)
     training_f1 = f1_score(y_true=train_ground_truths,
                            y_pred=train_predictions,
-                           labels=[0, 1],
-                           average='macro')
+                           labels=[1])
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done'
           f'\nMean loss across epochs: {round(total_running_loss / (epoch + 1), 2)}'

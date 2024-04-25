@@ -1,6 +1,7 @@
 import torch
 import torch.utils.data
 import typing
+from tqdm import tqdm
 
 import data_preprocessing
 import models
@@ -45,8 +46,8 @@ def fine_tune_binary_model(l: data_preprocessing.Label,
                 train_predictions = []
                 train_ground_truths = []
 
-                batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=train_loader,
-                                                                     num_batches=num_batches)
+                batches = tqdm(enumerate(train_loader, 0),
+                               total=num_batches)
 
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
