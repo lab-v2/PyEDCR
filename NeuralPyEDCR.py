@@ -235,7 +235,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print_counts=False,
             fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
             coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
-            debug=True
+            # debug=True
         )
 
         combined_fine_tuning.fine_tune_combined_model(
