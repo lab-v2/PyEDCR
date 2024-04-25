@@ -8,9 +8,12 @@ import torch.optim
 import torch.utils.data.distributed
 import numpy as np
 
-# from src_files.helper_functions.bn_fusion import fuse_bn_recursively
-# from src_files.models import create_model
-# from src_files.models.tresnet.tresnet import InplacABN_to_ABN
+try:
+    from src_files.helper_functions.bn_fusion import fuse_bn_recursively
+    from src_files.models import create_model
+    from src_files.models.tresnet.tresnet import InplacABN_to_ABN
+except ModuleNotFoundError:
+    pass
 
 import data_preprocessing
 

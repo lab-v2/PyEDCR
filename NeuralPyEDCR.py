@@ -234,7 +234,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             lr=binary_lr,
             print_counts=False,
             fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
-            coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse'])
+            coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
+            # debug=True
         )
 
         combined_fine_tuning.fine_tune_combined_model(
@@ -246,7 +247,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             loss='error_BCE',
             save_files=False,
             evaluate_on_test=False,
-            num_epochs=2)
+            num_epochs=2,
+            debug=True
+        )
 
 
 def work_on_epsilon(args):
@@ -360,23 +363,23 @@ if __name__ == '__main__':
     # main_lr = new_lr = 0.000001
     # original_num_epochs = 0
 
-    num_train_images_per_class = 1
-    experiment_information = 'correct example'
+    # num_train_images_per_class = 1
+    # experiment_information = 'correct example'
 
     sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                      data_str=data_str,
                                                      # secondary_model_name=secondary_model_name
-                                                     num_train_images_per_class=num_train_images_per_class,
-                                                     experiment_name=experiment_information,
+                                                     # num_train_images_per_class=num_train_images_per_class,
+                                                     # experiment_name=experiment_information,
                                                      )
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    simulate_for_epsilons(total_number_of_points=10,
+    simulate_for_epsilons(total_number_of_points=1,
                           min_value=0.1,
                           max_value=0.3,
-                          experiment_name=experiment_information,
-                          num_train_images_per_class=num_train_images_per_class,
+                          # experiment_name=experiment_information,
+                          # num_train_images_per_class=num_train_images_per_class,
                           multi_process=False)
 
     # for EDCR_num_epochs in [1]:
