@@ -1,4 +1,5 @@
 import torch.utils.data
+from tqdm import tqdm
 
 import models
 import utils
@@ -7,12 +8,9 @@ import utils
 def get_fine_tuning_batches(train_loader: torch.utils.data.DataLoader,
                             num_batches: int,
                             debug: bool = False):
-    if utils.is_local():
-        from tqdm import tqdm
-        batches = tqdm(enumerate([list(train_loader)[0]] if debug else train_loader, 0),
-                       total=num_batches)
-    else:
-        batches = enumerate(train_loader, 0)
+
+    batches = tqdm(enumerate([list(train_loader)[0]] if debug else train_loader, 0),
+                   total=num_batches)
 
     return batches
 
