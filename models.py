@@ -128,6 +128,64 @@ class DINOV2FineTuner(FineTuner):
         return X
 
 
+class ErrorDetector(FineTuner):
+    def __init__(self, model_name: str, num_classes: int):
+        """
+        Initializes the ErrorDetector which will use a DINOV2FineTuner for images
+        and a simple network for processing predictions.
+
+        :param model_name: The name of the DINO V2 model.
+        :param num_classes: The number of classes in the DINO V2 model output.
+        """
+        super().__init__(model_name, num_classes)
+
+        # Initialize the DINOV2FineTuner for image processing
+        self.image_model = DINOV2FineTuner(model_name, num_classes)
+
+        # Architecture for processing the prediction
+        self.prediction_processor = torch.nn.Sequential(
+            torch.nn.Linear(1, 64),  # Assuming the prediction is an integer class index
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 64),
+            torch.nn.ReLU()
+        )
+
+        # Merge and classify the outputs
+        self.classifier = torch.nn.Sequential(
+            torch.nn.Linear(64 + num_classes, 64),  # Assuming we concatenate features
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 32),
+            torch.nn.ReLU(),
+            torch.nn.Linear(32, 1),  # Output a single probability for error detection
+            torch.nn.Sigmoid()
+        )
+
+    def forward(self,
+                image: torch.Tensor,
+                prediction: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass for the error detector model.
+
+        :param image: The input image tensor.
+        :param prediction: The prediction tensor (usually an integer wrapped in a tensor).
+
+        :return: Probability of the prediction being an error.
+        """
+        # Process the image through the DINOV2FineTuner
+        image_features = self.image_model(image)
+
+        # Process the prediction
+        prediction_features = self.prediction_processor(prediction)
+
+        # Concatenate the features from both paths
+        combined_features = torch.cat((image_features, prediction_features), dim=1)
+
+        # Pass the combined features through the final classifier
+        error_probability = self.classifier(combined_features)
+
+        return error_probability
+
+
 class VITFineTuner(FineTuner):
     """
     This class inherits from `FineTuner` to provide specific functionalities for

@@ -79,19 +79,18 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             relevant_predicted_indices = np.where(train_pred_inconsistency_mask == 1)[0]
 
         if num_train_images_per_class is not None:
-            data = self.preprocessor.train_true_fine_data
-
             example_indices = []
 
             for i in range(len(self.preprocessor.fine_grain_classes_str)):
-                i_indices_in_ground_truth = np.where(data == i)[0]
+                i_indices_in_ground_truth = np.where(self.preprocessor.train_true_fine_data == i)[0]
                 cls_idx = np.intersect1d(i_indices_in_ground_truth, relevant_predicted_indices)
                 example_indices.extend(cls_idx[:num_train_images_per_class])
+                # break
 
             self.K_train = np.array(example_indices)
 
-        for g in data_preprocessing.DataPreprocessor.granularities.values():
-            self.pred_data['train']['original'][g] = self.pred_data['train']['original'][g][self.K_train]
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                self.pred_data['train']['original'][g] = self.pred_data['train']['original'][g][self.K_train]
 
         for g in data_preprocessing.DataPreprocessor.granularities.values():
             print(f"prediction train {g.g_str} is {self.pred_data['train']['original'][g]}")
@@ -107,9 +106,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         print(utils.red_text(f"{'#' * 50} Start experiment in {self.sheet_tab} {'#' * 50}"))
 
-    def run_training_new_model_pipeline(self,
-                                        new_model_name: str,
-                                        new_lr: float):
+    def run_training_correction_model_pipeline(self,
+                                               new_model_name: str,
+                                               new_lr: float):
 
         perceived_examples_with_errors = set()
         for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -125,6 +124,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             backbone_pipeline.initiate(
                 data_str=self.data_str,
                 model_name=new_model_name,
+                preprocessor=self.preprocessor,
                 lr=new_lr,
                 combined=self.combined,
                 error_indices=perceived_examples_with_errors,
@@ -152,6 +152,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         _, _, loaders, devices, _, _ = backbone_pipeline.initiate(
             data_str=self.data_str,
             model_name=new_model_name,
+            preprocessor=self.preprocessor,
             lr=new_lr,
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
@@ -218,8 +219,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            multi_process=multi_process)
                 self.apply_detection_rules(test=False, g=g)
 
-            # self.run_training_new_model_pipeline(new_model_name=new_model_name,
-            #                                      new_lr=new_lr)
+            self.run_training_correction_model_pipeline(new_model_name=new_model_name,
+                                                        new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
@@ -233,6 +234,29 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         # self.learn_correction_rules_alt(g=g)
 
         print('\nRule learning completed\n')
+
+    def learn_error_binary_model(self):
+        preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+            backbone_pipeline.initiate(
+                data_str=self.data_str,
+                model_name=new_model_name,
+                preprocessor=self.preprocessor,
+                lr=new_lr,
+                combined=self.combined,
+                print_counts=False
+            ))
+
+        combined_fine_tuning.fine_tune_combined_model(
+            preprocessor=preprocessor,
+            lr=new_lr,
+            fine_tuner=self.correction_model,
+            device=devices[0],
+            loaders=loaders,
+            loss=self.loss,
+            save_files=False,
+            evaluate_on_test=False,
+            num_epochs=self.neural_num_epochs
+        )
 
 
 def work_on_epsilon(args):

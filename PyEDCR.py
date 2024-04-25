@@ -109,9 +109,14 @@ class EDCR:
                                  for g in data_preprocessing.DataPreprocessor.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
-        self.condition_datas = {g: {conditions.PredCondition(l=l)
-                                    for l in self.preprocessor.get_labels(g).values()}
-                                for g in data_preprocessing.DataPreprocessor.granularities.values()}
+        self.all_conditions = set()
+        self.condition_datas = {}
+
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
+            g_conditions = {conditions.PredCondition(l=l)
+                            for l in self.preprocessor.get_labels(g).values()}
+            self.condition_datas[g] = g_conditions
+            self.all_conditions = self.all_conditions.union(g_conditions)
 
         if self.secondary_model_name is not None:
             secondary_loss = secondary_model_name.split('_')[-1]
@@ -705,13 +710,9 @@ class EDCR:
             P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage=stage)
             q_l = self.epsilon * N_l * P_l / R_l
 
-            other_g_str = 'fine' if str(l.g) == 'coarse' else 'coarse'
-            other_g = data_preprocessing.DataPreprocessor.granularities[other_g_str]
-
-            DC_star = {cond for cond in self.condition_datas[l.g].union(self.condition_datas[other_g])
-                       if self.get_NEG_l_C(l=l,
-                                           C={cond},
-                                           stage=stage) <= q_l}
+            DC_star = {cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
+                                                                                C={cond},
+                                                                                stage=stage) <= q_l}
 
             while DC_star:
                 best_score = -1
@@ -725,7 +726,7 @@ class EDCR:
 
                 DC_l = DC_l.union({best_cond})
                 DC_star = {cond for cond in
-                           self.condition_datas[l.g].union(self.condition_datas[other_g]).difference(DC_l)
+                           self.all_conditions.difference(DC_l)
                            if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l}
 
         return DC_l
@@ -738,7 +739,6 @@ class EDCR:
         processes_num = min(len(granularity_labels), mp.cpu_count())
 
         print(f'\nLearning {g}-grain error detection rules...')
-
 
         DC_ls = process_map(self.DetRuleLearn,
                             granularity_labels,
@@ -908,7 +908,6 @@ class EDCR:
                     pred_data=self.predicted_errors,
                     true_data=self.inconsistency_error_ground_truths,
                     labels=[0, 1])]
-
 
             # set values
             input_values = [round(self.epsilon, 3),

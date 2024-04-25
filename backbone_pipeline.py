@@ -198,6 +198,7 @@ def find_subclasses_in_module(module, parent_class):
 
 def initiate(data_str: str,
              lr: typing.Union[str, float],
+             preprocessor: data_preprocessing.DataPreprocessor = None,
              model_name: str = 'vit_b_16',
              weights: str = 'DEFAULT',
              combined: bool = True,
@@ -213,6 +214,7 @@ def initiate(data_str: str,
     """
     Initializes models, datasets, and devices for training.
 
+    :param preprocessor:
     :param data_str:
     :param print_counts:
     :param get_fraction_of_example_with_label:
@@ -237,7 +239,8 @@ def initiate(data_str: str,
     print(f'Models: {model_name}\n'
           f'Learning rates: {lr}')
 
-    preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
+    if preprocessor is None:
+        preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
 
     datasets = data_preprocessing.get_datasets(preprocessor=preprocessor,
                                                combined=combined,

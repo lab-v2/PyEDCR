@@ -87,7 +87,7 @@ class PredCondition(Condition):
         secondary_str = 'secondary_' if self.secondary_model else ''
         lower_prediction_index_str = f'_lower{self.lower_prediction_index}' \
             if self.lower_prediction_index is not None else ''
-        return f'{secondary_str}pred_{self.l}{lower_prediction_index_str}'
+        return f'{secondary_str}pred_{self.l.g}_{self.l}{lower_prediction_index_str}'
 
     def __hash__(self):
         return hash(self.__str__())

@@ -720,7 +720,6 @@ def get_datasets(preprocessor: DataPreprocessor,
     """
 
     data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), 'data')
-
     datasets = {}
 
     for train_or_test in ['train', 'test']:
