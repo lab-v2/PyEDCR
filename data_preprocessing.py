@@ -570,12 +570,12 @@ class CombinedImageFolderWithName(EDCRImageFolder):
                  transform=None,
                  target_transform=None):
         self.preprocessor = preprocessor
-        super(CombinedImageFolderWithName, self).__init__(root=root,
-                                                          transform=transform,
-                                                          target_transform=target_transform,
-                                                          relevant_classes=
-                                                          list(self.preprocessor.fine_grain_mapping_dict.keys())
-                                                          if preprocessor.data_str == 'imagenet' else None)
+        super().__init__(root=root,
+                         transform=transform,
+                         target_transform=target_transform,
+                         relevant_classes=
+                         list(self.preprocessor.fine_grain_mapping_dict.keys())
+                         if preprocessor.data_str == 'imagenet' else None)
 
     def __getitem__(self,
                     index: int) -> (torch.tensor, int, str):
@@ -602,6 +602,58 @@ class CombinedImageFolderWithName(EDCRImageFolder):
         x_identifier = f'{folder_path}/{name}'
 
         return x, y_fine_grain, x_identifier, y_coarse_grain, index
+
+
+class ErrorDetectorImageFolder(EDCRImageFolder):
+    """
+    Subclass of torchvision.datasets for a combined coarse and fine grain models
+    that returns an image with its filename
+    """
+
+    def __init__(self,
+                 root,
+                 preprocessor: DataPreprocessor,
+                 fine_predictions: np.array,
+                 coarse_predictions: np.array,
+                 transform=None,
+                 target_transform=None):
+        self.preprocessor = preprocessor
+        self.fine_predictions = fine_predictions
+        self.coarse_predictions = coarse_predictions
+        super().__init__(root=root,
+                         transform=transform,
+                         target_transform=target_transform,
+                         relevant_classes=
+                         list(
+                             self.preprocessor.fine_grain_mapping_dict.keys())
+                         if preprocessor.data_str == 'imagenet' else None)
+
+    def __getitem__(self,
+                    index: int) -> (torch.tensor, int, str):
+        """
+        Returns one image from the dataset
+
+        Parameters
+        ----------
+
+        index: Index of the image in the dataset
+        """
+
+        path, y_true_fine = self.samples[index]
+        y_true_coarse = self.preprocessor.fine_to_course_idx[y_true_fine]
+        x = self.loader(path)
+
+        if self.transform is not None:
+            x = self.transform(x)
+        if self.target_transform is not None:
+            y_true_fine = self.target_transform(y_true_fine)
+
+        y_pred_fine = self.fine_predictions[index]
+        y_pred_coarse = self.coarse_predictions[index]
+
+        error = int(y_pred_fine != y_true_fine or y_pred_coarse != y_true_coarse)
+
+        return x, y_pred_fine, y_pred_coarse, error
 
 
 class BinaryImageFolder(EDCRImageFolder):
@@ -696,22 +748,26 @@ class IndividualImageFolderWithName(EDCRImageFolder):
 
 
 def get_datasets(preprocessor: DataPreprocessor,
-                 model_names: str,
+                 model_name: str,
                  weights: str = 'DEFAULT',
                  cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
                  binary_label: Label = None,
                  evaluation: bool = False,
-                 error_fixing: bool = False) -> \
+                 error_fixing: bool = False,
+                 fine_predictions: np.array = None,
+                 coarse_predictions: np.array = None) -> \
         (typing.Dict[str, torchvision.datasets.ImageFolder], int, int):
     """
     Instantiates and returns train and test datasets
 
     Parameters
     ----------
+        :param coarse_predictions:
+        :param fine_predictions:
         :param preprocessor:
         :param weights:
-        :param model_names:
+        :param model_name:
         :param error_fixing:
         :param evaluation:
         :param binary_label:
@@ -731,7 +787,16 @@ def get_datasets(preprocessor: DataPreprocessor,
                 else f'{train_or_test}_fine'
             full_data_dir = os.path.join(data_dir, data_dir_name)
 
-        if binary_label is not None:
+        if fine_predictions is not None:
+            datasets[train_or_test] = ErrorDetectorImageFolder(root=full_data_dir,
+                                                               preprocessor=preprocessor,
+                                                               fine_predictions=fine_predictions,
+                                                               coarse_predictions=coarse_predictions,
+                                                               transform=get_dataset_transforms(
+                                                                   data=preprocessor.data_str,
+                                                                   train_or_test=train_or_test,
+                                                                   model_name=model_name))
+        elif binary_label is not None:
             datasets[train_or_test] = BinaryImageFolder(root=full_data_dir,
                                                         transform=get_dataset_transforms(data=preprocessor.data_str,
                                                                                          train_or_test=train_or_test),
@@ -744,9 +809,8 @@ def get_datasets(preprocessor: DataPreprocessor,
                                                                       data=preprocessor.data_str,
                                                                       train_or_test=train_or_test,
                                                                       error_fixing=error_fixing,
-                                                                      model_name=model_names[0],
-                                                                      weight=weights[0],
-                                                                  ))
+                                                                      model_name=model_name,
+                                                                      weight=weights))
         else:
             datasets[train_or_test] = IndividualImageFolderWithName(
                 root=full_data_dir,
@@ -809,12 +873,10 @@ def get_loaders(preprocessor: DataPreprocessor,
             loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
                                                      indices=train_eval_indices)
 
-        shuffle = split == 'train' and (evaluation is None or not evaluation)
-
         loaders[split] = torch.utils.data.DataLoader(
             dataset=loader_dataset,
             batch_size=batch_size,
-            shuffle=shuffle,
+            shuffle=split == 'train' and (evaluation is None or not evaluation),
             num_workers=4,
         )
 

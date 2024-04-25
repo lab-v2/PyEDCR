@@ -129,7 +129,9 @@ class DINOV2FineTuner(FineTuner):
 
 
 class ErrorDetector(FineTuner):
-    def __init__(self, model_name: str, num_classes: int):
+    def __init__(self,
+                 model_name: str,
+                 num_classes: int):
         """
         Initializes the ErrorDetector which will use a DINOV2FineTuner for images
         and a simple network for processing predictions.
@@ -137,14 +139,16 @@ class ErrorDetector(FineTuner):
         :param model_name: The name of the DINO V2 model.
         :param num_classes: The number of classes in the DINO V2 model output.
         """
-        super().__init__(model_name, num_classes)
+        super().__init__(model_name=model_name,
+                         num_classes=num_classes)
 
         # Initialize the DINOV2FineTuner for image processing
-        self.image_model = DINOV2FineTuner(model_name, num_classes)
+        self.image_model = DINOV2FineTuner(model_name=model_name,
+                                           num_classes=num_classes)
 
         # Architecture for processing the prediction
         self.prediction_processor = torch.nn.Sequential(
-            torch.nn.Linear(1, 64),  # Assuming the prediction is an integer class index
+            torch.nn.Linear(num_classes, 64),
             torch.nn.ReLU(),
             torch.nn.Linear(64, 64),
             torch.nn.ReLU()
@@ -161,27 +165,21 @@ class ErrorDetector(FineTuner):
         )
 
     def forward(self,
-                image: torch.Tensor,
-                prediction: torch.Tensor) -> torch.Tensor:
+                X_image: torch.Tensor,
+                X_base_model_prediction: torch.Tensor) -> torch.Tensor:
         """
         Forward pass for the error detector model.
 
-        :param image: The input image tensor.
-        :param prediction: The prediction tensor (usually an integer wrapped in a tensor).
+        :param X_image: The input image tensor.
+        :param X_base_model_prediction: The prediction tensor (usually an integer wrapped in a tensor).
 
         :return: Probability of the prediction being an error.
         """
-        # Process the image through the DINOV2FineTuner
-        image_features = self.image_model(image)
 
-        # Process the prediction
-        prediction_features = self.prediction_processor(prediction)
-
-        # Concatenate the features from both paths
-        combined_features = torch.cat((image_features, prediction_features), dim=1)
-
-        # Pass the combined features through the final classifier
-        error_probability = self.classifier(combined_features)
+        image_features = self.image_model(X_image)  # Process the image through the DINOV2FineTuner
+        prediction_features = self.prediction_processor(X_base_model_prediction)  # Process the prediction
+        combined_features = torch.cat(tensors=(image_features, prediction_features), dim=1)
+        error_probability = torch.flatten(self.classifier(combined_features)).float()
 
         return error_probability
 

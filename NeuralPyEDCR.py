@@ -38,8 +38,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  lower_predictions_indices: typing.List[int] = [],
                  binary_models: typing.List[str] = [],
                  experiment_name: str = None,
-                 num_train_images_per_class: int = None
-                 ):
+                 num_train_images_per_class: int = None):
 
         super(NeuralPyEDCR, self).__init__(data_str=data_str,
                                            main_model_name=main_model_name,
@@ -64,7 +63,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         if experiment_name == 'correct example':
             train_pred_correct_mask = np.ones_like(self.pred_data['train']['original'][
-                                                  data_preprocessing.DataPreprocessor.granularities['fine']])
+                                                       data_preprocessing.DataPreprocessor.granularities['fine']])
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 train_pred_correct_mask &= self.get_where_predicted_correct(test=False, g=g)
@@ -73,7 +72,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         elif experiment_name == 'inconsistency example':
             train_pred_inconsistency_mask = np.ones_like(self.pred_data['train']['original'][
-                                                  data_preprocessing.DataPreprocessor.granularities['fine']])
+                                                             data_preprocessing.DataPreprocessor.granularities['fine']])
             train_pred_inconsistency_mask &= self.get_where_predicted_inconsistently(test=False)
 
             relevant_predicted_indices = np.where(train_pred_inconsistency_mask == 1)[0]
@@ -92,19 +91,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.pred_data['train']['original'][g] = self.pred_data['train']['original'][g][self.K_train]
 
-        for g in data_preprocessing.DataPreprocessor.granularities.values():
-            print(f"prediction train {g.g_str} is {self.pred_data['train']['original'][g]}")
-            print(f"and its ground truth is {self.pred_data['train']['original'][g]}")
-
-        self.sheet_tab = 'VIT_b_16 on Military Vehicles Errors 1shot correct'
-        # self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-        #                                                       data_str=data_str,
-        #                                                       secondary_model_name=secondary_model_name,
-        #                                                       experiment_name=experiment_name,
-        #                                                       num_train_images_per_class=num_train_images_per_class
-        #                                                       )
-
-        print(utils.red_text(f"{'#' * 50} Start experiment in {self.sheet_tab} {'#' * 50}"))
+        # for g in data_preprocessing.DataPreprocessor.granularities.values():
+        #     print(f"prediction train {g.g_str} is {self.pred_data['train']['original'][g]}")
+        #     print(f"and its ground truth is {self.pred_data['train']['original'][g]}")
 
     def run_training_correction_model_pipeline(self,
                                                new_model_name: str,
@@ -120,7 +109,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         print(utils.red_text(f'\nNumber of perceived train errors: {len(perceived_examples_with_errors)} / '
                              f'{self.T_train}\n'))
 
-        preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
+        preprocessor, fine_tuners, loaders, devices = (
             backbone_pipeline.initiate(
                 data_str=self.data_str,
                 model_name=new_model_name,
@@ -149,7 +138,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         )
         print('#' * 100)
 
-        _, _, loaders, devices, _, _ = backbone_pipeline.initiate(
+        _, _, loaders, devices = backbone_pipeline.initiate(
             data_str=self.data_str,
             model_name=new_model_name,
             preprocessor=self.preprocessor,
@@ -235,28 +224,29 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         print('\nRule learning completed\n')
 
-    def learn_error_binary_model(self):
-        preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-            backbone_pipeline.initiate(
-                data_str=self.data_str,
-                model_name=new_model_name,
-                preprocessor=self.preprocessor,
-                lr=new_lr,
-                combined=self.combined,
-                print_counts=False
-            ))
+    def learn_error_binary_model(self,
+                                 binary_model_name: str,
+                                 binary_lr: typing.Union[float, str]):
+        preprocessor, fine_tuners, loaders, devices = backbone_pipeline.initiate(
+            data_str=self.data_str,
+            model_name=binary_model_name,
+            preprocessor=self.preprocessor,
+            lr=binary_lr,
+            print_counts=False,
+            fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
+            coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse'])
+        )
 
         combined_fine_tuning.fine_tune_combined_model(
             preprocessor=preprocessor,
-            lr=new_lr,
-            fine_tuner=self.correction_model,
+            lr=binary_lr,
+            fine_tuner=fine_tuners[0],
             device=devices[0],
             loaders=loaders,
-            loss=self.loss,
+            loss='error_BCE',
             save_files=False,
             evaluate_on_test=False,
-            num_epochs=self.neural_num_epochs
-        )
+            num_epochs=2)
 
 
 def work_on_epsilon(args):
@@ -289,16 +279,19 @@ def work_on_epsilon(args):
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
-                        experiment_name=experiment_name,
-                        num_train_images_per_class=num_train_images_per_class)
-    edcr.print_metrics(test=True,
-                       prior=True,
-                       print_actual_errors_num=True)
-    edcr.run_learning_pipeline(new_model_name=new_model_name,
-                               new_lr=new_lr)
-    edcr.run_error_detection_application_pipeline(test=True,
-                                                  print_results=False,
-                                                  save_to_google_sheets=True)
+                        # experiment_name=experiment_name,
+                        # num_train_images_per_class=num_train_images_per_class
+                        )
+    edcr.learn_error_binary_model(binary_model_name=main_model_name,
+                                  binary_lr=new_lr)
+    # edcr.print_metrics(test=True,
+    #                    prior=True,
+    #                    print_actual_errors_num=True)
+    # edcr.run_learning_pipeline(new_model_name=new_model_name,
+    #                            new_lr=new_lr)
+    # edcr.run_error_detection_application_pipeline(test=True,
+    #                                               print_results=False,
+    #                                               save_to_google_sheets=True)
     # edcr.apply_new_model_on_test()
 
 
@@ -349,15 +342,15 @@ def simulate_for_epsilons(total_number_of_points: int = 300,
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    main_model_name = new_model_name = 'vit_b_16'
-    main_lr = new_lr = 0.0001
-    original_num_epochs = 20
+    # data_str = 'military_vehicles'
+    # main_model_name = new_model_name = 'vit_b_16'
+    # main_lr = new_lr = 0.0001
+    # original_num_epochs = 20
 
-    # data_str = 'imagenet'
-    # main_model_name = new_model_name = 'dinov2_vits14'
-    # main_lr = new_lr = 0.000001
-    # original_num_epochs = 8
+    data_str = 'imagenet'
+    main_model_name = new_model_name = 'dinov2_vits14'
+    main_lr = new_lr = 0.000001
+    original_num_epochs = 8
 
     # secondary_model_name = 'vit_l_16_BCE'
     # secondary_model_name = 'dinov2_vitl14'

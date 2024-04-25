@@ -24,12 +24,6 @@ binary_results_path = config.binary_results_path
 scheduler_step_size = config.scheduler_step_size
 
 
-# original_prediction_weight = config.original_prediction_weight
-
-
-# vit_model_names = [f'vit_{vit_model_name}' for vit_model_name in ['b_16']]
-
-
 def save_prediction_files(data_str: str,
                           test: bool,
                           fine_tuners: typing.Union[models.FineTuner, typing.Dict[str, models.FineTuner]],
@@ -210,10 +204,14 @@ def initiate(data_str: str,
              train_eval_split: float = None,
              get_indices: bool = False,
              get_fraction_of_example_with_label: typing.Dict[data_preprocessing.Label, float] = None,
-             print_counts: bool = True):
+             print_counts: bool = True,
+             fine_predictions: np.array = None,
+             coarse_predictions: np.array = None):
     """
     Initializes models, datasets, and devices for training.
 
+    :param coarse_predictions:
+    :param fine_predictions:
     :param preprocessor:
     :param data_str:
     :param print_counts:
@@ -236,8 +234,7 @@ def initiate(data_str: str,
              - num_fine_grain_classes: The number of fine-grained classes.
              - num_coarse_grain_classes: The number of coarse-grained classes.
     """
-    print(f'Models: {model_name}\n'
-          f'Learning rates: {lr}')
+    print(f'Models: {model_name}\nLearning rates: {lr}')
 
     if preprocessor is None:
         preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
@@ -247,8 +244,10 @@ def initiate(data_str: str,
                                                binary_label=l,
                                                evaluation=evaluation,
                                                error_fixing=error_indices is not None,
-                                               model_names=model_name,
-                                               weights=weights)
+                                               model_name=model_name,
+                                               weights=weights,
+                                               fine_predictions=fine_predictions,
+                                               coarse_predictions=coarse_predictions)
 
     device = torch.device('cpu') if debug else (
         torch.device('mps' if utils.is_local() and torch.backends.mps.is_available() else
@@ -256,65 +255,50 @@ def initiate(data_str: str,
     devices = [device]
     print(f'Using {device}')
 
-    num_fine_grain_classes, num_coarse_grain_classes = None, None
-
     available_models = find_subclasses_in_module(module=models,
                                                  parent_class=models.FineTuner)
 
-    if l is not None:
+    model_class = next(curr_model_class for curr_model_class in available_models
+                       if curr_model_class.__name__.split('FineTuner')[0].lower().
+                       startswith(model_name[:3]))
+
+    if fine_predictions is not None:
         results_path = binary_results_path
-        fine_tuners = [models.VITFineTuner(model_name=vit_model_name,
-                                           num_classes=2)
-                       for vit_model_name in model_name]
+
+        fine_tuners = [models.ErrorDetector(model_name=model_name,
+                                            num_classes=preprocessor.num_fine_grain_classes + preprocessor.
+                                            num_coarse_grain_classes)]
+    elif l is not None:
+        results_path = binary_results_path
+        fine_tuners = [models.VITFineTuner(model_name=model_name, num_classes=2)]
     else:
         if combined:
+            results_path = combined_results_path
             num_classes = preprocessor.num_fine_grain_classes + preprocessor.num_coarse_grain_classes
-            fine_tuners = []
 
             if pretrained_path is not None:
                 print(f'Loading pretrained model from {pretrained_path}')
-                for model_name in model_name:
-                    model_class = next(curr_model_class for curr_model_class in available_models
-                                       if curr_model_class.__name__.split('FineTuner')[0].lower().
-                                       startswith(model_name[:3]))
-                    fine_tuner = model_class.from_pretrained(model_name=model_name,
-                                                             num_classes=num_classes,
-                                                             pretrained_path=pretrained_path,
-                                                             device=device)
-                    fine_tuners.append(fine_tuner)
+                fine_tuners = [model_class.from_pretrained(model_name=model_name,
+                                                           num_classes=num_classes,
+                                                           pretrained_path=pretrained_path,
+                                                           device=device)]
+
             else:
-                for model_name, weight in zip(model_name, weights):
+                fine_tuners = [model_class(model_name=model_name,
+                                           num_classes=num_classes)]
 
-                    if model_name.startswith('vit'):
-                        fine_tuners.append(models.VITFineTuner(model_name=model_name,
-                                                               weights=weight,
-                                                               num_classes=num_classes))
-                    elif model_name.startswith('efficient_net_v2'):
-                        fine_tuners.append(models.EfficientNetV2FineTuner(model_name=model_name,
-                                                                          num_classes=num_classes))
-                    elif model_name.startswith('tresnet'):
-                        fine_tuners.append(models.TResnetFineTuner(tresnet_model_name=model_name,
-                                                                   num_classes=num_classes))
-                    else:
-                        fine_tuners.append(models.DINOV2FineTuner(model_name=model_name,
-                                                                  num_classes=num_classes))
-
-            results_path = combined_results_path
         else:
-            num_gpus = torch.cuda.device_count()
+            results_path = individual_results_path
 
-            if num_gpus < 2:
+            if torch.cuda.device_count() < 2:
                 raise ValueError("This setup requires at least 2 GPUs.")
 
             devices = [torch.device("cuda:0"), torch.device("cuda:1")]
 
-            fine_tuners = ([models.VITFineTuner(model_name=vit_model_name,
-                                                num_classes=preprocessor.num_fine_grain_classes)
-                            for vit_model_name in model_name] +
-                           [models.VITFineTuner(model_name=vit_model_name,
-                                                num_classes=preprocessor.num_coarse_grain_classes)
-                            for vit_model_name in model_name])
-            results_path = individual_results_path
+            fine_tuners = ([models.VITFineTuner(model_name=model_name,
+                                                num_classes=preprocessor.num_fine_grain_classes),
+                            models.VITFineTuner(model_name=model_name,
+                                                num_classes=preprocessor.num_coarse_grain_classes)])
 
     utils.create_directory(results_path)
     loaders = data_preprocessing.get_loaders(preprocessor=preprocessor,
@@ -333,7 +317,7 @@ def initiate(data_str: str,
     assert error_indices is None or len(loaders['train'].dataset) == len(error_indices)
 
     if l is None:
-        return preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes
+        return preprocessor, fine_tuners, loaders, devices
     else:
         positive_class_weight = preprocessor.get_imbalance_weight(l=l,
                                                                   train_images_num=len(loaders['train'].dataset),

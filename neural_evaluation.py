@@ -238,15 +238,14 @@ def run_combined_evaluating_pipeline(data_str: str,
              - fine_accuracy: Fine-grained accuracy score.
              - coarse_accuracy: Coarse-grained accuracy score.
     """
-    preprocessor, fine_tuners, loaders, devices, num_fine_grain_classes, num_coarse_grain_classes = (
-        backbone_pipeline.initiate(data_str=data_str,
-                                   model_name=model_name,
-                                   lr=lr,
-                                   combined=True,
-                                   pretrained_path=pretrained_path,
-                                   debug=debug,
-                                   error_indices=indices,
-                                   evaluation=True))
+    preprocessor, fine_tuners, loaders, devices = backbone_pipeline.initiate(data_str=data_str,
+                                                                             model_name=model_name,
+                                                                             lr=lr,
+                                                                             combined=True,
+                                                                             pretrained_path=pretrained_path,
+                                                                             debug=debug,
+                                                                             error_indices=indices,
+                                                                             evaluation=True)
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
      fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy) = (
@@ -290,26 +289,23 @@ def run_binary_evaluating_pipeline(data_str: str,
                                    save_files: bool = True,
                                    debug: bool = utils.is_debug_mode(),
                                    print_results: bool = True):
-    preprocessor, fine_tuners, loaders, devices, weight = (
-        backbone_pipeline.initiate(data_str=data_str,
-                                   model_name=model_name,
-                                   l=l,
-                                   lr=lr,
-                                   pretrained_path=pretrained_path,
-                                   debug=debug,
-                                   evaluation=True))
+    preprocessor, fine_tuners, loaders, devices, weight = (backbone_pipeline.initiate(data_str=data_str,
+                                                                                      model_name=model_name,
+                                                                                      l=l,
+                                                                                      lr=lr,
+                                                                                      pretrained_path=pretrained_path,
+                                                                                      debug=debug,
+                                                                                      evaluation=True))
 
     fine_tuner = fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner
 
-    (ground_truths, predictions, accuracy) = (
-        evaluate_binary_model(
-            l=l,
-            fine_tuner=fine_tuner,
-            loaders=loaders,
-            loss=loss,
-            device=devices[0],
-            split=split,
-            print_results=print_results))
+    ground_truths, predictions, accuracy = evaluate_binary_model(l=l,
+                                                                 fine_tuner=fine_tuner,
+                                                                 loaders=loaders,
+                                                                 loss=loss,
+                                                                 device=devices[0],
+                                                                 split=split,
+                                                                 print_results=print_results)
 
     if save_files:
         backbone_pipeline.save_binary_prediction_files(test=split == 'test',
@@ -361,8 +357,6 @@ if __name__ == '__main__':
     pretrained_path = 'models/dinov2_vitl14_lr1e-06_BCE.pth'
     # lr = 0.0001
     lr = 0.000001
-
-
 
     # evaluate_binary_models_from_files(model_name='vit_b_16',
     #                                   g_str='fine',
