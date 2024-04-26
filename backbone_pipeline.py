@@ -304,7 +304,7 @@ def initiate(data_str: str,
                                              subset_indices=error_indices,
                                              train_eval_split=train_eval_split,
                                              get_fraction_of_example_with_label=get_fraction_of_example_with_label,
-                                             binary=l is not None,
+                                             label=l,
                                              debug=debug)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"

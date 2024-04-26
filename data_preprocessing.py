@@ -827,7 +827,7 @@ def get_loaders(preprocessor: DataPreprocessor,
                 evaluation: bool = None,
                 train_eval_split: float = None,
                 get_fraction_of_example_with_label: typing.Dict[Label, float] = None,
-                binary: bool = False,
+                label: Label = None,
                 debug: bool = False
                 ) -> typing.Dict[str, torch.utils.data.DataLoader]:
     """
@@ -837,7 +837,7 @@ def get_loaders(preprocessor: DataPreprocessor,
     ----------
         :param debug:
         :param preprocessor:
-        :param binary:
+        :param label:
         :param get_fraction_of_example_with_label:
         :param train_eval_split:
         :param evaluation:
@@ -874,8 +874,10 @@ def get_loaders(preprocessor: DataPreprocessor,
             loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
                                                      indices=train_eval_indices)
 
-        if binary:
+        if label is not None:
             weight = 1 / preprocessor.fine_counts
+            weight[label.index] = 1
+            weight = weight / np.sum(weight)
             if split == 'train':
                 loaders[split] = torch.utils.data.DataLoader(
                     dataset=loader_dataset,
