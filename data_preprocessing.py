@@ -877,12 +877,13 @@ def get_loaders(preprocessor: DataPreprocessor,
         if label is not None:
             weight = 1 / preprocessor.fine_counts
             weight[label.index] = 1
-            weight = weight / np.sum(weight)
+            samples_weight = np.array([weight[t] for t in preprocessor.train_true_fine_data])
+            samples_weight = torch.from_numpy(samples_weight / np.sum(samples_weight))
             if split == 'train':
                 loaders[split] = torch.utils.data.DataLoader(
                     dataset=loader_dataset,
                     batch_size=batch_size,
-                    sampler=weight,
+                    sampler=samples_weight,
                     num_workers=4,
                 )
             else:

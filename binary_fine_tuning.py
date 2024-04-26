@@ -20,7 +20,7 @@ def fine_tune_binary_model(data_str: str,
                            device: torch.device,
                            loaders: dict[str, torch.utils.data.DataLoader],
                            num_epochs: int,
-                           positive_class_weight: list[float],
+                           positive_class_weight: list[float] = None,
                            save_files: bool = True,
                            evaluate_on_test: bool = True):
     fine_tuner.to(device)
@@ -98,7 +98,7 @@ def fine_tune_binary_model(data_str: str,
                     if epoch == num_epochs - 1:
                         neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
                                                                          l=l,
-                                                                         split='train',
+                                                                         split='test',
                                                                          lr=lr,
                                                                          loss='BCE',
                                                                          num_epochs=num_epochs,
@@ -106,7 +106,7 @@ def fine_tune_binary_model(data_str: str,
                                                                          data_str=data_str)
                         neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
                                                                          l=l,
-                                                                         split='test',
+                                                                         split='train',
                                                                          lr=lr,
                                                                          loss='BCE',
                                                                          num_epochs=num_epochs,
@@ -140,8 +140,7 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                device=devices[0],
                                loaders=loaders,
                                num_epochs=num_epochs,
-                               save_files=save_files,
-                               # positive_class_weight=positive_class_weight
+                               save_files=save_files
                                )
         print('#' * 100)
 
