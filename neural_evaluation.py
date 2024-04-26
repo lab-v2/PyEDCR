@@ -320,22 +320,25 @@ def run_binary_evaluating_pipeline(data_str: str,
     return predictions, accuracy
 
 
-def evaluate_binary_models_from_files(g_str: str,
+def evaluate_binary_models_from_files(data_str: str,
+                                      g_str: str,
                                       test: bool,
-                                      lrs: typing.Union[float, typing.List[float]],
+                                      lr: typing.Union[str, float],
                                       num_epochs: int,
                                       model_name: str = 'vit_b_16',
                                       loss: str = 'BCE'):
-    g_ground_truth = data_preprocessing.train_true_fine_data if g_str == 'fine' \
-        else data_preprocessing.train_true_coarse_data
+    preprocessor = data_preprocessing.DataPreprocessor(data_str)
+    g_ground_truth = preprocessor.train_true_fine_data if g_str == 'fine' \
+        else preprocessor.train_true_coarse_data
     print(f'gt shape : {g_ground_truth.shape}')
 
-    for l in data_preprocessing.get_labels(g=data_preprocessing.granularities[g_str]).values():
-        l_file = models.get_filepath(model_name=model_name,
+    for l in preprocessor.get_labels(g=preprocessor.granularities[g_str]).values():
+        l_file = models.get_filepath(data_str=data_str,
+                                     model_name=model_name,
                                      l=l,
                                      test=test,
                                      loss=loss,
-                                     lr=lrs,
+                                     lr=lr,
                                      pred=True,
                                      epoch=num_epochs)
         if os.path.exists(l_file):

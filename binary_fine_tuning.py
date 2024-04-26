@@ -122,9 +122,9 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       num_epochs: int,
                                       save_files: bool = True):
     preprocessor, fine_tuners, loaders, devices, positive_class_weight = backbone_pipeline.initiate(data_str=data_str,
-                                                                                      lr=lr,
-                                                                                      model_name=model_name,
-                                                                                      l=l)
+                                                                                                    lr=lr,
+                                                                                                    model_name=model_name,
+                                                                                                    l=l)
     for fine_tuner in fine_tuners:
         fine_tune_binary_model(data_str=data_str,
                                l=l,
@@ -180,9 +180,10 @@ if __name__ == '__main__':
                                       num_epochs=num_epochs,
                                       save_files=True)
 
-    neural_evaluation.evaluate_binary_models_from_files(g_str='fine',
+    neural_evaluation.evaluate_binary_models_from_files(data_str=data_str,
+                                                        g_str='fine',
                                                         test=False,
-                                                        lrs=lr,
+                                                        lr=lr,
                                                         num_epochs=num_epochs)
 
     # neural_evaluation.run_binary_evaluating_pipeline(
