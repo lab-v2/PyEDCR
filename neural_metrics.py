@@ -241,20 +241,17 @@ def get_and_print_post_epoch_binary_metrics(epoch: int,
                                             num_epochs: int,
                                             train_ground_truths: np.array,
                                             train_predictions: np.array,
-                                            total_running_loss: float
-                                            ):
-    training_accuracy = accuracy_score(y_true=train_ground_truths,
-                                       y_pred=train_predictions)
-    training_f1 = f1_score(y_true=train_ground_truths,
-                           y_pred=train_predictions,
-                           labels=[1])
+                                            total_running_loss: float):
+    accuracy, f1, _, _ = get_individual_metrics(pred_data=train_predictions,
+                                                true_data=train_ground_truths,
+                                                labels=[1])
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done'
           f'\nMean loss across epochs: {round(total_running_loss / (epoch + 1), 2)}'
-          f'\npost-epoch training accuracy: {round(training_accuracy * 100, 2)}%'
-          f', post-epoch f1: {round(training_f1 * 100, 2)}%\n')
+          f'\npost-epoch training accuracy: {round(accuracy * 100, 2)}%'
+          f', post-epoch f1: {round(f1 * 100, 2)}%\n')
 
-    return training_accuracy, training_f1
+    return accuracy, f1
 
 
 def get_and_print_post_epoch_metrics(preprocessor: data_preprocessing.DataPreprocessor,
@@ -298,13 +295,19 @@ def get_and_print_post_epoch_metrics(preprocessor: data_preprocessing.DataPrepro
 
 def print_post_batch_metrics(batch_num: int,
                              num_batches: int,
-                             batch_fine_grain_loss: float = None,
-                             batch_coarse_grain_loss: float = None,
                              batch_total_loss: float = None):
     if batch_num > 0 and batch_num % 10 == 0:
-        if batch_fine_grain_loss is not None:
-            print(f'\nCompleted batch num {batch_num}/{num_batches}, '
-                  f'batch fine-grain loss: {round(batch_fine_grain_loss, 2)}, '
-                  f'batch coarse-grain loss: {round(batch_coarse_grain_loss, 2)}')
-        else:
-            print(f'\nCompleted batch num {batch_num}/{num_batches}, batch total loss: {round(batch_total_loss, 2)}')
+        print(f'\nCompleted batch num {batch_num}/{num_batches}, batch total loss: {round(batch_total_loss, 2)}')
+
+
+def print_post_batch_binary_metrics(batch_num: int,
+                                    num_batches: int,
+                                    train_ground_truths: np.array,
+                                    train_predictions: np.array,
+                                    batch_total_loss: float = None):
+    if batch_num > 0 and batch_num % 5 == 0:
+        accuracy, f1, _, _ = get_individual_metrics(pred_data=train_predictions,
+                                                    true_data=train_ground_truths,
+                                                    labels=[1])
+        print(f'\nCompleted batch num {batch_num}/{num_batches}, current accuracy: {accuracy:.2f},'
+              f'current f1: {f1:.2f}, batch total loss: {batch_total_loss:.2f}')

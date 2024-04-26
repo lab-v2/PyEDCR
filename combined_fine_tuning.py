@@ -178,9 +178,16 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                         del X, Y_true_fine, Y_true_coarse, Y_pred, Y_pred_fine, Y_pred_coarse
 
                     total_running_loss += batch_total_loss.item()
-                    neural_metrics.print_post_batch_metrics(batch_num=batch_num,
-                                                            num_batches=num_batches,
-                                                            batch_total_loss=batch_total_loss.item())
+                    if loss == "error_BCE":
+                        neural_metrics.print_post_batch_binary_metrics(batch_num=batch_num,
+                                                                       num_batches=num_batches,
+                                                                       train_predictions=error_predictions,
+                                                                       train_ground_truths=error_ground_truths,
+                                                                       batch_total_loss=batch_total_loss.item())
+                    else:
+                        neural_metrics.print_post_batch_metrics(batch_num=batch_num,
+                                                                num_batches=num_batches,
+                                                                batch_total_loss=batch_total_loss.item())
                     batch_total_loss.backward()
                     optimizer.step()
 
