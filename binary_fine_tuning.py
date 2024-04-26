@@ -27,8 +27,11 @@ def fine_tune_binary_model(data_str: str,
     fine_tuner.train()
     train_loader = loaders['train']
     num_batches = len(train_loader)
-    positive_class_weight = torch.tensor(positive_class_weight).float().to(device)
-    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=positive_class_weight)
+    if positive_class_weight is not None:
+        positive_class_weight = torch.tensor(positive_class_weight).float().to(device)
+        criterion = torch.nn.BCEWithLogitsLoss(pos_weight=positive_class_weight)
+    else:
+        criterion = torch.nn.BCEWithLogitsLoss()
 
     for lr in lrs:
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
@@ -123,6 +126,7 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       l: data_preprocessing.Label,
                                       lr: float,
                                       num_epochs: int,
+
                                       save_files: bool = True):
     preprocessor, fine_tuners, loaders, devices, positive_class_weight = backbone_pipeline.initiate(data_str=data_str,
                                                                                                     lr=lr,
@@ -137,7 +141,8 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                loaders=loaders,
                                num_epochs=num_epochs,
                                save_files=save_files,
-                               positive_class_weight=positive_class_weight)
+                               # positive_class_weight=positive_class_weight
+                               )
         print('#' * 100)
 
 
