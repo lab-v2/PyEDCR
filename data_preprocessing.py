@@ -874,12 +874,28 @@ def get_loaders(preprocessor: DataPreprocessor,
             loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
                                                      indices=train_eval_indices)
 
-        loaders[split] = torch.utils.data.DataLoader(
-            dataset=loader_dataset,
-            batch_size=batch_size,
-            shuffle=split == 'train' and (evaluation is None or not evaluation),
-            num_workers=4,
-        )
+        if binary:
+            weight = 1 / preprocessor.fine_counts
+            if split == 'train':
+                loaders[split] = torch.utils.data.DataLoader(
+                    dataset=loader_dataset,
+                    batch_size=batch_size,
+                    sampler=weight,
+                    num_workers=4,
+                )
+            else:
+                loaders[split] = torch.utils.data.DataLoader(
+                    dataset=loader_dataset,
+                    batch_size=batch_size,
+                    num_workers=4,
+                )
+        else:
+            loaders[split] = torch.utils.data.DataLoader(
+                dataset=loader_dataset,
+                batch_size=batch_size,
+                shuffle=split == 'train' and (evaluation is None or not evaluation),
+                num_workers=4,
+            )
 
     return loaders
 

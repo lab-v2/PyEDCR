@@ -2,6 +2,7 @@ import torch
 import torch.utils.data
 import typing
 from tqdm import tqdm
+import numpy as np
 
 import data_preprocessing
 import models
@@ -72,6 +73,8 @@ def fine_tune_binary_model(data_str: str,
                         train_ground_truths += Y.tolist()
 
                         del X, Y, Y_pred
+
+                print(np.unique(train_ground_truths, return_counts=True))
 
                 training_accuracy, training_f1 = neural_metrics.get_and_print_post_epoch_binary_metrics(
                     epoch=epoch,
