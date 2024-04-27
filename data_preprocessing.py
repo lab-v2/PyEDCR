@@ -621,6 +621,10 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
         self.preprocessor = preprocessor
         self.fine_predictions = fine_predictions
         self.coarse_predictions = coarse_predictions
+        self.original_number_of_samples = fine_predictions.shape[0]
+        self.positive_samples = []
+        self.negative_samples = []
+
         super().__init__(root=root,
                          transform=transform,
                          target_transform=target_transform,
@@ -633,6 +637,10 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
                   index: int) -> int:
         _, y_true_fine = self.samples[index]
         y_true_coarse = self.preprocessor.fine_to_course_idx[y_true_fine]
+
+        if index >= self.original_number_of_samples:
+            index = (index - self.original_number_of_samples) % len(self.positive_samples)
+
         y_pred_fine = self.fine_predictions[index]
         y_pred_coarse = self.coarse_predictions[index]
 
@@ -641,10 +649,17 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
         return error
 
     def balance_samples(self):
-        positive_examples = [self.samples[index] for index in range(len(self.samples)) if self.get_error(index)]
-        negative_examples = [self.samples[index] for index in range(len(self.samples)) if not self.get_error(index)]
-        ratio = int(len(negative_examples) / len(positive_examples))
-        self.samples.extend(positive_examples * ratio)
+        for index in range(len(self.samples)):
+            assert index < self.original_number_of_samples
+            sample = self.samples[index]
+
+            if self.get_error(index):
+                self.positive_samples += [sample]
+            else:
+                self.negative_samples += [sample]
+
+        ratio = int(len(self.negative_samples) / len(self.positive_samples))
+        self.samples.extend(self.positive_samples * ratio)
 
     def __getitem__(self,
                     index: int) -> (torch.tensor, int, str):
@@ -665,7 +680,6 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
             x = self.transform(x)
         if self.target_transform is not None:
             y_true_fine = self.target_transform(y_true_fine)
-
 
         error = self.get_error(index=index)
 
