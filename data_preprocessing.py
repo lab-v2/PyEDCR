@@ -681,9 +681,12 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
         if self.target_transform is not None:
             y_true_fine = self.target_transform(y_true_fine)
 
+        y_pred_fine = self.fine_predictions[index]
+        y_pred_coarse = self.coarse_predictions[index]
+
         error = self.get_error(index=index)
 
-        return x, y_true_fine, y_true_coarse, error
+        return x, y_pred_fine, y_pred_coarse, error
 
 
 class BinaryImageFolder(EDCRImageFolder):
