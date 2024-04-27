@@ -76,7 +76,6 @@ def fine_tune_binary_model(data_str: str,
                         train_ground_truths += Y.tolist()
 
                         del X, Y, Y_pred
-                    break
 
                 print(np.unique(train_ground_truths, return_counts=True))
 
