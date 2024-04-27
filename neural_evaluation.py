@@ -197,7 +197,7 @@ def evaluate_binary_model(l: data_preprocessing.Label,
                                                                                       true_data=ground_truths,
                                                                                       test=split == 'test')
 
-    return ground_truths, predictions, accuracy
+    return ground_truths, predictions, accuracy, f1
 
 
 def run_combined_evaluating_pipeline(data_str: str,
@@ -288,26 +288,30 @@ def run_binary_evaluating_pipeline(data_str: str,
                                    pretrained_fine_tuner: models.FineTuner = None,
                                    save_files: bool = True,
                                    debug: bool = utils.is_debug_mode(),
-                                   print_results: bool = True):
+                                   print_results: bool = True,
+                                   train_eval_split: float = None):
+    if split == 'train_eval' and train_eval_split is None:
+        raise ValueError(f'{split} mode do not have value for train and train eval')
     preprocessor, fine_tuners, loaders, devices, weight = (backbone_pipeline.initiate(data_str=data_str,
                                                                                       model_name=model_name,
                                                                                       l=l,
                                                                                       lr=lr,
                                                                                       pretrained_path=pretrained_path,
                                                                                       debug=debug,
+                                                                                      train_eval_split=train_eval_split,
                                                                                       evaluation=True))
 
     fine_tuner = fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner
 
-    ground_truths, predictions, accuracy = evaluate_binary_model(l=l,
-                                                                 fine_tuner=fine_tuner,
-                                                                 loaders=loaders,
-                                                                 loss=loss,
-                                                                 device=devices[0],
-                                                                 split=split,
-                                                                 print_results=print_results)
+    ground_truths, predictions, accuracy, f1 = evaluate_binary_model(l=l,
+                                                                     fine_tuner=fine_tuner,
+                                                                     loaders=loaders,
+                                                                     loss=loss,
+                                                                     device=devices[0],
+                                                                     split=split,
+                                                                     print_results=print_results)
 
-    if save_files:
+    if save_files and split != 'train_eval':
         backbone_pipeline.save_binary_prediction_files(test=split == 'test',
                                                        fine_tuner=fine_tuner,
                                                        lr=lr,
@@ -318,7 +322,7 @@ def run_binary_evaluating_pipeline(data_str: str,
                                                        evaluation=True,
                                                        data_str=data_str)
 
-    return predictions, accuracy
+    return predictions, accuracy, f1
 
 
 def evaluate_binary_models_from_files(data_str: str,
