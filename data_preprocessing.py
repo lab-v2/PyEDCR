@@ -536,16 +536,13 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
     def __init__(
             self,
             root: str,
-            transform=None,
-            target_transform=None,
-            is_valid_file=None,
-            relevant_classes: typing.List[str] = None
-    ):
+            transform: typing.Callable = None,
+            target_transform: typing.Callable = None,
+            relevant_classes: typing.List[str] = None):
         self.relevant_classes = relevant_classes
         super().__init__(root=root,
                          transform=transform,
-                         target_transform=target_transform,
-                         is_valid_file=is_valid_file)
+                         target_transform=target_transform)
 
     def find_classes(self,
                      directory: str) -> (typing.List[str], typing.Dict[str, int]):
@@ -558,6 +555,10 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
         class_to_idx = {cls_name: index for index, cls_name in enumerate(classes)}
         return classes, class_to_idx
 
+    def balance_samples(self):
+        pass
+
+
 
 class CombinedImageFolderWithName(EDCRImageFolder):
     """
@@ -565,7 +566,7 @@ class CombinedImageFolderWithName(EDCRImageFolder):
     """
 
     def __init__(self,
-                 root,
+                 root: str,
                  preprocessor: DataPreprocessor,
                  transform=None,
                  target_transform=None):
@@ -588,16 +589,16 @@ class CombinedImageFolderWithName(EDCRImageFolder):
         index: Index of the image in the dataset
         """
 
-        path, y_fine_grain = self.samples[index]
+        x_path, y_fine_grain = self.samples[index]
         y_coarse_grain = self.preprocessor.fine_to_course_idx[y_fine_grain]
-        x = self.loader(path)
+        x = self.loader(x_path)
 
         if self.transform is not None:
             x = self.transform(x)
         if self.target_transform is not None:
             y_fine_grain = self.target_transform(y_fine_grain)
-        name = os.path.basename(path)
-        folder_path = os.path.basename(os.path.dirname(path))
+        name = os.path.basename(x_path)
+        folder_path = os.path.basename(os.path.dirname(x_path))
 
         x_identifier = f'{folder_path}/{name}'
 
@@ -611,7 +612,7 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
     """
 
     def __init__(self,
-                 root,
+                 root: str,
                  preprocessor: DataPreprocessor,
                  fine_predictions: np.array,
                  coarse_predictions: np.array,
@@ -624,9 +625,26 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
                          transform=transform,
                          target_transform=target_transform,
                          relevant_classes=
-                         list(
-                             self.preprocessor.fine_grain_mapping_dict.keys())
+                         list(self.preprocessor.fine_grain_mapping_dict.keys())
                          if preprocessor.data_str == 'imagenet' else None)
+        self.balance_samples()
+
+    def get_error(self,
+                  index: int) -> int:
+        _, y_true_fine = self.samples[index]
+        y_true_coarse = self.preprocessor.fine_to_course_idx[y_true_fine]
+        y_pred_fine = self.fine_predictions[index]
+        y_pred_coarse = self.coarse_predictions[index]
+
+        error = int(y_pred_fine != y_true_fine or y_pred_coarse != y_true_coarse)
+
+        return error
+
+    def balance_samples(self):
+        positive_examples = [self.samples[index] for index in range(len(self.samples)) if self.get_error(index)]
+        negative_examples = [self.samples[index] for index in range(len(self.samples)) if not self.get_error(index)]
+        ratio = int(len(negative_examples) / len(positive_examples))
+        self.samples.extend(positive_examples * ratio)
 
     def __getitem__(self,
                     index: int) -> (torch.tensor, int, str):
@@ -639,90 +657,55 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
         index: Index of the image in the dataset
         """
 
-        path, y_true_fine = self.samples[index]
+        x_path, y_true_fine = self.samples[index]
         y_true_coarse = self.preprocessor.fine_to_course_idx[y_true_fine]
-        x = self.loader(path)
+        x = self.loader(x_path)
 
         if self.transform is not None:
             x = self.transform(x)
         if self.target_transform is not None:
             y_true_fine = self.target_transform(y_true_fine)
 
-        y_pred_fine = self.fine_predictions[index]
-        y_pred_coarse = self.coarse_predictions[index]
 
-        error = int(y_pred_fine != y_true_fine or y_pred_coarse != y_true_coarse)
+        error = self.get_error(index=index)
 
-        return x, y_pred_fine, y_pred_coarse, error
+        return x, y_true_fine, y_true_coarse, error
 
 
 class BinaryImageFolder(EDCRImageFolder):
     def __init__(self,
                  root: str,
-                 l: Label,
                  preprocessor: DataPreprocessor,
+                 l: Label,
                  transform: typing.Optional[typing.Callable] = None,
-                 evaluation: bool = False,):
+                 evaluation: bool = False, ):
         self.evaluation = evaluation
         self.preprocessor = preprocessor
         self.l = l
 
-        # if not evaluation:
-        #     super().__init__(root=root, transform=transform)
-        #     self.l = l.index
-        #     self.balanced_samples = []
-        #
-        #     # Count the number of images per class
-        #     class_counts = {target: 0 for _, target in self.samples}
-        #     for _, target in self.samples:
-        #         class_counts[target] += 1
-        #
-        #     # Number of positive examples
-        #     positive_count = class_counts[self.l]
-        #
-        #     # Calculate the number of negatives to sample from each of the other classes
-        #     other_classes = [cls for cls in class_counts.keys() if cls != self.l]
-        #     negative_samples_per_class = positive_count // len(other_classes)
-        #
-        #     # Sample negatives
-        #
-        #     for cls in other_classes:
-        #         cls_samples = [(path, target) for path, target in self.samples if target == cls]
-        #         self.balanced_samples.extend(
-        #             random.sample(cls_samples, min(negative_samples_per_class, len(cls_samples))))
-        #
-        #     # Add positive examples
-        #     self.balanced_samples.extend([(path, target) for path, target in self.samples if target == self.l])
-        #
-        #     # Shuffle the dataset
-        #     random.shuffle(self.balanced_samples)
-        # else:
         super().__init__(root=root,
                          transform=transform,
                          target_transform=transform,
                          relevant_classes=
                          list(self.preprocessor.fine_grain_mapping_dict.keys())
                          if preprocessor.data_str == 'imagenet' else None)
-        if not evaluation:
-            positive_example = []
-            positive_example.extend([(path, target) for path, target in self.samples if target == self.l.index])
-            self.samples.extend(positive_example * preprocessor.num_fine_grain_classes)
+        self.balance_samples()
+
+    def balance_samples(self):
+        if not self.evaluation:
+            positive_example = [(x_path, target) for x_path, target in self.samples if target == self.l.index]
+            self.samples.extend(positive_example * self.preprocessor.num_fine_grain_classes)
 
     def __getitem__(self, index: int):
-        # if self.evaluation:
-        #     return super().__getitem__(index)
+        x_path, y = self.samples[index]
+        x = self.loader(x_path)
 
-        path, target = self.samples[index]
-        sample = self.loader(path)
         if self.transform is not None:
-            sample = self.transform(sample)
-        # Convert the target to binary (1 for the chosen class, 0 for others)
-        target = int(target == self.l.index)
+            x = self.transform(x)
 
-        return sample, target
+        y = int(y == self.l.index)
 
-    # def __len__(self):
-    #     return len(self.samples if self.evaluation else self.balanced_samples)
+        return x, y
 
 
 class IndividualImageFolderWithName(EDCRImageFolder):
@@ -741,16 +724,16 @@ class IndividualImageFolderWithName(EDCRImageFolder):
         index: Index of the image in the dataset
         """
 
-        path, y = self.samples[index]
-        x = self.loader(path)
+        x_path, y = self.samples[index]
+        x = self.loader(x_path)
 
         if self.transform is not None:
             x = self.transform(x)
         if self.target_transform is not None:
             y = self.target_transform(y)
 
-        name = os.path.basename(path)
-        folder_path = os.path.basename(os.path.dirname(path))
+        name = os.path.basename(x_path)
+        folder_path = os.path.basename(os.path.dirname(x_path))
 
         x_identifier = f'{folder_path}/{name}'
 
@@ -838,7 +821,6 @@ def get_loaders(preprocessor: DataPreprocessor,
                 evaluation: bool = None,
                 train_eval_split: float = None,
                 get_fraction_of_example_with_label: typing.Dict[Label, float] = None,
-                label: Label = None,
                 debug: bool = False
                 ) -> typing.Dict[str, torch.utils.data.DataLoader]:
     """
@@ -848,7 +830,6 @@ def get_loaders(preprocessor: DataPreprocessor,
     ----------
         :param debug:
         :param preprocessor:
-        :param label:
         :param get_fraction_of_example_with_label:
         :param train_eval_split:
         :param evaluation:
@@ -885,35 +866,12 @@ def get_loaders(preprocessor: DataPreprocessor,
             loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
                                                      indices=train_eval_indices)
 
-        if label is not None:
-            # weight = 1 / preprocessor.fine_counts
-            # weight[label.index] = 1
-            # samples_weight = np.array([weight[t] for t in preprocessor.train_true_fine_data])
-            # samples_weight = torch.from_numpy(samples_weight / np.sum(samples_weight))
-            # sampler = torch.utils.data.sampler.WeightedRandomSampler(
-            #     samples_weight.type('torch.DoubleTensor'),
-            #     len(samples_weight)
-            # )
-            if split == 'train':
-                loaders[split] = torch.utils.data.DataLoader(
-                    dataset=loader_dataset,
-                    batch_size=batch_size,
-                    shuffle=True,
-                    num_workers=4,
-                )
-            else:
-                loaders[split] = torch.utils.data.DataLoader(
-                    dataset=loader_dataset,
-                    batch_size=batch_size,
-                    num_workers=4,
-                )
-        else:
-            loaders[split] = torch.utils.data.DataLoader(
-                dataset=loader_dataset,
-                batch_size=batch_size,
-                shuffle=split == 'train' and (evaluation is None or not evaluation),
-                num_workers=4,
-            )
+        loaders[split] = torch.utils.data.DataLoader(
+            dataset=loader_dataset,
+            batch_size=batch_size,
+            shuffle=split == 'train' and (evaluation is None or not evaluation),
+            num_workers=4,
+        )
 
     return loaders
 

@@ -127,10 +127,10 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       num_epochs: int,
 
                                       save_files: bool = True):
-    preprocessor, fine_tuners, loaders, devices, positive_class_weight = backbone_pipeline.initiate(data_str=data_str,
-                                                                                                    lr=lr,
-                                                                                                    model_name=model_name,
-                                                                                                    l=l)
+    preprocessor, fine_tuners, loaders, devices = backbone_pipeline.initiate(data_str=data_str,
+                                                                             lr=lr,
+                                                                             model_name=model_name,
+                                                                             l=l)
     for fine_tuner in fine_tuners:
         fine_tune_binary_model(data_str=data_str,
                                l=l,

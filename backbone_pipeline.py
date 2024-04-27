@@ -315,7 +315,6 @@ def initiate(data_str: str,
                                              subset_indices=error_indices,
                                              train_eval_split=train_eval_split,
                                              get_fraction_of_example_with_label=get_fraction_of_example_with_label,
-                                             label=l,
                                              debug=debug)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
@@ -324,11 +323,5 @@ def initiate(data_str: str,
 
     assert error_indices is None or len(loaders['train'].dataset) == len(error_indices)
 
-    if l is None:
-        return preprocessor, fine_tuners, loaders, devices
-    else:
-        positive_class_weight = preprocessor.get_imbalance_weight(l=l,
-                                                                  train_images_num=len(loaders['train'].dataset),
-                                                                  evaluation=evaluation)
 
-        return preprocessor, fine_tuners, loaders, devices, positive_class_weight
+    return preprocessor, fine_tuners, loaders, devices
