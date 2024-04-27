@@ -173,17 +173,10 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
 
 if __name__ == '__main__':
     data_str_in_main = 'imagenet'
-    num_epochs_in_main = 10
+    num_epochs_in_main = 1
     lr_in_main = 0.0001
     model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
-
-    # for g in data_preprocessing.granularities.values():
-    #     run_g_binary_fine_tuning_pipeline(vit_model_names=[model_name],
-    #                                       g=g,
-    #                                       lr=lr,
-    #                                       num_epochs=num_epochs,
-    #                                       save_files=True)
 
     preprocessor_in_main = data_preprocessing.DataPreprocessor(data_str_in_main)
 
@@ -214,12 +207,3 @@ if __name__ == '__main__':
                                           lr=lr_in_main,
                                           num_epochs=num_epochs_in_main,
                                           save_files=True)
-
-    # neural_evaluation.run_binary_evaluating_pipeline(
-    #     model_name=model_name,
-    #     l=l,
-    #     split='train',
-    #     lrs=[lr],
-    #     loss=loss,
-    #     num_epochs=num_epochs,
-    #     pretrained_path=f'models/binary_models/binary_{l}_{model_name}_lr{lr}_loss_{loss}_e{num_epochs}.pth')

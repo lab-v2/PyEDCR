@@ -359,6 +359,7 @@ def evaluate_binary_models_from_files(data_str: str,
         return accuracy, f1, precision, recall
 
     else:
+        print(f'{l_file} is not exist')
         return None
 
 
