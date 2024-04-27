@@ -898,6 +898,7 @@ def get_loaders(preprocessor: DataPreprocessor,
                 loaders[split] = torch.utils.data.DataLoader(
                     dataset=loader_dataset,
                     batch_size=batch_size,
+                    shuffle=True,
                     num_workers=4,
                 )
             else:
