@@ -171,15 +171,13 @@ def evaluate_binary_model(l: data_preprocessing.Label,
     predictions = []
     ground_truths = []
     accuracy = 0
+    f1 = 0
 
     print(utils.blue_text(f'Evaluating binary {fine_tuner} with l={l} on {split} using {device}...'))
 
     with torch.no_grad():
-        if utils.is_local():
-            from tqdm import tqdm
-            gen = tqdm(enumerate(loader), total=len(loader))
-        else:
-            gen = enumerate(loader)
+        from tqdm import tqdm
+        gen = tqdm(enumerate(loader), total=len(loader))
 
         for i, data in gen:
             X, Y = data[0].to(device), data[1].to(device)
@@ -197,7 +195,7 @@ def evaluate_binary_model(l: data_preprocessing.Label,
                                                                                       true_data=ground_truths,
                                                                                       test=split == 'test')
 
-    return ground_truths, predictions, accuracy
+    return ground_truths, predictions, accuracy, f1
 
 
 def run_combined_evaluating_pipeline(data_str: str,
@@ -288,26 +286,30 @@ def run_binary_evaluating_pipeline(data_str: str,
                                    pretrained_fine_tuner: models.FineTuner = None,
                                    save_files: bool = True,
                                    debug: bool = utils.is_debug_mode(),
-                                   print_results: bool = True):
+                                   print_results: bool = True,
+                                   train_eval_split: float = None):
+    if split == 'train_eval' and train_eval_split is None:
+        raise ValueError(f'{split} mode do not have value for train and train eval')
     preprocessor, fine_tuners, loaders, devices, weight = (backbone_pipeline.initiate(data_str=data_str,
                                                                                       model_name=model_name,
                                                                                       l=l,
                                                                                       lr=lr,
                                                                                       pretrained_path=pretrained_path,
                                                                                       debug=debug,
+                                                                                      train_eval_split=train_eval_split,
                                                                                       evaluation=True))
 
     fine_tuner = fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner
 
-    ground_truths, predictions, accuracy = evaluate_binary_model(l=l,
-                                                                 fine_tuner=fine_tuner,
-                                                                 loaders=loaders,
-                                                                 loss=loss,
-                                                                 device=devices[0],
-                                                                 split=split,
-                                                                 print_results=print_results)
+    ground_truths, predictions, accuracy, f1 = evaluate_binary_model(l=l,
+                                                                     fine_tuner=fine_tuner,
+                                                                     loaders=loaders,
+                                                                     loss=loss,
+                                                                     device=devices[0],
+                                                                     split=split,
+                                                                     print_results=print_results)
 
-    if save_files:
+    if save_files and split != 'train_eval':
         backbone_pipeline.save_binary_prediction_files(test=split == 'test',
                                                        fine_tuner=fine_tuner,
                                                        lr=lr,
@@ -318,7 +320,7 @@ def run_binary_evaluating_pipeline(data_str: str,
                                                        evaluation=True,
                                                        data_str=data_str)
 
-    return predictions, accuracy
+    return predictions, accuracy, f1
 
 
 def evaluate_binary_models_from_files(data_str: str,
@@ -326,31 +328,38 @@ def evaluate_binary_models_from_files(data_str: str,
                                       test: bool,
                                       lr: typing.Union[str, float],
                                       num_epochs: int,
+                                      l: data_preprocessing.Label,
                                       model_name: str = 'vit_b_16',
                                       loss: str = 'BCE'):
     preprocessor = data_preprocessing.DataPreprocessor(data_str)
-    g_ground_truth = preprocessor.train_true_fine_data if g_str == 'fine' \
-        else preprocessor.train_true_coarse_data
+    if not test:
+        g_ground_truth = preprocessor.train_true_fine_data if g_str == 'fine' \
+            else preprocessor.train_true_coarse_data
+    else:
+        g_ground_truth = preprocessor.test_true_fine_data if g_str == 'fine' \
+            else preprocessor.test_true_coarse_data
     print(f'gt shape : {g_ground_truth.shape}')
 
-    for l in preprocessor.get_labels(g=preprocessor.granularities[g_str]).values():
-        l_file = models.get_filepath(data_str=data_str,
-                                     model_name=model_name,
-                                     l=l,
-                                     test=test,
-                                     loss=loss,
-                                     lr=lr,
-                                     pred=True,
-                                     epoch=num_epochs)
-        if os.path.exists(l_file):
-            predictions = np.load(l_file)
-            print(f'l_pred shape : {predictions.shape}')
-            # print(f'{l}:{np.sum(np.where(predictions == 1, 1, 0))}')
-            ground_truths = np.where(g_ground_truth == l.index, 1, 0)
-            neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
-                                                        loss=loss,
-                                                        true_data=ground_truths,
-                                                        test=test)
+    l_file = models.get_filepath(data_str=data_str,
+                                 model_name=model_name,
+                                 l=l,
+                                 test=test,
+                                 loss=loss,
+                                 lr=lr,
+                                 pred=True,
+                                 epoch=num_epochs)
+    if os.path.exists(l_file):
+        predictions = np.load(l_file)
+        print(f'l_pred shape : {predictions.shape}')
+        ground_truths = np.where(g_ground_truth == l.index, 1, 0)
+        accuracy, f1, precision, recall = neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
+                                                                                      loss=loss,
+                                                                                      true_data=ground_truths,
+                                                                                      test=test)
+        return accuracy, f1, precision, recall
+
+    else:
+        return None
 
 
 if __name__ == '__main__':

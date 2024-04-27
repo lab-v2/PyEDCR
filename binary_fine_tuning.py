@@ -22,7 +22,8 @@ def fine_tune_binary_model(data_str: str,
                            num_epochs: int,
                            positive_class_weight: list[float] = None,
                            save_files: bool = True,
-                           evaluate_on_test: bool = True):
+                           evaluate_on_test: bool = True,
+                           train_eval_split: float = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -40,6 +41,8 @@ def fine_tune_binary_model(data_str: str,
                                                         num_epochs=num_epochs,
                                                         lr=lr,
                                                         device=device)
+
+    max_f1 = 0
 
     print('#' * 100 + '\n')
 
@@ -78,7 +81,7 @@ def fine_tune_binary_model(data_str: str,
 
             print(np.unique(train_ground_truths, return_counts=True))
 
-            training_accuracy, training_f1 = neural_metrics.get_and_print_post_epoch_binary_metrics(
+            neural_metrics.get_and_print_post_epoch_binary_metrics(
                 epoch=epoch,
                 num_epochs=num_epochs,
                 train_predictions=train_predictions,
@@ -86,38 +89,35 @@ def fine_tune_binary_model(data_str: str,
                 total_running_loss=total_running_loss.item()
             )
 
-            if evaluate_on_test:
-                # test_ground_truths, test_predictions, test_accuracy = (
-                #     neural_evaluation.evaluate_binary_model(l=l,
-                #                                             fine_tuner=fine_tuner,
-                #                                             loaders=loaders,
-                #                                             loss=loss,
-                #                                             device=device,
-                #                                             split='test'))
-                if epoch == num_epochs - 1:
-                    neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
-                                                                     l=l,
-                                                                     split='test',
-                                                                     lr=lr,
-                                                                     loss='BCE',
-                                                                     num_epochs=num_epochs,
-                                                                     pretrained_fine_tuner=fine_tuner,
-                                                                     data_str=data_str)
-                    # neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
-                    #                                                  l=l,
-                    #                                                  split='train',
-                    #                                                  lr=lr,
-                    #                                                  loss='BCE',
-                    #                                                  num_epochs=num_epochs,
-                    #                                                  pretrained_fine_tuner=fine_tuner,
-                    #                                                  data_str=data_str)
-            print('#' * 100)
+            if train_eval_split is not None:
+                _, _, f1 = neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
+                                                                            l=l,
+                                                                            split='train_eval',
+                                                                            lr=lr,
+                                                                            loss='BCE',
+                                                                            num_epochs=num_epochs,
+                                                                            pretrained_fine_tuner=fine_tuner,
+                                                                            data_str=data_str,
+                                                                            train_eval_split=train_eval_split)
+                if max_f1 < f1:
+                    max_f1 = f1
+                if f1 > 0.7:
+                    break
+
+    if evaluate_on_test:
+        neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
+                                                         l=l,
+                                                         split='test',
+                                                         lr=lr,
+                                                         loss='BCE',
+                                                         num_epochs=num_epochs,
+                                                         pretrained_fine_tuner=fine_tuner,
+                                                         data_str=data_str)
+    print('#' * 100)
 
     if save_files:
         torch.save(fine_tuner.state_dict(),
                    f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
-
-    return train_predictions
 
 
 def run_l_binary_fine_tuning_pipeline(data_str: str,
@@ -125,12 +125,15 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       l: data_preprocessing.Label,
                                       lr: float,
                                       num_epochs: int,
-
+                                      train_eval_split: float = None,
                                       save_files: bool = True):
-    preprocessor, fine_tuners, loaders, devices = backbone_pipeline.initiate(data_str=data_str,
-                                                                             lr=lr,
-                                                                             model_name=model_name,
-                                                                             l=l)
+    preprocessor, fine_tuners, loaders, devices = backbone_pipeline.initiate(
+        data_str=data_str,
+        lr=lr,
+        model_name=model_name,
+        train_eval_split=train_eval_split,
+        l=l)
+
     for fine_tuner in fine_tuners:
         fine_tune_binary_model(data_str=data_str,
                                l=l,
@@ -139,31 +142,40 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                device=devices[0],
                                loaders=loaders,
                                num_epochs=num_epochs,
-                               save_files=save_files
+                               save_files=save_files,
+                               train_eval_split=train_eval_split
                                )
         print('#' * 100)
 
 
-# def run_g_binary_fine_tuning_pipeline(data: str,
-#                                       vit_model_names: list[str],
-#                                       g: data_preprocessing.Granularity,
-#                                       lr: float,
-#                                       num_epochs: int,
-#                                       save_files: bool = True):
-#     for l in data_preprocessing.get_labels(g=g).values():
-#         run_l_binary_fine_tuning_pipeline(data=data,
-#                                           model_names=vit_model_names,
-#                                           l=l,
-#                                           lr=lr,
-#                                           num_epochs=num_epochs,
-#                                           save_files=save_files)
+def run_l_binary_evaluating_pipeline_from_train(data_str: str,
+                                                model_name: str,
+                                                l: data_preprocessing.Label,
+                                                lr: float,
+                                                num_epochs: int,
+                                                train_eval_split: float = None,
+                                                save_files: bool = True):
+    pretrained_path = f"models/binary_models/binary_{l}_{model_name}_lr{lr}_loss_{loss}_e{num_epochs}.pth"
+    try:
+        neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
+                                                         l=l,
+                                                         split='train',
+                                                         lr=lr,
+                                                         loss='BCE',
+                                                         num_epochs=num_epochs,
+                                                         pretrained_path=pretrained_path,
+                                                         data_str=data_str)
+    except FileNotFoundError:
+        print(f'There is no pretrained {model_name} model for {l}')
+
+    print('#' * 100)
 
 
 if __name__ == '__main__':
-    data_str = 'imagenet'
-    num_epochs = 1
-    lr = 0.0001
-    model_name = 'dinov2_vits14'
+    data_str_in_main = 'imagenet'
+    num_epochs_in_main = 10
+    lr_in_main = 0.0001
+    model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
 
     # for g in data_preprocessing.granularities.values():
@@ -173,24 +185,35 @@ if __name__ == '__main__':
     #                                       num_epochs=num_epochs,
     #                                       save_files=True)
 
-    preprocessor = data_preprocessing.DataPreprocessor(data_str)
+    preprocessor_in_main = data_preprocessing.DataPreprocessor(data_str_in_main)
 
-    l_str = preprocessor.fine_grain_classes_str[1]
+    for label_idx in range(len(preprocessor_in_main.fine_grain_classes_str)):
+        l_str = preprocessor_in_main.fine_grain_classes_str[label_idx]
+        l_in_main = preprocessor_in_main.fine_grain_labels[l_str]
+        save_metric = neural_evaluation.evaluate_binary_models_from_files(data_str=data_str_in_main,
+                                                                          g_str='fine',
+                                                                          test=False,
+                                                                          lr=lr_in_main,
+                                                                          num_epochs=num_epochs_in_main,
+                                                                          model_name=model_name_in_main,
+                                                                          l=l_in_main)
+        if save_metric is not None:
+            if save_metric[1] > 0.7:
+                print(f'binary model of class {l_in_main} is finished with sufficient f1 score {save_metric[1]}')
+                print(f'get prediction from train set)')
+                run_l_binary_evaluating_pipeline_from_train(data_str=data_str_in_main,
+                                                            lr=lr_in_main,
+                                                            num_epochs=num_epochs_in_main,
+                                                            model_name=model_name_in_main,
+                                                            l=l_in_main)
+                continue
 
-    # for l_str in data_preprocessing.fine_grain_classes_str:
-    l = preprocessor.fine_grain_labels[l_str]
-    run_l_binary_fine_tuning_pipeline(data_str=data_str,
-                                      model_name=model_name,
-                                      l=l,
-                                      lr=lr,
-                                      num_epochs=num_epochs,
-                                      save_files=True)
-
-    neural_evaluation.evaluate_binary_models_from_files(data_str=data_str,
-                                                        g_str='fine',
-                                                        test=False,
-                                                        lr=lr,
-                                                        num_epochs=num_epochs)
+        run_l_binary_fine_tuning_pipeline(data_str=data_str_in_main,
+                                          model_name=model_name_in_main,
+                                          l=l_in_main,
+                                          lr=lr_in_main,
+                                          num_epochs=num_epochs_in_main,
+                                          save_files=True)
 
     # neural_evaluation.run_binary_evaluating_pipeline(
     #     model_name=model_name,

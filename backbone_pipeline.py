@@ -151,11 +151,11 @@ def save_binary_prediction_files(data_str: str,
                                 data_str=data_str),
             predictions)
 
-    if data_str == 'image_net':
+    if data_str == 'imagenet':
         preprocessor = data_preprocessing.DataPreprocessor(data_str)
         for id, label_str in preprocessor.fine_grain_mapping_dict.items():
             if label_str == l.l_str:
-                np.save(f"data/{test_str}_{l.g.g_str}/{id}/binary_true.npy",
+                np.save(f"data/ImageNet100/{test_str}_{l.g.g_str}/{id}/binary_true.npy",
                         ground_truths)
                 break
 
