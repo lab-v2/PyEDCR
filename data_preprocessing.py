@@ -1,11 +1,11 @@
 import os
-
 import numpy as np
 import torch
 import torchvision
 import pandas as pd
 import torch.utils.data
 import pathlib
+
 import typing
 import abc
 import random
@@ -664,55 +664,55 @@ class BinaryImageFolder(EDCRImageFolder):
                  evaluation: bool = False):
         self.evaluation = evaluation
 
-        if not evaluation:
-            super().__init__(root=root, transform=transform)
-            self.l = l.index
-            self.balanced_samples = []
-
-            # Count the number of images per class
-            class_counts = {target: 0 for _, target in self.samples}
-            for _, target in self.samples:
-                class_counts[target] += 1
-
-            # Number of positive examples
-            positive_count = class_counts[self.l]
-
-            # Calculate the number of negatives to sample from each of the other classes
-            other_classes = [cls for cls in class_counts.keys() if cls != self.l]
-            negative_samples_per_class = positive_count // len(other_classes)
-
-            # Sample negatives
-
-            for cls in other_classes:
-                cls_samples = [(path, target) for path, target in self.samples if target == cls]
-                self.balanced_samples.extend(
-                    random.sample(cls_samples, min(negative_samples_per_class, len(cls_samples))))
-
-            # Add positive examples
-            self.balanced_samples.extend([(path, target) for path, target in self.samples if target == self.l])
-
-            # Shuffle the dataset
-            random.shuffle(self.balanced_samples)
-        else:
-            super().__init__(root=root,
-                             transform=transform,
-                             target_transform=lambda y: int(y == l.index))
+        # if not evaluation:
+        #     super().__init__(root=root, transform=transform)
+        #     self.l = l.index
+        #     self.balanced_samples = []
+        #
+        #     # Count the number of images per class
+        #     class_counts = {target: 0 for _, target in self.samples}
+        #     for _, target in self.samples:
+        #         class_counts[target] += 1
+        #
+        #     # Number of positive examples
+        #     positive_count = class_counts[self.l]
+        #
+        #     # Calculate the number of negatives to sample from each of the other classes
+        #     other_classes = [cls for cls in class_counts.keys() if cls != self.l]
+        #     negative_samples_per_class = positive_count // len(other_classes)
+        #
+        #     # Sample negatives
+        #
+        #     for cls in other_classes:
+        #         cls_samples = [(path, target) for path, target in self.samples if target == cls]
+        #         self.balanced_samples.extend(
+        #             random.sample(cls_samples, min(negative_samples_per_class, len(cls_samples))))
+        #
+        #     # Add positive examples
+        #     self.balanced_samples.extend([(path, target) for path, target in self.samples if target == self.l])
+        #
+        #     # Shuffle the dataset
+        #     random.shuffle(self.balanced_samples)
+        # else:
+        super().__init__(root=root,
+                         transform=transform,
+                         target_transform=lambda y: int(y == l.index))
 
     def __getitem__(self, index: int):
-        if self.evaluation:
-            return super().__getitem__(index)
+        # if self.evaluation:
+        return super().__getitem__(index)
 
-        path, target = self.balanced_samples[index]
-        sample = self.loader(path)
-        if self.transform is not None:
-            sample = self.transform(sample)
-        # Convert the target to binary (1 for the chosen class, 0 for others)
-        target = int(target == self.l)
+        # path, target = self.balanced_samples[index]
+        # sample = self.loader(path)
+        # if self.transform is not None:
+        #     sample = self.transform(sample)
+        # # Convert the target to binary (1 for the chosen class, 0 for others)
+        # target = int(target == self.l)
 
-        return sample, target
+        # return sample, target
 
-    def __len__(self):
-        return len(self.samples if self.evaluation else self.balanced_samples)
+    # def __len__(self):
+    #     return len(self.samples if self.evaluation else self.balanced_samples)
 
 
 class IndividualImageFolderWithName(EDCRImageFolder):
@@ -879,11 +879,15 @@ def get_loaders(preprocessor: DataPreprocessor,
             weight[label.index] = 1
             samples_weight = np.array([weight[t] for t in preprocessor.train_true_fine_data])
             samples_weight = torch.from_numpy(samples_weight / np.sum(samples_weight))
+            sampler = torch.utils.data.sampler.WeightedRandomSampler(
+                samples_weight.type('torch.DoubleTensor'),
+                len(samples_weight)
+            )
             if split == 'train':
                 loaders[split] = torch.utils.data.DataLoader(
                     dataset=loader_dataset,
                     batch_size=batch_size,
-                    sampler=samples_weight,
+                    sampler=sampler,
                     num_workers=4,
                 )
             else:

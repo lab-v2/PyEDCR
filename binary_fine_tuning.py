@@ -76,6 +76,7 @@ def fine_tune_binary_model(data_str: str,
                         train_ground_truths += Y.tolist()
 
                         del X, Y, Y_pred
+                    break
 
                 print(np.unique(train_ground_truths, return_counts=True))
 
@@ -104,14 +105,14 @@ def fine_tune_binary_model(data_str: str,
                                                                          num_epochs=num_epochs,
                                                                          pretrained_fine_tuner=fine_tuner,
                                                                          data_str=data_str)
-                        neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
-                                                                         l=l,
-                                                                         split='train',
-                                                                         lr=lr,
-                                                                         loss='BCE',
-                                                                         num_epochs=num_epochs,
-                                                                         pretrained_fine_tuner=fine_tuner,
-                                                                         data_str=data_str)
+                        # neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
+                        #                                                  l=l,
+                        #                                                  split='train',
+                        #                                                  lr=lr,
+                        #                                                  loss='BCE',
+                        #                                                  num_epochs=num_epochs,
+                        #                                                  pretrained_fine_tuner=fine_tuner,
+                        #                                                  data_str=data_str)
                 print('#' * 100)
 
         if save_files:
