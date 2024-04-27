@@ -22,7 +22,8 @@ def fine_tune_binary_model(data_str: str,
                            num_epochs: int,
                            positive_class_weight: list[float] = None,
                            save_files: bool = True,
-                           evaluate_on_test: bool = True):
+                           evaluate_on_test: bool = True,
+                           train_eval_split: float = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -41,10 +42,12 @@ def fine_tune_binary_model(data_str: str,
                                                         lr=lr,
                                                         device=device)
 
+    max_f1 = 0
+
     print('#' * 100 + '\n')
 
     for epoch in range(num_epochs):
-        with context_handlers.TimeWrapper():
+        with (context_handlers.TimeWrapper()):
             total_running_loss = torch.Tensor([0.0]).to(device)
 
             train_predictions = []
@@ -78,7 +81,7 @@ def fine_tune_binary_model(data_str: str,
 
             print(np.unique(train_ground_truths, return_counts=True))
 
-            training_accuracy, training_f1 = neural_metrics.get_and_print_post_epoch_binary_metrics(
+            neural_metrics.get_and_print_post_epoch_binary_metrics(
                 epoch=epoch,
                 num_epochs=num_epochs,
                 train_predictions=train_predictions,
@@ -86,38 +89,35 @@ def fine_tune_binary_model(data_str: str,
                 total_running_loss=total_running_loss.item()
             )
 
-            if evaluate_on_test:
-                # test_ground_truths, test_predictions, test_accuracy = (
-                #     neural_evaluation.evaluate_binary_model(l=l,
-                #                                             fine_tuner=fine_tuner,
-                #                                             loaders=loaders,
-                #                                             loss=loss,
-                #                                             device=device,
-                #                                             split='test'))
-                if epoch == num_epochs - 1:
-                    neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
-                                                                     l=l,
-                                                                     split='test',
-                                                                     lr=lr,
-                                                                     loss='BCE',
-                                                                     num_epochs=num_epochs,
-                                                                     pretrained_fine_tuner=fine_tuner,
-                                                                     data_str=data_str)
-                    # neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
-                    #                                                  l=l,
-                    #                                                  split='train',
-                    #                                                  lr=lr,
-                    #                                                  loss='BCE',
-                    #                                                  num_epochs=num_epochs,
-                    #                                                  pretrained_fine_tuner=fine_tuner,
-                    #                                                  data_str=data_str)
-            print('#' * 100)
+            if train_eval_split is not None:
+                _, _, f1 = neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
+                                                                            l=l,
+                                                                            split='train_eval',
+                                                                            lr=lr,
+                                                                            loss='BCE',
+                                                                            num_epochs=num_epochs,
+                                                                            pretrained_fine_tuner=fine_tuner,
+                                                                            data_str=data_str,
+                                                                            train_eval_split=train_eval_split)
+                if max_f1 < f1:
+                    max_f1 = f1
+                if f1 > 0.7:
+                    break
+
+    if evaluate_on_test:
+        neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
+                                                         l=l,
+                                                         split='test',
+                                                         lr=lr,
+                                                         loss='BCE',
+                                                         num_epochs=num_epochs,
+                                                         pretrained_fine_tuner=fine_tuner,
+                                                         data_str=data_str)
+    print('#' * 100)
 
     if save_files:
         torch.save(fine_tuner.state_dict(),
                    f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
-
-    return train_predictions
 
 
 def run_l_binary_fine_tuning_pipeline(data_str: str,
@@ -125,12 +125,13 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       l: data_preprocessing.Label,
                                       lr: float,
                                       num_epochs: int,
-
+                                      train_eval_split: float = None,
                                       save_files: bool = True):
     preprocessor, fine_tuners, loaders, devices, positive_class_weight = backbone_pipeline.initiate(
         data_str=data_str,
         lr=lr,
         model_name=model_name,
+        train_eval_split=train_eval_split,
         l=l)
 
     for fine_tuner in fine_tuners:
@@ -141,7 +142,8 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                device=devices[0],
                                loaders=loaders,
                                num_epochs=num_epochs,
-                               save_files=save_files
+                               save_files=save_files,
+                               train_eval_split=train_eval_split
                                )
         print('#' * 100)
 
@@ -190,7 +192,7 @@ if __name__ == '__main__':
                                                                           l=l_in_main)
         if save_metric is not None:
             if save_metric[1] > 0.7:
-                print(f'binary model of class {l_in_main} is finish with sufficient f1 score {save_metric[1]}')
+                print(f'binary model of class {l_in_main} is finished with sufficient f1 score {save_metric[1]}')
                 continue
 
         run_l_binary_fine_tuning_pipeline(data_str=data_str_in_main,
