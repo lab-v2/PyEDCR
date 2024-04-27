@@ -310,7 +310,7 @@ def run_binary_evaluating_pipeline(data_str: str,
     if save_files:
         backbone_pipeline.save_binary_prediction_files(test=split == 'test',
                                                        fine_tuner=fine_tuner,
-                                                       lr=lr[0],
+                                                       lr=lr,
                                                        epoch=num_epochs,
                                                        l=l,
                                                        predictions=predictions,
