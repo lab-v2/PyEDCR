@@ -15,7 +15,7 @@ import neural_fine_tuning
 
 def fine_tune_binary_model(data_str: str,
                            l: data_preprocessing.Label,
-                           lrs: list[typing.Union[str, float]],
+                           lr: float,
                            fine_tuner: models.FineTuner,
                            device: torch.device,
                            loaders: dict[str, torch.utils.data.DataLoader],
@@ -33,92 +33,91 @@ def fine_tune_binary_model(data_str: str,
     else:
         criterion = torch.nn.BCEWithLogitsLoss()
 
-    for lr in lrs:
-        optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
-                                     lr=lr)
+    optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
+                                 lr=lr)
 
-        neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
-                                                            num_epochs=num_epochs,
-                                                            lr=lr,
-                                                            device=device)
+    neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
+                                                        num_epochs=num_epochs,
+                                                        lr=lr,
+                                                        device=device)
 
-        print('#' * 100 + '\n')
+    print('#' * 100 + '\n')
 
-        for epoch in range(num_epochs):
-            with context_handlers.TimeWrapper():
-                total_running_loss = torch.Tensor([0.0]).to(device)
+    for epoch in range(num_epochs):
+        with context_handlers.TimeWrapper():
+            total_running_loss = torch.Tensor([0.0]).to(device)
 
-                train_predictions = []
-                train_ground_truths = []
+            train_predictions = []
+            train_ground_truths = []
 
-                batches = tqdm(enumerate(train_loader, 0),
-                               total=num_batches)
+            batches = tqdm(enumerate(train_loader, 0),
+                           total=num_batches)
 
-                for batch_num, batch in batches:
-                    with context_handlers.ClearCache(device=device):
-                        X, Y = batch[0].to(device), batch[1].to(device)
-                        Y_one_hot = torch.nn.functional.one_hot(Y, num_classes=2).float()
-                        optimizer.zero_grad()
-                        Y_pred = fine_tuner(X)
+            for batch_num, batch in batches:
+                with context_handlers.ClearCache(device=device):
+                    X, Y = batch[0].to(device), batch[1].to(device)
+                    Y_one_hot = torch.nn.functional.one_hot(Y, num_classes=2).float()
+                    optimizer.zero_grad()
+                    Y_pred = fine_tuner(X)
 
-                        batch_total_loss = criterion(Y_pred, Y_one_hot)
+                    batch_total_loss = criterion(Y_pred, Y_one_hot)
 
-                        neural_metrics.print_post_batch_metrics(batch_num=batch_num,
-                                                                num_batches=num_batches,
-                                                                batch_total_loss=batch_total_loss.item())
+                    neural_metrics.print_post_batch_metrics(batch_num=batch_num,
+                                                            num_batches=num_batches,
+                                                            batch_total_loss=batch_total_loss.item())
 
-                        batch_total_loss.backward()
-                        optimizer.step()
+                    batch_total_loss.backward()
+                    optimizer.step()
 
-                        total_running_loss += batch_total_loss.item()
-                        predicted = torch.max(Y_pred, 1)[1]
-                        train_predictions += predicted.tolist()
-                        train_ground_truths += Y.tolist()
+                    total_running_loss += batch_total_loss.item()
+                    predicted = torch.max(Y_pred, 1)[1]
+                    train_predictions += predicted.tolist()
+                    train_ground_truths += Y.tolist()
 
-                        del X, Y, Y_pred
+                    del X, Y, Y_pred
 
-                print(np.unique(train_ground_truths, return_counts=True))
+            print(np.unique(train_ground_truths, return_counts=True))
 
-                training_accuracy, training_f1 = neural_metrics.get_and_print_post_epoch_binary_metrics(
-                    epoch=epoch,
-                    num_epochs=num_epochs,
-                    train_predictions=train_predictions,
-                    train_ground_truths=train_ground_truths,
-                    total_running_loss=total_running_loss.item()
-                )
+            training_accuracy, training_f1 = neural_metrics.get_and_print_post_epoch_binary_metrics(
+                epoch=epoch,
+                num_epochs=num_epochs,
+                train_predictions=train_predictions,
+                train_ground_truths=train_ground_truths,
+                total_running_loss=total_running_loss.item()
+            )
 
-                if evaluate_on_test:
-                    # test_ground_truths, test_predictions, test_accuracy = (
-                    #     neural_evaluation.evaluate_binary_model(l=l,
-                    #                                             fine_tuner=fine_tuner,
-                    #                                             loaders=loaders,
-                    #                                             loss=loss,
-                    #                                             device=device,
-                    #                                             split='test'))
-                    if epoch == num_epochs - 1:
-                        neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
-                                                                         l=l,
-                                                                         split='test',
-                                                                         lr=lr,
-                                                                         loss='BCE',
-                                                                         num_epochs=num_epochs,
-                                                                         pretrained_fine_tuner=fine_tuner,
-                                                                         data_str=data_str)
-                        # neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
-                        #                                                  l=l,
-                        #                                                  split='train',
-                        #                                                  lr=lr,
-                        #                                                  loss='BCE',
-                        #                                                  num_epochs=num_epochs,
-                        #                                                  pretrained_fine_tuner=fine_tuner,
-                        #                                                  data_str=data_str)
-                print('#' * 100)
+            if evaluate_on_test:
+                # test_ground_truths, test_predictions, test_accuracy = (
+                #     neural_evaluation.evaluate_binary_model(l=l,
+                #                                             fine_tuner=fine_tuner,
+                #                                             loaders=loaders,
+                #                                             loss=loss,
+                #                                             device=device,
+                #                                             split='test'))
+                if epoch == num_epochs - 1:
+                    neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
+                                                                     l=l,
+                                                                     split='test',
+                                                                     lr=lr,
+                                                                     loss='BCE',
+                                                                     num_epochs=num_epochs,
+                                                                     pretrained_fine_tuner=fine_tuner,
+                                                                     data_str=data_str)
+                    # neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
+                    #                                                  l=l,
+                    #                                                  split='train',
+                    #                                                  lr=lr,
+                    #                                                  loss='BCE',
+                    #                                                  num_epochs=num_epochs,
+                    #                                                  pretrained_fine_tuner=fine_tuner,
+                    #                                                  data_str=data_str)
+            print('#' * 100)
 
-        if save_files:
-            torch.save(fine_tuner.state_dict(),
-                       f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
+    if save_files:
+        torch.save(fine_tuner.state_dict(),
+                   f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
 
-        return train_predictions
+    return train_predictions
 
 
 def run_l_binary_fine_tuning_pipeline(data_str: str,
@@ -135,7 +134,7 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
     for fine_tuner in fine_tuners:
         fine_tune_binary_model(data_str=data_str,
                                l=l,
-                               lrs=[lr],
+                               lr=lr,
                                fine_tuner=fine_tuner,
                                device=devices[0],
                                loaders=loaders,

@@ -239,7 +239,7 @@ def initiate(data_str: str,
 
     datasets = data_preprocessing.get_datasets(preprocessor=preprocessor,
                                                combined=combined,
-                                               # binary_label=l,
+                                               binary_label=l,
                                                evaluation=evaluation,
                                                error_fixing=error_indices is not None,
                                                model_name=model_name,
