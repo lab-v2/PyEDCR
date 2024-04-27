@@ -660,9 +660,12 @@ class BinaryImageFolder(EDCRImageFolder):
     def __init__(self,
                  root: str,
                  l: Label,
+                 preprocessor: DataPreprocessor,
                  transform: typing.Optional[typing.Callable] = None,
-                 evaluation: bool = False):
+                 evaluation: bool = False,):
         self.evaluation = evaluation
+        self.preprocessor = preprocessor
+        self.l = l
 
         # if not evaluation:
         #     super().__init__(root=root, transform=transform)
@@ -696,20 +699,23 @@ class BinaryImageFolder(EDCRImageFolder):
         # else:
         super().__init__(root=root,
                          transform=transform,
-                         target_transform=lambda y: int(y == l.index))
+                         target_transform=transform,
+                         relevant_classes=
+                         list(self.preprocessor.fine_grain_mapping_dict.keys())
+                         if preprocessor.data_str == 'imagenet' else None)
 
     def __getitem__(self, index: int):
         # if self.evaluation:
-        return super().__getitem__(index)
+        #     return super().__getitem__(index)
 
-        # path, target = self.balanced_samples[index]
-        # sample = self.loader(path)
-        # if self.transform is not None:
-        #     sample = self.transform(sample)
-        # # Convert the target to binary (1 for the chosen class, 0 for others)
-        # target = int(target == self.l)
+        path, target = self.samples[index]
+        sample = self.loader(path)
+        if self.transform is not None:
+            sample = self.transform(sample)
+        # Convert the target to binary (1 for the chosen class, 0 for others)
+        target = int(target == self.l)
 
-        # return sample, target
+        return sample, target
 
     # def __len__(self):
     #     return len(self.samples if self.evaluation else self.balanced_samples)
@@ -801,6 +807,7 @@ def get_datasets(preprocessor: DataPreprocessor,
                                                         transform=get_dataset_transforms(data=preprocessor.data_str,
                                                                                          train_or_test=train_or_test),
                                                         l=binary_label,
+                                                        preprocessor=preprocessor,
                                                         evaluation=evaluation)
         elif combined:
             datasets[train_or_test] = CombinedImageFolderWithName(preprocessor=preprocessor,
