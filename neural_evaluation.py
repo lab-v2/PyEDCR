@@ -171,15 +171,13 @@ def evaluate_binary_model(l: data_preprocessing.Label,
     predictions = []
     ground_truths = []
     accuracy = 0
+    f1 = 0
 
     print(utils.blue_text(f'Evaluating binary {fine_tuner} with l={l} on {split} using {device}...'))
 
     with torch.no_grad():
-        if utils.is_local():
-            from tqdm import tqdm
-            gen = tqdm(enumerate(loader), total=len(loader))
-        else:
-            gen = enumerate(loader)
+        from tqdm import tqdm
+        gen = tqdm(enumerate(loader), total=len(loader))
 
         for i, data in gen:
             X, Y = data[0].to(device), data[1].to(device)

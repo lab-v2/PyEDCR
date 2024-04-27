@@ -155,7 +155,6 @@ def run_l_binary_evaluating_pipeline(data_str: str,
                                      num_epochs: int,
                                      train_eval_split: float = None,
                                      save_files: bool = True):
-
     pretrained_path = f"models/binary_models/binary_{l}_{model_name}_lr{lr}_loss_{loss}_e{num_epochs}.pth"
     try:
         neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
@@ -170,7 +169,6 @@ def run_l_binary_evaluating_pipeline(data_str: str,
         print(f'There is no pretrained {model_name} model for {l}')
 
     print('#' * 100)
-
 
 
 if __name__ == '__main__':
@@ -193,10 +191,10 @@ if __name__ == '__main__':
         l_str = preprocessor_in_main.fine_grain_classes_str[label_idx]
         l_in_main = preprocessor_in_main.fine_grain_labels[l_str]
         run_l_binary_evaluating_pipeline(data_str=data_str_in_main,
-                                          lr=lr_in_main,
-                                          num_epochs=num_epochs_in_main,
-                                          model_name=model_name_in_main,
-                                          l=l_in_main)
+                                         lr=lr_in_main,
+                                         num_epochs=num_epochs_in_main,
+                                         model_name=model_name_in_main,
+                                         l=l_in_main)
 
         # save_metric = neural_evaluation.evaluate_binary_models_from_files(data_str=data_str_in_main,
         #                                                                   g_str='fine',
