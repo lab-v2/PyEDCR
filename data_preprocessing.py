@@ -559,7 +559,6 @@ class EDCRImageFolder(torchvision.datasets.ImageFolder):
         pass
 
 
-
 class CombinedImageFolderWithName(EDCRImageFolder):
     """
     Subclass of torchvision.datasets for a combined coarse and fine grain models that returns an image with its filename
@@ -622,8 +621,6 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
         self.fine_predictions = fine_predictions
         self.coarse_predictions = coarse_predictions
         self.original_number_of_samples = fine_predictions.shape[0]
-        self.positive_samples = []
-        self.negative_samples = []
 
         super().__init__(root=root,
                          transform=transform,
@@ -631,33 +628,42 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
                          relevant_classes=
                          list(self.preprocessor.fine_grain_mapping_dict.keys())
                          if preprocessor.data_str == 'imagenet' else None)
+
+        samples = []
+        self.positive_samples = []
+        self.negative_samples = []
+
+        for index, (x_path, y_true_fine) in enumerate(self.samples):
+            y_pred_fine = self.fine_predictions[index]
+            y_pred_coarse = self.coarse_predictions[index]
+            y_true_coarse = self.preprocessor.fine_to_course_idx[y_true_fine]
+
+
+            error = self.get_error(y_pred_fine=y_pred_fine,
+                                   y_pred_coarse=y_pred_coarse,
+                                   y_true_fine=y_true_fine,
+                                   y_true_coarse=y_true_coarse)
+            element = (x_path, y_pred_fine, y_pred_coarse, error)
+
+            if error:
+                self.positive_samples += [element]
+            else:
+                self.negative_samples += [element]
+
+            samples += [element]
+
+
+        self.samples = samples
         self.balance_samples()
 
-    def get_error(self,
-                  index: int) -> int:
-        _, y_true_fine = self.samples[index]
-        y_true_coarse = self.preprocessor.fine_to_course_idx[y_true_fine]
-
-        if index >= self.original_number_of_samples:
-            index = (index - self.original_number_of_samples) % len(self.positive_samples)
-
-        y_pred_fine = self.fine_predictions[index]
-        y_pred_coarse = self.coarse_predictions[index]
-
-        error = int(y_pred_fine != y_true_fine or y_pred_coarse != y_true_coarse)
-
-        return error
+    @staticmethod
+    def get_error(y_pred_fine: int,
+                  y_pred_coarse,
+                  y_true_fine,
+                  y_true_coarse) -> int:
+        return int(y_pred_fine != y_true_fine or y_pred_coarse != y_true_coarse)
 
     def balance_samples(self):
-        for index in range(len(self.samples)):
-            assert index < self.original_number_of_samples
-            sample = self.samples[index]
-
-            if self.get_error(index):
-                self.positive_samples += [sample]
-            else:
-                self.negative_samples += [sample]
-
         ratio = int(len(self.negative_samples) / len(self.positive_samples))
         self.samples.extend(self.positive_samples * ratio)
 
@@ -672,19 +678,11 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
         index: Index of the image in the dataset
         """
 
-        x_path, y_true_fine = self.samples[index]
-        y_true_coarse = self.preprocessor.fine_to_course_idx[y_true_fine]
+        x_path, y_pred_fine, y_pred_coarse, error = self.samples[index]
         x = self.loader(x_path)
 
         if self.transform is not None:
             x = self.transform(x)
-        if self.target_transform is not None:
-            y_true_fine = self.target_transform(y_true_fine)
-
-        y_pred_fine = self.fine_predictions[index]
-        y_pred_coarse = self.coarse_predictions[index]
-
-        error = self.get_error(index=index)
 
         return x, y_pred_fine, y_pred_coarse, error
 
