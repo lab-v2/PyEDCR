@@ -161,7 +161,7 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
 
 if __name__ == '__main__':
     data_str = 'imagenet'
-    num_epochs = 10
+    num_epochs = 1
     lr = 0.0001
     model_name = 'dinov2_vits14'
     loss = 'BCE'

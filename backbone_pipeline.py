@@ -151,8 +151,17 @@ def save_binary_prediction_files(data_str: str,
                                 data_str=data_str),
             predictions)
 
-    np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
-            ground_truths)
+    if data_str == 'image_net':
+        preprocessor = data_preprocessing.DataPreprocessor(data_str)
+        for id, label_str in preprocessor.fine_grain_mapping_dict.items():
+            if label_str == l.l_str:
+                np.save(f"data/{test_str}_{l.g.g_str}/{id}/binary_true.npy",
+                        ground_truths)
+                break
+
+    else:
+        np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
+                ground_truths)
 
     if not evaluation:
         torch.save(fine_tuner.state_dict(),
