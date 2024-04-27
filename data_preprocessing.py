@@ -717,7 +717,7 @@ class BinaryImageFolder(EDCRImageFolder):
         if self.transform is not None:
             sample = self.transform(sample)
         # Convert the target to binary (1 for the chosen class, 0 for others)
-        target = int(target == self.l)
+        target = int(target == self.l.index)
 
         return sample, target
 
