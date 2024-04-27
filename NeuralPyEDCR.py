@@ -212,8 +212,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            multi_process=multi_process)
                 self.apply_detection_rules(test=False, g=g)
 
-            self.run_training_correction_model_pipeline(new_model_name=new_model_name,
-                                                        new_lr=new_lr)
+            # self.run_training_correction_model_pipeline(new_model_name=new_model_name,
+            #                                             new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
