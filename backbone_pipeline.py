@@ -116,7 +116,8 @@ def save_prediction_files(data_str: str,
         #             fine_ground_truths)
 
 
-def save_binary_prediction_files(test: bool,
+def save_binary_prediction_files(data_str: str,
+                                 test: bool,
                                  fine_tuner: typing.Union[models.FineTuner, typing.Dict[str, models.FineTuner]],
                                  lr: typing.Union[str, float],
                                  predictions: np.array,
@@ -146,7 +147,8 @@ def save_binary_prediction_files(test: bool,
                                 loss=loss,
                                 lr=lr,
                                 pred=True,
-                                epoch=epoch),
+                                epoch=epoch,
+                                data_str=data_str),
             predictions)
 
     np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",

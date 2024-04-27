@@ -315,7 +315,8 @@ def run_binary_evaluating_pipeline(data_str: str,
                                                        l=l,
                                                        predictions=predictions,
                                                        ground_truths=ground_truths,
-                                                       evaluation=True)
+                                                       evaluation=True,
+                                                       data_str=data_str)
 
     return predictions, accuracy
 
