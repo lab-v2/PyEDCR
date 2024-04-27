@@ -95,7 +95,7 @@ def fine_tune_binary_model(data_str: str,
                 #                                             device=device,
                 #                                             split='test'))
                 if epoch == num_epochs - 1:
-                    neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name,
+                    neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
                                                                      l=l,
                                                                      split='test',
                                                                      lr=lr,
@@ -127,10 +127,12 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       num_epochs: int,
 
                                       save_files: bool = True):
-    preprocessor, fine_tuners, loaders, devices, positive_class_weight = backbone_pipeline.initiate(data_str=data_str,
-                                                                                                    lr=lr,
-                                                                                                    model_name=model_name,
-                                                                                                    l=l)
+    preprocessor, fine_tuners, loaders, devices, positive_class_weight = backbone_pipeline.initiate(
+        data_str=data_str,
+        lr=lr,
+        model_name=model_name,
+        l=l)
+
     for fine_tuner in fine_tuners:
         fine_tune_binary_model(data_str=data_str,
                                l=l,
@@ -160,10 +162,10 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
 
 
 if __name__ == '__main__':
-    data_str = 'imagenet'
-    num_epochs = 1
-    lr = 0.0001
-    model_name = 'dinov2_vits14'
+    data_str_in_main = 'imagenet'
+    num_epochs_in_main = 10
+    lr_in_main = 0.0001
+    model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
 
     # for g in data_preprocessing.granularities.values():
@@ -173,25 +175,30 @@ if __name__ == '__main__':
     #                                       num_epochs=num_epochs,
     #                                       save_files=True)
 
-    preprocessor = data_preprocessing.DataPreprocessor(data_str)
+    preprocessor_in_main = data_preprocessing.DataPreprocessor(data_str_in_main)
 
-    l_str = preprocessor.fine_grain_classes_str[1]
+    for label_idx in range(len(preprocessor_in_main.fine_grain_classes_str)):
+        l_str = preprocessor_in_main.fine_grain_classes_str[label_idx]
+        l_in_main = preprocessor_in_main.fine_grain_labels[l_str]
 
-    # for l_str in data_preprocessing.fine_grain_classes_str:
-    l = preprocessor.fine_grain_labels[l_str]
-    run_l_binary_fine_tuning_pipeline(data_str=data_str,
-                                      model_name=model_name,
-                                      l=l,
-                                      lr=lr,
-                                      num_epochs=num_epochs,
-                                      save_files=True)
+        save_metric = neural_evaluation.evaluate_binary_models_from_files(data_str=data_str_in_main,
+                                                                          g_str='fine',
+                                                                          test=False,
+                                                                          lr=lr_in_main,
+                                                                          num_epochs=num_epochs_in_main,
+                                                                          model_name=model_name_in_main,
+                                                                          l=l_in_main)
+        if save_metric is not None:
+            if save_metric[1] > 0.7:
+                print(f'binary model of class {l_in_main} is finish with sufficient f1 score {save_metric[1]}')
+                continue
 
-    neural_evaluation.evaluate_binary_models_from_files(data_str=data_str,
-                                                        g_str='fine',
-                                                        test=False,
-                                                        lr=lr,
-                                                        num_epochs=num_epochs,
-                                                        model_name=model_name)
+        run_l_binary_fine_tuning_pipeline(data_str=data_str_in_main,
+                                          model_name=model_name_in_main,
+                                          l=l_in_main,
+                                          lr=lr_in_main,
+                                          num_epochs=num_epochs_in_main,
+                                          save_files=True)
 
     # neural_evaluation.run_binary_evaluating_pipeline(
     #     model_name=model_name,

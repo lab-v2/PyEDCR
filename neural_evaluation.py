@@ -326,6 +326,7 @@ def evaluate_binary_models_from_files(data_str: str,
                                       test: bool,
                                       lr: typing.Union[str, float],
                                       num_epochs: int,
+                                      l: data_preprocessing.Label,
                                       model_name: str = 'vit_b_16',
                                       loss: str = 'BCE'):
     preprocessor = data_preprocessing.DataPreprocessor(data_str)
@@ -337,24 +338,26 @@ def evaluate_binary_models_from_files(data_str: str,
             else preprocessor.test_true_coarse_data
     print(f'gt shape : {g_ground_truth.shape}')
 
-    for l in preprocessor.get_labels(g=preprocessor.granularities[g_str]).values():
-        l_file = models.get_filepath(data_str=data_str,
-                                     model_name=model_name,
-                                     l=l,
-                                     test=test,
-                                     loss=loss,
-                                     lr=lr,
-                                     pred=True,
-                                     epoch=num_epochs)
-        if os.path.exists(l_file):
-            predictions = np.load(l_file)
-            print(f'l_pred shape : {predictions.shape}')
-            # print(f'{l}:{np.sum(np.where(predictions == 1, 1, 0))}')
-            ground_truths = np.where(g_ground_truth == l.index, 1, 0)
-            neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
-                                                        loss=loss,
-                                                        true_data=ground_truths,
-                                                        test=test)
+    l_file = models.get_filepath(data_str=data_str,
+                                 model_name=model_name,
+                                 l=l,
+                                 test=test,
+                                 loss=loss,
+                                 lr=lr,
+                                 pred=True,
+                                 epoch=num_epochs)
+    if os.path.exists(l_file):
+        predictions = np.load(l_file)
+        print(f'l_pred shape : {predictions.shape}')
+        ground_truths = np.where(g_ground_truth == l.index, 1, 0)
+        accuracy, f1, precision, recall = neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
+                                                                                      loss=loss,
+                                                                                      true_data=ground_truths,
+                                                                                      test=test)
+        return accuracy, f1, precision, recall
+
+    else:
+        return None
 
 
 if __name__ == '__main__':
