@@ -47,7 +47,7 @@ def fine_tune_binary_model(data_str: str,
     print('#' * 100 + '\n')
 
     for epoch in range(num_epochs):
-        with (context_handlers.TimeWrapper()):
+        with context_handlers.TimeWrapper():
             total_running_loss = torch.Tensor([0.0]).to(device)
 
             train_predictions = []
@@ -127,7 +127,7 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       num_epochs: int,
                                       train_eval_split: float = None,
                                       save_files: bool = True):
-    preprocessor, fine_tuners, loaders, devices, positive_class_weight = backbone_pipeline.initiate(
+    preprocessor, fine_tuners, loaders, devices = backbone_pipeline.initiate(
         data_str=data_str,
         lr=lr,
         model_name=model_name,

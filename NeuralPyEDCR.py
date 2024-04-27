@@ -36,7 +36,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  secondary_model_loss: str = None,
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
-                 binary_models: typing.List[str] = [],
+                 binary_l_strs: typing.List[str] = [],
                  experiment_name: str = None,
                  num_train_images_per_class: int = None):
 
@@ -55,7 +55,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            secondary_model_loss=secondary_model_loss,
                                            secondary_num_epochs=secondary_num_epochs,
                                            lower_predictions_indices=lower_predictions_indices,
-                                           binary_l_strs=binary_models)
+                                           binary_l_strs=binary_l_strs)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
