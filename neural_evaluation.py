@@ -329,8 +329,12 @@ def evaluate_binary_models_from_files(data_str: str,
                                       model_name: str = 'vit_b_16',
                                       loss: str = 'BCE'):
     preprocessor = data_preprocessing.DataPreprocessor(data_str)
-    g_ground_truth = preprocessor.train_true_fine_data if g_str == 'fine' \
-        else preprocessor.train_true_coarse_data
+    if not test:
+        g_ground_truth = preprocessor.train_true_fine_data if g_str == 'fine' \
+            else preprocessor.train_true_coarse_data
+    else:
+        g_ground_truth = preprocessor.test_true_fine_data if g_str == 'fine' \
+            else preprocessor.test_true_coarse_data
     print(f'gt shape : {g_ground_truth.shape}')
 
     for l in preprocessor.get_labels(g=preprocessor.granularities[g_str]).values():

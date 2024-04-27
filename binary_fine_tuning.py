@@ -190,7 +190,8 @@ if __name__ == '__main__':
                                                         g_str='fine',
                                                         test=False,
                                                         lr=lr,
-                                                        num_epochs=num_epochs)
+                                                        num_epochs=num_epochs,
+                                                        model_name=model_name)
 
     # neural_evaluation.run_binary_evaluating_pipeline(
     #     model_name=model_name,
