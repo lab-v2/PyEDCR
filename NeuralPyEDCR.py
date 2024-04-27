@@ -37,6 +37,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_l_strs: typing.List[str] = [],
+                 binary_num_epochs: int = None,
+                 binary_lr: typing.Union[str, float] = None,
                  experiment_name: str = None,
                  num_train_images_per_class: int = None):
 
@@ -55,7 +57,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            secondary_model_loss=secondary_model_loss,
                                            secondary_num_epochs=secondary_num_epochs,
                                            lower_predictions_indices=lower_predictions_indices,
-                                           binary_l_strs=binary_l_strs)
+                                           binary_l_strs=binary_l_strs,
+                                           binary_num_epochs=binary_num_epochs,
+                                           binary_lr=binary_lr)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
@@ -265,6 +269,9 @@ def work_on_epsilon(args):
     experiment_name = args[10]
     # Get fraction of example per class (train dataset)
 
+    binary_l_strs = list({f.split('e0_')[-1].rstrip('.npy') for f in os.listdir('binary_results')
+                          if f.startswith('imagenet_dinov2_vits14')})
+
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
                         epsilon=epsilon,
@@ -277,23 +284,26 @@ def work_on_epsilon(args):
                         include_inconsistency_constraint=False,
                         secondary_model_name=secondary_model_name,
                         secondary_num_epochs=2,
-                        # binary_models=data_preprocessing.fine_grain_classes_str,
+                        binary_l_strs=binary_l_strs,
+                        binary_lr=0.0001,
+                        binary_num_epochs=1,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
                         # experiment_name=experiment_name,
                         # num_train_images_per_class=num_train_images_per_class
                         )
-    edcr.learn_error_binary_model(binary_model_name=main_model_name,
-                                  binary_lr=new_lr)
-    # edcr.print_metrics(test=True,
-    #                    prior=True,
-    #                    print_actual_errors_num=True)
-    # edcr.run_learning_pipeline(new_model_name=new_model_name,
-    #                            new_lr=new_lr)
-    # edcr.run_error_detection_application_pipeline(test=True,
-    #                                               print_results=False,
-    #                                               save_to_google_sheets=True)
+    # edcr.learn_error_binary_model(binary_model_name=main_model_name,
+    #                               binary_lr=new_lr)
+    edcr.print_metrics(test=True,
+                       prior=True,
+                       print_actual_errors_num=True)
+    edcr.run_learning_pipeline(new_model_name=new_model_name,
+                               new_lr=new_lr,
+                               multi_process=True)
+    edcr.run_error_detection_application_pipeline(test=True,
+                                                  print_results=False,
+                                                  save_to_google_sheets=True)
     # edcr.apply_new_model_on_test()
 
 
@@ -379,7 +389,7 @@ if __name__ == '__main__':
                           max_value=0.3,
                           # experiment_name=experiment_information,
                           # num_train_images_per_class=num_train_images_per_class,
-                          multi_process=False)
+                          multi_process=True)
 
     # for EDCR_num_epochs in [1]:
     #     for neural_num_epochs in [1]:

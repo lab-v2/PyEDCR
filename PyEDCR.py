@@ -49,7 +49,9 @@ class EDCR:
                  secondary_model_loss: str = None,
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
-                 binary_l_strs: typing.List[str] = []):
+                 binary_l_strs: typing.List[str] = [],
+                 binary_num_epochs: int = None,
+                 binary_lr: typing.Union[str, float] = None):
         self.data_str = data_str
         self.preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
         self.main_model_name = main_model_name
@@ -186,9 +188,9 @@ class EDCR:
                                                                  l=l,
                                                                  test=test,
                                                                  loss=loss,
-                                                                 lr=lr,
+                                                                 lr=binary_lr,
                                                                  pred=True,
-                                                                 epoch=10)
+                                                                 epoch=binary_num_epochs)
 
                 for test in [True, False]}
 
