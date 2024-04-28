@@ -258,13 +258,13 @@ class EDCR:
             f"Num of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
-        self.sheet_tab = 'VIT_b_16 on Military Vehicles Errors 1shot correct'
-        # self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-        #                                                       data_str=data_str,
-        #                                                       secondary_model_name=secondary_model_name,
-        #                                                       experiment_name=experiment_name,
-        #                                                       num_train_images_per_class=num_train_images_per_class
-        #                                                       )
+        # self.sheet_tab = 'VIT_b_16 on Military Vehicles Errors 1shot correct'
+        self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                              data_str=data_str,
+                                                              secondary_model_name=secondary_model_name,
+                                                              # experiment_name=experiment_name,
+                                                              # num_train_images_per_class=num_train_images_per_class
+                                                              )
 
         self.RCC_ratio = 0
 
