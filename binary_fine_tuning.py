@@ -1,3 +1,5 @@
+import os.path
+
 import torch
 import torch.utils.data
 import typing
@@ -152,9 +154,18 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
                                                 model_name: str,
                                                 l: data_preprocessing.Label,
                                                 lr: float,
-                                                num_epochs: int,
-                                                train_eval_split: float = None,
-                                                save_files: bool = True):
+                                                num_epochs: int):
+    save_path = models.get_filepath(model_name=model_name,
+                                l=l,
+                                test=False,
+                                loss=loss,
+                                lr=lr,
+                                pred=True,
+                                epoch=num_epochs,
+                                data_str=data_str)
+    if os.path.exists(save_path):
+        print(f'file {save_path} already exist')
+        return
     pretrained_path = f"models/binary_models/binary_{l}_{model_name}_lr{lr}_loss_{loss}_e{num_epochs}.pth"
     try:
         neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
@@ -177,6 +188,7 @@ if __name__ == '__main__':
     lr_in_main = 0.0001
     model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
+    train_eval_split_in_main = 0.8
 
     preprocessor_in_main = data_preprocessing.DataPreprocessor(data_str_in_main)
 
@@ -185,7 +197,7 @@ if __name__ == '__main__':
         l_in_main = preprocessor_in_main.fine_grain_labels[l_str]
         save_metric = neural_evaluation.evaluate_binary_models_from_files(data_str=data_str_in_main,
                                                                           g_str='fine',
-                                                                          test=False,
+                                                                          test=True,
                                                                           lr=lr_in_main,
                                                                           num_epochs=num_epochs_in_main,
                                                                           model_name=model_name_in_main,
@@ -206,4 +218,5 @@ if __name__ == '__main__':
                                           l=l_in_main,
                                           lr=lr_in_main,
                                           num_epochs=num_epochs_in_main,
-                                          save_files=True)
+                                          save_files=True,
+                                          train_eval_split=train_eval_split_in_main)

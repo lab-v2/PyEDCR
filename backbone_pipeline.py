@@ -314,6 +314,7 @@ def initiate(data_str: str,
                                              evaluation=evaluation,
                                              subset_indices=error_indices,
                                              train_eval_split=train_eval_split,
+                                             label=l,
                                              get_fraction_of_example_with_label=get_fraction_of_example_with_label,
                                              debug=debug)
 
@@ -322,6 +323,4 @@ def initiate(data_str: str,
           f"Total number of test images: {len(loaders['test'].dataset)}")
 
     assert error_indices is None or len(loaders['train'].dataset) == len(error_indices)
-
-
     return preprocessor, fine_tuners, loaders, devices

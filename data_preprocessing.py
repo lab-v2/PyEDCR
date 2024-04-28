@@ -637,21 +637,16 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
             y_pred_fine = self.fine_predictions[index]
             y_pred_coarse = self.coarse_predictions[index]
             y_true_coarse = self.preprocessor.fine_to_course_idx[y_true_fine]
-
-
             error = self.get_error(y_pred_fine=y_pred_fine,
                                    y_pred_coarse=y_pred_coarse,
                                    y_true_fine=y_true_fine,
                                    y_true_coarse=y_true_coarse)
             element = (x_path, y_pred_fine, y_pred_coarse, error)
-
             if error:
                 self.positive_samples += [element]
             else:
                 self.negative_samples += [element]
-
             samples += [element]
-
 
         self.samples = samples
         self.balance_samples()
@@ -704,12 +699,12 @@ class BinaryImageFolder(EDCRImageFolder):
                          relevant_classes=
                          list(self.preprocessor.fine_grain_mapping_dict.keys())
                          if preprocessor.data_str == 'imagenet' else None)
-        self.balance_samples()
+        # self.balance_samples()
 
-    def balance_samples(self):
-        if not self.evaluation:
-            positive_example = [(x_path, target) for x_path, target in self.samples if target == self.l.index]
-            self.samples.extend(positive_example * self.preprocessor.num_fine_grain_classes)
+    # def balance_samples(self):
+    #     if not self.evaluation:
+    #         positive_example = [(x_path, target) for x_path, target in self.samples if target == self.l.index]
+    #         self.samples.extend(positive_example * self.preprocessor.num_fine_grain_classes)
 
     def __getitem__(self, index: int):
         x_path, y = self.samples[index]
@@ -835,6 +830,7 @@ def get_loaders(preprocessor: DataPreprocessor,
                 subset_indices: typing.Sequence = None,
                 evaluation: bool = None,
                 train_eval_split: float = None,
+                label: Label = None,
                 get_fraction_of_example_with_label: typing.Dict[Label, float] = None,
                 debug: bool = False
                 ) -> typing.Dict[str, torch.utils.data.DataLoader]:
@@ -880,6 +876,27 @@ def get_loaders(preprocessor: DataPreprocessor,
         elif split == 'train_eval' and train_eval_split is not None:
             loader_dataset = torch.utils.data.Subset(dataset=relevant_dataset,
                                                      indices=train_eval_indices)
+
+        # define sampler for binary model only, and on train dataset only
+        if label is not None and train_eval_split and split == 'train':
+            num_example_of_l = preprocessor.fine_counts[label.index]
+            weight = [0, 0]
+            weight[1] = 1 / num_example_of_l
+            weight[0] = 1 / (len(preprocessor.train_true_fine_data) - num_example_of_l)
+            samples_weight = np.array(
+                [weight[idx]
+                 for idx in np.where(preprocessor.train_true_fine_data[train_indices] == label.index, 1, 0)])
+            samples_weight = torch.from_numpy(samples_weight)
+            samples_weight = samples_weight.double()
+            sampler = torch.utils.data.sampler.WeightedRandomSampler(samples_weight, len(samples_weight))
+
+            loaders[split] = torch.utils.data.DataLoader(
+                dataset=loader_dataset,
+                batch_size=batch_size,
+                sampler=sampler,
+                num_workers=4,
+            )
+            continue
 
         loaders[split] = torch.utils.data.DataLoader(
             dataset=loader_dataset,

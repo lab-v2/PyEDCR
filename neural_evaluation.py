@@ -290,14 +290,14 @@ def run_binary_evaluating_pipeline(data_str: str,
                                    train_eval_split: float = None):
     if split == 'train_eval' and train_eval_split is None:
         raise ValueError(f'{split} mode do not have value for train and train eval')
-    preprocessor, fine_tuners, loaders, devices, weight = (backbone_pipeline.initiate(data_str=data_str,
-                                                                                      model_name=model_name,
-                                                                                      l=l,
-                                                                                      lr=lr,
-                                                                                      pretrained_path=pretrained_path,
-                                                                                      debug=debug,
-                                                                                      train_eval_split=train_eval_split,
-                                                                                      evaluation=True))
+    preprocessor, fine_tuners, loaders, devices = (backbone_pipeline.initiate(data_str=data_str,
+                                                                              model_name=model_name,
+                                                                              l=l,
+                                                                              lr=lr,
+                                                                              pretrained_path=pretrained_path,
+                                                                              debug=debug,
+                                                                              train_eval_split=train_eval_split,
+                                                                              evaluation=True))
 
     fine_tuner = fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner
 
