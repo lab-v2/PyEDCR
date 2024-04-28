@@ -177,6 +177,7 @@ if __name__ == '__main__':
     lr_in_main = 0.0001
     model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
+    train_eval_split_in_main = 0.8
 
     preprocessor_in_main = data_preprocessing.DataPreprocessor(data_str_in_main)
 
@@ -206,4 +207,5 @@ if __name__ == '__main__':
                                           l=l_in_main,
                                           lr=lr_in_main,
                                           num_epochs=num_epochs_in_main,
-                                          save_files=True)
+                                          save_files=True,
+                                          train_eval_split=train_eval_split_in_main)
