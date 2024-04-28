@@ -186,7 +186,7 @@ if __name__ == '__main__':
         l_in_main = preprocessor_in_main.fine_grain_labels[l_str]
         save_metric = neural_evaluation.evaluate_binary_models_from_files(data_str=data_str_in_main,
                                                                           g_str='fine',
-                                                                          test=False,
+                                                                          test=True,
                                                                           lr=lr_in_main,
                                                                           num_epochs=num_epochs_in_main,
                                                                           model_name=model_name_in_main,
