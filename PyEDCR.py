@@ -932,6 +932,8 @@ class EDCR:
                             inconsistency_error_f1,
                             self.RCC_ratio]
 
+            print(input_values)
+
             google_sheets_api.update_sheet(range_=f'{self.sheet_tab}!A{self.epsilon_index}:F{self.epsilon_index}',
                                            body={'values': [input_values]})
 
