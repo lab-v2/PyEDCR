@@ -390,14 +390,3 @@ if __name__ == '__main__':
                           # experiment_name=experiment_information,
                           # num_train_images_per_class=num_train_images_per_class,
                           multi_process=True)
-
-    # for EDCR_num_epochs in [1]:
-    #     for neural_num_epochs in [1]:
-
-    # for lower_predictions_indices in [[2], [2, 3], [2, 3, 4]]:
-    # print('\n' + '#' * 100 + '\n' +
-    #       utils.blue_text(
-    #           f'EDCR_num_epochs = {EDCR_num_epochs}, neural_num_epochs = {neural_num_epochs}'
-    #           # f'lower_predictions_indices = {lower_predictions_indices}'
-    #       )
-    #       + '\n' + '#' * 100 + '\n')
