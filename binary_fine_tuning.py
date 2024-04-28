@@ -1,3 +1,5 @@
+import os.path
+
 import torch
 import torch.utils.data
 import typing
@@ -152,9 +154,18 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
                                                 model_name: str,
                                                 l: data_preprocessing.Label,
                                                 lr: float,
-                                                num_epochs: int,
-                                                train_eval_split: float = None,
-                                                save_files: bool = True):
+                                                num_epochs: int):
+    save_path = models.get_filepath(model_name=model_name,
+                                l=l,
+                                test=False,
+                                loss=loss,
+                                lr=lr,
+                                pred=True,
+                                epoch=num_epochs,
+                                data_str=data_str)
+    if os.path.exists(save_path):
+        print(f'file {save_path} already exist')
+        return
     pretrained_path = f"models/binary_models/binary_{l}_{model_name}_lr{lr}_loss_{loss}_e{num_epochs}.pth"
     try:
         neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
