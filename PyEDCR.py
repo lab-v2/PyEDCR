@@ -41,7 +41,7 @@ class EDCR:
                  lr: typing.Union[str, float],
                  original_num_epochs: int,
                  epsilon: typing.Union[str, float],
-                 epsilon_index: int = None,
+                 sheet_index: int = None,
                  K_train: typing.List[(int, int)] = None,
                  K_test: typing.List[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
@@ -62,10 +62,12 @@ class EDCR:
         self.lr = lr
         self.num_epochs = original_num_epochs
         self.epsilon = epsilon
-        self.epsilon_index = epsilon_index + 2 if epsilon_index is not None else None
+        self.sheet_index = sheet_index + 2 if sheet_index is not None else None
         self.secondary_model_name = secondary_model_name
         self.lower_predictions_indices = lower_predictions_indices
         self.binary_l_strs = binary_l_strs
+        self.experiment_name = experiment_name
+        self.num_train_images_per_class = num_train_images_per_class
 
         pred_paths: typing.Dict[str, dict] = {
             'test' if test else 'train': {g_str: models.get_filepath(data_str=data_str,
@@ -260,7 +262,6 @@ class EDCR:
             f"Num of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
-        # self.sheet_tab = 'VIT_b_16 on Military Vehicles Errors 1shot correct'
         self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                               data_str=data_str,
                                                               secondary_model_name=secondary_model_name,
@@ -927,7 +928,8 @@ class EDCR:
                     labels=[0, 1])]
 
             # set values
-            input_values = [round(self.epsilon, 3),
+            input_values = [self.num_train_images_per_class,
+                            round(self.epsilon, 3),
                             error_accuracy,
                             error_f1,
                             inconsistency_error_accuracy,
@@ -936,7 +938,7 @@ class EDCR:
 
             print(input_values)
 
-            google_sheets_api.update_sheet(range_=f'{self.sheet_tab}!A{self.epsilon_index}:F{self.epsilon_index}',
+            google_sheets_api.update_sheet(range_=f'{self.sheet_tab}!A{self.sheet_index}:G{self.sheet_index}',
                                            body={'values': [input_values]})
 
         if print_results:

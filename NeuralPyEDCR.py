@@ -8,6 +8,7 @@ import numpy as np
 import typing
 import multiprocessing as mp
 from tqdm.contrib.concurrent import process_map
+import itertools
 
 import data_preprocessing
 import PyEDCR
@@ -28,7 +29,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  epsilon: typing.Union[str, float],
                  EDCR_num_epochs: int,
                  neural_num_epochs: int,
-                 epsilon_index: int = None,
+                 sheet_index: int = None,
                  K_train: typing.Union[typing.List[typing.Tuple[int]], np.ndarray] = None,
                  K_test: typing.List[typing.Tuple[int]] = None,
                  include_inconsistency_constraint: bool = False,
@@ -49,7 +50,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            lr=lr,
                                            original_num_epochs=original_num_epochs,
                                            epsilon=epsilon,
-                                           epsilon_index=epsilon_index,
+                                           sheet_index=sheet_index,
                                            K_train=K_train,
                                            K_test=K_test,
                                            include_inconsistency_constraint=include_inconsistency_constraint,
@@ -67,7 +68,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         relevant_predicted_indices = None
 
-        if experiment_name == 'correct example':
+        if 'correct' in experiment_name:
             train_pred_correct_mask = np.ones_like(self.pred_data['train']['original'][
                                                        data_preprocessing.DataPreprocessor.granularities['fine']])
 
@@ -76,7 +77,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
             relevant_predicted_indices = np.where(train_pred_correct_mask == 1)[0]
 
-        elif experiment_name == 'inconsistency example':
+        elif experiment_name == 'inconsistency':
             train_pred_inconsistency_mask = np.ones_like(self.pred_data['train']['original'][
                                                              data_preprocessing.DataPreprocessor.granularities['fine']])
             train_pred_inconsistency_mask &= self.get_where_predicted_inconsistently(test=False)
@@ -255,43 +256,43 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         )
 
 
-def work_on_epsilon(args):
-    epsilon_index = args[0]
-    epsilon = args[1]
-    data_str = args[2]
-    main_model_name = args[3]
-    main_lr = args[4]
-    original_num_epochs = args[5]
-    secondary_model_name = args[6]
-    new_model_name = args[7]
-    new_lr = args[8]
-    num_train_images_per_class = args[9]
-    experiment_name = args[10]
-    # Get fraction of example per class (train dataset)
-
-    binary_l_strs = list({f.split('e0_')[-1].rstrip('.npy') for f in os.listdir('binary_results')
-                          if f.startswith('imagenet_dinov2_vits14')})
+def work_on_value(args):
+    (epsilon_index,
+     epsilon,
+     data_str,
+     main_model_name,
+     main_lr,
+     original_num_epochs,
+     secondary_model_name,
+     secondary_num_epochs,
+     binary_l_strs,
+     binary_lr,
+     new_model_name,
+     new_lr,
+     num_train_images_per_class,
+     experiment_name
+     ) = args
 
     print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
                         epsilon=epsilon,
-                        epsilon_index=epsilon_index,
+                        sheet_index=epsilon_index,
                         main_model_name=main_model_name,
                         combined=True,
                         loss='BCE',
                         lr=main_lr,
                         original_num_epochs=original_num_epochs,
                         include_inconsistency_constraint=False,
-                        # secondary_model_name=secondary_model_name,
-                        # secondary_num_epochs=2,
+                        secondary_model_name=secondary_model_name,
+                        secondary_num_epochs=secondary_num_epochs,
                         binary_l_strs=binary_l_strs,
                         binary_lr=0.0001,
                         binary_num_epochs=1,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
-                        # experiment_name=experiment_name,
-                        # num_train_images_per_class=num_train_images_per_class
+                        experiment_name=experiment_name,
+                        num_train_images_per_class=num_train_images_per_class
                         )
     # edcr.learn_error_binary_model(binary_model_name=main_model_name,
     #                               binary_lr=new_lr)
@@ -307,50 +308,65 @@ def work_on_epsilon(args):
     # edcr.apply_new_model_on_test()
 
 
-def simulate_for_epsilons(total_number_of_points: int = 300,
-                          min_value: float = 0.1,
-                          max_value: float = 0.3,
-                          multi_process: bool = True,
-                          secondary_model_name: str = None,
-                          num_train_images_per_class: int = None,
-                          only_missing_epsilons: bool = False,
-                          experiment_name: str = None):
-    epsilons_datas = [(i,
-                       round(epsilon, 3),
-                       data_str,
-                       main_model_name,
-                       main_lr,
-                       original_num_epochs,
-                       secondary_model_name,
-                       new_model_name,
-                       new_lr,
-                       num_train_images_per_class,
-                       experiment_name,
-                       ) for i, epsilon in enumerate(np.linspace(start=min_value / 100,
-                                                                 stop=max_value,
-                                                                 num=total_number_of_points))
-                      ]
+def simulate_for_values(total_number_of_points: int = 10,
+                        min_value: float = 0.1,
+                        max_value: float = 0.3,
+                        multi_process: bool = True,
+                        secondary_model_name: str = None,
+                        secondary_num_epochs: int = None,
+                        binary_l_strs: typing.List[str] = [],
+                        binary_lr: typing.Union[str, float] = None,
+                        num_train_images_per_class: typing.Sequence[int] = None,
+                        only_missing_values: bool = False,
+                        experiment_name: str = None):
+    datas = [(i,
+              round(epsilon, 3),
+              data_str,
+              main_model_name,
+              main_lr,
+              original_num_epochs,
+              secondary_model_name,
+              secondary_num_epochs,
+              binary_l_strs,
+              binary_lr,
+              new_model_name,
+              new_lr,
+              int(curr_num_train_images_per_class),
+              experiment_name,
+              ) for i, (curr_num_train_images_per_class, epsilon) in
+             enumerate(itertools.product(num_train_images_per_class,
+                                         np.linspace(start=min_value / 100,
+                                                     stop=max_value,
+                                                     num=total_number_of_points)))
+             ]
 
-    if only_missing_epsilons:
+    if only_missing_values:
+        sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                         data_str=data_str,
+                                                         # secondary_model_name=secondary_model_name
+                                                         # num_train_images_per_class=num_train_images_per_class,
+                                                         # experiment_name=experiment_information,
+                                                         )
+
         empty_row_indices, total_value_num = google_sheets_api.find_empty_rows_in_column(tab_name=sheet_tab,
                                                                                          column='A')
 
         values_to_complete = total_number_of_points - total_value_num
 
-        epsilons_to_take = [round((eps - 1) / 1000, 3) for eps in empty_row_indices
-                            + [total_number_of_points - val for val in list(range(values_to_complete))]]
-        print(epsilons_to_take)
+        values_to_take = [round((eps - 1) / 1000, 3) for eps in empty_row_indices
+                          + [total_number_of_points - val for val in list(range(values_to_complete))]]
+        print(values_to_take)
 
-        epsilons_datas = [epsilon_data for epsilon_data in epsilons_datas if epsilon_data[1] in epsilons_to_take]
+        datas = [data for data in datas if data[1] in values_to_take]
 
     if multi_process:
-        processes_num = min([len(epsilons_datas), mp.cpu_count(), 2])
-        process_map(work_on_epsilon,
-                    epsilons_datas,
+        processes_num = min([len(datas), mp.cpu_count(), 2])
+        process_map(work_on_value,
+                    datas,
                     max_workers=processes_num)
     else:
-        for epsilon_data in epsilons_datas:
-            work_on_epsilon(epsilon_data)
+        for data in datas:
+            work_on_value(data)
 
 
 if __name__ == '__main__':
@@ -364,6 +380,9 @@ if __name__ == '__main__':
     main_lr = new_lr = 0.000001
     original_num_epochs = 8
 
+    binary_l_strs = list({f.split('e0_')[-1].rstrip('.npy') for f in os.listdir('binary_results')
+                          if f.startswith('imagenet_dinov2_vits14')})
+
     # secondary_model_name = 'vit_l_16_BCE'
     # secondary_model_name = 'dinov2_vitl14'
 
@@ -372,21 +391,18 @@ if __name__ == '__main__':
     # main_lr = new_lr = 0.000001
     # original_num_epochs = 0
 
-
-    sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-                                                     data_str=data_str,
-                                                     # secondary_model_name=secondary_model_name
-                                                     # num_train_images_per_class=num_train_images_per_class,
-                                                     # experiment_name=experiment_information,
-                                                     )
-
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    simulate_for_epsilons(total_number_of_points=300,
-                          min_value=0.1,
-                          max_value=0.3,
-                          experiment_name='correct example',
-                          num_train_images_per_class=1,
-                          multi_process=True,
-                          # only_missing_epsilons=True
-                          )
+    simulate_for_values(
+        # total_number_of_points=10,
+        # min_value=0.1,
+        # max_value=0.2,
+        binary_l_strs=binary_l_strs,
+        binary_lr=0.0001,
+        experiment_name='few correct',
+        num_train_images_per_class=np.linspace(start=1,
+                                               stop=1300,
+                                               num=10),
+        multi_process=True,
+        # only_missing_epsilons=True
+    )

@@ -53,11 +53,13 @@ def get_sheet_tab_name(main_model_name: str,
             raise ValueError('Open Image do not implement fraction of example yet')
         return f"Tresnet M on OpenImage Errors"
     return ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'} "
-             f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'} Errors") +
+             f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'}") +
             ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
-             if secondary_model_name is not None else '') +
-            (f' {num_train_images_per_class} shot' if num_train_images_per_class is not None else '') +
-            (f' {experiment_name}' if experiment_name is not None else ''))
+             if secondary_model_name is not None else ''))
+    # +
+    # (((f' {num_train_images_per_class} shot' if num_train_images_per_class is not None else '') +
+    #   (f' {experiment_name}' if experiment_name is not None else ''))
+    #  if not experiment_name.startswith('few') else ' few shot correct'))
 
 
 def exponential_backoff(func: typing.Callable) -> typing.Callable:
@@ -157,3 +159,7 @@ def get_maximal_epsilon(tab_name: str):
         return column_a_values[max_index][0]
     else:
         return None
+
+
+def get_all_values(tab_name: str):
+    pass
