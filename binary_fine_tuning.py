@@ -219,7 +219,7 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
 if __name__ == '__main__':
     data_str_in_main = 'imagenet'
     num_epochs_in_main = 1
-    lr_in_main = 0.00001
+    lr_in_main = 0.000001
     model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
     train_eval_split_in_main = 0.8
