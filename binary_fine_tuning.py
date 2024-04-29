@@ -134,6 +134,13 @@ def fine_tune_binary_model(data_str: str,
         torch.save(fine_tuner.state_dict(),
                    f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
 
+    run_l_binary_evaluating_pipeline_from_train(data_str=data_str,
+                                                lr=lr,
+                                                num_epochs=num_epochs,
+                                                model_name=model_name_in_main,
+                                                l=l)
+
+
 
 def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       model_name: str,
