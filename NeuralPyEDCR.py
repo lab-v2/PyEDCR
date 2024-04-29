@@ -387,7 +387,8 @@ if __name__ == '__main__':
     simulate_for_epsilons(total_number_of_points=300,
                           min_value=0.1,
                           max_value=0.3,
-                          experiment_name=experiment_information,
-                          num_train_images_per_class=num_train_images_per_class,
+                          # experiment_name=experiment_information,
+                          # num_train_images_per_class=num_train_images_per_class,
                           multi_process=True,
-                          only_missing_epsilons=True)
+                          only_missing_epsilons=True
+                          )
