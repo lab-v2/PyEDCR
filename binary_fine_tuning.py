@@ -132,7 +132,7 @@ def fine_tune_binary_model(data_str: str,
                                                                             train_eval_split=train_eval_split)
                 # Update slicing window, and break if the sum of current sliding window is smaller than previous one:
                 if f1 > slicing_window[1]:
-                    utils.green_text(f'f1 of current fine_tuner is better. Update fine_tuner')
+                    print(utils.green_text(f'f1 of current fine_tuner is better. Update fine_tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
                 current_sliding_window = [slicing_window[1], f1]
                 print(f'current sliding window is {current_sliding_window} and previous one is {slicing_window}')
