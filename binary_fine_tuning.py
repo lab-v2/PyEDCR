@@ -137,7 +137,7 @@ def fine_tune_binary_model(data_str: str,
                 current_sliding_window = [slicing_window[1], f1]
                 print(f'current sliding window is {current_sliding_window} and previous one is {slicing_window}')
                 if sum(slicing_window) > sum(current_sliding_window):
-                    utils.green_text(f'finish training, stop criteria met')
+                    print(utils.green_text(f'finish training, stop criteria met'))
                     break
                 slicing_window = current_sliding_window
 
@@ -149,7 +149,8 @@ def fine_tune_binary_model(data_str: str,
                                                                          loss='BCE',
                                                                          num_epochs=num_epochs,
                                                                          pretrained_fine_tuner=best_fine_tuner,
-                                                                         data_str=data_str)
+                                                                         data_str=data_str,
+                                                                         save_files=False)
         if previous_f1_score is not None and test_f1 < previous_f1_score:
             print(utils.red_text(f'previous f1 score is {previous_f1_score}, greater than current f1 score {test_f1}'
                                  f'do not save model'))
@@ -162,6 +163,15 @@ def fine_tune_binary_model(data_str: str,
     print('#' * 100)
 
     if save_files:
+        neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
+                                                         l=l,
+                                                         split='test',
+                                                         lr=lr,
+                                                         loss='BCE',
+                                                         num_epochs=num_epochs,
+                                                         pretrained_fine_tuner=best_fine_tuner,
+                                                         data_str=data_str,
+                                                         save_files=True)
         torch.save(best_fine_tuner.state_dict(),
                    f"models/binary_models/binary_{l}_{best_fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
 
@@ -225,7 +235,7 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
 
 if __name__ == '__main__':
     data_str_in_main = 'imagenet'
-    num_epochs_in_main = 1
+    num_epochs_in_main = 5
     lr_in_main = 0.000001
     model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
