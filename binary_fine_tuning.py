@@ -131,6 +131,7 @@ def fine_tune_binary_model(data_str: str,
                 # Update slicing window, and break if the sum of current sliding window is smaller than previous one:
                 current_sliding_window = [slicing_window[1], f1]
                 if sum(slicing_window) > sum(current_sliding_window):
+                    utils.green_text(f'finish training, stop criteria met')
                     break
 
     if evaluate_on_test:
@@ -270,4 +271,4 @@ if __name__ == '__main__':
                                           num_epochs=num_epochs_in_main,
                                           save_files=True,
                                           train_eval_split=train_eval_split_in_main,
-                                          previous_f1_score=save_metric[1])
+                                          previous_f1_score=save_metric[1] if save_metric is not None else None)
