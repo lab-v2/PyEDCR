@@ -365,10 +365,10 @@ def evaluate_binary_models_from_files(data_str: str,
 
 if __name__ == '__main__':
     # data_str = 'military_vehicles'
-    data_str = 'imagenet'
+    data_str = 'openimage'
     # main_model_name = 'vit_b_16'
     main_model_name = new_model_name = 'dinov2_vitl14'
-    pretrained_path = 'models/dinov2_vitl14_lr1e-06_BCE.pth'
+    # pretrained_path = 'models/dinov2_vitl14_lr1e-06_BCE.pth'
     # lr = 0.0001
     lr = 0.000001
 
@@ -400,8 +400,8 @@ if __name__ == '__main__':
                                      split='train',
                                      lr=lr,
                                      loss='BCE',
-                                     num_epochs=2,
-                                     pretrained_path=pretrained_path,
+                                     num_epochs=0,
+                                     # pretrained_path=pretrained_path,
                                      save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
