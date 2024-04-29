@@ -123,7 +123,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                 lr=new_lr,
                 combined=self.combined,
                 error_indices=perceived_examples_with_errors,
-                print_counts=False
                 # train_eval_split=0.8
             ))
 
@@ -152,7 +151,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             combined=self.combined,
             error_indices=perceived_examples_with_errors,
             evaluation=True,
-            print_counts=False)
+        )
 
         evaluation_return_values = neural_evaluation.evaluate_combined_model(
             preprocessor=self.preprocessor,
@@ -238,7 +237,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             model_name=binary_model_name,
             preprocessor=self.preprocessor,
             lr=binary_lr,
-            print_counts=False,
             fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
             coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
             # debug=True
@@ -286,9 +284,9 @@ def work_on_epsilon(args):
                         include_inconsistency_constraint=False,
                         # secondary_model_name=secondary_model_name,
                         # secondary_num_epochs=2,
-                        # binary_l_strs=binary_l_strs,
-                        # binary_lr=0.0001,
-                        # binary_num_epochs=1,
+                        binary_l_strs=binary_l_strs,
+                        binary_lr=0.0001,
+                        binary_num_epochs=1,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
@@ -384,11 +382,11 @@ if __name__ == '__main__':
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    simulate_for_epsilons(total_number_of_points=2,
+    simulate_for_epsilons(total_number_of_points=300,
                           min_value=0.1,
                           max_value=0.3,
-                          # experiment_name='correct example',
-                          # num_train_images_per_class=1,
-                          multi_process=False,
+                          experiment_name='correct example',
+                          num_train_images_per_class=1,
+                          multi_process=True,
                           # only_missing_epsilons=True
                           )

@@ -214,7 +214,6 @@ def initiate(data_str: str,
              evaluation: bool = False,
              train_eval_split: float = None,
              get_fraction_of_example_with_label: typing.Dict[data_preprocessing.Label, float] = None,
-             print_counts: bool = True,
              fine_predictions: np.array = None,
              coarse_predictions: np.array = None):
     """
@@ -224,7 +223,6 @@ def initiate(data_str: str,
     :param fine_predictions:
     :param preprocessor:
     :param data_str:
-    :param print_counts:
     :param get_fraction_of_example_with_label:
     :param train_eval_split:
     :param weights:
