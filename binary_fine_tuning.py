@@ -43,11 +43,12 @@ def fine_tune_binary_model(data_str: str,
     optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                  lr=lr)
 
-    neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
-                                                        num_epochs=num_epochs,
-                                                        lr=lr,
-                                                        device=device,
-                                                        experiment_name=l.l_str)
+    neural_fine_tuning.print_fine_tuning_initialization(
+        fine_tuner=fine_tuner,
+        num_epochs=num_epochs,
+        lr=lr,
+        device=device,
+        experiment_name=f'{l.l_str} with {"train_eval" if train_eval_split is not None else ""}')
 
     slicing_window = [0, 0]
 
@@ -139,7 +140,6 @@ def fine_tune_binary_model(data_str: str,
                                                 num_epochs=num_epochs,
                                                 model_name=model_name_in_main,
                                                 l=l)
-
 
 
 def run_l_binary_fine_tuning_pipeline(data_str: str,
