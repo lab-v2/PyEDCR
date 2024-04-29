@@ -384,11 +384,11 @@ if __name__ == '__main__':
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    simulate_for_epsilons(total_number_of_points=300,
-                          min_value=0.1,
+    simulate_for_epsilons(total_number_of_points=1,
+                          min_value=10,
                           max_value=0.3,
                           # experiment_name='correct example',
                           # num_train_images_per_class=1,
-                          multi_process=True,
+                          multi_process=False,
                           # only_missing_epsilons=True
                           )
