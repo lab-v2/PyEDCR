@@ -19,6 +19,25 @@ import utils
 best_f1_label_file_name = 'best_f1_label_file_name.txt'
 
 
+def save_label_with_good_f1_score(l: data_preprocessing.Label):
+    # Check if file exists (optional)
+    if os.path.exists(best_f1_label_file_name):
+        # Open the file in read mode ("r")
+        with open(best_f1_label_file_name, "r") as file:
+            # Read all lines into a set (efficient for checking membership)
+            existing_labels = set(line.strip() for line in file)
+
+        # Check if l.l_str is not present in the set
+        if l.l_str not in existing_labels:
+            # If not present, open in write mode ("a") to append
+            with open(best_f1_label_file_name, "a") as file:
+                file.write(f'{l.l_str}\n')
+    else:
+        # If file doesn't exist, create it and write (same as before)
+        with open(best_f1_label_file_name, "w") as file:
+            file.write(f'{l.l_str}\n')
+
+
 def fine_tune_binary_model(data_str: str,
                            l: data_preprocessing.Label,
                            lr: float,
@@ -29,7 +48,8 @@ def fine_tune_binary_model(data_str: str,
                            positive_class_weight: list[float] = None,
                            save_files: bool = True,
                            evaluate_on_test: bool = True,
-                           train_eval_split: float = None):
+                           train_eval_split: float = None,
+                           previous_f1_score: float = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -43,11 +63,12 @@ def fine_tune_binary_model(data_str: str,
     optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                  lr=lr)
 
-    neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
-                                                        num_epochs=num_epochs,
-                                                        lr=lr,
-                                                        device=device,
-                                                        experiment_name=l.l_str)
+    neural_fine_tuning.print_fine_tuning_initialization(
+        fine_tuner=fine_tuner,
+        num_epochs=num_epochs,
+        lr=lr,
+        device=device,
+        experiment_name=f'{l.l_str} with {"train_eval" if train_eval_split is not None else ""}')
 
     slicing_window = [0, 0]
 
@@ -121,11 +142,13 @@ def fine_tune_binary_model(data_str: str,
                                                                          num_epochs=num_epochs,
                                                                          pretrained_fine_tuner=fine_tuner,
                                                                          data_str=data_str)
-        if test_f1 > 0.7:
+        if test_f1 < previous_f1_score:
+            print(utils.red_text(f'previous f1 score is {previous_f1_score}, greater than current f1 score {test_f1}'
+                                 f'do not save model'))
+            save_files = False
+        elif test_f1 > 0.7:
             print(utils.green_text(f'f1 score for {l} is sufficient on test: {test_f1}'))
-            with open(best_f1_label_file_name, "w") as file:
-                # Write each line with a newline character ("\n")
-                file.write(f'{l.l_str}\n')
+            save_label_with_good_f1_score(l=l)
         else:
             print(utils.red_text(f'f1 score for {l} is not sufficient on test: {test_f1}'))
     print('#' * 100)
@@ -134,12 +157,11 @@ def fine_tune_binary_model(data_str: str,
         torch.save(fine_tuner.state_dict(),
                    f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
 
-    run_l_binary_evaluating_pipeline_from_train(data_str=data_str,
-                                                lr=lr,
-                                                num_epochs=num_epochs,
-                                                model_name=model_name_in_main,
-                                                l=l)
-
+        run_l_binary_evaluating_pipeline_from_train(data_str=data_str,
+                                                    lr=lr,
+                                                    num_epochs=num_epochs,
+                                                    model_name=model_name_in_main,
+                                                    l=l)
 
 
 def run_l_binary_fine_tuning_pipeline(data_str: str,
@@ -148,7 +170,8 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       lr: float,
                                       num_epochs: int,
                                       train_eval_split: float = None,
-                                      save_files: bool = True):
+                                      save_files: bool = True,
+                                      previous_f1_score: float = None):
     preprocessor, fine_tuners, loaders, devices = backbone_pipeline.initiate(
         data_str=data_str,
         lr=lr,
@@ -165,7 +188,8 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
                                loaders=loaders,
                                num_epochs=num_epochs,
                                save_files=save_files,
-                               train_eval_split=train_eval_split
+                               train_eval_split=train_eval_split,
+                               previous_f1_score=previous_f1_score
                                )
         print('#' * 100)
 
@@ -175,17 +199,7 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
                                                 l: data_preprocessing.Label,
                                                 lr: float,
                                                 num_epochs: int):
-    save_path = models.get_filepath(model_name=model_name,
-                                    l=l,
-                                    test=False,
-                                    loss=loss,
-                                    lr=lr,
-                                    pred=True,
-                                    epoch=num_epochs,
-                                    data_str=data_str)
-    if os.path.exists(save_path):
-        print(f'file {save_path} already exist')
-        return
+
     pretrained_path = f"models/binary_models/binary_{l}_{model_name}_lr{lr}_loss_{loss}_e{num_epochs}.pth"
     try:
         neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
@@ -205,7 +219,7 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
 if __name__ == '__main__':
     data_str_in_main = 'imagenet'
     num_epochs_in_main = 1
-    lr_in_main = 0.00001
+    lr_in_main = 0.000001
     model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
     train_eval_split_in_main = 0.8
@@ -226,14 +240,25 @@ if __name__ == '__main__':
             if save_metric[1] > 0.7:
                 print(f'binary model of class {l_in_main} is finished with sufficient f1 score {save_metric[1]}')
                 print(f'get prediction from train set)')
-                with open(best_f1_label_file_name, "w") as file:
-                    # Write each line with a newline character ("\n")
-                    file.write(f'{l_in_main.l_str}\n')
-                run_l_binary_evaluating_pipeline_from_train(data_str=data_str_in_main,
-                                                            lr=lr_in_main,
-                                                            num_epochs=num_epochs_in_main,
-                                                            model_name=model_name_in_main,
-                                                            l=l_in_main)
+                save_label_with_good_f1_score(l=l_in_main)
+
+                save_path = models.get_filepath(model_name=model_name_in_main,
+                                                l=l_in_main,
+                                                test=False,
+                                                loss=loss,
+                                                lr=lr_in_main,
+                                                pred=True,
+                                                epoch=num_epochs_in_main,
+                                                data_str=data_str_in_main)
+                if os.path.exists(save_path):
+                    utils.red_text(f'file {save_path} already exist, train prediction is checkout')
+                else:
+                    utils.green_text(f'file {save_path} do not exist, train prediction is created')
+                    run_l_binary_evaluating_pipeline_from_train(data_str=data_str_in_main,
+                                                                lr=lr_in_main,
+                                                                num_epochs=num_epochs_in_main,
+                                                                model_name=model_name_in_main,
+                                                                l=l_in_main)
                 continue
 
         print(utils.red_text(f'Train model for {l_in_main} to get sufficient f1 score'))
@@ -244,4 +269,5 @@ if __name__ == '__main__':
                                           lr=lr_in_main,
                                           num_epochs=num_epochs_in_main,
                                           save_files=True,
-                                          train_eval_split=train_eval_split_in_main)
+                                          train_eval_split=train_eval_split_in_main,
+                                          previous_f1_score=save_metric[1])
