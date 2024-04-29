@@ -497,6 +497,7 @@ def get_dataset_transforms(data: str,
                                                      std=[0.229, 0.224, 0.225])
         standard_transforms = [
             torchvision.transforms.ToTensor(),
+            normalize
         ]
         train_transforms = [
             torchvision.transforms.Resize(256),

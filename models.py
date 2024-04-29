@@ -131,35 +131,38 @@ class DINOV2FineTuner(FineTuner):
         return X
 
 
-class ErrorDetector(FineTuner):
-    def __init__(self,
-                 model_name: str,
-                 num_classes: int):
-        """
-        Initializes the ErrorDetector which will use a DINOV2FineTuner for images
-        and a simple network for processing predictions.
+class MultiHeadAttentionBlock(torch.nn.Module):
+    def __init__(self, num_classes, embed_size, num_heads):
+        super(MultiHeadAttentionBlock, self).__init__()
+        self.linear = torch.nn.Linear(num_classes, embed_size)  # Embedding the one-hot vector
+        self.attention = torch.nn.MultiheadAttention(embed_dim=embed_size, num_heads=num_heads)
+        self.norm = torch.nn.LayerNorm(embed_size)
+        self.relu = torch.nn.ReLU()
 
-        :param model_name: The name of the DINO V2 model.
-        :param num_classes: The number of classes in the DINO V2 model output.
-        """
-        super().__init__(model_name=model_name,
-                         num_classes=num_classes)
+    def forward(self, x):
+        # Assume x is batch of indices [batch_size, 1]
+        x = torch.nn.functional.one_hot(x.long(), num_classes=self.linear.in_features).float()  # One-hot encode
+        x = self.linear(x)  # Now [batch_size, embed_size]
+        x = x.unsqueeze(1)  # Add sequence length dimension [batch_size, 1, embed_size]
+        attn_output, _ = self.attention(x, x, x)
+        attn_output = self.norm(attn_output + x)
+        return self.relu(attn_output.squeeze(1))
+
+
+
+class ErrorDetector(FineTuner):
+    def __init__(self, model_name: str, num_classes: int, embed_size=128, num_heads=4):
+        super().__init__(model_name=model_name, num_classes=num_classes)
 
         # Initialize the DINOV2FineTuner for image processing
-        self.image_model = DINOV2FineTuner(model_name=model_name,
-                                           num_classes=num_classes)
+        self.image_model = DINOV2FineTuner(model_name, num_classes)
 
-        # Architecture for processing the prediction
-        self.prediction_processor = torch.nn.Sequential(
-            torch.nn.Linear(num_classes, 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, 64),
-            torch.nn.ReLU()
-        )
+        # Enhanced architecture for processing the prediction with attention
+        self.prediction_processor = MultiHeadAttentionBlock(num_classes, embed_size, num_heads)
 
         # Merge and classify the outputs
         self.classifier = torch.nn.Sequential(
-            torch.nn.Linear(64 + num_classes, 64),  # Assuming we concatenate features
+            torch.nn.Linear(embed_size + num_classes, 64),  # Assuming we concatenate features
             torch.nn.ReLU(),
             torch.nn.Linear(64, 32),
             torch.nn.ReLU(),
@@ -167,22 +170,12 @@ class ErrorDetector(FineTuner):
             torch.nn.Sigmoid()
         )
 
-    def forward(self,
-                X_image: torch.Tensor,
-                X_base_model_prediction: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass for the error detector model.
-
-        :param X_image: The input image tensor.
-        :param X_base_model_prediction: The prediction tensor (usually an integer wrapped in a tensor).
-
-        :return: Probability of the prediction being an error.
-        """
-
-        image_features = self.image_model(X_image)  # Process the image through the DINOV2FineTuner
-        prediction_features = self.prediction_processor(X_base_model_prediction)  # Process the prediction
-        combined_features = torch.cat(tensors=(image_features, prediction_features), dim=1)
-        error_probability = torch.flatten(self.classifier(combined_features)).float()
+    def forward(self, X_image: torch.Tensor, X_base_model_prediction: torch.Tensor) -> torch.Tensor:
+        image_features = self.image_model(X_image)
+        # Ensure X_base_model_prediction is (N, E) where N is batch size
+        prediction_features = self.prediction_processor(X_base_model_prediction.unsqueeze(-1))  # Ensure correct shape
+        combined_features = torch.cat((image_features, prediction_features), dim=1)
+        error_probability = self.classifier(combined_features).flatten()
 
         return error_probability
 
