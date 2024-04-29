@@ -131,14 +131,15 @@ def fine_tune_binary_model(data_str: str,
                                                                             data_str=data_str,
                                                                             train_eval_split=train_eval_split)
                 # Update slicing window, and break if the sum of current sliding window is smaller than previous one:
-
                 if f1 > slicing_window[1]:
                     utils.green_text(f'f1 of current fine_tuner is better. Update fine_tuner')
                     best_fine_tuner = copy.deepcopy(fine_tuner)
                 current_sliding_window = [slicing_window[1], f1]
+                print(f'current sliding window is {current_sliding_window} and previous one is {slicing_window}')
                 if sum(slicing_window) > sum(current_sliding_window):
                     utils.green_text(f'finish training, stop criteria met')
                     break
+                slicing_window = current_sliding_window
 
     if evaluate_on_test:
         _, _, test_f1 = neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
