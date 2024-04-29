@@ -268,9 +268,9 @@ if __name__ == '__main__':
                                                 epoch=num_epochs_in_main,
                                                 data_str=data_str_in_main)
                 if os.path.exists(save_path):
-                    utils.red_text(f'file {save_path} already exist, train prediction is checkout')
+                    print(utils.green_text(f'file {save_path} already exist, train prediction is checkout'))
                 else:
-                    utils.green_text(f'file {save_path} do not exist, train prediction is created')
+                    print(utils.red_text(f'file {save_path} do not exist, train prediction is created'))
                     run_l_binary_evaluating_pipeline_from_train(data_str=data_str_in_main,
                                                                 lr=lr_in_main,
                                                                 num_epochs=num_epochs_in_main,
