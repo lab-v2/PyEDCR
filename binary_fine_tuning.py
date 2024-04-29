@@ -1,3 +1,4 @@
+import copy
 import os.path
 
 import torch
@@ -71,6 +72,7 @@ def fine_tune_binary_model(data_str: str,
         experiment_name=f'{l.l_str} with {"train_eval" if train_eval_split is not None else ""}')
 
     slicing_window = [0, 0]
+    best_fine_tuner = copy.deepcopy(fine_tuner)
 
     print('#' * 100 + '\n')
 
@@ -129,6 +131,10 @@ def fine_tune_binary_model(data_str: str,
                                                                             data_str=data_str,
                                                                             train_eval_split=train_eval_split)
                 # Update slicing window, and break if the sum of current sliding window is smaller than previous one:
+
+                if f1 > slicing_window[1]:
+                    utils.green_text(f'f1 of current fine_tuner is better. Update fine_tuner')
+                    best_fine_tuner = copy.deepcopy(fine_tuner)
                 current_sliding_window = [slicing_window[1], f1]
                 if sum(slicing_window) > sum(current_sliding_window):
                     utils.green_text(f'finish training, stop criteria met')
@@ -141,9 +147,9 @@ def fine_tune_binary_model(data_str: str,
                                                                          lr=lr,
                                                                          loss='BCE',
                                                                          num_epochs=num_epochs,
-                                                                         pretrained_fine_tuner=fine_tuner,
+                                                                         pretrained_fine_tuner=best_fine_tuner,
                                                                          data_str=data_str)
-        if test_f1 < previous_f1_score:
+        if previous_f1_score is not None and test_f1 < previous_f1_score:
             print(utils.red_text(f'previous f1 score is {previous_f1_score}, greater than current f1 score {test_f1}'
                                  f'do not save model'))
             save_files = False
@@ -155,8 +161,8 @@ def fine_tune_binary_model(data_str: str,
     print('#' * 100)
 
     if save_files:
-        torch.save(fine_tuner.state_dict(),
-                   f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
+        torch.save(best_fine_tuner.state_dict(),
+                   f"models/binary_models/binary_{l}_{best_fine_tuner}_lr{lr}_loss_{loss}_e{num_epochs}.pth")
 
         run_l_binary_evaluating_pipeline_from_train(data_str=data_str,
                                                     lr=lr,
@@ -200,7 +206,6 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
                                                 l: data_preprocessing.Label,
                                                 lr: float,
                                                 num_epochs: int):
-
     pretrained_path = f"models/binary_models/binary_{l}_{model_name}_lr{lr}_loss_{loss}_e{num_epochs}.pth"
     try:
         neural_evaluation.run_binary_evaluating_pipeline(model_name=model_name_in_main,
