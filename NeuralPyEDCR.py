@@ -390,5 +390,5 @@ if __name__ == '__main__':
                           experiment_name='correct example',
                           num_train_images_per_class=1,
                           multi_process=True,
-                          only_missing_epsilons=True
+                          # only_missing_epsilons=True
                           )
