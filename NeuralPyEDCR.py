@@ -372,8 +372,6 @@ if __name__ == '__main__':
     # main_lr = new_lr = 0.000001
     # original_num_epochs = 0
 
-    num_train_images_per_class = 1
-    experiment_information = 'correct example'
 
     sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                      data_str=data_str,
@@ -387,8 +385,8 @@ if __name__ == '__main__':
     simulate_for_epsilons(total_number_of_points=300,
                           min_value=0.1,
                           max_value=0.3,
-                          # experiment_name=experiment_information,
-                          # num_train_images_per_class=num_train_images_per_class,
+                          experiment_name='correct example',
+                          num_train_images_per_class=1,
                           multi_process=True,
                           only_missing_epsilons=True
                           )
