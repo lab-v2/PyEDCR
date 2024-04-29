@@ -162,4 +162,18 @@ def get_maximal_epsilon(tab_name: str):
 
 
 def get_all_values(tab_name: str):
-    pass
+    ranges = [f'{tab_name}!{letter}2:{letter}' for letter in ['A', 'B', 'C', 'D', 'E', 'F', 'H']]
+    response = __sheet.values().batchGet(
+        spreadsheetId=spreadsheet_id,
+        ranges=ranges
+    ).execute()
+
+    (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies, consistency_error_f1s,
+     RCC_ratios) = [np.array([e[0].strip('%') for e in response['valueRanges'][i].get('values', []) if e[0] != '#N/A'],
+                             dtype=float)
+                    for i in range(len(ranges))]
+
+    return (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
+            consistency_error_f1s, RCC_ratios)
+
+

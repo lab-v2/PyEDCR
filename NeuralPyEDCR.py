@@ -16,6 +16,7 @@ import backbone_pipeline
 import combined_fine_tuning
 import neural_evaluation
 import google_sheets_api
+import plotting
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
@@ -394,15 +395,30 @@ if __name__ == '__main__':
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
     simulate_for_values(
-        # total_number_of_points=10,
-        # min_value=0.1,
-        # max_value=0.2,
+        total_number_of_points=20,
+        min_value=0.1,
+        max_value=0.2,
         binary_l_strs=binary_l_strs,
         binary_lr=0.0001,
         experiment_name='few correct',
         num_train_images_per_class=np.linspace(start=1,
                                                stop=1300,
-                                               num=10),
+                                               num=20),
         multi_process=True,
         # only_missing_epsilons=True
     )
+
+    tab_name = 'DINO V2 VIT14_s on ImageNet'
+
+    (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
+     consistency_error_f1s, RCC_ratios) = google_sheets_api.get_all_values(tab_name=tab_name)
+
+    plotting.plot_3d_epsilons_ODD(images_per_class,
+                                  epsilons,
+                                  error_accuracies,
+                                  error_f1s,
+                                  consistency_error_accuracies,
+                                  consistency_error_f1s,
+                                  RCC_ratios)
+
+
