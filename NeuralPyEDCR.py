@@ -59,7 +59,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            lower_predictions_indices=lower_predictions_indices,
                                            binary_l_strs=binary_l_strs,
                                            binary_num_epochs=binary_num_epochs,
-                                           binary_lr=binary_lr)
+                                           binary_lr=binary_lr,
+                                           experiment_name=experiment_name,
+                                           num_train_images_per_class=num_train_images_per_class)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
