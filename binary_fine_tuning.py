@@ -42,7 +42,8 @@ def fine_tune_binary_model(data_str: str,
     neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
                                                         num_epochs=num_epochs,
                                                         lr=lr,
-                                                        device=device)
+                                                        device=device,
+                                                        experiment_name=l.l_str)
 
     max_f1 = 0
 
@@ -156,13 +157,13 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
                                                 lr: float,
                                                 num_epochs: int):
     save_path = models.get_filepath(model_name=model_name,
-                                l=l,
-                                test=False,
-                                loss=loss,
-                                lr=lr,
-                                pred=True,
-                                epoch=num_epochs,
-                                data_str=data_str)
+                                    l=l,
+                                    test=False,
+                                    loss=loss,
+                                    lr=lr,
+                                    pred=True,
+                                    epoch=num_epochs,
+                                    data_str=data_str)
     if os.path.exists(save_path):
         print(f'file {save_path} already exist')
         return
