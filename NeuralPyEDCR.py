@@ -59,7 +59,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            lower_predictions_indices=lower_predictions_indices,
                                            binary_l_strs=binary_l_strs,
                                            binary_num_epochs=binary_num_epochs,
-                                           binary_lr=binary_lr)
+                                           binary_lr=binary_lr,
+                                           experiment_name=experiment_name,
+                                           num_train_images_per_class=num_train_images_per_class)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
@@ -282,8 +284,8 @@ def work_on_epsilon(args):
                         lr=main_lr,
                         original_num_epochs=original_num_epochs,
                         include_inconsistency_constraint=False,
-                        secondary_model_name=secondary_model_name,
-                        secondary_num_epochs=2,
+                        # secondary_model_name=secondary_model_name,
+                        # secondary_num_epochs=2,
                         binary_l_strs=binary_l_strs,
                         binary_lr=0.0001,
                         binary_num_epochs=1,
@@ -388,5 +390,5 @@ if __name__ == '__main__':
                           experiment_name='correct example',
                           num_train_images_per_class=1,
                           multi_process=True,
-                          only_missing_epsilons=True
+                          # only_missing_epsilons=True
                           )

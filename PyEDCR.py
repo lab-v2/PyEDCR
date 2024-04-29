@@ -51,7 +51,9 @@ class EDCR:
                  lower_predictions_indices: typing.List[int] = [],
                  binary_l_strs: typing.List[str] = [],
                  binary_num_epochs: int = None,
-                 binary_lr: typing.Union[str, float] = None):
+                 binary_lr: typing.Union[str, float] = None,
+                 experiment_name: str = None,
+                 num_train_images_per_class: int = None):
         self.data_str = data_str
         self.preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
         self.main_model_name = main_model_name
