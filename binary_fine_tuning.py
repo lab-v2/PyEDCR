@@ -251,15 +251,20 @@ if __name__ == '__main__':
 
     preprocessor_in_main = data_preprocessing.DataPreprocessor(data_str_in_main)
 
+    download_path = []
+    g_str = None
+
     # for label_idx in range(len(preprocessor_in_main.coarse_grain_classes_str)):
     #     l_str = preprocessor_in_main.coarse_grain_classes_str[label_idx]
     #     l_in_main = preprocessor_in_main.coarse_grain_labels[l_str]
+    #     g_str = 'coarse'
 
     for label_idx in range(len(preprocessor_in_main.fine_grain_classes_str)):
         l_str = preprocessor_in_main.fine_grain_classes_str[label_idx]
         l_in_main = preprocessor_in_main.fine_grain_labels[l_str]
+        g_str = 'fine'
         save_metric = neural_evaluation.evaluate_binary_models_from_files(data_str=data_str_in_main,
-                                                                          g_str='coarse', # change this also!!!
+                                                                          g_str=g_str,  # change this also!!!
                                                                           test=True,
                                                                           lr=lr_in_main,
                                                                           num_epochs=num_epochs_in_main,
@@ -271,18 +276,29 @@ if __name__ == '__main__':
                 print(f'get prediction from train set)')
                 save_label_with_good_f1_score(l=l_in_main)
 
-                save_path = models.get_filepath(model_name=model_name_in_main,
-                                                l=l_in_main,
-                                                test=False,
-                                                loss=loss,
-                                                lr=lr_in_main,
-                                                pred=True,
-                                                epoch=num_epochs_in_main,
-                                                data_str=data_str_in_main)
-                if os.path.exists(save_path):
-                    print(utils.green_text(f'file {save_path} already exist, train prediction is checkout'))
+                test_save_path = models.get_filepath(model_name=model_name_in_main,
+                                                     l=l_in_main,
+                                                     test=True,
+                                                     loss=loss,
+                                                     lr=lr_in_main,
+                                                     pred=True,
+                                                     epoch=num_epochs_in_main,
+                                                     data_str=data_str_in_main)
+
+                train_save_path = models.get_filepath(model_name=model_name_in_main,
+                                                      l=l_in_main,
+                                                      test=False,
+                                                      loss=loss,
+                                                      lr=lr_in_main,
+                                                      pred=True,
+                                                      epoch=num_epochs_in_main,
+                                                      data_str=data_str_in_main)
+                if os.path.exists(train_save_path):
+                    print(utils.green_text(f'file {train_save_path} already exist, train prediction is checkout'))
+                    download_path.append(train_save_path)
+                    download_path.append(test_save_path)
                 else:
-                    print(utils.red_text(f'file {save_path} do not exist, train prediction is created'))
+                    print(utils.red_text(f'file {train_save_path} do not exist, train prediction is created'))
                     run_l_binary_evaluating_pipeline_from_train(data_str=data_str_in_main,
                                                                 lr=lr_in_main,
                                                                 num_epochs=num_epochs_in_main,
@@ -300,3 +316,11 @@ if __name__ == '__main__':
                                           save_files=True,
                                           train_eval_split=train_eval_split_in_main,
                                           previous_f1_score=save_metric[1] if save_metric is not None else None)
+
+    print(utils.green_text('#' * 50))
+    print(utils.green_text(f'Use these file for binary condition. This is for {data_str_in_main} dataset,'
+                           f'model name {model_name_in_main} and {g_str} grain class'))
+    print(utils.green_text('#' * 50))
+
+    for file_path in download_path:
+        print(file_path)
