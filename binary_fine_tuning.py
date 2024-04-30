@@ -160,6 +160,7 @@ def fine_tune_binary_model(data_str: str,
             save_label_with_good_f1_score(l=l)
         else:
             print(utils.red_text(f'f1 score for {l} is not sufficient on test: {test_f1}'))
+            save_files = False
     print('#' * 100)
 
     if save_files:
