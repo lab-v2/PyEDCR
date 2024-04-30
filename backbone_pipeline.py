@@ -159,6 +159,9 @@ def save_binary_prediction_files(data_str: str,
                         ground_truths)
                 break
 
+    elif data_str == 'openimage':
+        np.save(f"scratch/ngocbach/OpenImage/{l}/binary_true.npy",
+                ground_truths)
     else:
         np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
                 ground_truths)
