@@ -275,7 +275,7 @@ def work_on_value(args):
      experiment_name
      ) = args
 
-    print('#' * 25 + f'eps = {epsilon}' + '#' * 50)
+    print('#' * 25 + f'num_train_images_per_class = {num_train_images_per_class}, eps = {epsilon}' + '#' * 50)
     edcr = NeuralPyEDCR(data_str=data_str,
                         epsilon=epsilon,
                         sheet_index=epsilon_index,
@@ -370,6 +370,7 @@ if __name__ == '__main__':
     original_num_epochs = 20
     binary_num_epochs = 10
     sheet_tab_name = 'VIT_b_16 on Military Vehicles'
+    max_num_train_images_per_class = 500
 
     # data_str = 'imagenet'
     # main_model_name = new_model_name = 'dinov2_vits14'
@@ -377,6 +378,7 @@ if __name__ == '__main__':
     # original_num_epochs = 8
     # binary_num_epochs = 5
     # sheet_tab_name = 'DINO V2 VIT14_s on ImageNet'
+    # max_num_train_images_per_class = 1300
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
@@ -394,14 +396,14 @@ if __name__ == '__main__':
 
     simulate_for_values(
         total_number_of_points=20,
-        min_value=0.1,
+        min_value=0.001,
         max_value=0.3,
         binary_l_strs=binary_l_strs,
         binary_lr=binary_lr,
         binary_num_epochs=binary_num_epochs,
         experiment_name='few correct',
         num_train_images_per_class=np.linspace(start=1,
-                                               stop=500,
+                                               stop=max_num_train_images_per_class,
                                                num=20),
         multi_process=False,
         only_from_missing_values=True
