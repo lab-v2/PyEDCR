@@ -160,6 +160,7 @@ def fine_tune_binary_model(data_str: str,
             save_label_with_good_f1_score(l=l)
         else:
             print(utils.red_text(f'f1 score for {l} is not sufficient on test: {test_f1}'))
+            save_files = False
     print('#' * 100)
 
     if save_files:
@@ -234,20 +235,31 @@ def run_l_binary_evaluating_pipeline_from_train(data_str: str,
 
 
 if __name__ == '__main__':
-    data_str_in_main = 'imagenet'
+    # data_str_in_main = 'imagenet'
+    # num_epochs_in_main = 5
+    # lr_in_main = 0.000001
+    # model_name_in_main = 'dinov2_vits14'
+    # loss = 'BCE'
+    # train_eval_split_in_main = 0.8
+
+    data_str_in_main = 'military_vehicles'
     num_epochs_in_main = 5
-    lr_in_main = 0.000001
-    model_name_in_main = 'dinov2_vits14'
+    lr_in_main = 0.0001
+    model_name_in_main = 'vit_b_16'
     loss = 'BCE'
     train_eval_split_in_main = 0.8
 
     preprocessor_in_main = data_preprocessing.DataPreprocessor(data_str_in_main)
 
+    # for label_idx in range(len(preprocessor_in_main.coarse_grain_classes_str)):
+    #     l_str = preprocessor_in_main.coarse_grain_classes_str[label_idx]
+    #     l_in_main = preprocessor_in_main.coarse_grain_labels[l_str]
+
     for label_idx in range(len(preprocessor_in_main.fine_grain_classes_str)):
         l_str = preprocessor_in_main.fine_grain_classes_str[label_idx]
         l_in_main = preprocessor_in_main.fine_grain_labels[l_str]
         save_metric = neural_evaluation.evaluate_binary_models_from_files(data_str=data_str_in_main,
-                                                                          g_str='fine',
+                                                                          g_str='coarse',
                                                                           test=True,
                                                                           lr=lr_in_main,
                                                                           num_epochs=num_epochs_in_main,
@@ -268,9 +280,9 @@ if __name__ == '__main__':
                                                 epoch=num_epochs_in_main,
                                                 data_str=data_str_in_main)
                 if os.path.exists(save_path):
-                    utils.red_text(f'file {save_path} already exist, train prediction is checkout')
+                    print(utils.green_text(f'file {save_path} already exist, train prediction is checkout'))
                 else:
-                    utils.green_text(f'file {save_path} do not exist, train prediction is created')
+                    print(utils.red_text(f'file {save_path} do not exist, train prediction is created'))
                     run_l_binary_evaluating_pipeline_from_train(data_str=data_str_in_main,
                                                                 lr=lr_in_main,
                                                                 num_epochs=num_epochs_in_main,

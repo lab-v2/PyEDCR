@@ -694,12 +694,15 @@ class BinaryImageFolder(EDCRImageFolder):
         self.preprocessor = preprocessor
         self.l = l
 
+        if self.preprocessor.data_str == 'imagenet':
+            relevant_class = list(preprocessor.fine_grain_mapping_dict.keys())
+        else:
+            relevant_class = preprocessor.fine_grain_classes_str
+
         super().__init__(root=root,
                          transform=transform,
                          target_transform=transform,
-                         relevant_classes=
-                         list(self.preprocessor.fine_grain_mapping_dict.keys())
-                         if preprocessor.data_str == 'imagenet' else None)
+                         relevant_classes=relevant_class)
         # self.balance_samples()
 
     # def balance_samples(self):
@@ -714,7 +717,10 @@ class BinaryImageFolder(EDCRImageFolder):
         if self.transform is not None:
             x = self.transform(x)
 
-        y = int(y == self.l.index)
+        if self.l.g.g_str == 'fine':
+            y = int(y == self.l.index)
+        else:
+            y = int(self.preprocessor.fine_to_course_idx[y] == self.preprocessor.fine_to_course_idx[self.l.index])
 
         return x, y
 
@@ -880,13 +886,16 @@ def get_loaders(preprocessor: DataPreprocessor,
 
         # define sampler for binary model only, and on train dataset only
         if label is not None and train_eval_split and split == 'train':
-            num_example_of_l = preprocessor.fine_counts[label.index]
+            train_true_data = preprocessor.train_true_fine_data if label.g.g_str == 'fine' \
+                else preprocessor.train_true_coarse_data
+            num_example_of_l = preprocessor.fine_counts[label.index] if label.g.g_str == 'fine' \
+                else preprocessor.coarse_counts[label.index]
             weight = [0, 0]
             weight[1] = 1 / num_example_of_l
-            weight[0] = 1 / (len(preprocessor.train_true_fine_data) - num_example_of_l)
+            weight[0] = 1 / (len(train_true_data) - num_example_of_l)
             samples_weight = np.array(
                 [weight[idx]
-                 for idx in np.where(preprocessor.train_true_fine_data[train_indices] == label.index, 1, 0)])
+                 for idx in np.where(train_true_data[train_indices] == label.index, 1, 0)])
             samples_weight = torch.from_numpy(samples_weight)
             samples_weight = samples_weight.double()
             sampler = torch.utils.data.sampler.WeightedRandomSampler(samples_weight, len(samples_weight))

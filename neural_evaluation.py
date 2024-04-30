@@ -262,7 +262,7 @@ def run_combined_evaluating_pipeline(data_str: str,
                                                 test=split == 'test',
                                                 fine_tuners=fine_tuners[0],
                                                 combined=True,
-                                                lrs=lr[0],
+                                                lrs=lr,
                                                 loss=loss,
                                                 fine_prediction=fine_predictions,
                                                 coarse_prediction=coarse_predictions,
@@ -402,7 +402,8 @@ if __name__ == '__main__':
                                      loss='BCE',
                                      num_epochs=0,
                                      # pretrained_path=pretrained_path,
-                                     save_files=True)
+                                     save_files=True,
+                                     print_results=False)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],
