@@ -184,7 +184,6 @@ class EDCR:
 
         self.pred_data['binary'] = {}
 
-
         for l_str in binary_l_strs:
             l = {**self.preprocessor.fine_grain_labels, **self.preprocessor.coarse_grain_labels}[l_str]
             pred_paths[l] = {
@@ -204,9 +203,8 @@ class EDCR:
                  for test_or_train in ['test', 'train']}
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
-                if l.g == g:
-                    self.condition_datas[g] = self.condition_datas[g].union(
-                        {conditions.PredCondition(l=l, binary=True)})
+                self.condition_datas[g] = self.condition_datas[g].union(
+                    {conditions.PredCondition(l=l, binary=True)})
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.DataPreprocessor.granularities.values():
