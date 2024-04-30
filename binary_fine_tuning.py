@@ -3,7 +3,6 @@ import os.path
 
 import torch
 import torch.utils.data
-import typing
 from tqdm import tqdm
 import numpy as np
 

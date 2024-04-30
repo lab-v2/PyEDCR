@@ -697,7 +697,7 @@ class BinaryImageFolder(EDCRImageFolder):
         if self.preprocessor.data_str == 'imagenet':
             relevant_class = list(preprocessor.fine_grain_mapping_dict.keys())
         else:
-            relevant_class = preprocessor.fine_grain_classes_str
+            relevant_class = None
 
         super().__init__(root=root,
                          transform=transform,
