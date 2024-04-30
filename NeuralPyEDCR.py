@@ -356,7 +356,7 @@ def simulate_for_values(total_number_of_points: int = 10,
               ) for i, (curr_num_train_images_per_class, epsilon) in all_data_epsilon_values.items()]
 
     if multi_process:
-        processes_num = min([len(datas), mp.cpu_count(), 5])
+        processes_num = min([len(datas), mp.cpu_count(), 5 if utils.is_local() else 10])
         process_map(work_on_value,
                     datas,
                     max_workers=processes_num)
@@ -408,7 +408,7 @@ if __name__ == '__main__':
                                                stop=max_num_train_images_per_class,
                                                num=20),
         multi_process=True,
-        # only_from_missing_values=True
+        only_from_missing_values=True
     )
 
     (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
