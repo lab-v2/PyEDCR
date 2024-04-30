@@ -243,11 +243,11 @@ if __name__ == '__main__':
 
     preprocessor_in_main = data_preprocessing.DataPreprocessor(data_str_in_main)
 
-    for label_idx in range(len(preprocessor_in_main.fine_grain_classes_str)):
-        l_str = preprocessor_in_main.fine_grain_classes_str[label_idx]
-        l_in_main = preprocessor_in_main.fine_grain_labels[l_str]
+    for label_idx in range(len(preprocessor_in_main.coarse_grain_classes_str)):
+        l_str = preprocessor_in_main.coarse_grain_classes_str[label_idx]
+        l_in_main = preprocessor_in_main.coarse_grain_labels[l_str]
         save_metric = neural_evaluation.evaluate_binary_models_from_files(data_str=data_str_in_main,
-                                                                          g_str='fine',
+                                                                          g_str='coarse',
                                                                           test=True,
                                                                           lr=lr_in_main,
                                                                           num_epochs=num_epochs_in_main,
