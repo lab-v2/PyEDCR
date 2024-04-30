@@ -720,7 +720,7 @@ class BinaryImageFolder(EDCRImageFolder):
         if self.l.g.g_str == 'fine':
             y = int(y == self.l.index)
         else:
-            y = int(self.preprocessor.fine_to_course_idx[y] == self.preprocessor.fine_to_course_idx[self.l.index])
+            y = int(self.preprocessor.fine_to_course_idx[y] == self.l.index)
 
         return x, y
 
