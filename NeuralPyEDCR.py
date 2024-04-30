@@ -374,18 +374,23 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # main_lr = new_lr = 0.0001
-    # original_num_epochs = 20
+    data_str = 'military_vehicles'
+    main_model_name = new_model_name = 'vit_b_16'
+    main_lr = new_lr = binary_lr = 0.0001
+    original_num_epochs = 20
+    binary_num_epochs = 10
+    tab_name = 'VIT_b_16 on Military Vehicles'
 
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    main_lr = new_lr = 0.000001
-    original_num_epochs = 8
+    # data_str = 'imagenet'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    # main_lr = new_lr = binary_lr = 0.000001
+    # original_num_epochs = 8
+    # binary_num_epochs = 5
+    # tab_name = 'DINO V2 VIT14_s on ImageNet'
 
-    binary_l_strs = list({f.split('e4_')[-1].replace('.npy', '') for f in os.listdir('binary_results')
-                          if f.startswith('imagenet_dinov2_vits14')})
+    binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
+                          for f in os.listdir('binary_results')
+                          if f.startswith(f'{data_str}_{main_model_name}')})
 
     # secondary_model_name = 'vit_l_16_BCE'
     # secondary_model_name = 'dinov2_vitl14'
@@ -397,32 +402,32 @@ if __name__ == '__main__':
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    simulate_for_values(
-        total_number_of_points=20,
-        min_value=0.1,
-        max_value=0.2,
-        binary_l_strs=binary_l_strs,
-        binary_lr=1e-6,
-        binary_num_epochs=5,
-        experiment_name='few correct',
-        num_train_images_per_class=np.linspace(start=1,
-                                               stop=1300,
-                                               num=20),
-        multi_process=False,
-        # only_missing_epsilons=True
-    )
+    # simulate_for_values(
+    #     total_number_of_points=20,
+    #     min_value=0.1,
+    #     max_value=0.2,
+    #     binary_l_strs=binary_l_strs,
+    #     binary_lr=binary_lr,
+    #     binary_num_epochs=binary_num_epochs,
+    #     experiment_name='few correct',
+    #     num_train_images_per_class=np.linspace(start=1,
+    #                                            stop=1300,
+    #                                            num=20),
+    #     multi_process=False,
+    #     # only_missing_epsilons=True
+    # )
 
-    # tab_name = 'DINO V2 VIT14_s on ImageNet'
-    #
-    # (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
-    #  consistency_error_f1s, RCC_ratios) = google_sheets_api.get_all_values(tab_name=tab_name)
-    #
-    # plotting.plot_3d_epsilons_ODD(images_per_class,
-    #                               epsilons,
-    #                               error_accuracies,
-    #                               error_f1s,
-    #                               consistency_error_accuracies,
-    #                               consistency_error_f1s,
-    #                               RCC_ratios)
+
+
+    (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
+     consistency_error_f1s, RCC_ratios) = google_sheets_api.get_all_values(tab_name=tab_name)
+
+    plotting.plot_3d_epsilons_ODD(images_per_class,
+                                  epsilons,
+                                  error_accuracies,
+                                  error_f1s,
+                                  consistency_error_accuracies,
+                                  consistency_error_f1s,
+                                  RCC_ratios)
 
 
