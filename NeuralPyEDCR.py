@@ -322,10 +322,11 @@ def simulate_for_values(total_number_of_points: int = 10,
                         num_train_images_per_class: typing.Sequence[int] = None,
                         experiment_name: str = None,
                         only_from_missing_values: bool = False):
-    all_data_epsilon_values = itertools.product(num_train_images_per_class,
-                                                np.linspace(start=min_value,
-                                                            stop=max_value,
-                                                            num=total_number_of_points))
+    all_data_epsilon_values = {i: (image_value, epsilon) for i, (image_value, epsilon)
+                               in enumerate(itertools.product(num_train_images_per_class,
+                                                              np.linspace(start=min_value,
+                                                                          stop=max_value,
+                                                                          num=total_number_of_points)))}
     if only_from_missing_values:
         image_values, epsilons = google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
                                                                            column_letters=['A', 'B'])
@@ -333,7 +334,7 @@ def simulate_for_values(total_number_of_points: int = 10,
             last_image_value = image_values[-1]
             last_epsilon = epsilons[-1]
             all_data_epsilon_values = {i: (image_value, epsilon) for i, (image_value, epsilon) in
-                                       enumerate(all_data_epsilon_values)
+                                       all_data_epsilon_values.items()
                                        if (image_value == last_image_value and epsilon > last_epsilon) or
                                        (image_value > last_image_value)}
 
