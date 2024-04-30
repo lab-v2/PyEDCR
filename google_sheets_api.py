@@ -98,11 +98,11 @@ def update_sheet(range_: str,
 
 
 @exponential_backoff
-def find_empty_rows_in_column(tab_name: str,
-                              column: str):
+def find_empty_rows_in_column(sheet_tab_name: str,
+                              column_letter: str):
     # Fetch the column data
     values = __sheet.values().get(spreadsheetId=spreadsheet_id,
-                                  range=f'{tab_name}!{column}:{column}').execute().get('values', [])
+                                  range=f'{sheet_tab_name}!{column_letter}:{column_letter}').execute().get('values', [])
 
     total_value_num = len(values)
 
@@ -115,11 +115,25 @@ def find_empty_rows_in_column(tab_name: str,
     return empty_row_indices, total_value_num
 
 
-def get_maximal_epsilon(tab_name: str):
+@exponential_backoff
+def get_values_from_columns(sheet_tab_name: str,
+                            column_letters: typing.List[str]):
+    ranges = [f'{sheet_tab_name}!{letter}2:{letter}' for letter in column_letters]
+    response = __sheet.values().batchGet(
+        spreadsheetId=spreadsheet_id,
+        ranges=ranges
+    ).execute()
+
+    return [np.array([e[0].strip('%') for e in response_i.get('values', []) if e[0] != '#N/A'],
+                     dtype=float) for response_i in response['valueRanges']]
+
+
+@exponential_backoff
+def get_maximal_epsilon(sheet_tab_name: str):
     # Specify the separate ranges to fetch
-    data_range_b_to_e = f'{tab_name}!B2:E'
-    data_range_g = f'{tab_name}!G2:G'
-    column_a_range = f'{tab_name}!A2:A'
+    data_range_b_to_e = f'{sheet_tab_name}!B2:E'
+    data_range_g = f'{sheet_tab_name}!G2:G'
+    column_a_range = f'{sheet_tab_name}!A2:A'
 
     # Fetch the data using batchGet
     response = __sheet.values().batchGet(
@@ -159,21 +173,3 @@ def get_maximal_epsilon(tab_name: str):
         return column_a_values[max_index][0]
     else:
         return None
-
-
-def get_all_values(tab_name: str):
-    ranges = [f'{tab_name}!{letter}2:{letter}' for letter in ['A', 'B', 'C', 'D', 'E', 'F', 'H']]
-    response = __sheet.values().batchGet(
-        spreadsheetId=spreadsheet_id,
-        ranges=ranges
-    ).execute()
-
-    (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies, consistency_error_f1s,
-     RCC_ratios) = [np.array([e[0].strip('%') for e in response['valueRanges'][i].get('values', []) if e[0] != '#N/A'],
-                             dtype=float)
-                    for i in range(len(ranges))]
-
-    return (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
-            consistency_error_f1s, RCC_ratios)
-
-
