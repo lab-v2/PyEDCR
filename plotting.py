@@ -1,10 +1,8 @@
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from scipy.interpolate import griddata
 import numpy as np
-
+from matplotlib.patches import Patch
 import data_preprocessing
-
-
 
 
 def plot_per_class(epsilons,
@@ -67,35 +65,50 @@ def plot_all(epsilons,
         plt.cla()
 
 
-
-def plot_3d_epsilons_ODD(images_per_class,
-                         epsilons,
-                         error_accuracies,
-                         error_f1s,
-                         consistency_error_accuracies,
-                         consistency_error_f1s,
-                         RCC_ratios):
-    # Initialize 3D plot
-    fig = plt.figure()
+def plot_3d_epsilons_ODD(images_per_class, epsilons, error_accuracies, error_f1s,
+                         consistency_error_accuracies, consistency_error_f1s, RCC_ratios):
+    fig = plt.figure(figsize=(12, 10))
     ax = fig.add_subplot(111, projection='3d')
 
-    # Scatter plots
-    scatter1 = ax.scatter(images_per_class, epsilons, error_accuracies,
-                          color='r', label='Error Accuracies')
-    scatter2 = ax.scatter(images_per_class, epsilons, error_f1s,
-                          color='g', label='Error F1s')
-    scatter3 = ax.scatter(images_per_class, epsilons, consistency_error_accuracies,
-                          color='b', label='Consistency Error Accuracies')
-    scatter4 = ax.scatter(images_per_class, epsilons, consistency_error_f1s,
-                          color='y', label='Consistency Error F1s')
-    scatter5 = ax.scatter(images_per_class, epsilons, [r * 100 for r in RCC_ratios],
-                          color='m', label='RCC Ratios')
+    # Creating a mesh grid
+    xi = np.linspace(min(images_per_class), max(images_per_class), 100)
+    yi = np.linspace(min(epsilons), max(epsilons), 100)
+    xi, yi = np.meshgrid(xi, yi)
+
+    # Dictionary to store interpolated surfaces
+    metrics = {
+        'Error Accuracy': (error_accuracies, 'Reds'),
+        'Error F1': (error_f1s, 'Greens'),
+        # 'Consistency Error Accuracy': (consistency_error_accuracies, 'Blues'),
+        # 'Consistency Error F1': (consistency_error_f1s, 'Oranges'),
+        # 'RCC Ratio': ([r * 100 for r in RCC_ratios], 'Purples')  # Scaling RCC ratios for visualization
+    }
+
+    # Plot each metric as a surface
+    for label, (values, cmap) in metrics.items():
+        # Interpolate z values on created grid
+        zi = griddata((images_per_class, epsilons), values, (xi, yi), method='cubic')
+
+        # Plot surface
+        ax.plot_surface(xi, yi, zi, cmap=cmap, edgecolor='none', alpha=0.75, label=label)
+
+
+    ax.set_ylim(ax.get_ylim()[::-1])
+
+    # Adjust the view angle
+    ax.view_init(
+        # elev=30,
+        azim=-30
+    )  # Elevate 30°, rotate to 120°
 
     # Labels and Legend
     ax.set_xlabel('Images per Class')
-    ax.set_ylabel('Epsilons')
+    ax.set_ylabel('Epsilon')
     ax.set_zlabel('Values')
-    ax.legend(loc='center right',
-              bbox_to_anchor=(0.1, 0.5))
 
+    # Since 3D legend is not directly supported, we use a workaround to show legends for surfaces
+    legend_patches = [Patch(color=plt.get_cmap(name)(0.5), label=label) for label, (_, name) in metrics.items()]
+    ax.legend(handles=legend_patches, loc='best', fontsize='15')
+
+    plt.tight_layout()
     plt.show()
