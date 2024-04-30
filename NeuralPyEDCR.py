@@ -406,7 +406,7 @@ if __name__ == '__main__':
         num_train_images_per_class=np.linspace(start=1,
                                                stop=max_num_train_images_per_class,
                                                num=20),
-        multi_process=False,
+        multi_process=True,
         only_from_missing_values=True
     )
 
