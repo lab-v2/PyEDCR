@@ -329,7 +329,7 @@ def simulate_for_values(total_number_of_points: int = 10,
     if only_from_missing_values:
         image_values, epsilons = google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
                                                                            column_letters=['A', 'B'])
-        if len(image_values) and len(epsilons:)
+        if len(image_values) and len(epsilons):
             last_image_value = image_values[-1]
             last_epsilon = epsilons[-1]
             all_data_epsilon_values = [(image_value, epsilon) for (image_value, epsilon) in all_data_epsilon_values
