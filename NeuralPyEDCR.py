@@ -407,7 +407,7 @@ if __name__ == '__main__':
                                                stop=max_num_train_images_per_class,
                                                num=20),
         multi_process=True,
-        only_from_missing_values=True
+        # only_from_missing_values=True
     )
 
     (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
