@@ -268,6 +268,7 @@ def work_on_value(args):
      secondary_num_epochs,
      binary_l_strs,
      binary_lr,
+     binary_num_epochs,
      new_model_name,
      new_lr,
      num_train_images_per_class,
@@ -287,8 +288,8 @@ def work_on_value(args):
                         secondary_model_name=secondary_model_name,
                         secondary_num_epochs=secondary_num_epochs,
                         binary_l_strs=binary_l_strs,
-                        binary_lr=0.0001,
-                        binary_num_epochs=1,
+                        binary_lr=binary_lr,
+                        binary_num_epochs=binary_num_epochs,
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
@@ -317,6 +318,7 @@ def simulate_for_values(total_number_of_points: int = 10,
                         secondary_num_epochs: int = None,
                         binary_l_strs: typing.List[str] = [],
                         binary_lr: typing.Union[str, float] = None,
+                        binary_num_epochs: int = None,
                         num_train_images_per_class: typing.Sequence[int] = None,
                         only_missing_values: bool = False,
                         experiment_name: str = None):
@@ -330,6 +332,7 @@ def simulate_for_values(total_number_of_points: int = 10,
               secondary_num_epochs,
               binary_l_strs,
               binary_lr,
+              binary_num_epochs,
               new_model_name,
               new_lr,
               int(curr_num_train_images_per_class),
@@ -381,7 +384,7 @@ if __name__ == '__main__':
     main_lr = new_lr = 0.000001
     original_num_epochs = 8
 
-    binary_l_strs = list({f.split('e0_')[-1].rstrip('.npy') for f in os.listdir('binary_results')
+    binary_l_strs = list({f.split('e4_')[-1].replace('.npy', '') for f in os.listdir('binary_results')
                           if f.startswith('imagenet_dinov2_vits14')})
 
     # secondary_model_name = 'vit_l_16_BCE'
@@ -394,31 +397,32 @@ if __name__ == '__main__':
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    # simulate_for_values(
-    #     total_number_of_points=20,
-    #     min_value=0.1,
-    #     max_value=0.2,
-    #     binary_l_strs=binary_l_strs,
-    #     binary_lr=0.0001,
-    #     experiment_name='few correct',
-    #     num_train_images_per_class=np.linspace(start=1,
-    #                                            stop=1300,
-    #                                            num=20),
-    #     multi_process=True,
-    #     # only_missing_epsilons=True
-    # )
+    simulate_for_values(
+        total_number_of_points=20,
+        min_value=0.1,
+        max_value=0.2,
+        binary_l_strs=binary_l_strs,
+        binary_lr=1e-6,
+        binary_num_epochs=5,
+        experiment_name='few correct',
+        num_train_images_per_class=np.linspace(start=1,
+                                               stop=1300,
+                                               num=20),
+        multi_process=False,
+        # only_missing_epsilons=True
+    )
 
-    tab_name = 'DINO V2 VIT14_s on ImageNet'
-
-    (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
-     consistency_error_f1s, RCC_ratios) = google_sheets_api.get_all_values(tab_name=tab_name)
-
-    plotting.plot_3d_epsilons_ODD(images_per_class,
-                                  epsilons,
-                                  error_accuracies,
-                                  error_f1s,
-                                  consistency_error_accuracies,
-                                  consistency_error_f1s,
-                                  RCC_ratios)
+    # tab_name = 'DINO V2 VIT14_s on ImageNet'
+    #
+    # (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
+    #  consistency_error_f1s, RCC_ratios) = google_sheets_api.get_all_values(tab_name=tab_name)
+    #
+    # plotting.plot_3d_epsilons_ODD(images_per_class,
+    #                               epsilons,
+    #                               error_accuracies,
+    #                               error_f1s,
+    #                               consistency_error_accuracies,
+    #                               consistency_error_f1s,
+    #                               RCC_ratios)
 
 

@@ -184,10 +184,8 @@ class EDCR:
 
         self.pred_data['binary'] = {}
 
-        binary_gs = ['fine']
-
         for l_str in binary_l_strs:
-            l = self.preprocessor.fine_grain_labels[l_str]
+            l = {**self.preprocessor.fine_grain_labels, **self.preprocessor.coarse_grain_labels}[l_str]
             pred_paths[l] = {
                 'test' if test else 'train': models.get_filepath(data_str=data_str,
                                                                  model_name=main_model_name,
@@ -197,19 +195,16 @@ class EDCR:
                                                                  lr=binary_lr,
                                                                  pred=True,
                                                                  epoch=binary_num_epochs)
-
                 for test in [True, False]}
 
             self.pred_data['binary'][l] = \
                 {test_or_train: {g: np.load(pred_paths[l][test_or_train])
-                                 for g in data_preprocessing.DataPreprocessor.granularities.values()
-                                 if g.g_str in binary_gs}
+                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
                  for test_or_train in ['test', 'train']}
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
-                if g.g_str in binary_gs:
-                    self.condition_datas[g] = self.condition_datas[g].union(
-                        {conditions.PredCondition(l=l, binary=True)})
+                self.condition_datas[g] = self.condition_datas[g].union(
+                    {conditions.PredCondition(l=l, binary=True)})
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.DataPreprocessor.granularities.values():

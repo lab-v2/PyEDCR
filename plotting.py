@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
+import scipy
 import numpy as np
 from matplotlib.patches import Patch
 import data_preprocessing
@@ -65,8 +65,14 @@ def plot_all(epsilons,
         plt.cla()
 
 
-def plot_3d_epsilons_ODD(images_per_class, epsilons, error_accuracies, error_f1s,
-                         consistency_error_accuracies, consistency_error_f1s, RCC_ratios):
+def plot_3d_epsilons_ODD(images_per_class: np.array,
+                         epsilons: np.array,
+                         error_accuracies: np.array,
+                         error_f1s: np.array,
+                         consistency_error_accuracies: np.array,
+                         consistency_error_f1s: np.array,
+                         RCC_ratios: np.array
+                         ):
     fig = plt.figure(figsize=(12, 10))
     ax = fig.add_subplot(111, projection='3d')
 
@@ -87,7 +93,10 @@ def plot_3d_epsilons_ODD(images_per_class, epsilons, error_accuracies, error_f1s
     # Plot each metric as a surface
     for label, (values, cmap) in metrics.items():
         # Interpolate z values on created grid
-        zi = griddata((images_per_class, epsilons), values, (xi, yi), method='cubic')
+        zi = scipy.interpolate.griddata(points=(images_per_class, epsilons),
+                                        values=values,
+                                        xi=(xi, yi),
+                                        method='cubic')
 
         # Plot surface
         ax.plot_surface(xi, yi, zi, cmap=cmap, edgecolor='none', alpha=0.75, label=label)
