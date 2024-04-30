@@ -332,9 +332,10 @@ def simulate_for_values(total_number_of_points: int = 10,
         if len(image_values) and len(epsilons):
             last_image_value = image_values[-1]
             last_epsilon = epsilons[-1]
-            all_data_epsilon_values = [(image_value, epsilon) for (image_value, epsilon) in all_data_epsilon_values
+            all_data_epsilon_values = {i: (image_value, epsilon) for i, (image_value, epsilon) in
+                                       enumerate(all_data_epsilon_values)
                                        if (image_value == last_image_value and epsilon > last_epsilon) or
-                                       (image_value > last_image_value)]
+                                       (image_value > last_image_value)}
 
     datas = [(i,
               round(epsilon, 3),
@@ -351,7 +352,7 @@ def simulate_for_values(total_number_of_points: int = 10,
               new_lr,
               int(curr_num_train_images_per_class),
               experiment_name,
-              ) for i, (curr_num_train_images_per_class, epsilon) in enumerate(all_data_epsilon_values)]
+              ) for i, (curr_num_train_images_per_class, epsilon) in all_data_epsilon_values.items()]
 
     if multi_process:
         processes_num = min([len(datas), mp.cpu_count(), 10])
