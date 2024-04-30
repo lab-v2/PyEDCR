@@ -354,7 +354,7 @@ def simulate_for_values(total_number_of_points: int = 10,
               ) for i, (curr_num_train_images_per_class, epsilon) in enumerate(all_data_epsilon_values)]
 
     if multi_process:
-        processes_num = min([len(datas), mp.cpu_count()])
+        processes_num = min([len(datas), mp.cpu_count(), 10])
         process_map(work_on_value,
                     datas,
                     max_workers=processes_num)
