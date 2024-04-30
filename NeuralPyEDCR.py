@@ -365,21 +365,21 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    main_model_name = new_model_name = 'vit_b_16'
-    main_lr = new_lr = binary_lr = 0.0001
-    original_num_epochs = 20
-    binary_num_epochs = 10
-    sheet_tab_name = 'VIT_b_16 on Military Vehicles'
-    max_num_train_images_per_class = 500
+    # data_str = 'military_vehicles'
+    # main_model_name = new_model_name = 'vit_b_16'
+    # main_lr = new_lr = binary_lr = 0.0001
+    # original_num_epochs = 20
+    # binary_num_epochs = 10
+    # sheet_tab_name = 'VIT_b_16 on Military Vehicles'
+    # max_num_train_images_per_class = 500
 
-    # data_str = 'imagenet'
-    # main_model_name = new_model_name = 'dinov2_vits14'
-    # main_lr = new_lr = binary_lr = 0.000001
-    # original_num_epochs = 8
-    # binary_num_epochs = 5
-    # sheet_tab_name = 'DINO V2 VIT14_s on ImageNet'
-    # max_num_train_images_per_class = 1300
+    data_str = 'imagenet'
+    main_model_name = new_model_name = 'dinov2_vits14'
+    main_lr = new_lr = binary_lr = 0.000001
+    original_num_epochs = 8
+    binary_num_epochs = 5
+    sheet_tab_name = 'DINO V2 VIT14_s on ImageNet'
+    max_num_train_images_per_class = 1300
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
