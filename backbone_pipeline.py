@@ -150,18 +150,25 @@ def save_binary_prediction_files(data_str: str,
                                 epoch=epoch,
                                 data_str=data_str),
             predictions)
+    try:
+        if data_str == 'imagenet':
+            preprocessor = data_preprocessing.DataPreprocessor(data_str)
+            for id, label_str in preprocessor.fine_grain_mapping_dict.items():
+                if label_str == l.l_str:
+                    np.save(f"data/ImageNet100/{test_str}_{l.g.g_str}/{id}/binary_true.npy",
+                            ground_truths)
+                    break
 
-    if data_str == 'imagenet':
-        preprocessor = data_preprocessing.DataPreprocessor(data_str)
-        for id, label_str in preprocessor.fine_grain_mapping_dict.items():
-            if label_str == l.l_str:
-                np.save(f"data/ImageNet100/{test_str}_{l.g.g_str}/{id}/binary_true.npy",
-                        ground_truths)
-                break
-
-    else:
-        np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
-                ground_truths)
+        elif data_str == 'openimage':
+            np.save(f"scratch/ngocbach/OpenImage/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
+                    ground_truths)
+        else:
+            np.save(f"data/{test_str}_{l.g.g_str}/{l}/binary_true.npy",
+                    ground_truths)
+    except FileNotFoundError:
+        print('cannot save binary model')
+    except:
+        print('do not know error')
 
     if not evaluation:
         torch.save(fine_tuner.state_dict(),

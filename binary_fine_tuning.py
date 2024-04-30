@@ -241,10 +241,17 @@ if __name__ == '__main__':
     # loss = 'BCE'
     # train_eval_split_in_main = 0.8
 
-    data_str_in_main = 'military_vehicles'
+    # data_str_in_main = 'military_vehicles'
+    # num_epochs_in_main = 5
+    # lr_in_main = 0.0001
+    # model_name_in_main = 'vit_b_16'
+    # loss = 'BCE'
+    # train_eval_split_in_main = 0.8
+
+    data_str_in_main = 'openimage'
     num_epochs_in_main = 5
-    lr_in_main = 0.0001
-    model_name_in_main = 'vit_b_16'
+    lr_in_main = 0.000011
+    model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
     train_eval_split_in_main = 0.8
 
