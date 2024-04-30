@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
 import data_preprocessing
@@ -64,3 +65,37 @@ def plot_all(epsilons,
         plt.savefig(f'figs/{folder}/average_{g}.png')
         plt.clf()
         plt.cla()
+
+
+
+def plot_3d_epsilons_ODD(images_per_class,
+                         epsilons,
+                         error_accuracies,
+                         error_f1s,
+                         consistency_error_accuracies,
+                         consistency_error_f1s,
+                         RCC_ratios):
+    # Initialize 3D plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Scatter plots
+    scatter1 = ax.scatter(images_per_class, epsilons, error_accuracies,
+                          color='r', label='Error Accuracies')
+    scatter2 = ax.scatter(images_per_class, epsilons, error_f1s,
+                          color='g', label='Error F1s')
+    scatter3 = ax.scatter(images_per_class, epsilons, consistency_error_accuracies,
+                          color='b', label='Consistency Error Accuracies')
+    scatter4 = ax.scatter(images_per_class, epsilons, consistency_error_f1s,
+                          color='y', label='Consistency Error F1s')
+    scatter5 = ax.scatter(images_per_class, epsilons, [r * 100 for r in RCC_ratios],
+                          color='m', label='RCC Ratios')
+
+    # Labels and Legend
+    ax.set_xlabel('Images per Class')
+    ax.set_ylabel('Epsilons')
+    ax.set_zlabel('Values')
+    ax.legend(loc='center right',
+              bbox_to_anchor=(0.1, 0.5))
+
+    plt.show()
