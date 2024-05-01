@@ -387,7 +387,7 @@ if __name__ == '__main__':
 
 
     simulate_for_values(
-        total_number_of_points=10,
+        total_number_of_points=100,
         min_value=0.1,
         max_value=0.3,
         binary_l_strs=binary_l_strs,
