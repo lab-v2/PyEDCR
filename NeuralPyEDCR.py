@@ -371,7 +371,7 @@ if __name__ == '__main__':
     main_lr = new_lr = binary_lr = 0.0001
     original_num_epochs = 20
     binary_num_epochs = 10
-    sheet_tab_name = 'Copy of VIT_b_16 on Military Vehicles'
+    sheet_tab_name = 'VIT_b_16 on Military Vehicles'
     max_num_train_images_per_class = 500
 
     # data_str = 'imagenet'
@@ -397,12 +397,12 @@ if __name__ == '__main__':
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
     simulate_for_values(
-        total_number_of_points=100,
+        total_number_of_points=1,
         min_value=0.1,
-        max_value=0.3,
-        # binary_l_strs=binary_l_strs,
-        # binary_lr=binary_lr,
-        # binary_num_epochs=binary_num_epochs,
+        max_value=0.1,
+        binary_l_strs=binary_l_strs,
+        binary_lr=binary_lr,
+        binary_num_epochs=binary_num_epochs,
         experiment_name='few correct',
         num_train_images_per_class=np.linspace(start=1,
                                                stop=1,
@@ -411,15 +411,15 @@ if __name__ == '__main__':
         # only_from_missing_values=True
     )
 
-    # (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
-    #  consistency_error_f1s, RCC_ratios) = (
-    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-    #                                               column_letters=['A', 'B', 'C', 'D', 'E', 'F', 'H']))
-    #
-    # plotting.plot_3d_epsilons_ODD(images_per_class,
-    #                               epsilons,
-    #                               error_accuracies,
-    #                               error_f1s,
-    #                               consistency_error_accuracies,
-    #                               consistency_error_f1s,
-    #                               RCC_ratios)
+    (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
+     consistency_error_f1s, RCC_ratios) = (
+        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+                                                  column_letters=['A', 'B', 'C', 'D', 'E', 'F', 'H']))
+
+    plotting.plot_3d_epsilons_ODD(images_per_class,
+                                  epsilons,
+                                  error_accuracies,
+                                  error_f1s,
+                                  consistency_error_accuracies,
+                                  consistency_error_f1s,
+                                  RCC_ratios)

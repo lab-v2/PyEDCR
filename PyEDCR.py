@@ -60,16 +60,21 @@ class EDCR:
         self.combined = combined
         self.loss = loss
         self.lr = lr
-        self.num_epochs = original_num_epochs
+        self.original_num_epochs = original_num_epochs
         self.epsilon = epsilon
         self.sheet_index = sheet_index + 2 if sheet_index is not None else None
         self.secondary_model_name = secondary_model_name
+        self.secondary_model_loss = secondary_model_loss
+        self.secondary_num_epochs = secondary_num_epochs
         self.lower_predictions_indices = lower_predictions_indices
         self.binary_l_strs = binary_l_strs
+        self.binary_num_epochs = binary_num_epochs
+        self.binary_lr = binary_lr
         self.experiment_name = experiment_name
         self.num_train_images_per_class = num_train_images_per_class
 
-        pred_paths: typing.Dict[str, dict] = {
+        # predictions data
+        self.pred_paths: typing.Dict[str, dict] = {
             'test' if test else 'train': {g_str: models.get_filepath(data_str=data_str,
                                                                      model_name=main_model_name,
                                                                      combined=combined,
@@ -87,127 +92,54 @@ class EDCR:
         elif isinstance(K_train, np.ndarray):
             self.K_train = K_train
         else:
-            self.K_train = data_preprocessing.expand_ranges([(0, np.load(pred_paths['train']['fine']).shape[0] - 1)])
+            self.K_train = data_preprocessing.expand_ranges([(0,
+                                                              np.load(self.pred_paths['train']['fine']).shape[0] - 1)])
 
         if isinstance(K_test, typing.List):
             self.K_test = data_preprocessing.expand_ranges(K_test)
         elif isinstance(K_test, np.ndarray):
             self.K_test = K_test
         else:
-            self.K_test = data_preprocessing.expand_ranges([(0, np.load(pred_paths['test']['fine']).shape[0] - 1)])
+            self.K_test = data_preprocessing.expand_ranges([(0, np.load(self.pred_paths['test']['fine']).shape[0] - 1)])
 
-        self.T_train = np.load(pred_paths['train']['fine']).shape[0]
-        self.T_test = np.load(pred_paths['test']['fine']).shape[0]
+        self.T_train = np.load(self.pred_paths['train']['fine']).shape[0]
+        self.T_test = np.load(self.pred_paths['test']['fine']).shape[0]
 
         self.pred_data = \
-            {test_or_train: {'original': {g: np.load(pred_paths[test_or_train][g.g_str])[
+            {test_or_train: {'original': {g: np.load(self.pred_paths[test_or_train][g.g_str])[
                 self.K_test if test_or_train == 'test' else self.K_train]
                                           for g in data_preprocessing.DataPreprocessor.granularities.values()},
-                             'mid_learning': {g: np.load(pred_paths[test_or_train][g.g_str])[
+                             'mid_learning': {g: np.load(self.pred_paths[test_or_train][g.g_str])[
                                  self.K_test if test_or_train == 'test' else self.K_train]
                                               for g in data_preprocessing.DataPreprocessor.granularities.values()},
-                             'post_detection': {g: np.load(pred_paths[test_or_train][g.g_str])[
+                             'post_detection': {g: np.load(self.pred_paths[test_or_train][g.g_str])[
                                  self.K_test if test_or_train == 'test' else self.K_train]
                                                 for g in data_preprocessing.DataPreprocessor.granularities.values()},
                              'post_correction': {
-                                 g: np.load(pred_paths[test_or_train][g.g_str])[
+                                 g: np.load(self.pred_paths[test_or_train][g.g_str])[
                                      self.K_test if test_or_train == 'test' else self.K_train]
                                  for g in data_preprocessing.DataPreprocessor.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
-        self.all_conditions = set()
+        # conditions data
         self.condition_datas = {}
 
         for g in data_preprocessing.DataPreprocessor.granularities.values():
             g_conditions = {conditions.PredCondition(l=l)
                             for l in self.preprocessor.get_labels(g).values()}
             self.condition_datas[g] = g_conditions
-            self.all_conditions = self.all_conditions.union(g_conditions)
 
-        if self.secondary_model_name is not None:
-            secondary_loss = secondary_model_name.split('_')[-1]
-            pred_paths['secondary_model'] = {
-                'test' if test else 'train': {g_str: models.get_filepath(data_str=data_str,
-                                                                         model_name=secondary_model_name,
-                                                                         combined=combined,
-                                                                         test=test,
-                                                                         granularity=g_str,
-                                                                         loss=secondary_model_loss
-                                                                         if secondary_model_loss is not None
-                                                                         else
-                                                                         (secondary_loss if
-                                                                          secondary_model_name.split('_')[0] != 'dinov2'
-                                                                          else 'BCE'),
-                                                                         lr=lr,
-                                                                         pred=True,
-                                                                         epoch=secondary_num_epochs)
-                                              for g_str in data_preprocessing.DataPreprocessor.granularities_str}
-                for test in [True, False]}
-
-            self.pred_data['secondary_model'] = \
-                {test_or_train: {g: np.load(pred_paths['secondary_model'][test_or_train][g.g_str])
-                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
-                 for test_or_train in ['test', 'train']}
-
-            for g in data_preprocessing.DataPreprocessor.granularities.values():
-                self.condition_datas[g] = self.condition_datas[g].union(
-                    {conditions.PredCondition(l=l, secondary_model=True)
-                     for l in self.preprocessor.get_labels(g).values()})
-
-        for lower_prediction_index in self.lower_predictions_indices:
-            lower_prediction_key = f'lower_{lower_prediction_index}'
-
-            pred_paths[lower_prediction_key] = {
-                'test' if test else 'train':
-                    {g_str: models.get_filepath(data_str=data_str,
-                                                model_name=main_model_name,
-                                                combined=combined,
-                                                test=test,
-                                                granularity=g_str,
-                                                loss=self.loss,
-                                                lr=lr,
-                                                pred=True,
-                                                epoch=original_num_epochs,
-                                                lower_prediction_index=lower_prediction_index)
-                     for g_str in data_preprocessing.DataPreprocessor.granularities_str}
-                for test in [True, False]}
-
-            self.pred_data[lower_prediction_key] = \
-                {test_or_train: {g: np.load(pred_paths[lower_prediction_key][test_or_train][g.g_str])
-                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
-                 for test_or_train in ['test', 'train']}
-
-            for g in data_preprocessing.DataPreprocessor.granularities.values():
-                self.condition_datas[g] = self.condition_datas[g].union(
-                    {conditions.PredCondition(l=l, lower_prediction_index=lower_prediction_index)
-                     for l in self.preprocessor.get_labels(g).values()})
-
-        self.pred_data['binary'] = {}
-
-        for l_str in binary_l_strs:
-            l = {**self.preprocessor.fine_grain_labels, **self.preprocessor.coarse_grain_labels}[l_str]
-            pred_paths[l] = {
-                'test' if test else 'train': models.get_filepath(data_str=data_str,
-                                                                 model_name=main_model_name,
-                                                                 l=l,
-                                                                 test=test,
-                                                                 loss=loss,
-                                                                 lr=binary_lr,
-                                                                 pred=True,
-                                                                 epoch=binary_num_epochs)
-                for test in [True, False]}
-
-            self.pred_data['binary'][l] = \
-                {test_or_train: {g: np.load(pred_paths[l][test_or_train])
-                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
-                 for test_or_train in ['test', 'train']}
-
-            self.all_conditions = self.all_conditions.union({conditions.PredCondition(l=l, binary=True)})
+        self.set_secondary_conditions()
+        self.set_lower_prediction_conditions()
+        self.set_binary_conditions()
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
                     {conditions.InconsistencyCondition(preprocessor=self.preprocessor)})
+
+        self.all_conditions = set().union(*[self.condition_datas[g]
+                                          for g in data_preprocessing.DataPreprocessor.granularities.values()])
 
         self.CC_all = {g: set() for g in data_preprocessing.DataPreprocessor.granularities.values()}
 
@@ -231,15 +163,12 @@ class EDCR:
                 np.where(self.get_where_predicted_incorrect(test=True, g=g) == 1)[0]))
 
         self.actual_examples_with_errors = np.array(list(actual_test_examples_with_errors))
-
         self.error_detection_rules: typing.Dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
         self.error_correction_rules: typing.Dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
-
         self.predicted_errors = np.zeros_like(self.pred_data['test']['original'][
                                                   data_preprocessing.DataPreprocessor.granularities['fine']])
         self.error_ground_truths = np.zeros_like(self.predicted_errors)
         self.inconsistency_error_ground_truths = np.zeros_like(self.predicted_errors)
-
         self.correction_model = None
 
         self.original_test_inconsistencies = (
@@ -261,11 +190,96 @@ class EDCR:
         #                                                       experiment_name=experiment_name,
         #                                                       num_train_images_per_class=num_train_images_per_class
         #                                                       )
-        self.sheet_tab = 'Copy of VIT_b_16 on Military Vehicles'
+        self.sheet_tab = 'Copy of VIT_b_16 on Military Vehicles with Binary'
 
         self.RCC_ratio = 0
 
-    def set_error_detection_rules(self, input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
+    def set_secondary_conditions(self):
+        if self.secondary_model_name is not None:
+            secondary_loss = self.secondary_model_name.split('_')[-1]
+            self.pred_paths['secondary_model'] = {
+                'test' if test else 'train': {g_str: models.get_filepath(data_str=self.data_str,
+                                                                         model_name=self.secondary_model_name,
+                                                                         combined=self.combined,
+                                                                         test=test,
+                                                                         granularity=g_str,
+                                                                         loss=self.secondary_model_loss
+                                                                         if self.secondary_model_loss is not None
+                                                                         else
+                                                                         (secondary_loss if
+                                                                          self.secondary_model_name.split('_')[0]
+                                                                          != 'dinov2' else 'BCE'),
+                                                                         lr=self.lr,
+                                                                         pred=True,
+                                                                         epoch=self.secondary_num_epochs)
+                                              for g_str in data_preprocessing.DataPreprocessor.granularities_str}
+                for test in [True, False]}
+
+            self.pred_data['secondary_model'] = \
+                {test_or_train: {g: np.load(self.pred_paths['secondary_model'][test_or_train][g.g_str])
+                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
+                 for test_or_train in ['test', 'train']}
+
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                self.condition_datas[g] = self.condition_datas[g].union(
+                    {conditions.PredCondition(l=l, secondary_model=True)
+                     for l in self.preprocessor.get_labels(g).values()})
+
+    def set_lower_prediction_conditions(self):
+        for lower_prediction_index in self.lower_predictions_indices:
+            lower_prediction_key = f'lower_{lower_prediction_index}'
+
+            self.pred_paths[lower_prediction_key] = {
+                'test' if test else 'train':
+                    {g_str: models.get_filepath(data_str=self.data_str,
+                                                model_name=self.main_model_name,
+                                                combined=self.combined,
+                                                test=test,
+                                                granularity=g_str,
+                                                loss=self.loss,
+                                                lr=self.lr,
+                                                pred=True,
+                                                epoch=self.original_num_epochs,
+                                                lower_prediction_index=lower_prediction_index)
+                     for g_str in data_preprocessing.DataPreprocessor.granularities_str}
+                for test in [True, False]}
+
+            self.pred_data[lower_prediction_key] = \
+                {test_or_train: {g: np.load(self.pred_paths[lower_prediction_key][test_or_train][g.g_str])
+                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
+                 for test_or_train in ['test', 'train']}
+
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                self.condition_datas[g] = self.condition_datas[g].union(
+                    {conditions.PredCondition(l=l, lower_prediction_index=lower_prediction_index)
+                     for l in self.preprocessor.get_labels(g).values()})
+
+    def set_binary_conditions(self):
+        self.pred_data['binary'] = {}
+
+        for l_str in self.binary_l_strs:
+            l = {**self.preprocessor.fine_grain_labels, **self.preprocessor.coarse_grain_labels}[l_str]
+            self.pred_paths[l] = {
+                'test' if test else 'train': models.get_filepath(data_str=self.data_str,
+                                                                 model_name=self.main_model_name,
+                                                                 l=l,
+                                                                 test=test,
+                                                                 loss=self.loss,
+                                                                 lr=self.binary_lr,
+                                                                 pred=True,
+                                                                 epoch=self.binary_num_epochs)
+                for test in [True, False]}
+
+            self.pred_data['binary'][l] = \
+                {test_or_train: {g: np.load(self.pred_paths[l][test_or_train])
+                                 for g in data_preprocessing.DataPreprocessor.granularities.values()}
+                 for test_or_train in ['test', 'train']}
+
+            for g in data_preprocessing.DataPreprocessor.granularities.values():
+                self.condition_datas[g] = self.condition_datas[g].union({conditions.PredCondition(l=l, binary=True)})
+
+    def set_error_detection_rules(self,
+                                  input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
         """
         Manually sets the error detection rule dictionary.
 

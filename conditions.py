@@ -1,5 +1,5 @@
-import typing
 import abc
+import typing
 import numpy as np
 
 import data_preprocessing
@@ -38,7 +38,7 @@ class PredCondition(Condition):
 
     def __init__(self,
                  l: data_preprocessing.Label,
-                 secondary_model: bool = False,
+                 secondary_model_name: str = None,
                  lower_prediction_index: int = None,
                  binary: bool = False):
         """Initializes a PredCondition instance.
@@ -47,9 +47,9 @@ class PredCondition(Condition):
         """
         super().__init__()
         self.l = l
-        self.secondary_model = secondary_model
+        self.secondary_model_name = secondary_model_name
         self.binary = binary
-        self.negatePredCondition = NegatePredCondition(l=l, secondary=secondary_model)
+        # self.negatePredCondition = NegatePredCondition(l=l, secondary=secondary_model)
         self.lower_prediction_index = lower_prediction_index
 
     def __call__(self,
@@ -61,7 +61,7 @@ class PredCondition(Condition):
                  lower_predictions_coarse_data: dict,
                  binary_data: typing.Dict[data_preprocessing.Label, np.array]) -> np.array:
 
-        if self.secondary_model:
+        if self.secondary_model_name is not None:
             if self.l.g == data_preprocessing.DataPreprocessor.granularities['fine']:
                 granularity_data = secondary_fine_data
             else:
@@ -82,12 +82,12 @@ class PredCondition(Condition):
         return np.where(granularity_data == self.l.index, 1, 0)
 
     def __str__(self) -> str:
-        if self.binary:
-            return f'binary_pred_{self.l}'
-        secondary_str = 'secondary_' if self.secondary_model else ''
-        lower_prediction_index_str = f'_lower{self.lower_prediction_index}' \
+        secondary_str = f'_secondary_{self.secondary_model_name}' if self.secondary_model_name is not None else ''
+        lower_prediction_index_str = f'_lower_{self.lower_prediction_index}' \
             if self.lower_prediction_index is not None else ''
-        return f'{secondary_str}pred_{self.l.g}_{self.l}{lower_prediction_index_str}'
+        binary_str = '_binary' if self.binary else ''
+
+        return f'pred_{self.l.g}_{self.l}{secondary_str}{lower_prediction_index_str}{binary_str}'
 
     def __hash__(self):
         return hash(self.__str__())
