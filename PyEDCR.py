@@ -52,7 +52,6 @@ class EDCR:
                  binary_l_strs: typing.List[str] = [],
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
-                 experiment_name: str = None,
                  num_train_images_per_class: int = None):
         self.data_str = data_str
         self.preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
@@ -70,7 +69,6 @@ class EDCR:
         self.binary_l_strs = binary_l_strs
         self.binary_num_epochs = binary_num_epochs
         self.binary_lr = binary_lr
-        self.experiment_name = experiment_name
         self.num_train_images_per_class = num_train_images_per_class
 
         # predictions data
@@ -92,8 +90,8 @@ class EDCR:
         elif isinstance(K_train, np.ndarray):
             self.K_train = K_train
         else:
-            self.K_train = data_preprocessing.expand_ranges([(0,
-                                                              np.load(self.pred_paths['train']['fine']).shape[0] - 1)])
+            self.K_train = (
+                data_preprocessing.expand_ranges([(0, np.load(self.pred_paths['train']['fine']).shape[0] - 1)]))
 
         if isinstance(K_test, typing.List):
             self.K_test = data_preprocessing.expand_ranges(K_test)
@@ -124,11 +122,7 @@ class EDCR:
         # conditions data
         self.condition_datas = {}
 
-        for g in data_preprocessing.DataPreprocessor.granularities.values():
-            g_conditions = {conditions.PredCondition(l=l)
-                            for l in self.preprocessor.get_labels(g).values()}
-            self.condition_datas[g] = g_conditions
-
+        # self.set_pred_conditions()
         self.set_secondary_conditions()
         self.set_lower_prediction_conditions()
         self.set_binary_conditions()
@@ -184,15 +178,18 @@ class EDCR:
             f"Num of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
-        # self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-        #                                                       data_str=data_str,
-        #                                                       secondary_model_name=secondary_model_name,
-        #                                                       experiment_name=experiment_name,
-        #                                                       num_train_images_per_class=num_train_images_per_class
-        #                                                       )
-        self.sheet_tab = 'Copy of VIT_b_16 on Military Vehicles with Binary'
+        self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                              data_str=data_str,
+                                                              secondary_model_name=secondary_model_name)
+        # self.sheet_tab = 'Copy of VIT_b_16 on Military Vehicles with Binary'
 
         self.RCC_ratio = 0
+
+    def set_pred_conditions(self):
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
+            g_conditions = {conditions.PredCondition(l=l)
+                            for l in self.preprocessor.get_labels(g).values()}
+            self.condition_datas[g] = g_conditions
 
     def set_secondary_conditions(self):
         if self.secondary_model_name is not None:
@@ -222,7 +219,7 @@ class EDCR:
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
-                    {conditions.PredCondition(l=l, secondary_model=True)
+                    {conditions.PredCondition(l=l, secondary_model_name=self.secondary_model_name)
                      for l in self.preprocessor.get_labels(g).values()})
 
     def set_lower_prediction_conditions(self):
@@ -276,7 +273,10 @@ class EDCR:
                  for test_or_train in ['test', 'train']}
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
-                self.condition_datas[g] = self.condition_datas[g].union({conditions.PredCondition(l=l, binary=True)})
+                if g in self.condition_datas:
+                    self.condition_datas[g] = self.condition_datas[g].union({conditions.PredCondition(l=l, binary=True)})
+                else:
+                    self.condition_datas[g] = {conditions.PredCondition(l=l, binary=True)}
 
     def set_error_detection_rules(self,
                                   input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):

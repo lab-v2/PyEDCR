@@ -46,20 +46,17 @@ __sheet = initiate_api()
 def get_sheet_tab_name(main_model_name: str,
                        data_str: str,
                        secondary_model_name: str = None,
-                       num_train_images_per_class: int = None,
-                       experiment_name: str = None) -> str:
+                       binary: bool = False) -> str:
     if main_model_name == 'tresnet_m' or data_str == 'openimage':
-        if num_train_images_per_class is not None:
-            raise ValueError('Open Image do not implement fraction of example yet')
         return f"Tresnet M on OpenImage Errors"
-    return ((f"{'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'} "
-             f"on {'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'}") +
-            ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
-             if secondary_model_name is not None else ''))
-    # +
-    # (((f' {num_train_images_per_class} shot' if num_train_images_per_class is not None else '') +
-    #   (f' {experiment_name}' if experiment_name is not None else ''))
-    #  if not experiment_name.startswith('few') else ' few shot correct'))
+
+    model_name_str = 'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'
+    data_set_str = 'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'
+    secondary_model_str = ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
+                           if secondary_model_name is not None else '')
+    binary_str = ' with Binary' if binary else ''
+
+    return f"{model_name_str} on {data_set_str}{binary_str}{secondary_model_str}"
 
 
 def exponential_backoff(func: typing.Callable) -> typing.Callable:

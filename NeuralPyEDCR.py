@@ -6,7 +6,6 @@ if utils.is_local():
 
 import numpy as np
 import typing
-import multiprocessing as mp
 from tqdm.contrib.concurrent import process_map
 import itertools
 
@@ -41,7 +40,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  binary_l_strs: typing.List[str] = [],
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
-                 experiment_name: str = None,
                  num_train_images_per_class: int = None):
 
         super(NeuralPyEDCR, self).__init__(data_str=data_str,
@@ -62,42 +60,34 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            binary_l_strs=binary_l_strs,
                                            binary_num_epochs=binary_num_epochs,
                                            binary_lr=binary_lr,
-                                           experiment_name=experiment_name,
                                            num_train_images_per_class=num_train_images_per_class)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
         relevant_predicted_indices = None
 
-        if 'correct' in experiment_name:
-            train_pred_correct_mask = np.ones_like(self.pred_data['train']['original'][
-                                                       data_preprocessing.DataPreprocessor.granularities['fine']])
+        # if 'correct' in experiment_name:
+        #     train_pred_correct_mask = np.ones_like(self.pred_data['train']['original'][
+        #                                                data_preprocessing.DataPreprocessor.granularities['fine']])
+        #
+        #     for g in data_preprocessing.DataPreprocessor.granularities.values():
+        #         train_pred_correct_mask &= self.get_where_predicted_correct(test=False, g=g)
+        #
+        #     relevant_predicted_indices = np.where(train_pred_correct_mask == 1)[0]
 
-            for g in data_preprocessing.DataPreprocessor.granularities.values():
-                train_pred_correct_mask &= self.get_where_predicted_correct(test=False, g=g)
-
-            relevant_predicted_indices = np.where(train_pred_correct_mask == 1)[0]
-
-        elif experiment_name == 'inconsistency':
-            train_pred_inconsistency_mask = np.ones_like(self.pred_data['train']['original'][
-                                                             data_preprocessing.DataPreprocessor.granularities['fine']])
-            train_pred_inconsistency_mask &= self.get_where_predicted_inconsistently(test=False)
-
-            relevant_predicted_indices = np.where(train_pred_inconsistency_mask == 1)[0]
-
-        if num_train_images_per_class is not None:
-            example_indices = []
-
-            for i in range(len(self.preprocessor.fine_grain_classes_str)):
-                i_indices_in_ground_truth = np.where(self.preprocessor.train_true_fine_data == i)[0]
-                cls_idx = np.intersect1d(i_indices_in_ground_truth, relevant_predicted_indices)
-                example_indices.extend(cls_idx[:num_train_images_per_class])
-                # break
-
-            self.K_train = np.array(example_indices)
-
-            for g in data_preprocessing.DataPreprocessor.granularities.values():
-                self.pred_data['train']['original'][g] = self.pred_data['train']['original'][g][self.K_train]
+        # if num_train_images_per_class is not None:
+        #     example_indices = []
+        #
+        #     for i in range(len(self.preprocessor.fine_grain_classes_str)):
+        #         i_indices_in_ground_truth = np.where(self.preprocessor.train_true_fine_data == i)[0]
+        #         cls_idx = np.intersect1d(i_indices_in_ground_truth, relevant_predicted_indices)
+        #         example_indices.extend(cls_idx[:num_train_images_per_class])
+        #         # break
+        #
+        #     self.K_train = np.array(example_indices)
+        #
+        #     for g in data_preprocessing.DataPreprocessor.granularities.values():
+        #         self.pred_data['train']['original'][g] = self.pred_data['train']['original'][g][self.K_train]
 
         # for g in data_preprocessing.DataPreprocessor.granularities.values():
         #     print(f"prediction train {g.g_str} is {self.pred_data['train']['original'][g]}")
@@ -272,7 +262,6 @@ def work_on_value(args):
      new_model_name,
      new_lr,
      num_train_images_per_class,
-     experiment_name
      ) = args
 
     print('#' * 25 + f'num_train_images_per_class = {num_train_images_per_class}, eps = {epsilon}' + '#' * 50)
@@ -293,7 +282,6 @@ def work_on_value(args):
                         # lower_predictions_indices=lower_predictions_indices,
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
-                        experiment_name=experiment_name,
                         # num_train_images_per_class=num_train_images_per_class
                         )
     # edcr.learn_error_binary_model(binary_model_name=main_model_name,
@@ -320,7 +308,6 @@ def simulate_for_values(total_number_of_points: int = 10,
                         binary_lr: typing.Union[str, float] = None,
                         binary_num_epochs: int = None,
                         num_train_images_per_class: typing.Sequence[int] = None,
-                        experiment_name: str = None,
                         only_from_missing_values: bool = False):
     all_data_epsilon_values = {i: (image_value, epsilon) for i, (image_value, epsilon)
                                in enumerate(itertools.product(num_train_images_per_class,
@@ -352,7 +339,6 @@ def simulate_for_values(total_number_of_points: int = 10,
               new_model_name,
               new_lr,
               int(curr_num_train_images_per_class),
-              experiment_name,
               ) for i, (curr_num_train_images_per_class, epsilon) in all_data_epsilon_values.items()]
 
     if multi_process:
@@ -366,21 +352,19 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    main_model_name = new_model_name = 'vit_b_16'
-    main_lr = new_lr = binary_lr = 0.0001
-    original_num_epochs = 20
-    binary_num_epochs = 10
-    sheet_tab_name = 'VIT_b_16 on Military Vehicles'
-    max_num_train_images_per_class = 500
+    # data_str = 'military_vehicles'
+    # main_model_name = new_model_name = 'vit_b_16'
+    # main_lr = new_lr = binary_lr = 0.0001
+    # original_num_epochs = 20
+    # binary_num_epochs = 10
+    # max_num_train_images_per_class = 500
 
-    # data_str = 'imagenet'
-    # main_model_name = new_model_name = 'dinov2_vits14'
-    # main_lr = new_lr = binary_lr = 0.000001
-    # original_num_epochs = 8
-    # binary_num_epochs = 5
-    # sheet_tab_name = 'DINO V2 VIT14_s on ImageNet'
-    # max_num_train_images_per_class = 1300
+    data_str = 'imagenet'
+    main_model_name = new_model_name = 'dinov2_vits14'
+    main_lr = new_lr = binary_lr = 0.000001
+    original_num_epochs = 8
+    binary_num_epochs = 5
+    max_num_train_images_per_class = 1300
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
@@ -396,6 +380,12 @@ if __name__ == '__main__':
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
+    sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                          data_str=data_str,
+                                                          # secondary_model_name=secondary_model_name,
+                                                          binary=len(binary_l_strs) > 0)
+    print(f'\nsheet_tab_name: {sheet_tab_name}\n')
+
     simulate_for_values(
         total_number_of_points=1,
         min_value=0.1,
@@ -403,23 +393,23 @@ if __name__ == '__main__':
         binary_l_strs=binary_l_strs,
         binary_lr=binary_lr,
         binary_num_epochs=binary_num_epochs,
-        experiment_name='few correct',
         num_train_images_per_class=np.linspace(start=1,
                                                stop=1,
                                                num=1),
-        # multi_process=True,
+        multi_process=True,
         # only_from_missing_values=True
     )
 
-    (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
-     consistency_error_f1s, RCC_ratios) = (
-        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-                                                  column_letters=['A', 'B', 'C', 'D', 'E', 'F', 'H']))
 
-    plotting.plot_3d_epsilons_ODD(images_per_class,
-                                  epsilons,
-                                  error_accuracies,
-                                  error_f1s,
-                                  consistency_error_accuracies,
-                                  consistency_error_f1s,
-                                  RCC_ratios)
+    # (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
+    #  consistency_error_f1s, RCC_ratios) = (
+    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+    #                                               column_letters=['A', 'B', 'C', 'D', 'E', 'F', 'H']))
+    #
+    # plotting.plot_3d_epsilons_ODD(images_per_class,
+    #                               epsilons,
+    #                               error_accuracies,
+    #                               error_f1s,
+    #                               consistency_error_accuracies,
+    #                               consistency_error_f1s,
+    #                               RCC_ratios)
