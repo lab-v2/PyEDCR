@@ -202,9 +202,7 @@ class EDCR:
                                  for g in data_preprocessing.DataPreprocessor.granularities.values()}
                  for test_or_train in ['test', 'train']}
 
-            for g in data_preprocessing.DataPreprocessor.granularities.values():
-                self.condition_datas[g] = self.condition_datas[g].union(
-                    {conditions.PredCondition(l=l, binary=True)})
+            self.all_conditions = self.all_conditions.union({conditions.PredCondition(l=l, binary=True)})
 
         if include_inconsistency_constraint:
             for g in data_preprocessing.DataPreprocessor.granularities.values():
