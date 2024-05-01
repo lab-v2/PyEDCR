@@ -294,7 +294,7 @@ def work_on_value(args):
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
                         experiment_name=experiment_name,
-                        num_train_images_per_class=num_train_images_per_class
+                        # num_train_images_per_class=num_train_images_per_class
                         )
     # edcr.learn_error_binary_model(binary_model_name=main_model_name,
     #                               binary_lr=new_lr)
@@ -331,12 +331,12 @@ def simulate_for_values(total_number_of_points: int = 10,
         image_values, epsilons = google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
                                                                            column_letters=['A', 'B'])
         if len(image_values) and len(epsilons):
-            last_image_value = image_values[-1]
-            last_epsilon = epsilons[-1]
+            last_image_value = int(image_values[-1])
+            last_epsilon = round(epsilons[-1], 2)
             all_data_epsilon_values = {i: (image_value, epsilon) for i, (image_value, epsilon) in
                                        all_data_epsilon_values.items()
-                                       if (image_value == last_image_value and epsilon > last_epsilon) or
-                                       (image_value > last_image_value)}
+                                       if ((int(image_value) == last_image_value and round(epsilon, 2) > last_epsilon)
+                                           or (int(image_value) > last_image_value))}
 
     datas = [(i,
               round(epsilon, 3),
@@ -356,7 +356,7 @@ def simulate_for_values(total_number_of_points: int = 10,
               ) for i, (curr_num_train_images_per_class, epsilon) in all_data_epsilon_values.items()]
 
     if multi_process:
-        processes_num = min([len(datas), mp.cpu_count(), 5 if utils.is_local() else 10])
+        processes_num = min([len(datas), mp.cpu_count()])
         process_map(work_on_value,
                     datas,
                     max_workers=processes_num)
@@ -366,21 +366,21 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # main_lr = new_lr = binary_lr = 0.0001
-    # original_num_epochs = 20
-    # binary_num_epochs = 10
-    # sheet_tab_name = 'VIT_b_16 on Military Vehicles'
-    # max_num_train_images_per_class = 500
+    data_str = 'military_vehicles'
+    main_model_name = new_model_name = 'vit_b_16'
+    main_lr = new_lr = binary_lr = 0.0001
+    original_num_epochs = 20
+    binary_num_epochs = 10
+    sheet_tab_name = 'Copy of VIT_b_16 on Military Vehicles'
+    max_num_train_images_per_class = 500
 
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    main_lr = new_lr = binary_lr = 0.000001
-    original_num_epochs = 8
-    binary_num_epochs = 5
-    sheet_tab_name = 'DINO V2 VIT14_s on ImageNet'
-    max_num_train_images_per_class = 1300
+    # data_str = 'imagenet'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    # main_lr = new_lr = binary_lr = 0.000001
+    # original_num_epochs = 8
+    # binary_num_epochs = 5
+    # sheet_tab_name = 'DINO V2 VIT14_s on ImageNet'
+    # max_num_train_images_per_class = 1300
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
@@ -397,29 +397,29 @@ if __name__ == '__main__':
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
     simulate_for_values(
-        total_number_of_points=20,
-        min_value=0.001,
+        total_number_of_points=100,
+        min_value=0.1,
         max_value=0.3,
-        binary_l_strs=binary_l_strs,
-        binary_lr=binary_lr,
-        binary_num_epochs=binary_num_epochs,
+        # binary_l_strs=binary_l_strs,
+        # binary_lr=binary_lr,
+        # binary_num_epochs=binary_num_epochs,
         experiment_name='few correct',
         num_train_images_per_class=np.linspace(start=1,
-                                               stop=max_num_train_images_per_class,
-                                               num=20),
-        multi_process=True,
-        only_from_missing_values=True
+                                               stop=1,
+                                               num=1),
+        # multi_process=True,
+        # only_from_missing_values=True
     )
 
-    (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
-     consistency_error_f1s, RCC_ratios) = (
-        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-                                                  column_letters=['A', 'B', 'C', 'D', 'E', 'F', 'H']))
-
-    plotting.plot_3d_epsilons_ODD(images_per_class,
-                                  epsilons,
-                                  error_accuracies,
-                                  error_f1s,
-                                  consistency_error_accuracies,
-                                  consistency_error_f1s,
-                                  RCC_ratios)
+    # (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
+    #  consistency_error_f1s, RCC_ratios) = (
+    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+    #                                               column_letters=['A', 'B', 'C', 'D', 'E', 'F', 'H']))
+    #
+    # plotting.plot_3d_epsilons_ODD(images_per_class,
+    #                               epsilons,
+    #                               error_accuracies,
+    #                               error_f1s,
+    #                               consistency_error_accuracies,
+    #                               consistency_error_f1s,
+    #                               RCC_ratios)

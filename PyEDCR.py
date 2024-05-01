@@ -12,7 +12,7 @@ import typing
 import numpy as np
 import warnings
 import multiprocessing as mp
-from tqdm.contrib.concurrent import process_map
+from tqdm.contrib.concurrent import thread_map
 
 warnings.filterwarnings('ignore')
 
@@ -753,9 +753,9 @@ class EDCR:
 
         print(f'\nLearning {g}-grain error detection rules...')
 
-        DC_ls = process_map(self.DetRuleLearn,
-                            granularity_labels,
-                            max_workers=processes_num) if multi_process else \
+        DC_ls = thread_map(self.DetRuleLearn,
+                           granularity_labels,
+                           max_workers=processes_num) if multi_process else \
             [self.DetRuleLearn(l=l) for l in granularity_labels]
 
         for l, DC_l in zip(granularity_labels, DC_ls):
@@ -923,7 +923,8 @@ class EDCR:
                     labels=[0, 1])]
 
             # set values
-            input_values = [self.num_train_images_per_class,
+            input_values = [self.num_train_images_per_class if self.num_train_images_per_class is not None
+                            else 'Everything',
                             round(self.epsilon, 3),
                             error_accuracy,
                             error_f1,

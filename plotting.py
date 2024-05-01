@@ -83,7 +83,7 @@ def plot_3d_epsilons_ODD(images_per_class: np.array,
 
     # Dictionary to store interpolated surfaces
     metrics = {
-        'Error Accuracy': (error_accuracies, 'Reds'),
+        # 'Error Accuracy': (error_accuracies, 'Reds'),
         'Error F1': (error_f1s, 'Greens'),
         # 'Consistency Error Accuracy': (consistency_error_accuracies, 'Blues'),
         # 'Consistency Error F1': (consistency_error_f1s, 'Oranges'),
