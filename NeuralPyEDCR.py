@@ -384,12 +384,12 @@ if __name__ == '__main__':
                                                           data_str=data_str,
                                                           # secondary_model_name=secondary_model_name,
                                                           binary=len(binary_l_strs) > 0)
-    print(f'\nsheet_tab_name: {sheet_tab_name}\n')
+
 
     simulate_for_values(
-        total_number_of_points=1,
+        total_number_of_points=10,
         min_value=0.1,
-        max_value=0.1,
+        max_value=0.3,
         binary_l_strs=binary_l_strs,
         binary_lr=binary_lr,
         binary_num_epochs=binary_num_epochs,

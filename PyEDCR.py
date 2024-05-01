@@ -178,9 +178,11 @@ class EDCR:
             f"Num of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
-        self.sheet_tab = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-                                                              data_str=data_str,
-                                                              secondary_model_name=secondary_model_name)
+        self.sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                                   data_str=data_str,
+                                                                   secondary_model_name=secondary_model_name,
+                                                                   binary=len(binary_l_strs) > 0)
+        print(f'\nsheet_tab_name: { self.sheet_tab_name}\n')
         # self.sheet_tab = 'Copy of VIT_b_16 on Military Vehicles with Binary'
 
         self.RCC_ratio = 0
@@ -947,7 +949,7 @@ class EDCR:
 
             print(input_values)
 
-            google_sheets_api.update_sheet(range_=f'{self.sheet_tab}!A{self.sheet_index}:G{self.sheet_index}',
+            google_sheets_api.update_sheet(range_=f'{self.sheet_tab_name}!A{self.sheet_index}:G{self.sheet_index}',
                                            body={'values': [input_values]})
 
         if print_results:
