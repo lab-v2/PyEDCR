@@ -40,8 +40,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  binary_l_strs: typing.List[str] = [],
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
-                 num_train_images_per_class: int = None):
-
+                 num_train_images_per_class: int = None,
+                 maximize_ratio: bool = True,
+                 train_labels_noise_ratio: float = None):
         super(NeuralPyEDCR, self).__init__(data_str=data_str,
                                            main_model_name=main_model_name,
                                            combined=combined,
@@ -60,7 +61,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                            binary_l_strs=binary_l_strs,
                                            binary_num_epochs=binary_num_epochs,
                                            binary_lr=binary_lr,
-                                           num_train_images_per_class=num_train_images_per_class)
+                                           num_train_images_per_class=num_train_images_per_class,
+                                           maximize_ratio=maximize_ratio,
+                                           train_labels_noise_ratio=train_labels_noise_ratio)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
@@ -263,6 +266,8 @@ def work_on_value(args):
      new_model_name,
      new_lr,
      num_train_images_per_class,
+     maximize_ratio,
+     train_labels_noise_ratio
      ) = args
 
     print('#' * 25 + f'num_train_images_per_class = {num_train_images_per_class}, eps = {epsilon}' + '#' * 50)
@@ -284,12 +289,14 @@ def work_on_value(args):
                         EDCR_num_epochs=1,
                         neural_num_epochs=1,
                         # num_train_images_per_class=num_train_images_per_class
+                        maximize_ratio=maximize_ratio,
+                        train_labels_noise_ratio=train_labels_noise_ratio
                         )
     # edcr.learn_error_binary_model(binary_model_name=main_model_name,
     #                               binary_lr=new_lr)
-    edcr.print_metrics(test=True,
-                       prior=True,
-                       print_actual_errors_num=True)
+    # edcr.print_metrics(test=True,
+    #                    prior=True,
+    #                    print_actual_errors_num=True)
     edcr.run_learning_pipeline(new_model_name=new_model_name,
                                new_lr=new_lr,
                                multi_threading=True)
@@ -309,22 +316,24 @@ def simulate_for_values(total_number_of_points: int = 10,
                         binary_lr: typing.Union[str, float] = None,
                         binary_num_epochs: int = None,
                         num_train_images_per_class: typing.Sequence[int] = None,
-                        only_from_missing_values: bool = False):
-    all_data_epsilon_values = {i: (image_value, epsilon) for i, (image_value, epsilon)
-                               in enumerate(itertools.product(num_train_images_per_class,
-                                                              np.linspace(start=min_value,
-                                                                          stop=max_value,
-                                                                          num=total_number_of_points)))}
+                        only_from_missing_values: bool = False,
+                        maximize_ratio: bool = True,
+                        train_labels_noise_ratios: typing.Sequence[float] = None):
+    all_noise_epsilon_values = {i: (image_value, epsilon) for i, (image_value, epsilon)
+                                in enumerate(itertools.product(train_labels_noise_ratios,
+                                                               np.linspace(start=min_value,
+                                                                           stop=max_value,
+                                                                           num=total_number_of_points)))}
     if only_from_missing_values:
-        image_values, epsilons = google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+        noise_values, epsilons = google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
                                                                            column_letters=['A', 'B'])
-        if len(image_values) and len(epsilons):
-            last_image_value = int(image_values[-1])
+        if len(noise_values) and len(epsilons):
+            last_noise_value = int(noise_values[-1])
             last_epsilon = round(epsilons[-1], 2)
-            all_data_epsilon_values = {i: (image_value, epsilon) for i, (image_value, epsilon) in
-                                       all_data_epsilon_values.items()
-                                       if ((int(image_value) == last_image_value and round(epsilon, 2) > last_epsilon)
-                                           or (int(image_value) > last_image_value))}
+            all_noise_epsilon_values = {i: (noise_value, epsilon) for i, (noise_value, epsilon) in
+                                        all_noise_epsilon_values.items()
+                                        if ((int(noise_value) == last_noise_value and round(epsilon, 2) > last_epsilon)
+                                            or (int(noise_value) > last_noise_value))}
 
     datas = [(i,
               round(epsilon, 3),
@@ -339,8 +348,10 @@ def simulate_for_values(total_number_of_points: int = 10,
               binary_num_epochs,
               new_model_name,
               new_lr,
-              int(curr_num_train_images_per_class),
-              ) for i, (curr_num_train_images_per_class, epsilon) in all_data_epsilon_values.items()]
+              None,
+              maximize_ratio,
+              noise_value
+              ) for i, (noise_value, epsilon) in all_noise_epsilon_values.items()]
 
     if multi_process:
         processes_num = min([len(datas), 10 if utils.is_local() else 100])
@@ -371,6 +382,8 @@ if __name__ == '__main__':
                           for f in os.listdir('binary_results')
                           if f.startswith(f'{data_str}_{main_model_name}')})
 
+    maximize_ratio = True
+
     # secondary_model_name = 'vit_l_16_BCE'
     # secondary_model_name = 'dinov2_vitl14'
 
@@ -384,23 +397,25 @@ if __name__ == '__main__':
     sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                           data_str=data_str,
                                                           # secondary_model_name=secondary_model_name,
-                                                          binary=len(binary_l_strs) > 0
+                                                          binary=len(binary_l_strs) > 0,
+                                                          maximize_ratio=maximize_ratio
                                                           )
 
     simulate_for_values(
         total_number_of_points=10,
         min_value=0.001,
         max_value=0.1,
-        # binary_l_strs=binary_l_strs,
-        # binary_lr=binary_lr,
-        # binary_num_epochs=binary_num_epochs,
-        num_train_images_per_class=np.linspace(start=1,
-                                               stop=1,
-                                               num=1),
+        binary_l_strs=binary_l_strs,
+        binary_lr=binary_lr,
+        binary_num_epochs=binary_num_epochs,
+        # num_train_images_per_class=np.linspace(start=1,
+        #                                        stop=1,
+        #                                        num=1),
         multi_process=True,
         # only_from_missing_values=True
+        maximize_ratio=maximize_ratio,
+        train_labels_noise_ratios=list(reversed([None, 0.1, 0.2, 0.3]))
     )
-
 
     # (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
     #  consistency_error_f1s, RCC_ratios) = (

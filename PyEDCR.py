@@ -53,7 +53,9 @@ class EDCR:
                  binary_l_strs: typing.List[str] = [],
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
-                 num_train_images_per_class: int = None):
+                 num_train_images_per_class: int = None,
+                 maximize_ratio: bool = True,
+                 train_labels_noise_ratio: float = None):
         self.data_str = data_str
         self.preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
         self.main_model_name = main_model_name
@@ -71,6 +73,8 @@ class EDCR:
         self.binary_num_epochs = binary_num_epochs
         self.binary_lr = binary_lr
         self.num_train_images_per_class = num_train_images_per_class
+        self.maximize_ratio = maximize_ratio
+        self.train_labels_noise_ratio = train_labels_noise_ratio
 
         # predictions data
         self.pred_paths: typing.Dict[str, dict] = {
@@ -120,11 +124,21 @@ class EDCR:
                                  for g in data_preprocessing.DataPreprocessor.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
+        if train_labels_noise_ratio is not None:
+            self.introduce_noise_to_train_labels(noise_ratio=train_labels_noise_ratio)
+
         # conditions data
         self.condition_datas = {}
 
-        self.set_pred_conditions()
-        self.set_binary_conditions()
+        if self.maximize_ratio:
+            self.set_pred_conditions()
+            self.set_binary_conditions()
+        else:
+            if len(self.binary_l_strs) > 0:
+                self.set_binary_conditions()
+            else:
+                self.set_pred_conditions()
+
         self.set_secondary_conditions()
         self.set_lower_prediction_conditions()
 
@@ -182,7 +196,8 @@ class EDCR:
         self.sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                                    data_str=data_str,
                                                                    secondary_model_name=secondary_model_name,
-                                                                   binary=len(binary_l_strs) > 0)
+                                                                   binary=len(binary_l_strs) > 0,
+                                                                   maximize_ratio=maximize_ratio)
         print(f'\nsheet_tab_name: {self.sheet_tab_name}\n')
 
         self.RCC_ratio = 0
@@ -280,8 +295,16 @@ class EDCR:
                 else:
                     self.condition_datas[g] = {conditions.PredCondition(l=l, binary=True)}
 
-    def introduce_noise_to_train(self):
-        pass
+    def introduce_noise_to_train_labels(self,
+                                        noise_ratio: float):
+        train_true_fine_data, train_true_coarse_data = self.preprocessor.get_ground_truths(test=False)
+        n_noise = int(len(train_true_fine_data) * noise_ratio)
+        max_value = np.max(train_true_fine_data)
+        self.preprocessor.train_true_fine_data[:n_noise] = (
+                (self.preprocessor.train_true_fine_data[:n_noise] + 1) % max_value)
+        self.preprocessor.train_true_coarse_data[:n_noise] = (
+                (self.preprocessor.train_true_coarse_data[:n_noise] + 1) % max_value)
+
 
     def set_error_detection_rules(self,
                                   input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
@@ -832,15 +855,14 @@ class EDCR:
 
     def learn_detection_rules(self,
                               g: data_preprocessing.Granularity,
-                              multi_threading: bool = True,
-                              learn_ratio: bool = True):
+                              multi_threading: bool = True):
         # self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
         granularity_labels = list(self.preprocessor.get_labels(g).values())
         processes_num = min(len(granularity_labels), mp.cpu_count())
 
         print(f'\nLearning {g}-grain error detection rules...')
 
-        maximizer: typing.Callable = self.RatioDetRuleLearn if learn_ratio else self.DetRuleLearn
+        maximizer: typing.Callable = self.RatioDetRuleLearn if self.maximize_ratio else self.DetRuleLearn
 
         DC_ls = thread_map(maximizer,
                            granularity_labels,
@@ -971,8 +993,8 @@ class EDCR:
                     labels=[0])]
 
             # set values
-            input_values = [self.num_train_images_per_class if self.num_train_images_per_class is not None
-                            else 'Everything',
+            input_values = [self.train_labels_noise_ratio if self.train_labels_noise_ratio is not None
+                            else 'None',
                             round(self.epsilon, 3),
                             error_accuracy,
                             error_f1,
