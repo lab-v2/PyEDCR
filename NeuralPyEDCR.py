@@ -200,7 +200,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                               new_lr: float,
                               multi_threading: bool = True):
         print('Started learning pipeline...\n')
-        self.print_metrics(test=False, prior=True)
+        # self.print_metrics(test=False, prior=True)
 
         for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -294,9 +294,8 @@ def work_on_value(args):
                         )
     # edcr.learn_error_binary_model(binary_model_name=main_model_name,
     #                               binary_lr=new_lr)
-    # edcr.print_metrics(test=True,
-    #                    prior=True,
-    #                    print_actual_errors_num=True)
+    # edcr.print_metrics(test=False,
+    #                    prior=True)
     edcr.run_learning_pipeline(new_model_name=new_model_name,
                                new_lr=new_lr,
                                multi_threading=True)
@@ -402,9 +401,9 @@ if __name__ == '__main__':
                                                           )
 
     simulate_for_values(
-        total_number_of_points=10,
+        total_number_of_points=1,
         min_value=0.001,
-        max_value=0.1,
+        max_value=0.001,
         binary_l_strs=binary_l_strs,
         binary_lr=binary_lr,
         binary_num_epochs=binary_num_epochs,
@@ -414,7 +413,7 @@ if __name__ == '__main__':
         multi_process=True,
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
-        train_labels_noise_ratios=list(reversed([None, 0.1, 0.2, 0.3]))
+        train_labels_noise_ratios=list(reversed([0.3]))
     )
 
     # (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,

@@ -337,8 +337,6 @@ class DataPreprocessor:
                           test: bool,
                           K: typing.List[int] = None,
                           g: Granularity = None) -> np.array:
-        if K is None:
-            K = [idx for idx in range(0, len(self.test_true_coarse_data))]
         if test:
             true_fine_data = self.test_true_fine_data
             true_coarse_data = self.test_true_coarse_data
@@ -347,9 +345,10 @@ class DataPreprocessor:
             true_coarse_data = self.train_true_coarse_data
 
         if g is None:
-            return true_fine_data[K], true_coarse_data[K]
+            return (true_fine_data[K], true_coarse_data[K]) if K is not None else (true_fine_data, true_coarse_data)
         else:
-            return true_fine_data[K] if str(g) == 'fine' else true_coarse_data[K]
+            return (true_fine_data[K] if str(g) == 'fine' else true_coarse_data[K]) if K is not None else \
+                (true_fine_data if str(g) == 'fine' else true_coarse_data)
 
     def get_num_inconsistencies(self,
                                 fine_labels: typing.Union[np.array, torch.Tensor],

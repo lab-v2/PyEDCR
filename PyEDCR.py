@@ -124,8 +124,6 @@ class EDCR:
                                  for g in data_preprocessing.DataPreprocessor.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
-        if train_labels_noise_ratio is not None:
-            self.introduce_noise_to_train_labels(noise_ratio=train_labels_noise_ratio)
 
         # conditions data
         self.condition_datas = {}
@@ -201,6 +199,12 @@ class EDCR:
         print(f'\nsheet_tab_name: {self.sheet_tab_name}\n')
 
         self.RCC_ratio = 0
+
+        self.print_metrics(test=False)
+        if train_labels_noise_ratio is not None:
+            self.introduce_noise_to_train_labels(noise_ratio=train_labels_noise_ratio)
+        self.print_metrics(test=False)
+
 
     def set_pred_conditions(self):
         for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -304,6 +308,8 @@ class EDCR:
                 (self.preprocessor.train_true_fine_data[:n_noise] + 1) % max_value)
         self.preprocessor.train_true_coarse_data[:n_noise] = (
                 (self.preprocessor.train_true_coarse_data[:n_noise] + 1) % max_value)
+        print('hi')
+
 
 
     def set_error_detection_rules(self,
@@ -402,7 +408,7 @@ class EDCR:
 
     def print_metrics(self,
                       test: bool,
-                      prior: bool,
+                      prior: bool = True,
                       print_inconsistencies: bool = True,
                       stage: str = 'original',
                       print_actual_errors_num: bool = False):
@@ -457,18 +463,18 @@ class EDCR:
         # Calculate total number of examples
         total_examples = len(pred_coarse_data)  # Assuming shapes are compatible
 
-        fractions = {
-            'correct_coarse_incorrect_fine': np.sum(correct_coarse_incorrect_fine) / total_examples,
-            'incorrect_coarse_correct_fine': np.sum(incorrect_coarse_correct_fine) / total_examples,
-            'incorrect_both': np.sum(incorrect_both) / total_examples,
-            'correct_both': np.sum(correct_both) / total_examples
-        }
-
-        print(f"fraction of error associate with each type: \n",
-              f"correct_coarse_incorrect_fine: {round(fractions['correct_coarse_incorrect_fine'], 2)} \n",
-              f"incorrect_coarse_correct_fine: {round(fractions['incorrect_coarse_correct_fine'], 2)} \n",
-              f"incorrect_both: {round(fractions['incorrect_both'], 2)} \n",
-              f"correct_both: {round(fractions['correct_both'], 2)} \n")
+        # fractions = {
+        #     'correct_coarse_incorrect_fine': np.sum(correct_coarse_incorrect_fine) / total_examples,
+        #     'incorrect_coarse_correct_fine': np.sum(incorrect_coarse_correct_fine) / total_examples,
+        #     'incorrect_both': np.sum(incorrect_both) / total_examples,
+        #     'correct_both': np.sum(correct_both) / total_examples
+        # }
+        #
+        # print(f"fraction of error associate with each type: \n",
+        #       f"correct_coarse_incorrect_fine: {round(fractions['correct_coarse_incorrect_fine'], 2)} \n",
+        #       f"incorrect_coarse_correct_fine: {round(fractions['incorrect_coarse_correct_fine'], 2)} \n",
+        #       f"incorrect_both: {round(fractions['incorrect_both'], 2)} \n",
+        #       f"correct_both: {round(fractions['correct_both'], 2)} \n")
 
         if print_actual_errors_num:
             print(utils.red_text(f'\nNumber of actual errors on test: {len(self.actual_examples_with_errors)} / '
