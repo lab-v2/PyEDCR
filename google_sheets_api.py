@@ -5,7 +5,7 @@ import google_auth_oauthlib.flow
 import google.auth.transport.requests
 import google.oauth2.credentials
 import googleapiclient.discovery
-import googleapiclient.errors
+import googleapiclient
 import numpy as np
 
 spreadsheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'

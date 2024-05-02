@@ -60,24 +60,16 @@ class PredCondition(Condition):
                  lower_predictions_fine_data: dict,
                  lower_predictions_coarse_data: dict,
                  binary_data: typing.Dict[data_preprocessing.Label, np.array]) -> np.array:
+        fine = self.l.g == data_preprocessing.DataPreprocessor.granularities['fine']
 
         if self.secondary_model_name is not None:
-            if self.l.g == data_preprocessing.DataPreprocessor.granularities['fine']:
-                granularity_data = secondary_fine_data
-            else:
-                granularity_data = secondary_coarse_data
+            granularity_data = secondary_fine_data if fine else secondary_coarse_data
         elif self.lower_prediction_index is not None:
-            if self.l.g == data_preprocessing.DataPreprocessor.granularities['fine']:
-                granularity_data = lower_predictions_fine_data
-            else:
-                granularity_data = lower_predictions_coarse_data
+            granularity_data = lower_predictions_fine_data if fine else lower_predictions_coarse_data
         elif self.binary:
             granularity_data = binary_data[self.l]
         else:
-            if self.l.g == data_preprocessing.DataPreprocessor.granularities['fine']:
-                granularity_data = fine_data
-            else:
-                granularity_data = coarse_data
+            granularity_data = fine_data if fine else coarse_data
 
         return np.where(granularity_data == self.l.index, 1, 0)
 

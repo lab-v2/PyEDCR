@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
+import matplotlib.patches
 import scipy
 import numpy as np
-from matplotlib.patches import Patch
 import data_preprocessing
 
 
@@ -116,7 +116,7 @@ def plot_3d_epsilons_ODD(images_per_class: np.array,
     ax.set_zlabel('Values')
 
     # Since 3D legend is not directly supported, we use a workaround to show legends for surfaces
-    legend_patches = [Patch(color=plt.get_cmap(name)(0.5), label=label) for label, (_, name) in metrics.items()]
+    legend_patches = [matplotlib.patches.Patch(color=plt.get_cmap(name)(0.5), label=label) for label, (_, name) in metrics.items()]
     ax.legend(handles=legend_patches, loc='best', fontsize='15')
 
     plt.tight_layout()

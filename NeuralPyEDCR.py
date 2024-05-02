@@ -195,15 +195,16 @@ class NeuralPyEDCR(PyEDCR.EDCR):
     def run_learning_pipeline(self,
                               new_model_name: str,
                               new_lr: float,
-                              multi_process: bool = True):
+                              multi_threading: bool = True):
         print('Started learning pipeline...\n')
         self.print_metrics(test=False, prior=True)
 
         for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.learn_detection_rules(g=g,
-                                           multi_process=multi_process)
-                self.apply_detection_rules(test=False, g=g)
+                                           multi_threading=multi_threading)
+                self.apply_detection_rules(test=False,
+                                           g=g)
 
             # self.run_training_correction_model_pipeline(new_model_name=new_model_name,
             #                                             new_lr=new_lr)
@@ -291,7 +292,7 @@ def work_on_value(args):
                        print_actual_errors_num=True)
     edcr.run_learning_pipeline(new_model_name=new_model_name,
                                new_lr=new_lr,
-                               multi_process=True)
+                               multi_threading=True)
     edcr.run_error_detection_application_pipeline(test=True,
                                                   print_results=False,
                                                   save_to_google_sheets=True)
@@ -383,16 +384,16 @@ if __name__ == '__main__':
     sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                           data_str=data_str,
                                                           # secondary_model_name=secondary_model_name,
-                                                          binary=len(binary_l_strs) > 0)
-
+                                                          binary=len(binary_l_strs) > 0
+                                                          )
 
     simulate_for_values(
-        total_number_of_points=100,
-        min_value=0.1,
-        max_value=0.3,
-        binary_l_strs=binary_l_strs,
-        binary_lr=binary_lr,
-        binary_num_epochs=binary_num_epochs,
+        total_number_of_points=10,
+        min_value=0.001,
+        max_value=0.1,
+        # binary_l_strs=binary_l_strs,
+        # binary_lr=binary_lr,
+        # binary_num_epochs=binary_num_epochs,
         num_train_images_per_class=np.linspace(start=1,
                                                stop=1,
                                                num=1),
