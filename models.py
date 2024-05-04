@@ -218,10 +218,10 @@ class ErrorDetector(FineTuner):
         fine_prediction = image_features[:, self.preprocessor.num_fine_grain_classes]
         coarse_prediction = image_features[:, self.preprocessor.num_fine_grain_classes:]
 
-        prediction_features = self.prediction_processor(X_base_model_prediction.unsqueeze(-1))  # Ensure correct shape
+        prediction_features = X_base_model_prediction.unsqueeze(-1)  # Ensure correct shape
 
-        fine_prediction_from_previous_model = image_features[:, self.preprocessor.num_fine_grain_classes]
-        coarse_prediction_from_previous_model = image_features[:, self.preprocessor.num_fine_grain_classes:]
+        fine_prediction_from_previous_model = prediction_features[:, self.preprocessor.num_fine_grain_classes]
+        coarse_prediction_from_previous_model = prediction_features[:, self.preprocessor.num_fine_grain_classes:]
 
         combined_features_fine_grain_class = torch.cat(
             (fine_prediction, fine_prediction_from_previous_model), dim=1)
