@@ -436,7 +436,7 @@ if __name__ == '__main__':
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
-        lists_of_fine_labels_to_take_out=[[0]]
+        lists_of_fine_labels_to_take_out=[[]]
                                          # + [list(range(i)) for i in range(number_of_fine_classes)]
     )
 
