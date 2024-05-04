@@ -150,31 +150,88 @@ class MultiHeadAttentionBlock(torch.nn.Module):
 
 
 class ErrorDetector(FineTuner):
-    def __init__(self, model_name: str, num_classes: int, embed_size=128, num_heads=4):
+    def __init__(self,
+                 model_name: str,
+                 num_classes: int,
+                 preprocessor: data_preprocessing.DataPreprocessor,
+                 pretrained_path: str = None,
+                 device=None):
         super().__init__(model_name=model_name, num_classes=num_classes)
+        self.preprocessor = preprocessor
 
-        # Initialize the DINOV2FineTuner for image processing
-        self.image_model = DINOV2FineTuner(model_name, num_classes)
+        # Initialize the DINOV2FineTuner to get prediction
+        if pretrained_path is not None:
+            self.transformer = DINOV2FineTuner.from_pretrained(model_name, num_classes, pretrained_path, device=device)
+        else:
+            self.transformer = DINOV2FineTuner(model_name, num_classes)
 
-        # Enhanced architecture for processing the prediction with attention
-        self.prediction_processor = MultiHeadAttentionBlock(num_classes, embed_size, num_heads)
-
-        # Merge and classify the outputs
-        self.classifier = torch.nn.Sequential(
-            torch.nn.Linear(embed_size + num_classes, 64),  # Assuming we concatenate features
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, 32),
-            torch.nn.ReLU(),
-            torch.nn.Linear(32, 1),  # Output a single probability for error detection
+        self.classifier_fine_grain_classes = torch.nn.Sequential(
+            torch.nn.Linear(in_features=self.preprocessor.num_fine_grain_classes * 2, out_features=16),
+            torch.nn.LeakyReLU(),
+            torch.nn.Linear(in_features=16, out_features=1),
             torch.nn.Sigmoid()
         )
 
+        self.classifier_coarse_grain_classes = torch.nn.Sequential(
+            torch.nn.Linear(in_features=self.preprocessor.num_coarse_grain_classes * 2, out_features=16),
+            torch.nn.ReLU(),
+            torch.nn.Linear(in_features=16, out_features=1),
+            torch.nn.Sigmoid()
+        )
+
+        self.classifier_or = torch.nn.Sequential(
+            torch.nn.Linear(in_features=2, out_features=1),
+            torch.nn.Sigmoid()
+        )
+
+    @classmethod
+    def from_pretrained(cls,
+                        model_name: str,
+                        num_classes: int,
+                        pretrained_path: str,
+                        device: torch.device,
+                        preprocessor: data_preprocessing.DataPreprocessor = None):
+        """
+        Loads a pre-trained DINO V2 model from a specified path.
+
+        :param model_name: The name of the pre-trained ViT model used during training.
+        :param num_classes: The number of output classes for the loaded model.
+        :param pretrained_path: The path to the saved pre-trained model checkpoint.
+        :param device: The device (CPU or GPU) to load the model onto.
+
+        :return: An instance of VITFineTuner loaded with pre-trained weights.
+        """
+        instance = cls(model_name, num_classes,
+                       pretrained_path=pretrained_path, device=device, preprocessor=preprocessor)
+        predefined_weights = torch.load(pretrained_path,
+                                        map_location=device)
+        transformer_weights = {'.'.join(k.split('.')[1:]): v for k, v in predefined_weights.items()
+                               if k.split('.')[0] == 'transformer'}
+        instance.transformer.load_state_dict(transformer_weights)
+
+        return instance
+
     def forward(self, X_image: torch.Tensor, X_base_model_prediction: torch.Tensor) -> torch.Tensor:
-        image_features = self.image_model(X_image)
+        image_features = self.transformer(X_image)
         # Ensure X_base_model_prediction is (N, E) where N is batch size
+
+        fine_prediction = image_features[:, self.preprocessor.num_fine_grain_classes]
+        coarse_prediction = image_features[:, self.preprocessor.num_fine_grain_classes:]
+
         prediction_features = self.prediction_processor(X_base_model_prediction.unsqueeze(-1))  # Ensure correct shape
-        combined_features = torch.cat((image_features, prediction_features), dim=1)
-        error_probability = self.classifier(combined_features).flatten()
+
+        fine_prediction_from_previous_model = image_features[:, self.preprocessor.num_fine_grain_classes]
+        coarse_prediction_from_previous_model = image_features[:, self.preprocessor.num_fine_grain_classes:]
+
+        combined_features_fine_grain_class = torch.cat(
+            (fine_prediction, fine_prediction_from_previous_model), dim=1)
+        combined_features_coarse_grain_class = torch.cat(
+            (coarse_prediction, coarse_prediction_from_previous_model), dim=1)
+
+        error_fine_grain_class = self.classifier_fine_grain_classes(combined_features_fine_grain_class)
+        error_coarse_grain_class = self.classifier_coarse_grain_classes(combined_features_coarse_grain_class)
+
+        error_probability = self.classifier_or(error_coarse_grain_class, error_fine_grain_class).flatten()
 
         return error_probability
 
