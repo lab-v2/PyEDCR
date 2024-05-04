@@ -423,9 +423,9 @@ if __name__ == '__main__':
         total_number_of_points=1,
         min_value=0.1,
         max_value=0.1,
-        # binary_l_strs=binary_l_strs,
-        # binary_lr=binary_lr,
-        # binary_num_epochs=binary_num_epochs,
+        binary_l_strs=binary_l_strs,
+        binary_lr=binary_lr,
+        binary_num_epochs=binary_num_epochs,
         # num_train_images_per_class=np.linspace(start=1,
         #                                        stop=1,
         #                                        num=1),
@@ -436,7 +436,8 @@ if __name__ == '__main__':
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
-        lists_of_fine_labels_to_take_out=[list(range(i)) for i in range(number_of_fine_classes)]
+        lists_of_fine_labels_to_take_out=[[0]]
+                                         # + [list(range(i)) for i in range(number_of_fine_classes)]
     )
 
     (images_per_class, epsilons, error_accuracies, error_f1s, consistency_error_accuracies,
