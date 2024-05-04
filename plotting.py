@@ -67,7 +67,7 @@ def plot_all(epsilons,
 
 def plot_3d_epsilons_ODD(x_values: np.array,
                          y_values: np.array,
-                         error_f1s: np.array,
+                         metrics: np.array,
                          ):
     fig = plt.figure(figsize=(12, 10))
     ax = fig.add_subplot(111, projection='3d')
@@ -76,15 +76,6 @@ def plot_3d_epsilons_ODD(x_values: np.array,
     xi = np.linspace(min(x_values), max(x_values), 100)
     yi = np.linspace(min(y_values), max(y_values), 100)
     xi, yi = np.meshgrid(xi, yi)
-
-    # Dictionary to store interpolated surfaces
-    metrics = {
-        # 'Error Accuracy': (error_accuracies, 'Reds', 'r'),
-        'Error F1': (error_f1s, 'Greens', 'g'),
-        # 'Consistency Error Accuracy': (consistency_error_accuracies, 'Blues', 'b'),
-        # 'Consistency Error F1': (consistency_error_f1s, 'Oranges', 'y'),
-        # 'RCC Ratio': ([r * 100 for r in RCC_ratios], 'Purples', 'm')  # Scaling RCC ratios for visualization
-    }
 
     # Plot each metric as a surface
     for label, (values, cmap, color) in metrics.items():

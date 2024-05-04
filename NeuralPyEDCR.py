@@ -261,6 +261,7 @@ def work_on_value(args):
      main_lr,
      original_num_epochs,
      secondary_model_name,
+     secondary_model_loss,
      secondary_num_epochs,
      binary_l_strs,
      binary_lr,
@@ -284,6 +285,7 @@ def work_on_value(args):
                         original_num_epochs=original_num_epochs,
                         include_inconsistency_constraint=False,
                         secondary_model_name=secondary_model_name,
+                        secondary_model_loss=secondary_model_loss,
                         secondary_num_epochs=secondary_num_epochs,
                         binary_l_strs=binary_l_strs,
                         binary_lr=binary_lr,
@@ -314,6 +316,7 @@ def simulate_for_values(total_number_of_points: int = 10,
                         max_value: float = 0.3,
                         multi_process: bool = True,
                         secondary_model_name: str = None,
+                        secondary_model_loss: str = None,
                         secondary_num_epochs: int = None,
                         binary_l_strs: typing.List[str] = [],
                         binary_lr: typing.Union[str, float] = None,
@@ -350,6 +353,7 @@ def simulate_for_values(total_number_of_points: int = 10,
               main_lr,
               original_num_epochs,
               secondary_model_name,
+              secondary_model_loss,
               secondary_num_epochs,
               binary_l_strs,
               binary_lr,
@@ -373,21 +377,22 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # main_lr = new_lr = binary_lr = 0.0001
-    # original_num_epochs = 20
-    # binary_num_epochs = 10
-    # max_num_train_images_per_class = 500
-    # number_of_fine_classes = 24
+    data_str = 'military_vehicles'
+    main_model_name = new_model_name = 'vit_b_16'
+    secondary_model_name = 'vit_l_16'
+    main_lr = new_lr = binary_lr = 0.0001
+    original_num_epochs = secondary_num_epochs = 20
+    binary_num_epochs = 10
+    max_num_train_images_per_class = 500
+    number_of_fine_classes = 24
 
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    main_lr = new_lr = binary_lr = 0.000001
-    original_num_epochs = 8
-    binary_num_epochs = 5
-    max_num_train_images_per_class = 1300
-    number_of_fine_classes = 42
+    # data_str = 'imagenet'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    # main_lr = new_lr = binary_lr = 0.000001
+    # original_num_epochs = 8
+    # binary_num_epochs = 5
+    # max_num_train_images_per_class = 1300
+    # number_of_fine_classes = 42
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
@@ -407,7 +412,7 @@ if __name__ == '__main__':
 
     sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                           data_str=data_str,
-                                                          # secondary_model_name=secondary_model_name,
+                                                          secondary_model_name=secondary_model_name,
                                                           binary=len(binary_l_strs) > 0,
                                                           maximize_ratio=maximize_ratio)
     number_of_ratios = 10
@@ -416,13 +421,16 @@ if __name__ == '__main__':
         total_number_of_points=1,
         min_value=0.1,
         max_value=0.1,
-        binary_l_strs=binary_l_strs,
-        binary_lr=binary_lr,
-        binary_num_epochs=binary_num_epochs,
+        # binary_l_strs=binary_l_strs,
+        # binary_lr=binary_lr,
+        # binary_num_epochs=binary_num_epochs,
         # num_train_images_per_class=np.linspace(start=1,
         #                                        stop=1,
         #                                        num=1),
         multi_process=True,
+        secondary_model_name=secondary_model_name,
+        secondary_model_loss='BCE',
+        secondary_num_epochs=secondary_num_epochs,
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
@@ -434,10 +442,6 @@ if __name__ == '__main__':
         google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
                                                   column_letters=['A', 'B', 'C', 'D', 'E', 'F', 'H']))
 
-    plotting.plot_3d_epsilons_ODD(images_per_class,
-                                  epsilons,
-                                  error_accuracies,
-                                  error_f1s,
-                                  consistency_error_accuracies,
-                                  consistency_error_f1s,
-                                  RCC_ratios)
+    plotting.plot_3d_epsilons_ODD(x_values=images_per_class,
+                                  y_values=epsilons,
+                                  metrics={'Error F1': (error_f1s, 'Greens', 'g')})

@@ -135,7 +135,7 @@ class EDCR:
 
         if self.maximize_ratio:
             self.set_pred_conditions()
-            # self.set_binary_conditions()
+            self.set_binary_conditions()
         else:
             if len(self.binary_l_strs) > 0:
                 self.set_binary_conditions()
@@ -222,12 +222,7 @@ class EDCR:
                                                                          combined=self.combined,
                                                                          test=test,
                                                                          granularity=g_str,
-                                                                         loss=self.secondary_model_loss
-                                                                         if self.secondary_model_loss is not None
-                                                                         else
-                                                                         (secondary_loss if
-                                                                          self.secondary_model_name.split('_')[0]
-                                                                          != 'dinov2' else 'BCE'),
+                                                                         loss=self.secondary_model_loss,
                                                                          lr=self.lr,
                                                                          pred=True,
                                                                          epoch=self.secondary_num_epochs)
