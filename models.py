@@ -213,9 +213,8 @@ class ErrorDetector(FineTuner):
 
     def forward(self, X_image: torch.Tensor, X_base_model_prediction: torch.Tensor) -> torch.Tensor:
         image_features = self.transformer(X_image)
-        # Ensure X_base_model_prediction is (N, E) where N is batch size
 
-        fine_prediction = image_features[:, self.preprocessor.num_fine_grain_classes]
+        fine_prediction = image_features[:, :self.preprocessor.num_fine_grain_classes]
         coarse_prediction = image_features[:, self.preprocessor.num_fine_grain_classes:]
 
         prediction_features = X_base_model_prediction.unsqueeze(-1)  # Ensure correct shape
