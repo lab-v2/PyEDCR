@@ -55,7 +55,8 @@ class EDCR:
                  binary_lr: typing.Union[str, float] = None,
                  num_train_images_per_class: int = None,
                  maximize_ratio: bool = True,
-                 train_labels_noise_ratio: float = None):
+                 train_labels_noise_ratio: float = None,
+                 remove_label: list[data_preprocessing.Label] = None):
         self.data_str = data_str
         self.preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
         self.main_model_name = main_model_name
@@ -123,7 +124,6 @@ class EDCR:
                                      self.K_test if test_or_train == 'test' else self.K_train]
                                  for g in data_preprocessing.DataPreprocessor.granularities.values()}}
              for test_or_train in ['test', 'train']}
-
 
         # conditions data
         self.condition_datas = {}
@@ -205,6 +205,8 @@ class EDCR:
             self.introduce_noise_to_train_labels(noise_ratio=train_labels_noise_ratio)
         self.print_metrics(test=False)
 
+        if remove_label is not None:
+            self.remove_label(remove_label)
 
     def set_pred_conditions(self):
         for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -310,6 +312,19 @@ class EDCR:
                 (self.preprocessor.train_true_coarse_data[:n_noise] + 1) % max_value)
         print('hi')
 
+    def remove_label(self,
+                     remove_label: list[data_preprocessing.Label]):
+        """
+        Remove the fine-grain labels in the dataset by :
+        - Change ground truth of examples having ground truth in remove labels to different one
+        - Change prediction of examples having prediction in remove labels to different one
+        - Remove condition related in all conditions
+
+        :params remove_label: A list of labels of interest
+        """
+        remove_label_idx = [l.index for l in remove_label]
+        self.pred_data
+        self.preprocessor.train_true_fine_data
 
 
     def set_error_detection_rules(self,
