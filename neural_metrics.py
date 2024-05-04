@@ -48,15 +48,18 @@ def get_individual_metrics(pred_data: np.array,
     f1 = f1_score(y_true=true_data,
                   y_pred=pred_data,
                   labels=labels,
-                  average='macro')
+                  average='macro'
+                  )
     precision = precision_score(y_true=true_data,
                                 y_pred=pred_data,
                                 labels=labels,
-                                average='macro')
+                                average='macro'
+                                )
     recall = recall_score(y_true=true_data,
                           y_pred=pred_data,
                           labels=labels,
-                          average='macro')
+                          average='macro'
+                          )
 
     # if len(labels) > 3:
     #     for idx in labels:

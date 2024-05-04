@@ -197,17 +197,6 @@ class DataPreprocessor:
                 'hammerhead, hammerhead shark': 'shark'
             }
 
-            self.coarse_to_fine = {}
-
-            for fine_idx, (fine_class, coarse_class) in enumerate(self.fine_to_coarse.items()):
-                coarse_idx = self.coarse_grain_classes_str.index(coarse_class)
-                self.fine_to_course_idx[fine_idx] = coarse_idx
-
-                if coarse_class not in coarse_to_fine:
-                    coarse_to_fine[coarse_class] = [fine_class]
-                else:
-                    coarse_to_fine[coarse_class].append(fine_class)
-
         elif data_str == 'openimage':
             self.coarse_to_fine = {
                 "Clothing": [
@@ -263,16 +252,17 @@ class DataPreprocessor:
                     if fine_grain_class in fine_grain_class_list:
                         self.fine_to_coarse[fine_grain_class] = coarse_grain_class
 
-            for fine_idx, (fine_class, coarse_class) in enumerate(self.fine_to_coarse.items()):
-                coarse_idx = self.coarse_grain_classes_str.index(coarse_class)
-                self.fine_to_course_idx[fine_idx] = coarse_idx
-
-                if coarse_class not in coarse_to_fine:
-                    coarse_to_fine[coarse_class] = [fine_class]
-                else:
-                    coarse_to_fine[coarse_class].append(fine_class)
-
         else:
+            self.coarse_to_fine = {
+                'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
+                'BMP': ['BMP-1', 'BMP-2', 'BMP-T15'],
+                'BTR': ['BRDM', 'BTR-60', 'BTR-70', 'BTR-80'],
+                'Tank': ['T-14', 'T-62', 'T-64', 'T-72', 'T-80', 'T-90'],
+                'Self Propelled Artillery': ['2S19_MSTA', 'BM-30', 'D-30', 'Tornado', 'TOS-1'],
+                'BMD': ['BMD'],
+                'MT_LB': ['MT_LB']
+            }
+
             data_file_path = rf'data/WEO_Data_Sheet.xlsx'
             dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 
@@ -298,6 +288,17 @@ class DataPreprocessor:
                 self.fine_to_coarse[fine_grain_class] = coarse_grain_class
                 self.fine_to_course_idx[fine_grain_class_idx] = coarse_grain_class_idx
 
+        self.coarse_to_fine = {}
+
+        for fine_idx, (fine_class, coarse_class) in enumerate(self.fine_to_coarse.items()):
+            coarse_idx = self.coarse_grain_classes_str.index(coarse_class)
+            self.fine_to_course_idx[fine_idx] = coarse_idx
+
+            if coarse_class not in self.coarse_to_fine:
+                self.coarse_to_fine[coarse_class] = [fine_class]
+            else:
+                self.coarse_to_fine[coarse_class].append(fine_class)
+
         if data_str == 'imagenet':
             data_path_str = 'data/ImageNet100/'
         elif data_str == 'openimage':
@@ -315,6 +316,9 @@ class DataPreprocessor:
 
             self.train_true_fine_data = np.load(rf'{data_path_str}train_fine/train_true_fine.npy')
             self.train_true_coarse_data = np.load(rf'{data_path_str}train_coarse/train_true_coarse.npy')
+
+            # self.noisy_train_true_fine_data = self.train_true_fine_data.copy()
+            # self.noisy_train_true_coarse_data = self.train_true_coarse_data.copy()
 
             self.fine_unique, self.fine_counts = np.unique(self.train_true_fine_data, return_counts=True)
             self.coarse_unique, self.coarse_counts = np.unique(self.train_true_coarse_data, return_counts=True)
@@ -336,7 +340,9 @@ class DataPreprocessor:
     def get_ground_truths(self,
                           test: bool,
                           K: typing.List[int] = None,
-                          g: Granularity = None) -> np.array:
+                          g: Granularity = None,
+                          # noisy: bool = False
+                          ) -> np.array:
         if test:
             true_fine_data = self.test_true_fine_data
             true_coarse_data = self.test_true_coarse_data
@@ -921,12 +927,4 @@ def get_one_hot_encoding(input_arr: np.array) -> np.array:
     return np.eye(np.max(input_arr) + 1)[input_arr].T
 
 
-coarse_to_fine = {
-    'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
-    'BMP': ['BMP-1', 'BMP-2', 'BMP-T15'],
-    'BTR': ['BRDM', 'BTR-60', 'BTR-70', 'BTR-80'],
-    'Tank': ['T-14', 'T-62', 'T-64', 'T-72', 'T-80', 'T-90'],
-    'Self Propelled Artillery': ['2S19_MSTA', 'BM-30', 'D-30', 'Tornado', 'TOS-1'],
-    'BMD': ['BMD'],
-    'MT_LB': ['MT_LB']
-}
+
