@@ -149,7 +149,6 @@ class MultiHeadAttentionBlock(torch.nn.Module):
         return self.relu(attn_output.squeeze(1))
 
 
-
 class ErrorDetector(FineTuner):
     def __init__(self, model_name: str, num_classes: int, embed_size=128, num_heads=4):
         super().__init__(model_name=model_name, num_classes=num_classes)
