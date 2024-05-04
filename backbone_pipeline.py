@@ -279,9 +279,19 @@ def initiate(data_str: str,
     if fine_predictions is not None:
         results_path = binary_results_path
 
-        fine_tuners = [models.ErrorDetector(model_name=model_name,
-                                            num_classes=preprocessor.num_fine_grain_classes + preprocessor.
-                                            num_coarse_grain_classes)]
+        if pretrained_path is None:
+            fine_tuners = [models.ErrorDetector(model_name=model_name,
+                                                num_classes=preprocessor.num_fine_grain_classes + preprocessor.
+                                                num_coarse_grain_classes,
+                                                preprocessor=preprocessor)]
+        else:
+            fine_tuners = [models.ErrorDetector.from_pretrained(
+                model_name=model_name,
+                num_classes=preprocessor.num_fine_grain_classes + preprocessor.num_coarse_grain_classes,
+                pretrained_path=pretrained_path,
+                device=device,
+                preprocessor=preprocessor
+            )]
     else:
         if combined:
             results_path = combined_results_path if l is None else binary_results_path

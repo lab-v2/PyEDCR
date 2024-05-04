@@ -1,0 +1,96 @@
+import os
+
+import backbone_pipeline
+import combined_fine_tuning
+import utils
+
+if utils.is_local():
+    os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+
+import numpy as np
+import typing
+from tqdm.contrib.concurrent import process_map
+
+import data_preprocessing
+import PyEDCR
+
+
+class Error_detection_model(PyEDCR.EDCR):
+    def __init__(self,
+                 data_str: str,
+                 main_model_name: str,
+                 combined: bool,
+                 loss: str,
+                 lr: typing.Union[str, float],
+                 original_num_epochs: int,):
+        super(Error_detection_model, self).__init__(data_str=data_str,
+                                                    main_model_name=main_model_name,
+                                                    combined=combined,
+                                                    loss=loss,
+                                                    lr=lr,
+                                                    original_num_epochs=original_num_epochs,
+                                                    epsilon=0.1)
+
+    def run_learning_pipeline(self,
+                              multi_threading: bool = True):
+        print('Started learning pipeline...\n')
+
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
+            self.learn_detection_rules(g=g,
+                                       multi_threading=multi_threading)
+            self.apply_detection_rules(test=False,
+                                       g=g)
+
+        print('\nRule learning completed\n')
+
+    def learn_error_binary_model(self,
+                                 model_name: str,
+                                 lr: typing.Union[float, str]):
+        preprocessor, fine_tuners, loaders, devices = backbone_pipeline.initiate(
+            data_str=self.data_str,
+            model_name=model_name,
+            preprocessor=self.preprocessor,
+            lr=lr,
+            fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
+            coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
+        )
+
+        combined_fine_tuning.fine_tune_combined_model(
+            preprocessor=preprocessor,
+            lr=lr,
+            fine_tuner=fine_tuners[0],
+            device=devices[0],
+            loaders=loaders,
+            loss='error_BCE',
+            save_files=False,
+            evaluate_on_test=False,
+            num_epochs=2,
+        )
+
+
+if __name__ == '__main__':
+    # data_str = 'military_vehicles'
+    # main_model_name = new_model_name = 'vit_b_16'
+    # main_lr = new_lr = binary_lr = 0.0001
+    # original_num_epochs = 20
+
+    data_str = 'imagenet'
+    main_model_name = new_model_name = 'dinov2_vits14'
+    main_lr = new_lr = binary_lr = 0.000001
+    original_num_epochs = 8
+
+    # data_str = 'openimage'
+    # main_model_name = new_model_name = 'tresnet_m'
+    # main_lr = new_lr = 0.000001
+    # original_num_epochs = 0
+
+    edcr = Error_detection_model(data_str=data_str,
+                                 main_model_name=main_model_name,
+                                 combined=True,
+                                 loss='BCE',
+                                 lr=main_lr,
+                                 original_num_epochs=original_num_epochs,
+                                 )
+
+    edcr.learn_error_binary_model(model_name=main_model_name,
+                                  lr=new_lr)

@@ -250,7 +250,7 @@ if __name__ == '__main__':
 
     data_str_in_main = 'openimage'
     num_epochs_in_main = 5
-    lr_in_main = 0.000011
+    lr_in_main = 0.000001
     model_name_in_main = 'dinov2_vits14'
     loss = 'BCE'
     train_eval_split_in_main = 0.8
@@ -270,7 +270,7 @@ if __name__ == '__main__':
         l_in_main = preprocessor_in_main.fine_grain_labels[l_str]
         g_str = 'fine'
         save_metric = neural_evaluation.evaluate_binary_models_from_files(data_str=data_str_in_main,
-                                                                          g_str=g_str,  # change this also!!!
+                                                                          g_str=g_str,
                                                                           test=True,
                                                                           lr=lr_in_main,
                                                                           num_epochs=num_epochs_in_main,
