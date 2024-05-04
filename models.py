@@ -230,7 +230,9 @@ class ErrorDetector(FineTuner):
         error_fine_grain_class = self.classifier_fine_grain_classes(combined_features_fine_grain_class)
         error_coarse_grain_class = self.classifier_coarse_grain_classes(combined_features_coarse_grain_class)
 
-        error_probability = self.classifier_or(error_coarse_grain_class, error_fine_grain_class).flatten()
+        print(error_coarse_grain_class.shape)
+        print(error_fine_grain_class.shape)
+        error_probability = self.classifier_or(torch.cat(error_coarse_grain_class, error_fine_grain_class)).flatten()
 
         return error_probability
 
