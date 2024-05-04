@@ -60,7 +60,7 @@ class PredCondition(Condition):
                  lower_predictions_fine_data: dict,
                  lower_predictions_coarse_data: dict,
                  binary_data: typing.Dict[data_preprocessing.Label, np.array]) -> np.array:
-        fine = self.l.g == data_preprocessing.DataPreprocessor.granularities['fine']
+        fine = self.l.g.g_str == 'fine'
 
         if self.secondary_model_name is not None:
             granularity_data = secondary_fine_data if fine else secondary_coarse_data

@@ -123,7 +123,8 @@ def get_values_from_columns(sheet_tab_name: str,
         ranges=ranges
     ).execute()
 
-    return [np.array([e[0].strip('%') for e in response_i.get('values', []) if e[0] != '#N/A'],
+    return [np.array([e[0].strip('%') if e[0] != 'None' else 0
+                      for e in response_i.get('values', []) if e[0] != '#N/A'],
                      dtype=float) for response_i in response['valueRanges']]
 
 
