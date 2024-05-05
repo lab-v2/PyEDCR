@@ -31,18 +31,6 @@ class Error_detection_model(PyEDCR.EDCR):
                                                     original_num_epochs=original_num_epochs,
                                                     epsilon=0.1)
 
-    def run_learning_pipeline(self,
-                              multi_threading: bool = True):
-        print('Started learning pipeline...\n')
-
-        for g in data_preprocessing.DataPreprocessor.granularities.values():
-            self.learn_detection_rules(g=g,
-                                       multi_threading=multi_threading)
-            self.apply_detection_rules(test=False,
-                                       g=g)
-
-        print('\nRule learning completed\n')
-
     def learn_error_binary_model(self,
                                  model_name: str,
                                  lr: typing.Union[float, str]):

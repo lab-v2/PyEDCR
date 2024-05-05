@@ -195,6 +195,8 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                     batch_total_loss.backward()
                     optimizer.step()
 
+            print(utils.blue_text(f'label use: {np.unique(np.array(error_ground_truths))}'))
+
             if loss == "error_BCE":
                 error_accuracy, error_f1, error_matthews = neural_metrics.get_and_print_post_epoch_binary_metrics(
                     epoch=epoch,
