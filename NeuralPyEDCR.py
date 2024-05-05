@@ -377,24 +377,24 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    main_model_name = new_model_name = 'vit_b_16'
+    # data_str = 'military_vehicles'
+    # main_model_name = new_model_name = 'vit_b_16'
     # secondary_model_name = 'vit_l_16'
-    main_lr = new_lr = binary_lr = 0.0001
-    original_num_epochs = secondary_num_epochs = 20
-    binary_num_epochs = 10
-    max_num_train_images_per_class = 500
-    number_of_fine_classes = 24
+    # main_lr = new_lr = binary_lr = 0.0001
+    # original_num_epochs = secondary_num_epochs = 20
+    # binary_num_epochs = 10
+    # max_num_train_images_per_class = 500
+    # number_of_fine_classes = 24
 
-    # data_str = 'imagenet'
-    # main_model_name = new_model_name = 'dinov2_vits14'
-    # secondary_model_name = 'dinov2_vitl14'
-    # main_lr = new_lr = binary_lr = 0.000001
-    # original_num_epochs = 8
-    # secondary_num_epochs = 2
-    # binary_num_epochs = 5
-    # max_num_train_images_per_class = 1300
-    # number_of_fine_classes = 42
+    data_str = 'imagenet'
+    main_model_name = new_model_name = 'dinov2_vits14'
+    secondary_model_name = 'dinov2_vitl14'
+    main_lr = new_lr = binary_lr = 0.000001
+    original_num_epochs = 8
+    secondary_num_epochs = 2
+    binary_num_epochs = 5
+    max_num_train_images_per_class = 1300
+    number_of_fine_classes = 42
 
     # data_str = 'openimage'
     # main_model_name = new_model_name = 'dinov2_vits14'
@@ -433,26 +433,26 @@ if __name__ == '__main__':
         total_number_of_points=1,
         min_value=0.1,
         max_value=0.1,
-        # binary_l_strs=binary_l_strs,
-        # binary_lr=binary_lr,
-        # binary_num_epochs=binary_num_epochs,
+        binary_l_strs=binary_l_strs,
+        binary_lr=binary_lr,
+        binary_num_epochs=binary_num_epochs,
         # num_train_images_per_class=np.linspace(start=1,
         #                                        stop=1,
         #                                        num=1),
         multi_process=True,
-        # secondary_model_name=secondary_model_name,
-        # secondary_model_loss='BCE',
-        # secondary_num_epochs=secondary_num_epochs,
+        secondary_model_name=secondary_model_name,
+        secondary_model_loss='BCE',
+        secondary_num_epochs=secondary_num_epochs,
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
         lists_of_fine_labels_to_take_out= [list(range(i)) for i in range(number_of_fine_classes)]
     )
 
-    (x_values, y_values, error_accuracies, error_f1s, error_MMCs, error_acc_f1s) = (
-        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-                                                  column_letters=['A', 'B', 'C', 'D', 'E', 'F']))
-
-    plotting.plot_3d_metrics(x_values=x_values,
-                             y_values=y_values,
-                             metrics={'Error F1': (error_f1s, 'Greens', 'g')})
+    # (x_values, y_values, error_accuracies, error_f1s, error_MMCs, error_acc_f1s) = (
+    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+    #                                               column_letters=['A', 'B', 'C', 'D', 'E', 'F']))
+    #
+    # plotting.plot_3d_metrics(x_values=x_values,
+    #                          y_values=y_values,
+    #                          metrics={'Error F1': (error_f1s, 'Greens', 'g')})

@@ -204,6 +204,7 @@ class EDCR:
         print(f'\nsheet_tab_name: {self.sheet_tab_name}\n')
 
         self.recovered_constraints_recall = 0
+        self.recovered_constraints_precision = 0
 
     def set_pred_conditions(self):
         for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -215,7 +216,6 @@ class EDCR:
 
     def set_secondary_conditions(self):
         if self.secondary_model_name is not None:
-            secondary_loss = self.secondary_model_name.split('_')[-1]
             self.pred_paths['secondary_model'] = {
                 'test' if test else 'train': {g_str: models.get_filepath(data_str=self.data_str,
                                                                          model_name=self.secondary_model_name,
@@ -988,17 +988,20 @@ class EDCR:
             if g.g_str == 'fine':
                 recovered_constraints_true_positives = self.get_constraints_true_positives()
                 # inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
-                recovered_constraints_positives = (self.preprocessor.num_fine_grain_classes *
-                                                   (self.preprocessor.num_coarse_grain_classes - 1))
+                all_possible_consistency_constraints = (self.preprocessor.num_fine_grain_classes *
+                                                        (self.preprocessor.num_coarse_grain_classes - 1))
 
-
+                recovered_constraints_positives = self.get_all_recovered_constraints_num()
 
                 # print(f'Total unique recoverable constraints from the {test_str} predictions: '
                 #       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
                 #       f'Recovered constraints: {recovered_constraints_str}')
 
                 self.recovered_constraints_recall = (recovered_constraints_true_positives /
-                                                     recovered_constraints_positives)
+                                                     all_possible_consistency_constraints)
+
+                self.recovered_constraints_precision = (recovered_constraints_true_positives /
+                                                        recovered_constraints_positives)
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
@@ -1047,23 +1050,26 @@ class EDCR:
                     true_data=self.test_error_ground_truths,
                     labels=[0])]
 
-            inconsistency_error_accuracy, inconsistency_error_f1, _, _, _ = \
-                [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
-                    pred_data=self.predicted_test_errors,
-                    true_data=self.inconsistency_error_ground_truths,
-                    labels=[0])]
+            # inconsistency_error_accuracy, inconsistency_error_f1, _, _, _ = \
+            #     [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
+            #         pred_data=self.predicted_test_errors,
+            #         true_data=self.inconsistency_error_ground_truths,
+            #         labels=[0])]
 
             # set values
             input_values = [round(self.epsilon, 3),
                             len(self.indices_of_fine_labels_to_take_out) / len(self.preprocessor.fine_grain_labels),
                             error_accuracy,
                             error_f1,
-                            error_matthews,
+                            self.recovered_constraints_precision,
+                            self.recovered_constraints_recall,
+                            2/(1/self.recovered_constraints_precision + 1/self.recovered_constraints_recall)
                             ]
 
             print(input_values)
 
-            google_sheets_api.update_sheet(range_=f'{self.sheet_tab_name}!A{self.sheet_index}:E{self.sheet_index}',
+            google_sheets_api.update_sheet(range_=f'{self.sheet_tab_name}!A{self.sheet_index}:'
+                                                  f'{chr(len(input_values) + 64)}{self.sheet_index}',
                                            body={'values': [input_values]})
 
         if print_results:
@@ -1073,7 +1079,7 @@ class EDCR:
                                print_inconsistencies=False)
 
     def get_constraints_true_positives(self):
-        recovered_constraints = {}
+        true_recovered_constraints = {}
 
         for l, error_detection_rule in self.error_detection_rules.items():
             error_detection_rule: rules.ErrorDetectionRule
@@ -1086,16 +1092,26 @@ class EDCR:
                     coarse_label_str = self.preprocessor.coarse_grain_classes_str[coarse_index]
 
                     if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
-                        if fine_label_str not in recovered_constraints:
-                            recovered_constraints[fine_label_str] = {coarse_label_str}
+                        if fine_label_str not in true_recovered_constraints:
+                            true_recovered_constraints[fine_label_str] = {coarse_label_str}
                         else:
-                            recovered_constraints[fine_label_str] = (
-                                recovered_constraints[fine_label_str].union({coarse_label_str}))
+                            true_recovered_constraints[fine_label_str] = (
+                                true_recovered_constraints[fine_label_str].union({coarse_label_str}))
 
         assert all(self.preprocessor.fine_to_coarse[fine_label_str] not in coarse_dict
-                   for fine_label_str, coarse_dict in recovered_constraints.items())
+                   for fine_label_str, coarse_dict in true_recovered_constraints.items())
 
-        num_recovered_constraints = sum(len(coarse_dict) for coarse_dict in recovered_constraints.values())
+        num_recovered_constraints = sum(len(coarse_dict) for coarse_dict in true_recovered_constraints.values())
+
+        return num_recovered_constraints
+
+    def get_all_recovered_constraints_num(self):
+        num_recovered_constraints = 0
+
+        for l, error_detection_rule in self.error_detection_rules.items():
+            error_detection_rule: rules.ErrorDetectionRule
+
+            num_recovered_constraints += len(error_detection_rule.C_l)
 
         return num_recovered_constraints
 
