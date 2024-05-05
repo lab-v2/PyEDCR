@@ -201,7 +201,7 @@ def fine_tune_combined_model(
                     batch_total_loss.backward()
                     optimizer.step()
 
-            if epochs == 0:
+            if epoch == 0:
                 print(utils.blue_text(
                     f'label use and count: {np.unique(np.array(error_ground_truths), return_counts=True)}'))
 
@@ -280,6 +280,7 @@ def fine_tune_combined_model(
                                                                                split='test',
                                                                                preprocessor=preprocessor)
         test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
+        print(utils.blue_text(f'test f1: {test_f1}, test accuracy: {test_accuracy}'))
         print(utils.blue_text(f'harmonic mean of test: {test_harmonic_mean}'))
 
     elif evaluate_on_test:
