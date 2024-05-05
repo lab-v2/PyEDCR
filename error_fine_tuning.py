@@ -53,6 +53,7 @@ class Error_detection_model(PyEDCR.EDCR):
             lr=lr,
             fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
             coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
+            train_eval_split=0.8
         )
 
         combined_fine_tuning.fine_tune_combined_model(
@@ -63,8 +64,10 @@ class Error_detection_model(PyEDCR.EDCR):
             loaders=loaders,
             loss='error_BCE',
             save_files=False,
-            evaluate_on_test=False,
-            num_epochs=2,
+            evaluate_on_train_eval=True,
+            evaluate_on_test=True,
+            num_epochs=10,
+            exclude_0=True
         )
 
 

@@ -157,13 +157,15 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
             fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy)
 
 
-def evaluate_binary_model(l: data_preprocessing.Label,
-                          fine_tuner: models.FineTuner,
+def evaluate_binary_model(fine_tuner: models.FineTuner,
                           loaders: typing.Dict[str, torch.utils.data.DataLoader],
                           loss: str,
                           device: torch.device,
                           split: str,
-                          print_results: bool = True) -> \
+                          l: data_preprocessing.Label = None,
+                          print_results: bool = True,
+                          preprocessor: data_preprocessing.DataPreprocessor = None,
+                          exclude_0: bool = False) -> \
         (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
     loader = loaders[split]
     fine_tuner.to(device)
@@ -174,27 +176,44 @@ def evaluate_binary_model(l: data_preprocessing.Label,
     accuracy = 0
     f1 = 0
 
-    print(utils.blue_text(f'Evaluating binary {fine_tuner} with l={l} on {split} using {device}...'))
+    print(utils.blue_text(f'Evaluating binary {fine_tuner} with '
+                          f'l={l if l is not None else ""} on {split} using {device}...'))
 
     with torch.no_grad():
         from tqdm import tqdm
         gen = tqdm(enumerate(loader), total=len(loader))
 
         for i, data in gen:
-            X, Y = data[0].to(device), data[1].to(device)
+            if l is not None:
+                X, Y = data[0].to(device), data[1].to(device)
+                Y_pred = fine_tuner(X)
+                sorted_probs = torch.sort(Y_pred, descending=True)[1]
+                predicted = sorted_probs[:, 0]
+                ground_truths += Y.tolist()
+                predictions += predicted.tolist()
+            else:
+                # binary error model
+                X, Y_pred_fine, Y_pred_coarse, E_true = [b.to(device) for b in data]
 
-            Y_pred = fine_tuner(X)
-            sorted_probs = torch.sort(Y_pred, descending=True)[1]
-            predicted = sorted_probs[:, 0]
+                Y_pred_fine_one_hot = torch.nn.functional.one_hot(Y_pred_fine, num_classes=len(
+                    preprocessor.fine_grain_classes_str))
+                Y_pred_coarse_one_hot = torch.nn.functional.one_hot(Y_pred_coarse, num_classes=len(
+                    preprocessor.coarse_grain_classes_str))
 
-            ground_truths += Y.tolist()
-            predictions += predicted.tolist()
+                Y_pred = torch.cat(tensors=[Y_pred_fine_one_hot, Y_pred_coarse_one_hot], dim=1).float()
+
+                E_pred = torch.round(fine_tuner(X, Y_pred))
+
+                ground_truths += E_true.tolist()
+                predictions += E_pred.tolist()
+
 
     if print_results:
         accuracy, f1, precision, recall = neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
                                                                                       loss=loss,
                                                                                       true_data=ground_truths,
-                                                                                      test=split == 'test')
+                                                                                      test=split == 'test',
+                                                                                      exclude_0=exclude_0)
 
     return ground_truths, predictions, accuracy, f1
 
@@ -208,7 +227,7 @@ def run_combined_evaluating_pipeline(data_str: str,
                                      pretrained_path: str = None,
                                      pretrained_fine_tuner: models.FineTuner = None,
                                      save_files: bool = True,
-                                     debug: bool = utils.is_debug_mode(),
+                                     debug: bool = False,
                                      print_results: bool = True,
                                      indices: np.array = None,
                                      lower_predictions_indices: typing.List[int] = []):
@@ -366,8 +385,8 @@ def evaluate_binary_models_from_files(data_str: str,
 
 if __name__ == '__main__':
     data_str = 'openimage'
-    main_model_name = new_model_name = 'tresnet_m'
-    pretrained_path = '/scratch/ngocbach/PyEDCR/models/tresnet_m_open_images_200_groups_86_8.pth'
+    main_model_name = new_model_name = 'vit_b_16'
+    # pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
     lr = 0.000001
 
     # evaluate_binary_models_from_files(model_name='vit_b_16',
@@ -395,12 +414,13 @@ if __name__ == '__main__':
 
     run_combined_evaluating_pipeline(data_str=data_str,
                                      model_name=main_model_name,
-                                     split='test',
+                                     split='train',
                                      lr=lr,
                                      loss='BCE',
                                      num_epochs=0,
-                                     pretrained_path=pretrained_path,
-                                     print_results=True)
+                                     # pretrained_path=pretrained_path,
+                                     print_results=False,
+                                     save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],

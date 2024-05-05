@@ -165,6 +165,8 @@ class ErrorDetector(FineTuner):
         else:
             self.transformer = DINOV2FineTuner(model_name, num_classes)
 
+        self.sigmoid = torch.nn.Sigmoid()
+
         # self.classifier_fine_grain_classes = torch.nn.Sequential(
         #     torch.nn.Linear(in_features=self.preprocessor.num_fine_grain_classes * 2, out_features=16),
         #     torch.nn.LeakyReLU(),
@@ -211,10 +213,8 @@ class ErrorDetector(FineTuner):
 
         return instance
 
-    def forward(self,
-                X_image: torch.Tensor,
-                X_base_model_prediction: torch.Tensor) -> torch.Tensor:
-        image_features = self.transformer(X_image)
+    def forward(self, X_image: torch.Tensor, X_base_model_prediction: torch.Tensor) -> torch.Tensor:
+        image_features = self.sigmoid(self.transformer(X_image))
 
         fine_prediction = image_features[:, :self.preprocessor.num_fine_grain_classes]
         coarse_prediction = image_features[:, self.preprocessor.num_fine_grain_classes:]
