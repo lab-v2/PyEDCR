@@ -365,12 +365,9 @@ def evaluate_binary_models_from_files(data_str: str,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
     data_str = 'openimage'
-    # main_model_name = 'vit_b_16'
     main_model_name = new_model_name = 'tresnet_m'
-    pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
-    # lr = 0.0001
+    pretrained_path = '/scratch/ngocbach/PyEDCR/models/tresnet_m_open_images_200_groups_86_8.pth'
     lr = 0.000001
 
     # evaluate_binary_models_from_files(model_name='vit_b_16',

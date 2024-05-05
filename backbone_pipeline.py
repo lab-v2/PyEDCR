@@ -300,11 +300,17 @@ def initiate(data_str: str,
 
             if pretrained_path is not None:
                 print(f'Loading pretrained model from {pretrained_path}')
-                fine_tuners = [model_class.from_pretrained(model_name=model_name,
-                                                           num_classes=num_classes,
-                                                           pretrained_path=pretrained_path,
-                                                           device=device)]
-
+                if model_name == 'tresnet_m':
+                    fine_tuners = [model_class.from_pretrained(model_name=model_name,
+                                                               num_classes=num_classes,
+                                                               pretrained_path=pretrained_path,
+                                                               preprocessor=preprocessor,
+                                                               device=device)]
+                else:
+                    fine_tuners = [model_class.from_pretrained(model_name=model_name,
+                                                               num_classes=num_classes,
+                                                               pretrained_path=pretrained_path,
+                                                               device=device)]
             else:
                 fine_tuners = [model_class(model_name=model_name,
                                            num_classes=num_classes)]
