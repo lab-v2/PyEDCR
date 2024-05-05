@@ -844,7 +844,8 @@ def get_loaders(preprocessor: DataPreprocessor,
                 train_eval_split: float = None,
                 label: Label = None,
                 get_fraction_of_example_with_label: typing.Dict[Label, float] = None,
-                debug: bool = False
+                debug: bool = False,
+                binary_error_model: bool = False
                 ) -> typing.Dict[str, torch.utils.data.DataLoader]:
     """
     Instantiates and returns train and test torch data loaders
@@ -890,7 +891,7 @@ def get_loaders(preprocessor: DataPreprocessor,
                                                      indices=train_eval_indices)
 
         # define sampler for binary model only, and on train dataset only
-        if label is not None and train_eval_split and split == 'train':
+        if (label is not None or binary_error_model) and train_eval_split and split == 'train':
             train_true_data = preprocessor.train_true_fine_data if label.g.g_str == 'fine' \
                 else preprocessor.train_true_coarse_data
             num_example_of_l = preprocessor.fine_counts[label.index] if label.g.g_str == 'fine' \
