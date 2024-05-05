@@ -312,7 +312,7 @@ def fine_tune_combined_model(
         if loss.split('_')[0] == 'LTN':
             torch.save(fine_tuner.state_dict(), f"models/{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
         else:
-            torch.save(fine_tuner.state_dict(), f"models/{fine_tuner}_lr{lr}_{loss}.pth")
+            torch.save(fine_tuner.state_dict(), f"models/{data_str}_{fine_tuner}_lr{lr}_{loss}_e{num_epochs}.pth")
 
     print('#' * 100)
 
