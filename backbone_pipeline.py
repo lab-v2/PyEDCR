@@ -337,8 +337,7 @@ def initiate(data_str: str,
                                              train_eval_split=train_eval_split,
                                              label=l,
                                              get_fraction_of_example_with_label=get_fraction_of_example_with_label,
-                                             debug=debug,
-                                             binary_error_model=fine_predictions is not None)
+                                             debug=debug)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of eval images: {len(loaders['train_eval'].dataset) if train_eval_split else 0}\n"
