@@ -161,31 +161,17 @@ class ErrorDetector(FineTuner):
 
         # Initialize the DINOV2FineTuner to get prediction
         if pretrained_path is not None:
-            self.transformer = DINOV2FineTuner.from_pretrained(model_name, num_classes, pretrained_path, device=device)
+            if 'dino' in model_name:
+                self.transformer = DINOV2FineTuner.from_pretrained(
+                    model_name, num_classes, pretrained_path, device=device)
+            elif 'vit' in model_name:
+                self.transformer = VITFineTuner.from_pretrained(
+                    model_name, num_classes, pretrained_path, device=device)
         else:
             self.transformer = DINOV2FineTuner(model_name, num_classes)
 
-        self.softmax_fine = torch.nn.Softmax()
-        self.softmax_coarse = torch.nn.Softmax()
-
-        # self.classifier_fine_grain_classes = torch.nn.Sequential(
-        #     torch.nn.Linear(in_features=self.preprocessor.num_fine_grain_classes * 2, out_features=16),
-        #     torch.nn.LeakyReLU(),
-        #     torch.nn.Linear(in_features=16, out_features=1),
-        #     torch.nn.Sigmoid()
-        # )
-        #
-        # self.classifier_coarse_grain_classes = torch.nn.Sequential(
-        #     torch.nn.Linear(in_features=self.preprocessor.num_coarse_grain_classes * 2, out_features=16),
-        #     torch.nn.ReLU(),
-        #     torch.nn.Linear(in_features=16, out_features=1),
-        #     torch.nn.Sigmoid()
-        # )
-        #
-        # self.classifier_or = torch.nn.Sequential(
-        #     torch.nn.Linear(in_features=2, out_features=1),
-        #     torch.nn.Sigmoid()
-        # )
+        self.normalize_function_fine = torch.nn.Sigmoid()
+        self.normalize_function_coarse = torch.nn.Sigmoid()
 
     @classmethod
     def from_pretrained(cls,
@@ -206,19 +192,14 @@ class ErrorDetector(FineTuner):
         """
         instance = cls(model_name, num_classes,
                        pretrained_path=pretrained_path, device=device, preprocessor=preprocessor)
-        predefined_weights = torch.load(pretrained_path,
-                                        map_location=device)
-        transformer_weights = {'.'.join(k.split('.')[1:]): v for k, v in predefined_weights.items()
-                               if k.split('.')[0] == 'transformer'}
-        instance.transformer.load_state_dict(transformer_weights)
 
         return instance
 
     def forward(self, X_image: torch.Tensor, X_base_model_prediction: torch.Tensor) -> torch.Tensor:
         image_features = self.transformer(X_image)
 
-        fine_prediction = self.softmax_fine(image_features[:, :self.preprocessor.num_fine_grain_classes])
-        coarse_prediction = self.softmax_coarse(image_features[:, self.preprocessor.num_fine_grain_classes:])
+        fine_prediction = self.normalize_function_fine(image_features[:, :self.preprocessor.num_fine_grain_classes])
+        coarse_prediction = self.normalize_function_coarse(image_features[:, self.preprocessor.num_fine_grain_classes:])
 
         fine_prediction_from_previous_model = X_base_model_prediction[:, :self.preprocessor.num_fine_grain_classes]
         coarse_prediction_from_previous_model = X_base_model_prediction[:, self.preprocessor.num_fine_grain_classes:]
