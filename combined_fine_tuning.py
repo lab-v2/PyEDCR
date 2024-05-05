@@ -262,8 +262,8 @@ def fine_tune_combined_model(
                     #
                     # train_eval_fine_accuracy = curr_train_eval_fine_accuracy
                     # train_eval_coarse_accuracy = curr_train_eval_coarse_accuracy
-                    train_eval_mean_accuracy = train_eval_fine_accuracy + train_eval_coarse_accuracy
-                    train_eval_mean_f1 = train_eval_fine_f1 + train_eval_coarse_f1
+                    train_eval_mean_accuracy = (train_eval_fine_accuracy + train_eval_coarse_accuracy)/2
+                    train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1)/2
                     stopping_criteria = 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
 
                 # Update slicing window, and break if the sum of current sliding window is smaller than previous one:
