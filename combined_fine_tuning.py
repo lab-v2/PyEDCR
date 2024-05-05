@@ -265,7 +265,7 @@ def fine_tune_combined_model(
                 if stopping_citeria > slicing_window[1]:
                     print(utils.green_text(f'harmonic mean of current fine_tuner is better. Update fine_tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
-                current_sliding_window = [slicing_window[1], test_harmonic_mean]
+                current_sliding_window = [slicing_window[1], stopping_citeria]
                 print(f'current sliding window is {current_sliding_window} and previous one is {slicing_window}')
                 if sum(slicing_window) > sum(current_sliding_window):
                     print(utils.red_text(f'finish training, stop criteria met!!!'))
