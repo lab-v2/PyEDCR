@@ -288,6 +288,7 @@ def fine_tune_combined_model(
                                                            split='train',
                                                            lr=lr,
                                                            loss=loss,
+                                                           pretrained_fine_tuner=best_fine_tuner,
                                                            num_epochs=num_epochs,
                                                            print_results=True,
                                                            save_files=save_files)
@@ -296,6 +297,7 @@ def fine_tune_combined_model(
                                                            split='test',
                                                            lr=lr,
                                                            loss=loss,
+                                                           pretrained_fine_tuner=best_fine_tuner,
                                                            num_epochs=num_epochs,
                                                            print_results=True,
                                                            save_files=save_files)
