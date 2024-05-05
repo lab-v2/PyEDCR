@@ -2,6 +2,7 @@ import os
 
 import backbone_pipeline
 import combined_fine_tuning
+import neural_evaluation
 import utils
 
 if utils.is_local():
@@ -61,6 +62,32 @@ class Error_detection_model(PyEDCR.EDCR):
             model_name=main_model_name
         )
 
+    def evaluate_error_binary_model(self,
+                                    model_name: str,
+                                    lr: typing.Union[float, str],
+                                    error_fine_prediction: np.array,
+                                    error_coarse_prediction: np.array):
+        preprocessor, fine_tuners, loaders, devices = backbone_pipeline.initiate(
+            data_str=self.data_str,
+            model_name=model_name,
+            preprocessor=self.preprocessor,
+            lr=lr,
+            fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
+            coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
+            train_eval_split=0.8,
+        )
+
+        neural_evaluation.evaluate_binary_model(
+            fine_tuner=fine_tuners[0],
+            loaders=loaders,
+            loss='BCE',
+            device=devices[0],
+            split='test',
+            preprocessor=preprocessor,
+            error_fine_prediction=error_fine_prediction,
+            error_coarse_prediction=error_coarse_prediction
+        )
+
 
 if __name__ == '__main__':
     data_str = 'military_vehicles'
@@ -87,6 +114,13 @@ if __name__ == '__main__':
                                  original_num_epochs=original_num_epochs,
                                  )
 
-    edcr.learn_error_binary_model(model_name=main_model_name,
-                                  lr=new_lr,
-                                  pretrained_path=pretrained_path)
+    # edcr.learn_error_binary_model(model_name=main_model_name,
+    #                               lr=new_lr,
+    #                               pretrained_path=pretrained_path)
+
+    error_fine_prediction = np.load('')
+    error_coarse_prediction = np.load('')
+    edcr.evaluate_error_binary_model(model_name=main_model_name,
+                                     lr=main_lr,
+                                     error_fine_prediction=error_fine_prediction,
+                                     error_coarse_prediction=error_coarse_prediction)

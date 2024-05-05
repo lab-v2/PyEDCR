@@ -143,7 +143,6 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 fine_lower_predictions[lower_predictions_index] += curr_lower_prediction_fine.tolist()
                 coarse_lower_predictions[lower_predictions_index] += curr_lower_prediction_coarse.tolist()
 
-
     if print_results:
         fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = (
             neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
@@ -165,7 +164,9 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
                           split: str,
                           l: data_preprocessing.Label = None,
                           print_results: bool = True,
-                          preprocessor: data_preprocessing.DataPreprocessor = None) -> \
+                          preprocessor: data_preprocessing.DataPreprocessor = None,
+                          error_fine_prediction: np.array = None,
+                          error_coarse_prediction: np.array = None, ) -> \
         (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
     loader = loaders[split]
     fine_tuner.to(device)
@@ -195,21 +196,24 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
                 # binary error model
                 X, Y_pred_fine, Y_pred_coarse, E_true = [b.to(device) for b in data]
 
-                Y_pred_fine_one_hot = torch.nn.functional.one_hot(Y_pred_fine, num_classes=len(
-                    preprocessor.fine_grain_classes_str))
-                Y_pred_coarse_one_hot = torch.nn.functional.one_hot(Y_pred_coarse, num_classes=len(
-                    preprocessor.coarse_grain_classes_str))
+                # Y_pred_fine_one_hot = torch.nn.functional.one_hot(Y_pred_fine, num_classes=len(
+                #     preprocessor.fine_grain_classes_str))
+                # Y_pred_coarse_one_hot = torch.nn.functional.one_hot(Y_pred_coarse, num_classes=len(
+                #     preprocessor.coarse_grain_classes_str))
+                # Y_pred = torch.cat(tensors=[Y_pred_fine_one_hot, Y_pred_coarse_one_hot], dim=1).float()
+                #
+                # E_pred = torch.where(E_pred > 0.5, 1, 0)
 
-                Y_pred = torch.cat(tensors=[Y_pred_fine_one_hot, Y_pred_coarse_one_hot], dim=1).float()
-
-                E_pred = torch.where(E_pred > 0.5, 1, 0)
-
-                ground_truths += E_true.tolist()
-                predictions += E_pred.tolist()
+                if error_fine_prediction is not None:
+                    corr_pred_fine = np.where(np.array(Y_pred_fine) == error_fine_prediction, 1, 0)
+                    corr_pred_coarse = np.where(np.array(Y_pred_coarse) == error_coarse_prediction, 1, 0)
+                    E_pred = torch.tensor(1 - corr_pred_fine * corr_pred_coarse)
+                    ground_truths += E_true.tolist()
+                    predictions += E_pred.tolist()
 
     if print_results:
         accuracy, f1, precision, recall = neural_metrics.get_individual_metrics(pred_data=predictions,
-                                                                                true_data=ground_truths, )
+                                                                                true_data=ground_truths)
 
     return ground_truths, predictions, accuracy, f1
 
@@ -410,7 +414,7 @@ if __name__ == '__main__':
 
     run_combined_evaluating_pipeline(data_str=data_str,
                                      model_name=main_model_name,
-                                     split='test',
+                                     split='train',
                                      lr=lr,
                                      loss='BCE',
                                      num_epochs=0,
