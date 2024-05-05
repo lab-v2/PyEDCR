@@ -207,8 +207,8 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
                 predictions += E_pred.tolist()
 
     if print_results:
-        accuracy, f1, precision, recall, _ = neural_metrics.get_individual_metrics(pred_data=predictions,
-                                                                                   true_data=ground_truths,)
+        accuracy, f1, precision, recall = neural_metrics.get_individual_metrics(pred_data=predictions,
+                                                                                true_data=ground_truths, )
 
     return ground_truths, predictions, accuracy, f1
 
