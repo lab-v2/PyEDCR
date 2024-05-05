@@ -386,7 +386,17 @@ if __name__ == '__main__':
     # max_num_train_images_per_class = 500
     # number_of_fine_classes = 24
 
-    data_str = 'imagenet'
+    # data_str = 'imagenet'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    # secondary_model_name = 'dinov2_vitl14'
+    # main_lr = new_lr = binary_lr = 0.000001
+    # original_num_epochs = 8
+    # secondary_num_epochs = 2
+    # binary_num_epochs = 5
+    # max_num_train_images_per_class = 1300
+    # number_of_fine_classes = 42
+
+    data_str = 'openimage'
     main_model_name = new_model_name = 'dinov2_vits14'
     secondary_model_name = 'dinov2_vitl14'
     main_lr = new_lr = binary_lr = 0.000001
