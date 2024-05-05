@@ -362,7 +362,7 @@ class TResnetFineTuner(FineTuner):
         # Setup model
         print('creating model {}...'.format(args.model_name))
         instance.model = create_model(args, load_head=True)
-        state = torch.load(args.model_path, map_location='mps')
+        state = torch.load(args.model_path, map_location=device)
         instance.model.load_state_dict(state['model'], strict=True)
 
         ########### eliminate BN for faster inference ###########
