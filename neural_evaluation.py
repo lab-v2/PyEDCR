@@ -143,6 +143,7 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 fine_lower_predictions[lower_predictions_index] += curr_lower_prediction_fine.tolist()
                 coarse_lower_predictions[lower_predictions_index] += curr_lower_prediction_coarse.tolist()
 
+
     if print_results:
         fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = (
             neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
@@ -380,8 +381,8 @@ def evaluate_binary_models_from_files(data_str: str,
 
 if __name__ == '__main__':
     data_str = 'openimage'
-    main_model_name = new_model_name = 'vit_b_16'
-    # pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
+    main_model_name = new_model_name = 'tresnet_m'
+    pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
     lr = 0.000001
 
     # evaluate_binary_models_from_files(model_name='vit_b_16',
@@ -409,12 +410,12 @@ if __name__ == '__main__':
 
     run_combined_evaluating_pipeline(data_str=data_str,
                                      model_name=main_model_name,
-                                     split='train',
+                                     split='test',
                                      lr=lr,
                                      loss='BCE',
                                      num_epochs=0,
-                                     # pretrained_path=pretrained_path,
-                                     print_results=False,
+                                     pretrained_path=pretrained_path,
+                                     print_results=True,
                                      save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
