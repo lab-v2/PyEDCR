@@ -223,7 +223,7 @@ class ErrorDetector(FineTuner):
         error_fine_grain_class = torch.sum(fine_prediction_from_previous_model * fine_prediction, dim=1)
         error_coarse_grain_class = torch.sum(coarse_prediction_from_previous_model * coarse_prediction, dim=1)
 
-        error_probability = error_coarse_grain_class * error_fine_grain_class
+        error_probability = 1 - error_coarse_grain_class * error_fine_grain_class
 
         return error_probability
 
