@@ -164,8 +164,7 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
                           split: str,
                           l: data_preprocessing.Label = None,
                           print_results: bool = True,
-                          preprocessor: data_preprocessing.DataPreprocessor = None,
-                          exclude_0: bool = False) -> \
+                          preprocessor: data_preprocessing.DataPreprocessor = None) -> \
         (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
     loader = loaders[split]
     fine_tuner.to(device)
@@ -207,13 +206,9 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
                 ground_truths += E_true.tolist()
                 predictions += E_pred.tolist()
 
-
     if print_results:
-        accuracy, f1, precision, recall = neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
-                                                                                      loss=loss,
-                                                                                      true_data=ground_truths,
-                                                                                      test=split == 'test',
-                                                                                      exclude_0=exclude_0)
+        accuracy, f1, precision, recall, _ = neural_metrics.get_individual_metrics(pred_data=predictions,
+                                                                                   true_data=ground_truths,)
 
     return ground_truths, predictions, accuracy, f1
 

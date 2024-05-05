@@ -30,8 +30,7 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                              beta: float = 0.1,
                              save_files: bool = True,
                              evaluate_on_test: bool = True,
-                             evaluate_on_train_eval: bool = False,
-                             exclude_0: bool = False):
+                             evaluate_on_train_eval: bool = False):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -186,8 +185,7 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                                        num_batches=num_batches,
                                                                        train_predictions=error_predictions,
                                                                        train_ground_truths=error_ground_truths,
-                                                                       batch_total_loss=batch_total_loss.item(),
-                                                                       exclude_0=exclude_0)
+                                                                       batch_total_loss=batch_total_loss.item(),)
                     else:
                         neural_metrics.print_post_batch_metrics(batch_num=batch_num,
                                                                 num_batches=num_batches,
@@ -230,7 +228,7 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                                                        loss=loss,
                                                                                        device=device,
                                                                                        split='train_eval',
-                                                                                       exclude_0=exclude_0,
+
                                                                                        preprocessor=preprocessor)
                 test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
                 print(utils.blue_text(f'harmonic mean of train eval: {test_harmonic_mean}'))
@@ -270,10 +268,9 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                                                loss=loss,
                                                                                device=device,
                                                                                split='test',
-                                                                               exclude_0=exclude_0,
                                                                                preprocessor=preprocessor)
         test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
-        print(utils.blue_text(f'harmonic mean of train eval: {test_harmonic_mean}'))
+        print(utils.blue_text(f'harmonic mean of test: {test_harmonic_mean}'))
 
         print('#' * 100)
 
@@ -326,11 +323,9 @@ def run_combined_fine_tuning_pipeline(data_str: str,
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline(data_str='imagenet',
-                                      model_name='dinov2_vitl14',
-                                      lr=0.000001,
-                                      num_epochs=2,
+    run_combined_fine_tuning_pipeline(data_str='military_vehicles',
+                                      model_name='vit_b_16',
+                                      lr=0.0001,
+                                      num_epochs=10,
                                       loss='BCE',
-                                      # pretrained_path='models/dinov2_vits14_lr1e-06_BCE.pth'
-                                      # debug=True
                                       )

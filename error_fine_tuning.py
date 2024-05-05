@@ -55,7 +55,6 @@ class Error_detection_model(PyEDCR.EDCR):
             evaluate_on_train_eval=True,
             evaluate_on_test=True,
             num_epochs=10,
-            exclude_0=True
         )
 
 
