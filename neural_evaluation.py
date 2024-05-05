@@ -202,7 +202,7 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
 
                 Y_pred = torch.cat(tensors=[Y_pred_fine_one_hot, Y_pred_coarse_one_hot], dim=1).float()
 
-                E_pred = fine_tuner(X, Y_pred)
+                E_pred = torch.round(fine_tuner(X, Y_pred))
 
                 ground_truths += E_true.tolist()
                 predictions += E_pred.tolist()
@@ -385,8 +385,8 @@ def evaluate_binary_models_from_files(data_str: str,
 
 if __name__ == '__main__':
     data_str = 'openimage'
-    main_model_name = new_model_name = 'tresnet_m'
-    pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
+    main_model_name = new_model_name = 'vit_b_16'
+    # pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
     lr = 0.000001
 
     # evaluate_binary_models_from_files(model_name='vit_b_16',
@@ -414,12 +414,13 @@ if __name__ == '__main__':
 
     run_combined_evaluating_pipeline(data_str=data_str,
                                      model_name=main_model_name,
-                                     split='test',
+                                     split='train',
                                      lr=lr,
                                      loss='BCE',
                                      num_epochs=0,
-                                     pretrained_path=pretrained_path,
-                                     print_results=True)
+                                     # pretrained_path=pretrained_path,
+                                     print_results=False,
+                                     save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],
