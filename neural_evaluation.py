@@ -164,6 +164,7 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
                           split: str,
                           l: data_preprocessing.Label = None,
                           print_results: bool = True,
+                          preprocessor: data_preprocessing.DataPreprocessor = None,
                           exclude_0: bool = False) -> \
         (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
     loader = loaders[split]
@@ -183,14 +184,29 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
         gen = tqdm(enumerate(loader), total=len(loader))
 
         for i, data in gen:
-            X, Y = data[0].to(device), data[1].to(device)
+            if l is not None:
+                X, Y = data[0].to(device), data[1].to(device)
+                Y_pred = fine_tuner(X)
+                sorted_probs = torch.sort(Y_pred, descending=True)[1]
+                predicted = sorted_probs[:, 0]
+                ground_truths += Y.tolist()
+                predictions += predicted.tolist()
+            else:
+                # binary error model
+                X, Y_pred_fine, Y_pred_coarse, E_true = [b.to(device) for b in data]
 
-            Y_pred = fine_tuner(X)
-            sorted_probs = torch.sort(Y_pred, descending=True)[1]
-            predicted = sorted_probs[:, 0]
+                Y_pred_fine_one_hot = torch.nn.functional.one_hot(Y_pred_fine, num_classes=len(
+                    preprocessor.fine_grain_classes_str))
+                Y_pred_coarse_one_hot = torch.nn.functional.one_hot(Y_pred_coarse, num_classes=len(
+                    preprocessor.coarse_grain_classes_str))
 
-            ground_truths += Y.tolist()
-            predictions += predicted.tolist()
+                Y_pred = torch.cat(tensors=[Y_pred_fine_one_hot, Y_pred_coarse_one_hot], dim=1).float()
+
+                E_pred = fine_tuner(X, Y_pred)
+
+                ground_truths += E_true.tolist()
+                predictions += E_pred.tolist()
+
 
     if print_results:
         accuracy, f1, precision, recall = neural_metrics.get_and_print_binary_metrics(pred_data=predictions,

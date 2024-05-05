@@ -228,7 +228,8 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                                                          loss=loss,
                                                                                          device=device,
                                                                                          split='train_eval',
-                                                                                         exclude_0=exclude_0)
+                                                                                         exclude_0=exclude_0,
+                                                                                         preprocessor=preprocessor)
                 valid_harmonic_mean = 2/(1/valid_accuracy + 1/valid_f1)
                 print(utils.blue_text(f'harmonic mean of train eval: {valid_harmonic_mean}'))
 
