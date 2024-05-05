@@ -116,7 +116,7 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
                         del X, Y_pred_fine, Y_pred_coarse, E_true
                     else:
-                        X, Y_true_fine, Y_true_coarse = [b.to(device) for b in batch]
+                        X, Y_true_fine, Y_true_coarse = (batch[0].to(device), batch[1].to(device), batch[3].to(device))
                         Y_true_fine_one_hot = torch.nn.functional.one_hot(Y_true_fine, num_classes=len(
                             preprocessor.fine_grain_classes_str))
                         Y_true_coarse_one_hot = torch.nn.functional.one_hot(Y_true_coarse, num_classes=len(
