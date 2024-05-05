@@ -111,7 +111,8 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
             from tqdm import tqdm
             gen = tqdm(enumerate(loader), total=len(loader))
         else:
-            gen = enumerate(loader)
+            from tqdm import tqdm
+            gen = tqdm(enumerate(loader), total=len(loader))
 
         for i, data in gen:
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
@@ -367,8 +368,8 @@ if __name__ == '__main__':
     # data_str = 'military_vehicles'
     data_str = 'openimage'
     # main_model_name = 'vit_b_16'
-    main_model_name = new_model_name = 'dinov2_vitl14'
-    # pretrained_path = 'models/dinov2_vitl14_lr1e-06_BCE.pth'
+    main_model_name = new_model_name = 'tresnet_m'
+    pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
     # lr = 0.0001
     lr = 0.000001
 
@@ -397,13 +398,12 @@ if __name__ == '__main__':
 
     run_combined_evaluating_pipeline(data_str=data_str,
                                      model_name=main_model_name,
-                                     split='train',
+                                     split='test',
                                      lr=lr,
                                      loss='BCE',
                                      num_epochs=0,
-                                     # pretrained_path=pretrained_path,
-                                     save_files=True,
-                                     print_results=False)
+                                     pretrained_path=pretrained_path,
+                                     print_results=True)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],
