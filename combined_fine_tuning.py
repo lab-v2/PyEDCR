@@ -223,21 +223,21 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
             # scheduler.step()
 
             if evaluate_on_train_eval and loss == "error_BCE":
-                _, _, valid_accuracy, valid_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
-                                                                                         loaders=loaders,
-                                                                                         loss=loss,
-                                                                                         device=device,
-                                                                                         split='train_eval',
-                                                                                         exclude_0=exclude_0,
-                                                                                         preprocessor=preprocessor)
-                valid_harmonic_mean = 2/(1/valid_accuracy + 1/valid_f1)
-                print(utils.blue_text(f'harmonic mean of train eval: {valid_harmonic_mean}'))
+                _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
+                                                                                       loaders=loaders,
+                                                                                       loss=loss,
+                                                                                       device=device,
+                                                                                       split='train_eval',
+                                                                                       exclude_0=exclude_0,
+                                                                                       preprocessor=preprocessor)
+                test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
+                print(utils.blue_text(f'harmonic mean of train eval: {test_harmonic_mean}'))
 
                 # Update slicing window, and break if the sum of current sliding window is smaller than previous one:
-                if valid_harmonic_mean > slicing_window[1]:
+                if test_harmonic_mean > slicing_window[1]:
                     print(utils.green_text(f'harmonic mean of current fine_tuner is better. Update fine_tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
-                current_sliding_window = [slicing_window[1], valid_harmonic_mean]
+                current_sliding_window = [slicing_window[1], test_harmonic_mean]
                 print(f'current sliding window is {current_sliding_window} and previous one is {slicing_window}')
                 if sum(slicing_window) > sum(current_sliding_window):
                     print(utils.green_text(f'finish training, stop criteria met'))
@@ -263,14 +263,15 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 train_eval_coarse_accuracy = curr_train_eval_coarse_accuracy
 
     if evaluate_on_test:
-        _, _, valid_accuracy, valid_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
-                                                                                 loaders=loaders,
-                                                                                 loss=loss,
-                                                                                 device=device,
-                                                                                 split='train_eval',
-                                                                                 exclude_0=exclude_0)
-        valid_harmonic_mean = 2 / (1 / valid_accuracy + 1 / valid_f1)
-        print(utils.blue_text(f'harmonic mean of train eval: {valid_harmonic_mean}'))
+        _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
+                                                                               loaders=loaders,
+                                                                               loss=loss,
+                                                                               device=device,
+                                                                               split='test',
+                                                                               exclude_0=exclude_0,
+                                                                               preprocessor=preprocessor)
+        test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
+        print(utils.blue_text(f'harmonic mean of train eval: {test_harmonic_mean}'))
 
         print('#' * 100)
 
