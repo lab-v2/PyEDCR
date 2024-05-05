@@ -157,13 +157,14 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
             fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy)
 
 
-def evaluate_binary_model(l: data_preprocessing.Label,
-                          fine_tuner: models.FineTuner,
+def evaluate_binary_model(fine_tuner: models.FineTuner,
                           loaders: typing.Dict[str, torch.utils.data.DataLoader],
                           loss: str,
                           device: torch.device,
                           split: str,
-                          print_results: bool = True) -> \
+                          l: data_preprocessing.Label = None,
+                          print_results: bool = True,
+                          exclude_0: bool = False) -> \
         (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
     loader = loaders[split]
     fine_tuner.to(device)
@@ -174,7 +175,8 @@ def evaluate_binary_model(l: data_preprocessing.Label,
     accuracy = 0
     f1 = 0
 
-    print(utils.blue_text(f'Evaluating binary {fine_tuner} with l={l} on {split} using {device}...'))
+    print(utils.blue_text(f'Evaluating binary {fine_tuner} with '
+                          f'l={l if l is not None else ""} on {split} using {device}...'))
 
     with torch.no_grad():
         from tqdm import tqdm
@@ -194,7 +196,8 @@ def evaluate_binary_model(l: data_preprocessing.Label,
         accuracy, f1, precision, recall = neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
                                                                                       loss=loss,
                                                                                       true_data=ground_truths,
-                                                                                      test=split == 'test')
+                                                                                      test=split == 'test',
+                                                                                      exclude_0=exclude_0)
 
     return ground_truths, predictions, accuracy, f1
 

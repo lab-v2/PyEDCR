@@ -105,7 +105,8 @@ def get_and_print_binary_metrics(pred_data: np.array,
                                  test: bool,
                                  prior: bool = True,
                                  model_name: str = '',
-                                 lr: typing.Union[str, float] = ''):
+                                 lr: typing.Union[str, float] = '',
+                                 exclude_0: bool = False):
     """
     Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
 
@@ -121,6 +122,12 @@ def get_and_print_binary_metrics(pred_data: np.array,
     accuracy, f1, precision, recall = get_individual_metrics(pred_data=pred_data,
                                                              true_data=true_data,
                                                              labels=[0, 1])
+    if exclude_0:
+        print(utils.blue_text('exclude 0 in calculating f1'))
+        f1 = f1_score(y_true=true_data,
+                      y_pred=pred_data,
+                      labels=[1],
+                      )
     prior_str = 'prior' if prior else 'post'
     test_str = 'Test' if test else 'Train'
 
@@ -307,10 +314,16 @@ def print_post_batch_binary_metrics(batch_num: int,
                                     num_batches: int,
                                     train_ground_truths: np.array,
                                     train_predictions: np.array,
-                                    batch_total_loss: float = None):
+                                    batch_total_loss: float = None,
+                                    exclude_0: bool = False):
     if batch_num > 0 and batch_num % 5 == 0:
-        accuracy, f1, _, _ = get_individual_metrics(pred_data=train_predictions,
-                                                    true_data=train_ground_truths,
-                                                    labels=[1])
+        if exclude_0:
+            accuracy, f1, _, _ = get_individual_metrics(pred_data=train_predictions,
+                                                        true_data=train_ground_truths,
+                                                        labels=[1])
+        else:
+            accuracy, f1, _, _ = get_individual_metrics(pred_data=train_predictions,
+                                                        true_data=train_ground_truths,
+                                                        labels=[0, 1])
         print(f'\nCompleted batch num {batch_num}/{num_batches}, current accuracy: {accuracy:.2f},'
               f'current f1: {f1:.2f}, batch total loss: {batch_total_loss:.2f}')
