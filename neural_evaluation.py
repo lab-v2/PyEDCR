@@ -67,7 +67,7 @@ def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor
 
             name_list += batch_names
 
-    fine_accuracy, coarse_accuracy = (
+    fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = (
         neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
                                              pred_fine_data=fine_prediction,
                                              pred_coarse_data=coarse_prediction,
@@ -102,7 +102,7 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
     fine_ground_truths = []
     coarse_ground_truths = []
-    fine_accuracy, coarse_accuracy = None, None
+    fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = None, None, None, None
 
     print(utils.blue_text(f'Evaluating {fine_tuner} on {split} using {device}...'))
 
@@ -144,7 +144,7 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 coarse_lower_predictions[lower_predictions_index] += curr_lower_prediction_coarse.tolist()
 
     if print_results:
-        fine_accuracy, coarse_accuracy = (
+        fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = (
             neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
                                                  pred_fine_data=fine_predictions,
                                                  pred_coarse_data=coarse_predictions,
@@ -154,7 +154,7 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                  test=split == 'test'))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-            fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy)
+            fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1)
 
 
 def evaluate_binary_model(fine_tuner: models.FineTuner,
@@ -201,7 +201,7 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
 
                 Y_pred = torch.cat(tensors=[Y_pred_fine_one_hot, Y_pred_coarse_one_hot], dim=1).float()
 
-                E_pred = torch.round(fine_tuner(X, Y_pred))
+                E_pred = torch.where(E_pred > 0.5, 1, 0)
 
                 ground_truths += E_true.tolist()
                 predictions += E_pred.tolist()
@@ -261,7 +261,7 @@ def run_combined_evaluating_pipeline(data_str: str,
                                                                              evaluation=True)
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-     fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy) = (
+     fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1) = (
         evaluate_combined_model(
             preprocessor=preprocessor,
             fine_tuner=fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner,

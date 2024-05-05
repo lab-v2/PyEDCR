@@ -37,7 +37,6 @@ def fine_tune_combined_model(
         evaluate_on_test: bool = True,
         evaluate_on_train_eval: bool = False,
         additional_model: bool = False):
-
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -61,12 +60,14 @@ def fine_tune_combined_model(
 
     slicing_window = [0, 0]
     best_fine_tuner = copy.deepcopy(fine_tuner)
-    stopping_citeria = 0
+    stopping_criteria = 0
 
-    test_fine_accuracies = []
-    test_coarse_accuracies = []
+    minimum_requirement_epoch = 0
 
-    train_eval_fine_accuracy, train_eval_coarse_accuracy = None, None
+    if data_str == 'imagenet':
+        minimum_requirement_epoch = 8
+    elif data_str == 'military_vehicles':
+        minimum_requirement_epoch = 20
 
     if loss.split('_')[0] == 'LTN':
         import ltn
@@ -232,25 +233,27 @@ def fine_tune_combined_model(
 
             if evaluate_on_train_eval:
                 if loss == "error_BCE":
-                    _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
-                                                                                           loaders=loaders,
-                                                                                           loss=loss,
-                                                                                           device=device,
-                                                                                           split='train_eval',
-                                                                                           preprocessor=preprocessor)
-                    test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
-                    print(utils.blue_text(f'harmonic mean of train eval: {test_harmonic_mean}'))
-                    stopping_citeria = test_harmonic_mean
+                    _, _, train_eval_accuracy, train_eval_f1 = neural_evaluation.evaluate_binary_model(
+                        fine_tuner=fine_tuner,
+                        loaders=loaders,
+                        loss=loss,
+                        device=device,
+                        split='train_eval',
+                        preprocessor=preprocessor)
+                    train_eval_harmonic_mean = 2 / (1 / train_eval_accuracy + 1 / train_eval_f1)
+                    print(utils.blue_text(f'harmonic mean of train eval: {train_eval_harmonic_mean}'))
+                    stopping_criteria = train_eval_harmonic_mean
 
                 else:
-                    curr_train_eval_fine_accuracy, curr_train_eval_coarse_accuracy = \
+                    train_eval_fine_accuracy, train_eval_coarse_accuracy, train_eval_fine_f1, train_eval_coarse_f1 = \
                         neural_evaluation.evaluate_combined_model(
                             preprocessor=preprocessor,
                             fine_tuner=fine_tuner,
                             loaders=loaders,
                             loss=loss,
                             device=device,
-                            split='train_eval')[-2:]
+                            split='train_eval')[-4:]
+
                     # if train_eval_fine_accuracy is not None and train_eval_coarse_accuracy is not None and \
                     #         curr_train_eval_fine_accuracy < train_eval_fine_accuracy and \
                     #         curr_train_eval_coarse_accuracy < train_eval_coarse_accuracy:
@@ -259,15 +262,17 @@ def fine_tune_combined_model(
                     #
                     # train_eval_fine_accuracy = curr_train_eval_fine_accuracy
                     # train_eval_coarse_accuracy = curr_train_eval_coarse_accuracy
-                    stopping_citeria = (curr_train_eval_fine_accuracy + curr_train_eval_coarse_accuracy) / 2
+                    train_eval_mean_accuracy = train_eval_fine_accuracy + train_eval_coarse_accuracy
+                    train_eval_mean_f1 = train_eval_fine_f1 + train_eval_coarse_f1
+                    stopping_criteria = 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
 
                 # Update slicing window, and break if the sum of current sliding window is smaller than previous one:
-                if stopping_citeria > slicing_window[1]:
+                if stopping_criteria > slicing_window[1]:
                     print(utils.green_text(f'harmonic mean of current fine_tuner is better. Update fine_tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
-                current_sliding_window = [slicing_window[1], stopping_citeria]
+                current_sliding_window = [slicing_window[1], stopping_criteria]
                 print(f'current sliding window is {current_sliding_window} and previous one is {slicing_window}')
-                if sum(slicing_window) > sum(current_sliding_window):
+                if sum(slicing_window) > sum(current_sliding_window) and epoch > minimum_requirement_epoch:
                     print(utils.red_text(f'finish training, stop criteria met!!!'))
                     break
                 slicing_window = current_sliding_window

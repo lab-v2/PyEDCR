@@ -236,7 +236,7 @@ def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
                                   original_test_inconsistencies=original_test_inconsistencies,
                                   prior=prior)
 
-    return fine_accuracy, coarse_accuracy
+    return fine_accuracy, coarse_accuracy, fine_f1, coarse_f1
 
 
 def get_and_print_post_epoch_binary_metrics(epoch: int,
