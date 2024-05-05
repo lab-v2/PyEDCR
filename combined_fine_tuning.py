@@ -224,13 +224,13 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
             if evaluate_on_train_eval and loss == "error_BCE":
                 _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
-                                                                                         loaders=loaders,
-                                                                                         loss=loss,
-                                                                                         device=device,
-                                                                                         split='train_eval',
-                                                                                         exclude_0=exclude_0,
-                                                                                         preprocessor=preprocessor)
-                test_harmonic_mean = 2/(1/test_accuracy + 1/test_f1)
+                                                                                       loaders=loaders,
+                                                                                       loss=loss,
+                                                                                       device=device,
+                                                                                       split='train_eval',
+                                                                                       exclude_0=exclude_0,
+                                                                                       preprocessor=preprocessor)
+                test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
                 print(utils.blue_text(f'harmonic mean of train eval: {test_harmonic_mean}'))
 
                 # Update slicing window, and break if the sum of current sliding window is smaller than previous one:
@@ -264,12 +264,12 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
     if evaluate_on_test:
         _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
-                                                                                 loaders=loaders,
-                                                                                 loss=loss,
-                                                                                 device=device,
-                                                                                 split='test',
-                                                                                 exclude_0=exclude_0,
-                                                                                 preprocessor=preprocessor)
+                                                                               loaders=loaders,
+                                                                               loss=loss,
+                                                                               device=device,
+                                                                               split='test',
+                                                                               exclude_0=exclude_0,
+                                                                               preprocessor=preprocessor)
         test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
         print(utils.blue_text(f'harmonic mean of train eval: {test_harmonic_mean}'))
 
