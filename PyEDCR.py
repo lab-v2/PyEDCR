@@ -178,7 +178,7 @@ class EDCR:
         self.error_detection_rules: typing.Dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
         self.error_correction_rules: typing.Dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
         self.predicted_test_errors = np.zeros_like(self.pred_data['test']['original'][
-                                                  self.preprocessor.granularities['fine']])
+                                                       self.preprocessor.granularities['fine']])
         self.test_error_ground_truths = np.zeros_like(self.predicted_test_errors)
         self.inconsistency_error_ground_truths = np.zeros_like(self.predicted_test_errors)
         self.correction_model = None
@@ -203,7 +203,7 @@ class EDCR:
                                                                    maximize_ratio=maximize_ratio)
         print(f'\nsheet_tab_name: {self.sheet_tab_name}\n')
 
-        self.RCC_ratio = 0
+        self.recovered_constraints_recall = 0
 
     def set_pred_conditions(self):
         for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -491,7 +491,7 @@ class EDCR:
                                              model_name=self.main_model_name,
                                              lr=self.lr,
                                              print_inconsistencies=print_inconsistencies,
-                                             current_num_test_inconsistencies=self.get_num_recovered_constraints(),
+                                             current_num_test_inconsistencies=self.get_constraints_true_positives(),
                                              original_test_inconsistencies=self.original_test_inconsistencies,
                                              original_pred_fine_data=original_pred_fine_data,
                                              original_pred_coarse_data=original_pred_coarse_data)
@@ -986,20 +986,19 @@ class EDCR:
             self.inconsistency_error_ground_truths |= inconsistency_error_ground_truths
 
             if g.g_str == 'fine':
-                current_recovered_constraints = self.get_num_recovered_constraints()
+                recovered_constraints_true_positives = self.get_constraints_true_positives()
                 # inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
-                all_possible_inconsistencies = (self.preprocessor.num_fine_grain_classes *
-                                                (self.preprocessor.num_coarse_grain_classes - 1))
+                recovered_constraints_positives = (self.preprocessor.num_fine_grain_classes *
+                                                   (self.preprocessor.num_coarse_grain_classes - 1))
 
-                recovered_constraints_str = \
-                    f'{current_recovered_constraints}/{all_possible_inconsistencies} ' \
-                    f'({round(current_recovered_constraints / all_possible_inconsistencies * 100, 2)}%)'
+
 
                 # print(f'Total unique recoverable constraints from the {test_str} predictions: '
                 #       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
                 #       f'Recovered constraints: {recovered_constraints_str}')
 
-                self.RCC_ratio = recovered_constraints_str
+                self.recovered_constraints_recall = (recovered_constraints_true_positives /
+                                                     recovered_constraints_positives)
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
@@ -1042,13 +1041,13 @@ class EDCR:
                                                  stage='post_detection')
 
         if test and save_to_google_sheets:
-            error_accuracy, error_f1, _, _ = \
+            error_accuracy, error_f1, _, _, error_matthews = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_test_errors,
                     true_data=self.test_error_ground_truths,
                     labels=[0])]
 
-            inconsistency_error_accuracy, inconsistency_error_f1, _, _ = \
+            inconsistency_error_accuracy, inconsistency_error_f1, _, _, _ = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_test_errors,
                     true_data=self.inconsistency_error_ground_truths,
@@ -1059,13 +1058,12 @@ class EDCR:
                             len(self.indices_of_fine_labels_to_take_out) / len(self.preprocessor.fine_grain_labels),
                             error_accuracy,
                             error_f1,
-                            inconsistency_error_accuracy,
-                            inconsistency_error_f1,
-                            self.RCC_ratio]
+                            error_matthews,
+                            ]
 
             print(input_values)
 
-            google_sheets_api.update_sheet(range_=f'{self.sheet_tab_name}!A{self.sheet_index}:G{self.sheet_index}',
+            google_sheets_api.update_sheet(range_=f'{self.sheet_tab_name}!A{self.sheet_index}:E{self.sheet_index}',
                                            body={'values': [input_values]})
 
         if print_results:
@@ -1074,7 +1072,7 @@ class EDCR:
                                stage='post_detection',
                                print_inconsistencies=False)
 
-    def get_num_recovered_constraints(self):
+    def get_constraints_true_positives(self):
         recovered_constraints = {}
 
         for l, error_detection_rule in self.error_detection_rules.items():

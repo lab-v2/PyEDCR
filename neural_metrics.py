@@ -1,6 +1,6 @@
 import typing
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, matthews_corrcoef
 
 import utils
 import data_preprocessing
@@ -60,14 +60,15 @@ def get_individual_metrics(pred_data: np.array,
                           labels=labels,
                           average='macro'
                           )
+    matthews = matthews_corrcoef(y_true=true_data,
+                                 y_pred=pred_data)
 
-    # if len(labels) > 3:
-    #     for idx in labels:
-    #         precision_per_class = precision_score(y_true=true_data, y_pred=pred_data, labels=labels, average=None)[idx]
-    #         recall_per_class = recall_score(y_true=true_data, y_pred=pred_data, labels=labels, average=None)[idx]
-    #         print(f'class {idx} has precision {precision_per_class} and recall {recall_per_class}')
+    # if len(labels) > 3: for idx in labels: precision_per_class = precision_score(y_true=true_data,
+    # y_pred=pred_data, labels=labels, average=None)[idx] recall_per_class = recall_score(y_true=true_data,
+    # y_pred=pred_data, labels=labels, average=None)[idx] print(f'class {idx} has precision {precision_per_class} and
+    # recall {recall_per_class}')
 
-    return accuracy, f1, precision, recall
+    return accuracy, f1, precision, recall, matthews
 
 
 def get_metrics(preprocessor: data_preprocessing.DataPreprocessor,
@@ -85,12 +86,12 @@ def get_metrics(preprocessor: data_preprocessing.DataPreprocessor,
     :return: A tuple containing the accuracy, F1, precision, and recall metrics
              for both fine and coarse granularities.
     """
-    fine_accuracy, fine_f1, fine_precision, fine_recall = (
+    fine_accuracy, fine_f1, fine_precision, fine_recall, _ = (
         get_individual_metrics(pred_data=pred_fine_data,
                                true_data=true_fine_data,
                                labels=range(len(preprocessor.fine_grain_classes_str))))
 
-    coarse_accuracy, coarse_f1, coarse_precision, coarse_recall = (
+    coarse_accuracy, coarse_f1, coarse_precision, coarse_recall, _ = (
         get_individual_metrics(pred_data=pred_coarse_data,
                                true_data=true_coarse_data,
                                labels=range(len(preprocessor.coarse_grain_classes_str))))
@@ -118,9 +119,9 @@ def get_and_print_binary_metrics(pred_data: np.array,
     :param lr: The learning rate used during training (optional).
     :return: fine_accuracy, coarse_accuracy
     """
-    accuracy, f1, precision, recall = get_individual_metrics(pred_data=pred_data,
-                                                             true_data=true_data,
-                                                             labels=[0, 1])
+    accuracy, f1, precision, recall, matthews = get_individual_metrics(pred_data=pred_data,
+                                                                       true_data=true_data,
+                                                                       labels=[0, 1])
     prior_str = 'prior' if prior else 'post'
     test_str = 'Test' if test else 'Train'
 
@@ -245,16 +246,16 @@ def get_and_print_post_epoch_binary_metrics(epoch: int,
                                             train_ground_truths: np.array,
                                             train_predictions: np.array,
                                             total_running_loss: float):
-    accuracy, f1, _, _ = get_individual_metrics(pred_data=train_predictions,
-                                                true_data=train_ground_truths,
-                                                labels=[1])
+    accuracy, f1, _, _, matthews = get_individual_metrics(pred_data=train_predictions,
+                                                          true_data=train_ground_truths,
+                                                          labels=[1])
 
     print(f'\nEpoch {epoch + 1}/{num_epochs} done'
           f'\nMean loss across epochs: {round(total_running_loss / (epoch + 1), 2)}'
           f'\npost-epoch training accuracy: {round(accuracy * 100, 2)}%'
           f', post-epoch f1: {round(f1 * 100, 2)}%\n')
 
-    return accuracy, f1
+    return accuracy, f1, matthews
 
 
 def get_and_print_post_epoch_metrics(preprocessor: data_preprocessing.DataPreprocessor,
@@ -309,8 +310,8 @@ def print_post_batch_binary_metrics(batch_num: int,
                                     train_predictions: np.array,
                                     batch_total_loss: float = None):
     if batch_num > 0 and batch_num % 5 == 0:
-        accuracy, f1, _, _ = get_individual_metrics(pred_data=train_predictions,
-                                                    true_data=train_ground_truths,
-                                                    labels=[1])
+        accuracy, f1, _, _, matthews = get_individual_metrics(pred_data=train_predictions,
+                                                              true_data=train_ground_truths,
+                                                              labels=[1])
         print(f'\nCompleted batch num {batch_num}/{num_batches}, current accuracy: {accuracy:.2f},'
-              f'current f1: {f1:.2f}, batch total loss: {batch_total_loss:.2f}')
+              f'current f1: {f1:.2f}, matthews: {matthews:.2f}, batch total loss: {batch_total_loss:.2f}')

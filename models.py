@@ -211,7 +211,9 @@ class ErrorDetector(FineTuner):
 
         return instance
 
-    def forward(self, X_image: torch.Tensor, X_base_model_prediction: torch.Tensor) -> torch.Tensor:
+    def forward(self,
+                X_image: torch.Tensor,
+                X_base_model_prediction: torch.Tensor) -> torch.Tensor:
         image_features = self.transformer(X_image)
 
         fine_prediction = image_features[:, :self.preprocessor.num_fine_grain_classes]
@@ -223,7 +225,7 @@ class ErrorDetector(FineTuner):
         error_fine_grain_class = torch.sum(fine_prediction_from_previous_model * fine_prediction, dim=1)
         error_coarse_grain_class = torch.sum(coarse_prediction_from_previous_model * coarse_prediction, dim=1)
 
-        error_probability = error_coarse_grain_class * error_fine_grain_class
+        error_probability = 1 - error_coarse_grain_class * error_fine_grain_class
 
         return error_probability
 

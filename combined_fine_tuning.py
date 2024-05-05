@@ -192,7 +192,7 @@ def fine_tune_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                     optimizer.step()
 
             if loss == "error_BCE":
-                error_accuracy, error_f1 = neural_metrics.get_and_print_post_epoch_binary_metrics(
+                error_accuracy, error_f1, error_matthews = neural_metrics.get_and_print_post_epoch_binary_metrics(
                     epoch=epoch,
                     num_epochs=num_epochs,
                     train_predictions=error_predictions,

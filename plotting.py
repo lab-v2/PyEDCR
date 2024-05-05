@@ -65,10 +65,9 @@ def plot_all(epsilons,
         plt.cla()
 
 
-def plot_3d_epsilons_ODD(x_values: np.array,
-                         y_values: np.array,
-                         metrics: np.array,
-                         ):
+def plot_3d_metrics(x_values: np.array,
+                    y_values: np.array,
+                    metrics: np.array):
     fig = plt.figure(figsize=(12, 10))
     ax = fig.add_subplot(111, projection='3d')
 
