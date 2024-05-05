@@ -135,7 +135,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             loss=self.loss,
             save_files=False,
             evaluate_on_test=False,
-            num_epochs=self.neural_num_epochs
+            num_epochs=self.neural_num_epochs,
+            data_str=data_str,
+            model_name=main_model_name
             # debug=True
         )
         print('#' * 100)
@@ -250,6 +252,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             save_files=False,
             evaluate_on_test=False,
             num_epochs=2,
+            data_str=data_str,
+            model_name=main_model_name
         )
 
 
