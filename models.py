@@ -8,12 +8,12 @@ import torch.optim
 import torch.utils.data.distributed
 import numpy as np
 
-try:
-    from src_files.helper_functions.bn_fusion import fuse_bn_recursively
-    from src_files.models import create_model
-    from src_files.models.tresnet.tresnet import InplacABN_to_ABN
-except ModuleNotFoundError:
-    pass
+# try:
+#     from src_files.helper_functions.bn_fusion import fuse_bn_recursively
+#     from src_files.models import create_model
+#     from src_files.models.tresnet.tresnet import InplacABN_to_ABN
+# except ModuleNotFoundError:
+#     pass
 
 import data_preprocessing
 
@@ -165,7 +165,8 @@ class ErrorDetector(FineTuner):
         else:
             self.transformer = DINOV2FineTuner(model_name, num_classes)
 
-        self.softmax = torch.nn.Softmax()
+        self.softmax_fine = torch.nn.Softmax()
+        self.softmax_coarse = torch.nn.Softmax()
 
         # self.classifier_fine_grain_classes = torch.nn.Sequential(
         #     torch.nn.Linear(in_features=self.preprocessor.num_fine_grain_classes * 2, out_features=16),
@@ -214,10 +215,10 @@ class ErrorDetector(FineTuner):
         return instance
 
     def forward(self, X_image: torch.Tensor, X_base_model_prediction: torch.Tensor) -> torch.Tensor:
-        image_features = self.softmax(self.transformer(X_image))
+        image_features = self.transformer(X_image)
 
-        fine_prediction = image_features[:, :self.preprocessor.num_fine_grain_classes]
-        coarse_prediction = image_features[:, self.preprocessor.num_fine_grain_classes:]
+        fine_prediction = self.softmax_fine(image_features[:, :self.preprocessor.num_fine_grain_classes])
+        coarse_prediction = self.softmax_coarse(image_features[:, self.preprocessor.num_fine_grain_classes:])
 
         fine_prediction_from_previous_model = X_base_model_prediction[:, :self.preprocessor.num_fine_grain_classes]
         coarse_prediction_from_previous_model = X_base_model_prediction[:, self.preprocessor.num_fine_grain_classes:]
