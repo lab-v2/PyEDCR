@@ -165,24 +165,24 @@ class ErrorDetector(FineTuner):
         else:
             self.transformer = DINOV2FineTuner(model_name, num_classes)
 
-        self.classifier_fine_grain_classes = torch.nn.Sequential(
-            torch.nn.Linear(in_features=self.preprocessor.num_fine_grain_classes * 2, out_features=16),
-            torch.nn.LeakyReLU(),
-            torch.nn.Linear(in_features=16, out_features=1),
-            torch.nn.Sigmoid()
-        )
-
-        self.classifier_coarse_grain_classes = torch.nn.Sequential(
-            torch.nn.Linear(in_features=self.preprocessor.num_coarse_grain_classes * 2, out_features=16),
-            torch.nn.ReLU(),
-            torch.nn.Linear(in_features=16, out_features=1),
-            torch.nn.Sigmoid()
-        )
-
-        self.classifier_or = torch.nn.Sequential(
-            torch.nn.Linear(in_features=2, out_features=1),
-            torch.nn.Sigmoid()
-        )
+        # self.classifier_fine_grain_classes = torch.nn.Sequential(
+        #     torch.nn.Linear(in_features=self.preprocessor.num_fine_grain_classes * 2, out_features=16),
+        #     torch.nn.LeakyReLU(),
+        #     torch.nn.Linear(in_features=16, out_features=1),
+        #     torch.nn.Sigmoid()
+        # )
+        #
+        # self.classifier_coarse_grain_classes = torch.nn.Sequential(
+        #     torch.nn.Linear(in_features=self.preprocessor.num_coarse_grain_classes * 2, out_features=16),
+        #     torch.nn.ReLU(),
+        #     torch.nn.Linear(in_features=16, out_features=1),
+        #     torch.nn.Sigmoid()
+        # )
+        #
+        # self.classifier_or = torch.nn.Sequential(
+        #     torch.nn.Linear(in_features=2, out_features=1),
+        #     torch.nn.Sigmoid()
+        # )
 
     @classmethod
     def from_pretrained(cls,
@@ -217,22 +217,13 @@ class ErrorDetector(FineTuner):
         fine_prediction = image_features[:, :self.preprocessor.num_fine_grain_classes]
         coarse_prediction = image_features[:, self.preprocessor.num_fine_grain_classes:]
 
-        prediction_features = X_base_model_prediction  # Ensure correct shape
+        fine_prediction_from_previous_model = X_base_model_prediction[:, :self.preprocessor.num_fine_grain_classes]
+        coarse_prediction_from_previous_model = X_base_model_prediction[:, self.preprocessor.num_fine_grain_classes:]
 
-        fine_prediction_from_previous_model = prediction_features[:, :self.preprocessor.num_fine_grain_classes]
-        coarse_prediction_from_previous_model = prediction_features[:, self.preprocessor.num_fine_grain_classes:]
+        error_fine_grain_class = torch.sum(fine_prediction_from_previous_model * fine_prediction, dim=1)
+        error_coarse_grain_class = torch.sum(coarse_prediction_from_previous_model * coarse_prediction, dim=1)
 
-        combined_features_fine_grain_class = torch.cat(
-            (fine_prediction, fine_prediction_from_previous_model), dim=1)
-        combined_features_coarse_grain_class = torch.cat(
-            (coarse_prediction, coarse_prediction_from_previous_model), dim=1)
-
-        error_fine_grain_class = self.classifier_fine_grain_classes(combined_features_fine_grain_class)
-        error_coarse_grain_class = self.classifier_coarse_grain_classes(combined_features_coarse_grain_class)
-
-        print(error_coarse_grain_class.shape)
-        print(error_fine_grain_class.shape)
-        error_probability = self.classifier_or(torch.cat(error_coarse_grain_class, error_fine_grain_class)).flatten()
+        error_probability = error_coarse_grain_class * error_fine_grain_class
 
         return error_probability
 
@@ -332,7 +323,7 @@ class TResnetFineTuner(FineTuner):
 
     @classmethod
     def from_pretrained(cls,
-                        tresnet_model_name: str,
+                        model_name: str,
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device,
@@ -341,20 +332,20 @@ class TResnetFineTuner(FineTuner):
         """
         Loads a pre-trained TResnetFineTuner model from a specified path.
 
-        :param tresnet_model_name: The name of the pre-trained TResnet model used during training.
+        :param model_name: The name of the pre-trained TResnet model used during training.
         :param num_classes: The number of output classes for the loaded model.
         :param pretrained_path: The path to the saved pre-trained model checkpoint.
         :param device: The device (CPU or GPU) to load the model onto.
 
         :return: An instance of TResnetFineTuner loaded with pre-trained weights.
         """
-        instance = cls(tresnet_model_name, num_classes)
+        instance = cls(model_name, num_classes)
         # Fixed configuration
         parser = argparse.ArgumentParser(description='PyTorch Open Image infer')
         parser.add_argument('--num-classes', default=9605, type=int)
         parser.add_argument('--model-path', type=str, default=pretrained_path)
         parser.add_argument('--pic-path', type=str, default='./pics/000000000885.jpg')
-        parser.add_argument('--model-name', type=str, default=tresnet_model_name)
+        parser.add_argument('--model-name', type=str, default=model_name)
         parser.add_argument('--image-size', type=int, default=224)
         # parser.add_argument('--dataset-type', type=str, default='MS-COCO')
         parser.add_argument('--th', type=float, default=0.75)
@@ -371,7 +362,7 @@ class TResnetFineTuner(FineTuner):
         # Setup model
         print('creating model {}...'.format(args.model_name))
         instance.model = create_model(args, load_head=True)
-        state = torch.load(args.model_path, map_location='mps')
+        state = torch.load(args.model_path, map_location=device)
         instance.model.load_state_dict(state['model'], strict=True)
 
         ########### eliminate BN for faster inference ###########
