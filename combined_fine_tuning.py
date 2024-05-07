@@ -1,5 +1,6 @@
 import copy
 import os
+
 import utils
 
 if utils.is_local():
@@ -341,6 +342,9 @@ def fine_tune_combined_model(data_str: str,
     elif loss.split('_')[0] == 'LTN':
         torch.save(fine_tuner.state_dict(), f"models/{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
     else:
+        if not os.path.isdir(f'models'):
+            os.mkdir(f'models')
+
         torch.save(fine_tuner.state_dict(),
                    f"models/{data_str}_{fine_tuner}_lr{lr}_{loss}_e{num_epochs}_{additional_str}.pth")
 
@@ -358,7 +362,7 @@ def fine_tune_combined_model(data_str: str,
 def run_combined_fine_tuning_pipeline(data_str: str,
                                       model_name: str,
                                       lr: typing.Union[str, float],
-                                      minimal_num_epochs: int,
+                                      num_epochs: int,
                                       loss: str = 'BCE',
                                       pretrained_path: str = None,
                                       save_files: bool = True,
@@ -385,7 +389,7 @@ def run_combined_fine_tuning_pipeline(data_str: str,
             device=devices[0],
             loaders=loaders,
             loss=loss,
-            num_epochs=minimal_num_epochs,
+            num_epochs=num_epochs,
             save_files=save_files,
             additional_model=additional_model,
             early_stopping=evaluate_train_eval,
@@ -398,7 +402,7 @@ if __name__ == '__main__':
     run_combined_fine_tuning_pipeline(data_str='military_vehicles',
                                       model_name='vit_b_16',
                                       lr=0.0001,
-                                      minimal_num_epochs=10,
+                                      num_epochs=10,
                                       loss='BCE',
                                       additional_model=True,
                                       evaluate_on_test_between_epochs=False)

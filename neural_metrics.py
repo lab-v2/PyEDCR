@@ -141,7 +141,7 @@ def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
                           loss: str,
                           true_fine_data: np.array,
                           true_coarse_data: np.array,
-                          test: bool,
+                          split: str,
                           prior: bool = True,
                           combined: bool = True,
                           model_name: str = '',
@@ -154,7 +154,8 @@ def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
     """
     Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
 
-    :param current_num_test_inconsistencies: 
+    :param split:
+    :param current_num_test_inconsistencies:
     :param original_test_inconsistencies:
     :param preprocessor:
     :param original_pred_coarse_data:
@@ -165,7 +166,6 @@ def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
     :param loss: The loss function used during training.
     :param true_fine_data: NumPy array of true labels at the fine granularity.
     :param true_coarse_data: NumPy array of true labels at the coarse granularity.
-    :param test: True for test data, False for training data.
     :param prior:
     :param combined: Whether the model are individual or combine one.
     :param model_name: The name of the model (optional).
@@ -208,7 +208,7 @@ def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
         coarse_recall_change_str = coarse_recall - original_coarse_recall
 
     print('#' * 100 + '\n' + (f'Main model name: {utils.blue_text(model_name)} ' if model_name != '' else '') +
-          f"with {utils.blue_text(loss)} loss on the {utils.blue_text('test' if test else 'train')} dataset\n" +
+          f"with {utils.blue_text(loss)} loss on the {split} dataset\n" +
           (f'with lr={utils.blue_text(lr)}\n' if lr != '' else '') +
           f'\nFine-grain {prior_str} {combined_str} accuracy: {utils.green_text(round(fine_accuracy * 100, 2))}%'
           f' {get_change_str(fine_accuracy_change_str)}, '

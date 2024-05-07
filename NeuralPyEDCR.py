@@ -189,7 +189,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                                                    new_test_g_predictions,
                                                                    old_test_g_predictions)
         if print_results:
-            self.print_metrics(test=True, prior=False, stage='post_detection')
+            self.print_metrics(split='test', prior=False, stage='post_detection')
 
             where_fixed_initial_error = set()
             for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -238,7 +238,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             preprocessor=self.preprocessor,
             lr=binary_lr,
             train_fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
-            coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
+            train_coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
             # debug=True
         )
 
@@ -304,9 +304,7 @@ def work_on_value(args):
                         )
     # edcr.learn_error_binary_model(binary_model_name=main_model_name,
     #                               binary_lr=new_lr)
-    edcr.print_metrics(test=True,
-                       prior=True)
-    edcr.print_metrics(test=True,
+    edcr.print_metrics(split='test',
                        prior=True)
     edcr.run_learning_pipeline(new_model_name=new_model_name,
                                new_lr=new_lr,

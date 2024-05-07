@@ -452,7 +452,7 @@ class EDCR:
         return where_label_is_l
 
     def print_metrics(self,
-                      test: bool,
+                      split: str,
                       prior: bool = True,
                       print_inconsistencies: bool = True,
                       stage: str = 'original',
@@ -463,14 +463,15 @@ class EDCR:
         Calculates and prints various metrics (accuracy, precision, recall, etc.)
         using appropriate true labels and prediction data based on the specified mode.
 
+        :param split:
         :param print_actual_errors_num:
         :param stage:
         :param print_inconsistencies: whether to print the inconsistencies metric or not
         :param prior:
-        :param test: whether to get data from train or test set
         """
 
         original_pred_fine_data, original_pred_coarse_data = None, None
+        test = split == 'test'
 
         # if stage != 'original':
         #     original_pred_fine_data, original_pred_coarse_data = self.get_predictions(test=test, stage='original')
@@ -485,7 +486,7 @@ class EDCR:
                                              loss=self.loss,
                                              true_fine_data=true_fine_data,
                                              true_coarse_data=true_coarse_data,
-                                             test=test,
+                                             split=split,
                                              prior=prior,
                                              combined=self.combined,
                                              model_name=self.main_model_name,
@@ -1074,7 +1075,7 @@ class EDCR:
                                            body={'values': [input_values]})
 
         if print_results:
-            self.print_metrics(test=test,
+            self.print_metrics(split='test' if test else 'train',
                                prior=False,
                                stage='post_detection',
                                print_inconsistencies=False)
