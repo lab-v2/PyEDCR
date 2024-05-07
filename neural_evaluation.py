@@ -101,8 +101,8 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
     fine_lower_predictions = {lower_predictions_index: [] for lower_predictions_index in lower_predictions_indices}
     coarse_lower_predictions = {lower_predictions_index: [] for lower_predictions_index in lower_predictions_indices}
 
-    fine_ground_truths = torch.Tensor([])
-    coarse_ground_truths = torch.Tensor([])
+    fine_ground_truths = torch.Tensor([]).to(device)
+    coarse_ground_truths = torch.Tensor([]).to(device)
     fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = None, None, None, None
 
     print(utils.blue_text(f'Evaluating {fine_tuner} on {split} using {device}...'))
