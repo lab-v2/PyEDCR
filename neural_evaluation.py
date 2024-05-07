@@ -397,7 +397,7 @@ def get_error_metric(main_fine_prediction: np.array,
     # Get error from main and additional (a.k.a model use to derive error) model
     error_fine_prediction = np.where(main_fine_prediction == additional_fine_prediction, 0, 1)
     error_coarse_prediction = np.where(main_coarse_prediction == additional_coarse_prediction, 0, 1)
-    error_prediction = np.where(error_fine_prediction == 1 or error_fine_prediction == 1, 1, 0)
+    error_prediction = np.where(error_fine_prediction == 1 or error_coarse_prediction == 1, 1, 0)
 
     error_ground_truth = []
     print(utils.blue_text(f'Getting ground truth of {preprocessor.data_str} using {device} on {split}...'))
