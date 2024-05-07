@@ -619,7 +619,8 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
                  fine_predictions: np.array,
                  coarse_predictions: np.array,
                  transform=None,
-                 target_transform=None):
+                 target_transform=None,
+                 evaluation=True):
         self.preprocessor = preprocessor
         self.fine_predictions = fine_predictions
         self.coarse_predictions = coarse_predictions
@@ -652,7 +653,8 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
             samples += [element]
 
         self.samples = samples
-        self.balance_samples()
+        if not evaluation:
+            self.balance_samples()
 
     @staticmethod
     def get_error(y_pred_fine: int,
@@ -767,8 +769,11 @@ def get_datasets(preprocessor: DataPreprocessor,
                  binary_label: Label = None,
                  evaluation: bool = False,
                  error_fixing: bool = False,
-                 fine_predictions: np.array = None,
-                 coarse_predictions: np.array = None) -> \
+                 train_fine_predictions: np.array = None,
+                 train_coarse_predictions: np.array = None,
+                 test_fine_predictions: np.array = None,
+                 test_coarse_predictions: np.array = None,
+                 ) -> \
         (typing.Dict[str, torchvision.datasets.ImageFolder], int, int):
     """
     Instantiates and returns train and test datasets
@@ -799,15 +804,17 @@ def get_datasets(preprocessor: DataPreprocessor,
                 else f'{train_or_test}_fine'
             full_data_dir = os.path.join(data_dir, data_dir_name)
 
-        if fine_predictions is not None:
-            datasets[train_or_test] = ErrorDetectorImageFolder(root=full_data_dir,
-                                                               preprocessor=preprocessor,
-                                                               fine_predictions=fine_predictions,
-                                                               coarse_predictions=coarse_predictions,
-                                                               transform=get_dataset_transforms(
-                                                                   data=preprocessor.data_str,
-                                                                   train_or_test=train_or_test,
-                                                                   model_name=model_name))
+        if train_fine_predictions is not None:
+            print(f'get error detector loader for {train_or_test}')
+            datasets[train_or_test] = ErrorDetectorImageFolder(
+                root=full_data_dir,
+                preprocessor=preprocessor,
+                fine_predictions=train_fine_predictions if train_or_test == 'train' else test_fine_predictions,
+                coarse_predictions=train_coarse_predictions if train_or_test == 'train' else test_coarse_predictions,
+                transform=get_dataset_transforms(
+                    data=preprocessor.data_str,
+                    train_or_test=train_or_test,
+                    model_name=model_name))
         elif binary_label is not None:
             datasets[train_or_test] = BinaryImageFolder(root=full_data_dir,
                                                         transform=get_dataset_transforms(data=preprocessor.data_str,
@@ -923,6 +930,3 @@ def get_loaders(preprocessor: DataPreprocessor,
 
 def get_one_hot_encoding(input_arr: np.array) -> np.array:
     return np.eye(np.max(input_arr) + 1)[input_arr].T
-
-
-

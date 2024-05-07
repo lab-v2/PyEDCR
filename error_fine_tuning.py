@@ -41,7 +41,7 @@ class Error_detection_model(PyEDCR.EDCR):
             model_name=model_name,
             preprocessor=self.preprocessor,
             lr=lr,
-            fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
+            train_fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
             coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
             train_eval_split=0.8,
             pretrained_path=pretrained_path
@@ -72,7 +72,7 @@ class Error_detection_model(PyEDCR.EDCR):
             model_name=model_name,
             preprocessor=self.preprocessor,
             lr=lr,
-            fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
+            train_fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
             coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
             train_eval_split=0.8,
         )

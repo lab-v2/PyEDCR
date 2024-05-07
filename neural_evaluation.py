@@ -383,65 +383,95 @@ def evaluate_binary_models_from_files(data_str: str,
         return None
 
 
-def get_error_metric(main_fine_prediction: np.array,
-                     main_coarse_prediction: np.array,
-                     additional_fine_prediction: np.array,
-                     additional_coarse_prediction: np.array,
+def get_error_metric(main_train_fine_prediction: np.array,
+                     main_train_coarse_prediction: np.array,
+                     main_test_fine_prediction: np.array,
+                     main_test_coarse_prediction: np.array,
+                     additional_train_fine_prediction: np.array,
+                     additional_train_coarse_prediction: np.array,
+                     additional_test_fine_prediction: np.array,
+                     additional_test_coarse_prediction: np.array,
                      data_str: str,
                      model_name: str,
-                     split: str,
                      ):
-    preprocessor, fine_tuners, loaders, devices = (backbone_pipeline.initiate(data_str=data_str,
-                                                                              model_name=model_name,
-                                                                              l=l,
-                                                                              lr=lr,
-                                                                              evaluation=True,
-                                                                              fine_predictions=main_fine_prediction,
-                                                                              coarse_predictions=main_coarse_prediction))
-    loader = loaders[split]
+    preprocessor, fine_tuners, loaders, devices = (backbone_pipeline.initiate(
+        data_str=data_str,
+        model_name=model_name,
+        lr=lr,
+        evaluation=True,
+        train_fine_predictions=main_train_fine_prediction,
+        train_coarse_predictions=main_train_coarse_prediction,
+        test_fine_predictions=main_test_fine_prediction,
+        test_coarse_predictions=main_test_coarse_prediction,
+    ))
 
-    # Get error from main and additional (a.k.a model use to derive error) model
-    error_fine_prediction = np.where(main_fine_prediction == additional_fine_prediction, 0, 1)
-    error_coarse_prediction = np.where(main_coarse_prediction == additional_coarse_prediction, 0, 1)
-    error_prediction = np.where(error_fine_prediction == 1 or error_coarse_prediction == 1, 1, 0)
+    for split in ['train', 'test']:
+        loader = loaders[split]
+        device = torch.device('cpu')
 
-    error_ground_truth = []
-    print(utils.blue_text(f'Getting ground truth of {preprocessor.data_str} using {device} on {split}...'))
+        # Get error from main and additional (a.k.a model use to derive error) model
+        error_fine_prediction = np.where(main_train_fine_prediction == additional_train_fine_prediction
+                                         if split == 'train'
+                                         else main_test_fine_prediction == additional_test_fine_prediction
+                                         , 0, 1)
+        error_coarse_prediction = np.where(main_train_coarse_prediction == additional_train_coarse_prediction
+                                           if split == 'train'
+                                           else main_test_coarse_prediction == additional_test_coarse_prediction
+                                           , 0, 1)
+        error_prediction = np.where((error_fine_prediction == 1) | (error_coarse_prediction == 1), 1, 0)
 
-    with torch.no_grad():
-        from tqdm import tqdm
-        gen = tqdm(enumerate(loader), total=len(loader))
+        error_ground_truth = []
+        print(utils.blue_text(f'Getting ground truth of {data_str} using {device} on {split}...'))
 
-        for i, data in gen:
-            X, Y_pred_fine, Y_pred_coarse, E_true = [b.to(device) for b in data]
-            error_ground_truth += E_true.tolist()
+        with torch.no_grad():
+            from tqdm import tqdm
+            gen = tqdm(enumerate(loader), total=len(loader))
 
-    accuracy, f1, precision, recall = neural_metrics.get_individual_metrics(pred_data=error_prediction,
-                                                                            true_data=error_ground_truth)
+            for i, data in gen:
+                X, Y_pred_fine, Y_pred_coarse, E_true = [b.to(device) for b in data]
+                error_ground_truth += E_true.tolist()
 
-    print(utils.blue_text(f'accuracy: {accuracy}, f1: {f1}, precision: {precision}, recall: {recall}'))
+        accuracy, f1, precision, recall = neural_metrics.get_individual_metrics(pred_data=error_prediction,
+                                                                                true_data=np.array(error_ground_truth))
 
+        print(
+            utils.blue_text(f'{split} dataset: accuracy: {accuracy}, f1: {f1}, precision: {precision}, recall: {recall}'))
 
 
 if __name__ == '__main__':
-    data_str = 'openimage'
-    main_model_name = new_model_name = 'vit_b_16'
+    data_str = 'imagenet'
+    main_model_name = new_model_name = 'dinov2_vits14'
     lr = 0.000001
+    num_epoch_main = 8
 
-    main_fine_prediction = np.load('')
-    main_coarse_prediction = np.load('')
-    additional_fine_prediction = np.load('')
-    additional_coarse_prediction = np.load('')
+    main_test_fine_prediction = np.load(
+        f'combined_results/{main_model_name}_test_fine_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+    main_test_coarse_prediction = np.load(
+        f'combined_results/{main_model_name}_test_coarse_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+    additional_test_fine_prediction = np.load(
+        f'combined_results/{data_str}_{main_model_name}_test_fine_pred_BCE_lr{lr}_e29_additional.npy')
+    additional_test_coarse_prediction = np.load(
+        f'combined_results/{data_str}_{main_model_name}_test_coarse_pred_BCE_lr{lr}_e29_additional.npy')
 
-    get_error_metric(main_fine_prediction=main_fine_prediction,
-                     main_coarse_prediction=main_coarse_prediction,
-                     additional_fine_prediction=additional_fine_prediction,
-                     additional_coarse_prediction=additional_coarse_prediction,
+    main_train_fine_prediction = np.load(
+        f'combined_results/{main_model_name}_train_fine_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+    main_train_coarse_prediction = np.load(
+        f'combined_results/{main_model_name}_train_coarse_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+    additional_train_fine_prediction = np.load(
+        f'combined_results/{data_str}_{main_model_name}_train_fine_pred_BCE_lr{lr}_e29_additional.npy')
+    additional_train_coarse_prediction = np.load(
+        f'combined_results/{data_str}_{main_model_name}_train_coarse_pred_BCE_lr{lr}_e29_additional.npy')
+
+    get_error_metric(main_train_fine_prediction=main_train_fine_prediction,
+                     main_train_coarse_prediction=main_train_coarse_prediction,
+                     additional_train_fine_prediction=additional_train_fine_prediction,
+                     additional_train_coarse_prediction=additional_train_coarse_prediction,
+                     main_test_fine_prediction=main_test_fine_prediction,
+                     main_test_coarse_prediction=main_test_coarse_prediction,
+                     additional_test_fine_prediction=additional_test_fine_prediction,
+                     additional_test_coarse_prediction=additional_test_coarse_prediction,
                      data_str=data_str,
-                     model_name=main_model_name,
-                     split='test')
-
-
+                     model_name=main_model_name,)
 
     # evaluate_binary_models_from_files(model_name='vit_b_16',
     #                                   g_str='fine',
@@ -480,5 +510,3 @@ if __name__ == '__main__':
     #                                  lrs=[0.0001],
     #                                  loss='BCE',
     #                                  pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
-
-
