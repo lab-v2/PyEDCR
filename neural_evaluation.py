@@ -101,8 +101,8 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
     fine_lower_predictions = {lower_predictions_index: [] for lower_predictions_index in lower_predictions_indices}
     coarse_lower_predictions = {lower_predictions_index: [] for lower_predictions_index in lower_predictions_indices}
 
-    fine_ground_truths = []
-    coarse_ground_truths = []
+    fine_ground_truths = torch.Tensor([])
+    coarse_ground_truths = torch.Tensor([])
     fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = None, None, None, None
 
     print(utils.blue_text(f'Evaluating {fine_tuner} on {split} using {device}...'))
@@ -120,8 +120,8 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
         for i, data in gen:
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
 
-            fine_ground_truths += Y_true_fine.tolist()
-            coarse_ground_truths += Y_true_coarse.tolist()
+            fine_ground_truths += Y_true_fine
+            coarse_ground_truths += Y_true_coarse
 
             if config.get_ground_truth:
                 continue
@@ -158,7 +158,7 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                  pred_fine_data=fine_predictions,
                                                  pred_coarse_data=coarse_predictions,
                                                  loss=loss,
-                                                 true_fine_data=fine_ground_truths,
+                                                 true_fine_data=fine_ground_truths.tolist(),
                                                  true_coarse_data=coarse_ground_truths,
                                                  split=split))
 

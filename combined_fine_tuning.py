@@ -25,14 +25,14 @@ def evaluate_on_test(data_str: str,
                      model_name: str,
                      preprocessor: data_preprocessing.DataPreprocessor,
                      lr: typing.Union[str, float],
-                     best_fine_tuner: models.FineTuner,
+                     fine_tuner: models.FineTuner,
                      device: torch.device,
                      loaders: typing.Dict[str, torch.utils.data.DataLoader],
                      loss: str,
                      num_epochs: int,
                      save_files: bool = True):
     if loss == "error_BCE":
-        _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=best_fine_tuner,
+        _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
                                                                                loaders=loaders,
                                                                                loss=loss,
                                                                                device=device,
@@ -47,7 +47,7 @@ def evaluate_on_test(data_str: str,
                                                            split='test',
                                                            lr=lr,
                                                            loss=loss,
-                                                           pretrained_fine_tuner=best_fine_tuner,
+                                                           pretrained_fine_tuner=fine_tuner,
                                                            num_epochs=num_epochs,
                                                            print_results=True,
                                                            save_files=save_files)
@@ -268,7 +268,7 @@ def fine_tune_combined_model(data_str: str,
                                  model_name=model_name,
                                  preprocessor=preprocessor,
                                  lr=lr,
-                                 best_fine_tuner=best_fine_tuner,
+                                 fine_tuner=best_fine_tuner,
                                  device=device,
                                  loaders=loaders,
                                  loss=loss,
@@ -315,7 +315,7 @@ def fine_tune_combined_model(data_str: str,
                          model_name=model_name,
                          preprocessor=preprocessor,
                          lr=lr,
-                         best_fine_tuner=best_fine_tuner,
+                         fine_tuner=best_fine_tuner,
                          device=device,
                          loaders=loaders,
                          loss=loss,
@@ -329,13 +329,13 @@ def fine_tune_combined_model(data_str: str,
                    f"models/binary_models/binary_error_{best_fine_tuner}_"
                    f"lr{lr}_loss_{loss}_e{num_epochs}_{additional_str}.pth")
     elif loss.split('_')[0] == 'LTN':
-        torch.save(fine_tuner.state_dict(), f"models/{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
+        torch.save(best_fine_tuner.state_dict(), f"models/{best_fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
     else:
         if not os.path.isdir(f'models'):
             os.mkdir(f'models')
 
-        torch.save(fine_tuner.state_dict(),
-                   f"models/{data_str}_{fine_tuner}_lr{lr}_{loss}_e{num_epochs}_{additional_str}.pth")
+        torch.save(best_fine_tuner.state_dict(),
+                   f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{num_epochs}_{additional_str}.pth")
 
     print('#' * 100)
 
