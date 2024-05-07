@@ -191,7 +191,6 @@ def fine_tune_combined_model(data_str: str,
                         elif loss.split('_')[0] == 'LTN':
                             if loss == 'LTN_BCE':
                                 criterion = torch.nn.BCEWithLogitsLoss()
-
                                 sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
                                                                            Y_pred, Y_true_coarse, Y_true_fine)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true)
@@ -296,13 +295,15 @@ def fine_tune_combined_model(data_str: str,
                                                                                      device=device,
                                                                                      split='train_eval')[-1]
 
-                print(f'The current train eval loss is {curr_train_eval_loss}')
+                print(f'The current train eval loss is {utils.red_text(curr_train_eval_loss)}')
                 if curr_train_eval_loss < min(train_eval_losses):
                     print(utils.green_text(f'The last loss is lower than previous ones. Updating the best fine tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
 
                 if curr_train_eval_loss >= train_eval_losses[-1]:
                     consecutive_epochs_with_no_train_eval_loss_decrease += 1
+                else:
+                    consecutive_epochs_with_no_train_eval_loss_decrease = 0
 
                 if consecutive_epochs_with_no_train_eval_loss_decrease == 4:
                     print(utils.red_text(f'finish training, stop criteria met!!!'))

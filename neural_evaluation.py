@@ -157,14 +157,17 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 fine_lower_predictions[lower_predictions_index] += curr_lower_prediction_fine.tolist()
                 coarse_lower_predictions[lower_predictions_index] += curr_lower_prediction_coarse.tolist()
 
+    fine_ground_truths = fine_ground_truths.tolist()
+    coarse_ground_truths = coarse_ground_truths.tolist()
+
     if print_results:
         fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = (
             neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
                                                  pred_fine_data=fine_predictions,
                                                  pred_coarse_data=coarse_predictions,
                                                  loss=loss,
-                                                 true_fine_data=fine_ground_truths.tolist(),
-                                                 true_coarse_data=coarse_ground_truths.tolist(),
+                                                 true_fine_data=fine_ground_truths,
+                                                 true_coarse_data=coarse_ground_truths,
                                                  split=split))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
