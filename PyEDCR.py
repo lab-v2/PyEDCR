@@ -494,7 +494,7 @@ class EDCR:
                                              model_name=self.main_model_name,
                                              lr=self.lr,
                                              print_inconsistencies=print_inconsistencies,
-                                             current_num_test_inconsistencies=self.get_constraints_true_positives()[0],
+                                             current_num_test_inconsistencies=self.get_constraints_true_positives_and_total_positives()[0],
                                              original_test_inconsistencies=self.original_test_inconsistencies,
                                              original_pred_fine_data=original_pred_fine_data,
                                              original_pred_coarse_data=original_pred_coarse_data)
@@ -990,7 +990,7 @@ class EDCR:
 
             if g.g_str == 'fine':
                 recovered_constraints_true_positives, recovered_constraints_positives = (
-                    self.get_constraints_true_positives())
+                    self.get_constraints_true_positives_and_total_positives())
                 # inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
                 all_possible_consistency_constraints = (self.preprocessor.num_fine_grain_classes *
                                                         (self.preprocessor.num_coarse_grain_classes - 1))
@@ -1081,7 +1081,7 @@ class EDCR:
                                stage='post_detection',
                                print_inconsistencies=False)
 
-    def get_constraints_true_positives(self):
+    def get_constraints_true_positives_and_total_positives(self):
         true_recovered_constraints: dict[str, set[str]] = {}
         num_recovered_constraints = 0
 
@@ -1119,6 +1119,8 @@ class EDCR:
 
         return num_true_recovered_constraints, num_recovered_constraints
 
+    # def get_constraints_total_positives(self):
+    #     return sum(len({cond for cond in C_l}))
 
 
 if __name__ == '__main__':

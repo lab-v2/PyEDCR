@@ -300,8 +300,6 @@ def fine_tune_combined_model(data_str: str,
                     print(utils.green_text(f'The last loss is lower than previous ones. Updating the best fine tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
 
-                train_eval_losses += [curr_train_eval_loss]
-
                 if len(train_eval_losses) and curr_train_eval_loss >= min(train_eval_losses):
                     consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum += 1
                 else:
@@ -310,6 +308,8 @@ def fine_tune_combined_model(data_str: str,
                 if consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum == 4:
                     print(utils.red_text(f'finish training, stop criteria met!!!'))
                     break
+
+                train_eval_losses += [curr_train_eval_loss]
 
 
 
