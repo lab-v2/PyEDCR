@@ -94,12 +94,12 @@ def fine_tune_combined_model(data_str: str,
     train_eval_losses = [0]
     best_fine_tuner = copy.deepcopy(fine_tuner)
 
-    if loss.split('_')[0] == 'LTN':
-        import ltn
-        import ltn_support
-
-        num_epochs = backbone_pipeline.ltn_num_epochs
-        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
+    # if loss.split('_')[0] == 'LTN':
+    #     import ltn
+    #     import ltn_support
+    #
+    #     num_epochs = backbone_pipeline.ltn_num_epochs
+    #     logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
     neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
                                                         num_epochs=num_epochs,
@@ -108,7 +108,7 @@ def fine_tune_combined_model(data_str: str,
                                                         early_stopping=early_stopping)
     print('#' * 100 + '\n')
 
-    consecutive_epochs_with_no_train_eval_loss_decrease = 0
+    consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0
 
     for epoch in range(num_epochs):
         # print(f"Current lr={optimizer.param_groups[0]['lr']}")
@@ -188,19 +188,19 @@ def fine_tune_combined_model(data_str: str,
 
                             batch_total_loss = criterion(Y_pred, Y_true)
 
-                        elif loss.split('_')[0] == 'LTN':
-                            if loss == 'LTN_BCE':
-                                criterion = torch.nn.BCEWithLogitsLoss()
-                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
-                                                                           Y_pred, Y_true_coarse, Y_true_fine)
-                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true)
-
-                            if loss == "LTN_soft_marginal":
-                                criterion = torch.nn.MultiLabelSoftMarginLoss()
-
-                                sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
-                                                                           Y_pred, Y_true_coarse, Y_true_fine)
-                                batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_true))
+                        # elif loss.split('_')[0] == 'LTN':
+                        #     if loss == 'LTN_BCE':
+                        #         criterion = torch.nn.BCEWithLogitsLoss()
+                        #         sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
+                        #                                                    Y_pred, Y_true_coarse, Y_true_fine)
+                        #         batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true)
+                        #
+                        #     if loss == "LTN_soft_marginal":
+                        #         criterion = torch.nn.MultiLabelSoftMarginLoss()
+                        #
+                        #         sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
+                        #                                                    Y_pred, Y_true_coarse, Y_true_fine)
+                        #         batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_true))
 
                         current_train_fine_predictions = torch.max(Y_pred_fine, 1)[1]
                         current_train_coarse_predictions = torch.max(Y_pred_coarse, 1)[1]
@@ -285,7 +285,7 @@ def fine_tune_combined_model(data_str: str,
                         preprocessor=preprocessor)
                     train_eval_harmonic_mean = 2 / (1 / train_eval_accuracy + 1 / train_eval_f1)
                     print(utils.blue_text(f'harmonic mean of train eval: {train_eval_harmonic_mean}'))
-                    current_stopping_criterion_value = train_eval_harmonic_mean
+                    # current_stopping_criterion_value = train_eval_harmonic_mean
 
                 else:
                     curr_train_eval_loss = neural_evaluation.evaluate_combined_model(preprocessor=preprocessor,
@@ -300,16 +300,18 @@ def fine_tune_combined_model(data_str: str,
                     print(utils.green_text(f'The last loss is lower than previous ones. Updating the best fine tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
 
-                if curr_train_eval_loss >= train_eval_losses[-1]:
-                    consecutive_epochs_with_no_train_eval_loss_decrease += 1
-                else:
-                    consecutive_epochs_with_no_train_eval_loss_decrease = 0
+                train_eval_losses += [curr_train_eval_loss]
 
-                if consecutive_epochs_with_no_train_eval_loss_decrease == 4:
+                if curr_train_eval_loss >= min(train_eval_losses):
+                    consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum += 1
+                else:
+                    consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0
+
+                if consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum == 4:
                     print(utils.red_text(f'finish training, stop criteria met!!!'))
                     break
 
-                train_eval_losses += [curr_train_eval_loss]
+
 
     if not evaluate_on_test_between_epochs:
         evaluate_on_test(data_str=data_str,

@@ -431,12 +431,10 @@ def get_error_metric(main_train_fine_prediction: np.array,
         # Get error from main and additional (a.k.a model use to derive error) model
         error_fine_prediction = np.where(main_train_fine_prediction == additional_train_fine_prediction
                                          if split == 'train'
-                                         else main_test_fine_prediction == additional_test_fine_prediction
-                                         , 0, 1)
+                                         else main_test_fine_prediction == additional_test_fine_prediction, 0, 1)
         error_coarse_prediction = np.where(main_train_coarse_prediction == additional_train_coarse_prediction
                                            if split == 'train'
-                                           else main_test_coarse_prediction == additional_test_coarse_prediction
-                                           , 0, 1)
+                                           else main_test_coarse_prediction == additional_test_coarse_prediction, 0, 1)
         error_prediction = np.where((error_fine_prediction == 1) | (error_coarse_prediction == 1), 1, 0)
 
         error_ground_truth = []

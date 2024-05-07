@@ -406,6 +406,8 @@ class EDCR:
         else:
             pred_data = self.pred_data[test_str][stage]
 
+        pred_data: dict
+
         if g is not None:
             return pred_data[g]
         elif binary:
@@ -865,9 +867,9 @@ class EDCR:
             q_l = self.epsilon * N_l * P_l / R_l
 
             i = 0
-            DC_star = {cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
-                                                                                C={cond},
-                                                                                stage=stage) <= q_l}
+            # DC_star = {cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
+            #                                                                     C={cond},
+            #                                                                     stage=stage) <= q_l}
             DC_star = self.all_conditions
 
             while DC_star:
@@ -1082,15 +1084,21 @@ class EDCR:
                                print_inconsistencies=False)
 
     def get_constraints_true_positives(self):
-        true_recovered_constraints = {}
+        true_recovered_constraints: dict[str, set[str]] = {}
 
         for l, error_detection_rule in self.error_detection_rules.items():
             error_detection_rule: rules.ErrorDetectionRule
 
             for cond in error_detection_rule.C_l:
-                if isinstance(cond, conditions.PredCondition) and cond.l.g != l.g:
-                    fine_index = cond.l.index if cond.l.g.g_str == 'fine' else l.index
-                    coarse_index = cond.l.index if cond.l.g.g_str == 'coarse' else l.index
+                if ((isinstance(cond, conditions.PredCondition)) and (cond.l.g != l.g) and
+                        (not cond.secondary_model_name) and (not cond.binary)):
+                    if cond.l.g.g_str == 'fine':
+                        fine_index = cond.l.index
+                        coarse_index = l.index
+                    else:
+                        fine_index = l.index
+                        coarse_index = cond.l.index
+
                     fine_label_str = self.preprocessor.fine_grain_classes_str[fine_index]
                     coarse_label_str = self.preprocessor.coarse_grain_classes_str[coarse_index]
 
@@ -1115,7 +1123,8 @@ class EDCR:
             error_detection_rule: rules.ErrorDetectionRule
 
             for cond in error_detection_rule.C_l:
-                if isinstance(cond, conditions.PredCondition):
+                if ((isinstance(cond, conditions.PredCondition))
+                        and (not cond.secondary_model_name) and (not cond.binary)):
                     num_recovered_constraints += 1
 
         return num_recovered_constraints
