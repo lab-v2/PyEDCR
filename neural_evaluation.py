@@ -120,8 +120,8 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
         for i, data in gen:
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
 
-            fine_ground_truths += Y_true_fine
-            coarse_ground_truths += Y_true_coarse
+            fine_ground_truths = torch.cat([fine_ground_truths, Y_true_fine])
+            coarse_ground_truths += torch.cat([fine_ground_truths, Y_true_coarse])
 
             if config.get_ground_truth:
                 continue
