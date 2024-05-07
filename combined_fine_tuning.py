@@ -91,7 +91,7 @@ def fine_tune_combined_model(data_str: str,
     test_fine_ground_truths = []
     test_coarse_ground_truths = []
 
-    train_eval_losses = [0]
+    train_eval_losses = []
     best_fine_tuner = copy.deepcopy(fine_tuner)
 
     # if loss.split('_')[0] == 'LTN':
@@ -296,13 +296,13 @@ def fine_tune_combined_model(data_str: str,
                                                                                      split='train_eval')[-1]
 
                 print(f'The current train eval loss is {utils.red_text(curr_train_eval_loss)}')
-                if curr_train_eval_loss < min(train_eval_losses):
+                if len(train_eval_losses) and curr_train_eval_loss < min(train_eval_losses):
                     print(utils.green_text(f'The last loss is lower than previous ones. Updating the best fine tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
 
                 train_eval_losses += [curr_train_eval_loss]
 
-                if curr_train_eval_loss >= min(train_eval_losses):
+                if len(train_eval_losses) and curr_train_eval_loss >= min(train_eval_losses):
                     consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum += 1
                 else:
                     consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0

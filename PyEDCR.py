@@ -494,7 +494,7 @@ class EDCR:
                                              model_name=self.main_model_name,
                                              lr=self.lr,
                                              print_inconsistencies=print_inconsistencies,
-                                             current_num_test_inconsistencies=self.get_constraints_true_positives(),
+                                             current_num_test_inconsistencies=self.get_constraints_true_positives()[0],
                                              original_test_inconsistencies=self.original_test_inconsistencies,
                                              original_pred_fine_data=original_pred_fine_data,
                                              original_pred_coarse_data=original_pred_coarse_data)
@@ -989,13 +989,11 @@ class EDCR:
             self.inconsistency_error_ground_truths |= inconsistency_error_ground_truths
 
             if g.g_str == 'fine':
-                recovered_constraints_true_positives = self.get_constraints_true_positives()
+                recovered_constraints_true_positives, recovered_constraints_positives = (
+                    self.get_constraints_true_positives())
                 # inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
                 all_possible_consistency_constraints = (self.preprocessor.num_fine_grain_classes *
                                                         (self.preprocessor.num_coarse_grain_classes - 1))
-
-                unique_recovered_constraints_with_pred_conditions_num = (
-                    self.get_unique_recovered_constraints_with_pred_conditions_num())
 
                 # print(f'Total unique recoverable constraints from the {test_str} predictions: '
                 #       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
@@ -1005,7 +1003,7 @@ class EDCR:
                                                      all_possible_consistency_constraints)
 
                 self.recovered_constraints_precision = (recovered_constraints_true_positives /
-                                                        unique_recovered_constraints_with_pred_conditions_num)
+                                                        recovered_constraints_positives)
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
@@ -1085,49 +1083,42 @@ class EDCR:
 
     def get_constraints_true_positives(self):
         true_recovered_constraints: dict[str, set[str]] = {}
-
-        for l, error_detection_rule in self.error_detection_rules.items():
-            error_detection_rule: rules.ErrorDetectionRule
-
-            for cond in error_detection_rule.C_l:
-                if ((isinstance(cond, conditions.PredCondition)) and (cond.l.g != l.g) and
-                        (not cond.secondary_model_name) and (not cond.binary)):
-                    if cond.l.g.g_str == 'fine':
-                        fine_index = cond.l.index
-                        coarse_index = l.index
-                    else:
-                        fine_index = l.index
-                        coarse_index = cond.l.index
-
-                    fine_label_str = self.preprocessor.fine_grain_classes_str[fine_index]
-                    coarse_label_str = self.preprocessor.coarse_grain_classes_str[coarse_index]
-
-                    if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
-                        if fine_label_str not in true_recovered_constraints:
-                            true_recovered_constraints[fine_label_str] = {coarse_label_str}
-                        else:
-                            true_recovered_constraints[fine_label_str] = (
-                                true_recovered_constraints[fine_label_str].union({coarse_label_str}))
-
-        assert all(self.preprocessor.fine_to_coarse[fine_label_str] not in coarse_dict
-                   for fine_label_str, coarse_dict in true_recovered_constraints.items())
-
-        num_recovered_constraints = sum(len(coarse_dict) for coarse_dict in true_recovered_constraints.values())
-
-        return num_recovered_constraints
-
-    def get_unique_recovered_constraints_with_pred_conditions_num(self):
         num_recovered_constraints = 0
 
         for l, error_detection_rule in self.error_detection_rules.items():
             error_detection_rule: rules.ErrorDetectionRule
 
             for cond in error_detection_rule.C_l:
-                if ((isinstance(cond, conditions.PredCondition))
-                        and (not cond.secondary_model_name) and (not cond.binary)):
+                if ((isinstance(cond, conditions.PredCondition)) and (cond.secondary_model_name is None)
+                        and (not cond.binary)) and (cond.lower_prediction_index is None):
+                    if cond.l.g != l.g:
+                        if cond.l.g.g_str == 'fine':
+                            fine_index = cond.l.index
+                            coarse_index = l.index
+                        else:
+                            fine_index = l.index
+                            coarse_index = cond.l.index
+
+                        fine_label_str = self.preprocessor.fine_grain_classes_str[fine_index]
+                        coarse_label_str = self.preprocessor.coarse_grain_classes_str[coarse_index]
+
+                        if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
+                            if fine_label_str not in true_recovered_constraints:
+                                true_recovered_constraints[fine_label_str] = {coarse_label_str}
+                            else:
+                                true_recovered_constraints[fine_label_str] = (
+                                    true_recovered_constraints[fine_label_str].union({coarse_label_str}))
+
                     num_recovered_constraints += 1
 
-        return num_recovered_constraints
+
+        assert all(self.preprocessor.fine_to_coarse[fine_label_str] not in coarse_dict
+                   for fine_label_str, coarse_dict in true_recovered_constraints.items())
+
+        num_true_recovered_constraints = sum(len(coarse_dict) for coarse_dict in true_recovered_constraints.values())
+
+        return num_true_recovered_constraints, num_recovered_constraints
+
 
 
 if __name__ == '__main__':
