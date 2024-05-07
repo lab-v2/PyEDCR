@@ -129,6 +129,7 @@ def save_binary_prediction_files(data_str: str,
     """
     Saves prediction files and optional ground truth files.
 
+    :param data_str:
     :param evaluation:
     :param l:
     :param ground_truths:
@@ -229,6 +230,8 @@ def initiate(data_str: str,
     """
     Initializes models, datasets, and devices for training.
 
+    :param test_coarse_predictions:
+    :param test_fine_predictions:
     :param train_coarse_predictions:
     :param train_fine_predictions:
     :param preprocessor:

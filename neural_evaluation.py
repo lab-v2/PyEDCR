@@ -132,8 +132,8 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
             Y_pred_coarse = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
 
             criterion = torch.nn.BCEWithLogitsLoss()
-            batch_total_loss = criterion(Y_pred_fine, fine_ground_truths) \
-                               + criterion(Y_pred_coarse, coarse_ground_truths)
+            batch_total_loss = criterion(Y_pred_fine, Y_true_fine) \
+                               + criterion(Y_pred_coarse, Y_true_coarse)
             total_loss += batch_total_loss.item()
 
             sorted_probs_fine = torch.sort(Y_pred_fine, descending=True)[1]
