@@ -383,6 +383,40 @@ def evaluate_binary_models_from_files(data_str: str,
         return None
 
 
+def get_error_metric(main_fine_prediction: np.array,
+                     main_coarse_prediction: np.array,
+                     additional_fine_prediction: np.array,
+                     additional_coarse_prediction: np.array,
+                     preprocessor: data_preprocessing.DataPreprocessor,
+                     loaders: typing.Dict[str, torch.utils.data.DataLoader],
+                     device: torch.device,
+                     split: str,
+                     ):
+    loader = loaders[split]
+
+    # Get error from main and additional (a.k.a model use to derive error) model
+    error_fine_prediction = np.where(main_fine_prediction == additional_fine_prediction, 0, 1)
+    error_coarse_prediction = np.where(main_coarse_prediction == additional_coarse_prediction, 0, 1)
+    error_prediction = np.where(error_fine_prediction == 1 or error_fine_prediction == 1, 1, 0)
+
+    error_ground_truth = []
+    print(utils.blue_text(f'Getting ground truth of {preprocessor.data_str} using {device} on {split}...'))
+
+    with torch.no_grad():
+        from tqdm import tqdm
+        gen = tqdm(enumerate(loader), total=len(loader))
+
+        for i, data in gen:
+            X, Y_pred_fine, Y_pred_coarse, E_true = [b.to(device) for b in data]
+            error_ground_truth += E_true.tolist()
+
+    accuracy, f1, precision, recall = neural_metrics.get_individual_metrics(pred_data=error_prediction,
+                                                                            true_data=error_ground_truth)
+
+    print(utils.blue_text(f'accuracy: {accuracy}, f1: {f1}, precision: {precision}, recall: {recall}'))
+
+
+
 if __name__ == '__main__':
     data_str = 'openimage'
     main_model_name = new_model_name = 'tresnet_m'
