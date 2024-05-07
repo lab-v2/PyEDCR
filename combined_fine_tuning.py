@@ -104,7 +104,8 @@ def fine_tune_combined_model(data_str: str,
     neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
                                                         num_epochs=num_epochs,
                                                         lr=lr,
-                                                        device=device)
+                                                        device=device,
+                                                        early_stopping=early_stopping)
     print('#' * 100 + '\n')
 
     for epoch in range(num_epochs):
