@@ -107,6 +107,8 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
     print(utils.blue_text(f'Evaluating {fine_tuner} on {split} using {device}...'))
 
+    total_loss = 0
+
     with torch.no_grad():
         if utils.is_local():
             from tqdm import tqdm
@@ -125,8 +127,14 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 continue
 
             Y_pred = fine_tuner(X)
+
             Y_pred_fine = Y_pred[:, :len(preprocessor.fine_grain_classes_str)]
             Y_pred_coarse = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
+
+            criterion = torch.nn.BCEWithLogitsLoss()
+            batch_total_loss = criterion(Y_pred_fine, fine_ground_truths) \
+                               + criterion(Y_pred_coarse, coarse_ground_truths)
+            total_loss += batch_total_loss.item()
 
             sorted_probs_fine = torch.sort(Y_pred_fine, descending=True)[1]
             predicted_fine = sorted_probs_fine[:, 0]
@@ -155,7 +163,8 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                  split=split))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-            fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1)
+            fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1,
+            total_loss)
 
 
 def evaluate_binary_model(fine_tuner: models.FineTuner,
@@ -267,7 +276,8 @@ def run_combined_evaluating_pipeline(data_str: str,
                                                                              evaluation=True)
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-     fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1) = (
+     fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1,
+     total_loss) = (
         evaluate_combined_model(
             preprocessor=preprocessor,
             fine_tuner=fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner,
@@ -436,7 +446,8 @@ def get_error_metric(main_train_fine_prediction: np.array,
                                                                                 true_data=np.array(error_ground_truth))
 
         print(
-            utils.blue_text(f'{split} dataset: accuracy: {accuracy}, f1: {f1}, precision: {precision}, recall: {recall}'))
+            utils.blue_text(
+                f'{split} dataset: accuracy: {accuracy}, f1: {f1}, precision: {precision}, recall: {recall}'))
 
 
 if __name__ == '__main__':
@@ -446,18 +457,18 @@ if __name__ == '__main__':
     num_epoch_main = 8
 
     main_test_fine_prediction = np.load(
-        f'combined_results/{main_model_name}_test_fine_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+        f'combined_results/{main_model_name}_test_fine_pred_BCE_lr{lr}_e{num_epoch_main - 1}.npy')
     main_test_coarse_prediction = np.load(
-        f'combined_results/{main_model_name}_test_coarse_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+        f'combined_results/{main_model_name}_test_coarse_pred_BCE_lr{lr}_e{num_epoch_main - 1}.npy')
     additional_test_fine_prediction = np.load(
         f'combined_results/{data_str}_{main_model_name}_test_fine_pred_BCE_lr{lr}_e29_additional.npy')
     additional_test_coarse_prediction = np.load(
         f'combined_results/{data_str}_{main_model_name}_test_coarse_pred_BCE_lr{lr}_e29_additional.npy')
 
     main_train_fine_prediction = np.load(
-        f'combined_results/{main_model_name}_train_fine_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+        f'combined_results/{main_model_name}_train_fine_pred_BCE_lr{lr}_e{num_epoch_main - 1}.npy')
     main_train_coarse_prediction = np.load(
-        f'combined_results/{main_model_name}_train_coarse_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+        f'combined_results/{main_model_name}_train_coarse_pred_BCE_lr{lr}_e{num_epoch_main - 1}.npy')
     additional_train_fine_prediction = np.load(
         f'combined_results/{data_str}_{main_model_name}_train_fine_pred_BCE_lr{lr}_e29_additional.npy')
     additional_train_coarse_prediction = np.load(
@@ -472,7 +483,7 @@ if __name__ == '__main__':
                      additional_test_fine_prediction=additional_test_fine_prediction,
                      additional_test_coarse_prediction=additional_test_coarse_prediction,
                      data_str=data_str,
-                     model_name=main_model_name,)
+                     model_name=main_model_name, )
 
     # evaluate_binary_models_from_files(model_name='vit_b_16',
     #                                   g_str='fine',

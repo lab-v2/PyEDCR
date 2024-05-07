@@ -69,8 +69,7 @@ def fine_tune_combined_model(data_str: str,
                              evaluate_on_test_between_epochs: bool = True,
                              early_stopping: bool = False,
                              additional_model: bool = False,
-                             save_ground_truth: bool = False,
-                             sliding_window_length: int = None):
+                             save_ground_truth: bool = False):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -92,7 +91,7 @@ def fine_tune_combined_model(data_str: str,
     test_fine_ground_truths = []
     test_coarse_ground_truths = []
 
-    sliding_window = [0] * sliding_window_length
+    train_eval_losses = [0]
     best_fine_tuner = copy.deepcopy(fine_tuner)
 
     if loss.split('_')[0] == 'LTN':
@@ -109,10 +108,12 @@ def fine_tune_combined_model(data_str: str,
                                                         early_stopping=early_stopping)
     print('#' * 100 + '\n')
 
+    consecutive_epochs_with_no_train_eval_loss_decrease = 0
+
     for epoch in range(num_epochs):
         # print(f"Current lr={optimizer.param_groups[0]['lr']}")
 
-        with (context_handlers.TimeWrapper()):
+        with context_handlers.TimeWrapper():
             total_running_loss = torch.Tensor([0.0]).to(device)
             running_fine_loss = torch.Tensor([0.0]).to(device)
             running_coarse_loss = torch.Tensor([0.0]).to(device)
@@ -288,39 +289,26 @@ def fine_tune_combined_model(data_str: str,
                     current_stopping_criterion_value = train_eval_harmonic_mean
 
                 else:
-                    train_eval_fine_accuracy, train_eval_coarse_accuracy, train_eval_fine_f1, train_eval_coarse_f1 = \
-                        neural_evaluation.evaluate_combined_model(
-                            preprocessor=preprocessor,
-                            fine_tuner=fine_tuner,
-                            loaders=loaders,
-                            loss=loss,
-                            device=device,
-                            split='train_eval')[-4:]
+                    curr_train_eval_loss = neural_evaluation.evaluate_combined_model(preprocessor=preprocessor,
+                                                                                     fine_tuner=fine_tuner,
+                                                                                     loaders=loaders,
+                                                                                     loss=loss,
+                                                                                     device=device,
+                                                                                     split='train_eval')[-1]
 
-                    # if train_eval_fine_accuracy is not None and train_eval_coarse_accuracy is not None and \
-                    #         curr_train_eval_fine_accuracy < train_eval_fine_accuracy and \
-                    #         curr_train_eval_coarse_accuracy < train_eval_coarse_accuracy:
-                    #     print(utils.red_text('Early stopping!!!'))
-                    #     break
-                    #
-                    # train_eval_fine_accuracy = curr_train_eval_fine_accuracy
-                    # train_eval_coarse_accuracy = curr_train_eval_coarse_accuracy
-
-                    train_eval_mean_accuracy = (train_eval_fine_accuracy + train_eval_coarse_accuracy) / 2
-                    train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1) / 2
-                    current_stopping_criterion_value = 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
-
-                # Update sliding window, and break if the sum of current sliding window is smaller than previous one:
-                if current_stopping_criterion_value > max(sliding_window):
-                    print(utils.green_text(f'harmonic mean of current fine_tuner is better. Update fine_tuner'))
+                print(f'The current train eval loss is {curr_train_eval_loss}')
+                if curr_train_eval_loss < min(train_eval_losses):
+                    print(utils.green_text(f'The last loss is lower than previous ones. Updating the best fine tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
 
-                new_sliding_window = sliding_window[1:] + [current_stopping_criterion_value]
-                print(f'current sliding window is {new_sliding_window} and previous one is {sliding_window}')
-                if epoch > num_epochs and sum(sliding_window) > sum(new_sliding_window):
+                if curr_train_eval_loss >= train_eval_losses[-1]:
+                    consecutive_epochs_with_no_train_eval_loss_decrease += 1
+
+                if consecutive_epochs_with_no_train_eval_loss_decrease == 4:
                     print(utils.red_text(f'finish training, stop criteria met!!!'))
                     break
-                sliding_window = new_sliding_window
+
+                train_eval_losses += [curr_train_eval_loss]
 
     if not evaluate_on_test_between_epochs:
         evaluate_on_test(data_str=data_str,
