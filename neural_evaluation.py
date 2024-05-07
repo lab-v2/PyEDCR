@@ -120,6 +120,11 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
         for i, data in gen:
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
 
+            Y_true_fine_one_hot = torch.nn.functional.one_hot(Y_true_fine, num_classes=len(
+                preprocessor.fine_grain_classes_str))
+            Y_true_coarse_one_hot = torch.nn.functional.one_hot(Y_true_coarse, num_classes=len(
+                preprocessor.coarse_grain_classes_str))
+
             fine_ground_truths = torch.cat([fine_ground_truths, Y_true_fine])
             coarse_ground_truths = torch.cat([coarse_ground_truths, Y_true_coarse])
 
@@ -132,8 +137,8 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
             Y_pred_coarse = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
 
             criterion = torch.nn.BCEWithLogitsLoss()
-            batch_total_loss = criterion(Y_pred_fine, Y_true_fine) \
-                               + criterion(Y_pred_coarse, Y_true_coarse)
+            batch_total_loss = criterion(Y_pred_fine, Y_true_fine_one_hot) \
+                               + criterion(Y_pred_coarse, Y_true_coarse_one_hot)
             total_loss += batch_total_loss.item()
 
             sorted_probs_fine = torch.sort(Y_pred_fine, descending=True)[1]
