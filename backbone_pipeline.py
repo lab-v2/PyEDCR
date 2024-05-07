@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 import torch.utils.data
 import typing
@@ -58,6 +60,14 @@ def save_prediction_files(data_str: str,
     epoch_str = f'_e{epoch}' if epoch is not None else ''
     test_str = 'test' if test else 'train'
 
+    if data_str == 'imagenet':
+        data_path_str = 'data/ImageNet100/'
+    elif data_str == 'openimage':
+        data_path_str = 'scratch/ngocbach/OpenImage/' if not config.running_on_sol \
+            else '/scratch/ngocbach/OpenImage/'
+    else:
+        data_path_str = 'data/'
+
     if combined:
         for g_str in data_preprocessing.DataPreprocessor.granularities_str:
             if config.get_ground_truth:
@@ -88,19 +98,15 @@ def save_prediction_files(data_str: str,
                                             lower_prediction_index=lower_prediction_index),
                         lower_prediction_values)
 
-        if data_str == 'imagenet':
-            data_path_str = 'data/ImageNet100/'
-        elif data_str == 'openimage':
-            data_path_str = 'scratch/ngocbach/OpenImage/' if not config.running_on_sol \
-                else '/scratch/ngocbach/OpenImage/'
-        else:
-            data_path_str = 'data/'
+            ground_truth_filename = f"{data_path_str}{test_str}_fine/{test_str}_true_{g_str}.npy"
+            ground_truth_data = {'fine': fine_ground_truths,
+                                 'coarse': coarse_ground_truths}[g_str]
 
-        if fine_ground_truths is not None:
-            np.save(f"{data_path_str}{test_str}_fine/{test_str}_true_fine.npy",
-                    fine_ground_truths)
-            np.save(f"{data_path_str}{test_str}_coarse/{test_str}_true_coarse.npy",
-                    coarse_ground_truths)
+            if ground_truth_data and not os.path.isfile(ground_truth_filename):
+                np.save(ground_truth_filename, ground_truth_data)
+
+
+
     else:
         np.save(f"{individual_results_path}_{test_str}_{fine_tuners['fine']}"
                 f"_pred_lr{lrs['fine']}_{epoch_str}_fine_individual.npy",

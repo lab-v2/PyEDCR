@@ -30,7 +30,7 @@ def evaluate_on_test(data_str: str,
                      loaders: typing.Dict[str, torch.utils.data.DataLoader],
                      loss: str,
                      num_epochs: int,
-                     save_files: bool = True):
+                     save_files: bool = False):
     if loss == "error_BCE":
         _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
                                                                                loaders=loaders,
@@ -38,9 +38,9 @@ def evaluate_on_test(data_str: str,
                                                                                device=device,
                                                                                split='test',
                                                                                preprocessor=preprocessor)
-        test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
+        # test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
         print(utils.blue_text(f'test f1: {test_f1}, test accuracy: {test_accuracy}'))
-        print(utils.blue_text(f'harmonic mean of test: {test_harmonic_mean}'))
+        # print(utils.blue_text(f'harmonic mean of test: {test_harmonic_mean}'))
     else:
         neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
                                                            model_name=model_name,

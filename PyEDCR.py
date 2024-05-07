@@ -992,7 +992,8 @@ class EDCR:
                 all_possible_consistency_constraints = (self.preprocessor.num_fine_grain_classes *
                                                         (self.preprocessor.num_coarse_grain_classes - 1))
 
-                recovered_constraints_positives = self.get_all_recovered_constraints_num()
+                unique_recovered_constraints_with_pred_conditions_num = (
+                    self.get_unique_recovered_constraints_with_pred_conditions_num())
 
                 # print(f'Total unique recoverable constraints from the {test_str} predictions: '
                 #       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
@@ -1002,7 +1003,7 @@ class EDCR:
                                                      all_possible_consistency_constraints)
 
                 self.recovered_constraints_precision = (recovered_constraints_true_positives /
-                                                        recovered_constraints_positives)
+                                                        unique_recovered_constraints_with_pred_conditions_num)
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
@@ -1045,7 +1046,7 @@ class EDCR:
                                                  stage='post_detection')
 
         if test and save_to_google_sheets:
-            error_accuracy, error_f1, _, _, error_matthews = \
+            error_accuracy, error_f1, _, _ = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_test_errors,
                     true_data=self.test_error_ground_truths,
@@ -1107,13 +1108,15 @@ class EDCR:
 
         return num_recovered_constraints
 
-    def get_all_recovered_constraints_num(self):
+    def get_unique_recovered_constraints_with_pred_conditions_num(self):
         num_recovered_constraints = 0
 
         for l, error_detection_rule in self.error_detection_rules.items():
             error_detection_rule: rules.ErrorDetectionRule
 
-            num_recovered_constraints += len(error_detection_rule.C_l)
+            for cond in error_detection_rule.C_l:
+                if isinstance(cond, conditions.PredCondition):
+                    num_recovered_constraints += 1
 
         return num_recovered_constraints
 
