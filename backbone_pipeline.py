@@ -36,7 +36,8 @@ def save_prediction_files(data_str: str,
                           fine_ground_truths: np.array = None,
                           coarse_ground_truths: np.array = None,
                           fine_lower_predictions: typing.Dict[int, list] = {},
-                          coarse_lower_predictions: typing.Dict[int, list] = {}):
+                          coarse_lower_predictions: typing.Dict[int, list] = {},
+                          additional_info: str = None):
     """
     Saves prediction files and optional ground truth files.
 
@@ -71,7 +72,8 @@ def save_prediction_files(data_str: str,
                                         loss=loss,
                                         lr=lrs,
                                         pred=True,
-                                        epoch=epoch),
+                                        epoch=epoch,
+                                        additional_info=additional_info),
                     prediction)
 
             lower_predictions = fine_lower_predictions if g_str == 'fine' else coarse_lower_predictions

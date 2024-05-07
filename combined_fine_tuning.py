@@ -36,7 +36,7 @@ def fine_tune_combined_model(
         save_files: bool = True,
         evaluate_on_test: bool = True,
         evaluate_on_train_eval: bool = False,
-        additional_model: bool = False):
+        additional_info: str = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -297,7 +297,8 @@ def fine_tune_combined_model(
                                                            pretrained_fine_tuner=best_fine_tuner,
                                                            num_epochs=num_epochs,
                                                            print_results=True,
-                                                           save_files=save_files)
+                                                           save_files=save_files,
+                                                           additional_info=additional_info)
         neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
                                                            model_name=model_name,
                                                            split='test',
@@ -306,7 +307,8 @@ def fine_tune_combined_model(
                                                            pretrained_fine_tuner=best_fine_tuner,
                                                            num_epochs=num_epochs,
                                                            print_results=True,
-                                                           save_files=save_files)
+                                                           save_files=save_files,
+                                                           additional_info=additional_info)
 
         print('#' * 100)
 
@@ -339,7 +341,7 @@ def run_combined_fine_tuning_pipeline(data_str: str,
                                       pretrained_path: str = None,
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode(),
-                                      additional_model: bool = False,
+                                      additional_info: str = None,
                                       evaluate_train_eval=True):
     preprocessor, fine_tuners, loaders, devices = (
         backbone_pipeline.initiate(data_str=data_str,
@@ -361,17 +363,17 @@ def run_combined_fine_tuning_pipeline(data_str: str,
             loss=loss,
             num_epochs=num_epochs,
             save_files=save_files,
-            additional_model=additional_model,
+            additional_info=additional_info,
             evaluate_on_train_eval=evaluate_train_eval
         )
         print('#' * 100)
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline(data_str='military_vehicles',
-                                      model_name='vit_b_16',
-                                      lr=0.0001,
-                                      num_epochs=30,
+    run_combined_fine_tuning_pipeline(data_str='imagenet',
+                                      model_name='dinov2_vits14',
+                                      lr=0.000001,
+                                      num_epochs=8,
                                       loss='BCE',
-                                      additional_model=True,
+                                      additional_info='additional',
                                       )
