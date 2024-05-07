@@ -440,27 +440,28 @@ def get_error_metric(main_train_fine_prediction: np.array,
 
 if __name__ == '__main__':
     data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
+    main_model_name = 'tresnet_m'
+    additional_model_name = 'dinov2_vits14'
     lr = 0.000001
     num_epoch_main = 8
 
     main_test_fine_prediction = np.load(
-        f'combined_results/{main_model_name}_test_fine_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+        f'combined_results/{data_str}_{main_model_name}_test_fine_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
     main_test_coarse_prediction = np.load(
-        f'combined_results/{main_model_name}_test_coarse_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+        f'combined_results/{data_str}_{main_model_name}_test_coarse_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
     additional_test_fine_prediction = np.load(
-        f'combined_results/{data_str}_{main_model_name}_test_fine_pred_BCE_lr{lr}_e29_additional.npy')
+        f'combined_results/{data_str}_{additional_model_name}_test_fine_pred_BCE_lr{lr}_e29_additional.npy')
     additional_test_coarse_prediction = np.load(
-        f'combined_results/{data_str}_{main_model_name}_test_coarse_pred_BCE_lr{lr}_e29_additional.npy')
+        f'combined_results/{data_str}_{additional_model_name}_test_coarse_pred_BCE_lr{lr}_e29_additional.npy')
 
     main_train_fine_prediction = np.load(
-        f'combined_results/{main_model_name}_train_fine_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+        f'combined_results/{data_str}_{main_model_name}_train_fine_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
     main_train_coarse_prediction = np.load(
-        f'combined_results/{main_model_name}_train_coarse_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
+        f'combined_results/{data_str}_{main_model_name}_train_coarse_pred_BCE_lr{lr}_e{num_epoch_main-1}.npy')
     additional_train_fine_prediction = np.load(
-        f'combined_results/{data_str}_{main_model_name}_train_fine_pred_BCE_lr{lr}_e29_additional.npy')
+        f'combined_results/{data_str}_{additional_model_name}_train_fine_pred_BCE_lr{lr}_e29_additional.npy')
     additional_train_coarse_prediction = np.load(
-        f'combined_results/{data_str}_{main_model_name}_train_coarse_pred_BCE_lr{lr}_e29_additional.npy')
+        f'combined_results/{data_str}_{additional_model_name}_train_coarse_pred_BCE_lr{lr}_e29_additional.npy')
 
     get_error_metric(main_train_fine_prediction=main_train_fine_prediction,
                      main_train_coarse_prediction=main_train_coarse_prediction,
