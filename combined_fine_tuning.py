@@ -69,7 +69,8 @@ def fine_tune_combined_model(data_str: str,
                              evaluate_on_test_between_epochs: bool = True,
                              early_stopping: bool = False,
                              additional_model: bool = False,
-                             save_ground_truth: bool = False):
+                             save_ground_truth: bool = False,
+                             sliding_window_length: int = None):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
@@ -91,7 +92,7 @@ def fine_tune_combined_model(data_str: str,
     test_fine_ground_truths = []
     test_coarse_ground_truths = []
 
-    sliding_window = [0, 0]
+    sliding_window = [0] * sliding_window_length
     best_fine_tuner = copy.deepcopy(fine_tuner)
 
     if loss.split('_')[0] == 'LTN':
@@ -314,7 +315,7 @@ def fine_tune_combined_model(data_str: str,
                     print(utils.green_text(f'harmonic mean of current fine_tuner is better. Update fine_tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
 
-                new_sliding_window = [sliding_window[1], current_stopping_criterion_value]
+                new_sliding_window = sliding_window[1:] + [current_stopping_criterion_value]
                 print(f'current sliding window is {new_sliding_window} and previous one is {sliding_window}')
                 if epoch > num_epochs and sum(sliding_window) > sum(new_sliding_window):
                     print(utils.red_text(f'finish training, stop criteria met!!!'))
