@@ -248,7 +248,7 @@ def initiate(data_str: str,
              - num_fine_grain_classes: The number of fine-grained classes.
              - num_coarse_grain_classes: The number of coarse-grained classes.
     """
-    print(f'Models: {model_name}\nLearning rates: {lr}')
+    print(f'Model: {model_name}\nLearning rate: {lr}')
 
     if preprocessor is None:
         preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)

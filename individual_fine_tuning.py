@@ -126,16 +126,16 @@ def fine_tune_individual_models(preprocessor: data_preprocessing.DataPreprocesso
             predicted_coarse_labels = np.array(train_coarse_predictions)
 
             training_fine_accuracy, training_coarse_accuracy = (
-                neural_metrics.get_and_print_post_epoch_metrics(preprocessor=preprocessor,
-                                                                epoch=epoch,
-                                                                num_epochs=num_epochs,
-                                                                # running_fine_loss=running_fine_loss,
-                                                                # running_coarse_loss=running_coarse_loss,
-                                                                # num_batches=num_batches,
-                                                                train_fine_ground_truth=true_fine_labels,
-                                                                train_fine_prediction=predicted_fine_labels,
-                                                                train_coarse_ground_truth=true_coarse_labels,
-                                                                train_coarse_prediction=predicted_coarse_labels))
+                neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
+                                                          curr_epoch=epoch,
+                                                          total_num_epochs=num_epochs,
+                                                          # running_fine_loss=running_fine_loss,
+                                                          # running_coarse_loss=running_coarse_loss,
+                                                          # num_batches=num_batches,
+                                                          train_fine_ground_truth=true_fine_labels,
+                                                          train_fine_prediction=predicted_fine_labels,
+                                                          train_coarse_ground_truth=true_coarse_labels,
+                                                          train_coarse_prediction=predicted_coarse_labels))
 
             train_fine_accuracies += [training_fine_accuracy]
             train_coarse_accuracies += [training_coarse_accuracy]

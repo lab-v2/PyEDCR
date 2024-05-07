@@ -19,31 +19,63 @@ import neural_metrics
 import backbone_pipeline
 import neural_fine_tuning
 
-save_ground_truth = False
+
+def evaluate_on_test(data_str: str,
+                     model_name: str,
+                     preprocessor: data_preprocessing.DataPreprocessor,
+                     lr: typing.Union[str, float],
+                     best_fine_tuner: models.FineTuner,
+                     device: torch.device,
+                     loaders: typing.Dict[str, torch.utils.data.DataLoader],
+                     loss: str,
+                     num_epochs: int,
+                     save_files: bool = True):
+    if loss == "error_BCE":
+        _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=best_fine_tuner,
+                                                                               loaders=loaders,
+                                                                               loss=loss,
+                                                                               device=device,
+                                                                               split='test',
+                                                                               preprocessor=preprocessor)
+        test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
+        print(utils.blue_text(f'test f1: {test_f1}, test accuracy: {test_accuracy}'))
+        print(utils.blue_text(f'harmonic mean of test: {test_harmonic_mean}'))
+    else:
+        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
+                                                           model_name=model_name,
+                                                           split='test',
+                                                           lr=lr,
+                                                           loss=loss,
+                                                           pretrained_fine_tuner=best_fine_tuner,
+                                                           num_epochs=num_epochs,
+                                                           print_results=True,
+                                                           save_files=save_files)
+
+        print('#' * 100)
 
 
-def fine_tune_combined_model(
-        data_str: str,
-        model_name: str,
-        preprocessor: data_preprocessing.DataPreprocessor,
-        lr: typing.Union[str, float],
-        fine_tuner: models.FineTuner,
-        device: torch.device,
-        loaders: typing.Dict[str, torch.utils.data.DataLoader],
-        loss: str,
-        num_epochs: int,
-        beta: float = 0.1,
-        save_files: bool = True,
-        evaluate_on_test: bool = True,
-        evaluate_on_train_eval: bool = False,
-        additional_model: bool = False):
+def fine_tune_combined_model(data_str: str,
+                             model_name: str,
+                             preprocessor: data_preprocessing.DataPreprocessor,
+                             lr: typing.Union[str, float],
+                             fine_tuner: models.FineTuner,
+                             device: torch.device,
+                             loaders: typing.Dict[str, torch.utils.data.DataLoader],
+                             loss: str,
+                             num_epochs: int,
+                             beta: float = 0.1,
+                             save_files: bool = True,
+                             evaluate_on_test_between_epochs: bool = True,
+                             early_stopping: bool = False,
+                             additional_model: bool = False,
+                             save_ground_truth: bool = False):
     fine_tuner.to(device)
     fine_tuner.train()
     train_loader = loaders['train']
     num_batches = len(train_loader)
 
-    train_fine_predictions = None
-    train_coarse_predictions = None
+    total_train_fine_predictions = None
+    total_train_coarse_predictions = None
 
     optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                  lr=lr)
@@ -58,25 +90,15 @@ def fine_tune_combined_model(
     test_fine_ground_truths = []
     test_coarse_ground_truths = []
 
-    slicing_window = [0, 0]
+    sliding_window = [0, 0]
     best_fine_tuner = copy.deepcopy(fine_tuner)
-    stopping_criteria = 0
-
-    minimum_requirement_epoch = 0
-
-    if data_str == 'imagenet':
-        minimum_requirement_epoch = 8
-    elif data_str == 'military_vehicles':
-        minimum_requirement_epoch = 20
 
     if loss.split('_')[0] == 'LTN':
         import ltn
         import ltn_support
 
-        epochs = backbone_pipeline.ltn_num_epochs
+        num_epochs = backbone_pipeline.ltn_num_epochs
         logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
-    else:
-        epochs = num_epochs
 
     neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
                                                         num_epochs=num_epochs,
@@ -84,19 +106,19 @@ def fine_tune_combined_model(
                                                         device=device)
     print('#' * 100 + '\n')
 
-    for epoch in range(epochs):
-        print(f"Current lr={optimizer.param_groups[0]['lr']}")
+    for epoch in range(num_epochs):
+        # print(f"Current lr={optimizer.param_groups[0]['lr']}")
 
         with (context_handlers.TimeWrapper()):
             total_running_loss = torch.Tensor([0.0]).to(device)
             running_fine_loss = torch.Tensor([0.0]).to(device)
             running_coarse_loss = torch.Tensor([0.0]).to(device)
 
-            train_fine_predictions = []
-            train_coarse_predictions = []
+            total_train_fine_predictions = []
+            total_train_coarse_predictions = []
 
-            train_fine_ground_truths = []
-            train_coarse_ground_truths = []
+            total_train_fine_ground_truths = []
+            total_train_coarse_ground_truths = []
 
             error_predictions = []
             error_ground_truths = []
@@ -125,7 +147,7 @@ def fine_tune_combined_model(
 
                         del X, Y_pred_fine, Y_pred_coarse, E_true
                     else:
-                        X, Y_true_fine, Y_true_coarse = (batch[0].to(device), batch[1].to(device), batch[3].to(device))
+                        X, Y_true_fine, Y_true_coarse = [batch[i].to(device) for i in [0, 1, 3]]
                         Y_true_fine_one_hot = torch.nn.functional.one_hot(Y_true_fine, num_classes=len(
                             preprocessor.fine_grain_classes_str))
                         Y_true_coarse_one_hot = torch.nn.functional.one_hot(Y_true_coarse, num_classes=len(
@@ -177,18 +199,19 @@ def fine_tune_combined_model(
                                                                            Y_pred, Y_true_coarse, Y_true_fine)
                                 batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_true))
 
-                        predicted_fine = torch.max(Y_pred_fine, 1)[1]
-                        predicted_coarse = torch.max(Y_pred_coarse, 1)[1]
+                        current_train_fine_predictions = torch.max(Y_pred_fine, 1)[1]
+                        current_train_coarse_predictions = torch.max(Y_pred_coarse, 1)[1]
 
-                        train_fine_predictions += predicted_fine.tolist()
-                        train_coarse_predictions += predicted_coarse.tolist()
+                        total_train_fine_predictions += current_train_fine_predictions.tolist()
+                        total_train_coarse_predictions += current_train_coarse_predictions.tolist()
 
-                        train_fine_ground_truths += Y_true_fine.tolist()
-                        train_coarse_ground_truths += Y_true_coarse.tolist()
+                        total_train_fine_ground_truths += Y_true_fine.tolist()
+                        total_train_coarse_ground_truths += Y_true_coarse.tolist()
 
                         del X, Y_true_fine, Y_true_coarse, Y_pred, Y_pred_fine, Y_pred_coarse
 
                     total_running_loss += batch_total_loss.item()
+
                     if loss == "error_BCE":
                         neural_metrics.print_post_batch_binary_metrics(batch_num=batch_num,
                                                                        num_batches=num_batches,
@@ -196,18 +219,26 @@ def fine_tune_combined_model(
                                                                        train_ground_truths=error_ground_truths,
                                                                        batch_total_loss=batch_total_loss.item(), )
                     else:
-                        neural_metrics.print_post_batch_metrics(batch_num=batch_num,
-                                                                num_batches=num_batches,
-                                                                batch_total_loss=batch_total_loss.item())
+                        neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
+                                                                  curr_batch_num=batch_num,
+                                                                  total_batch_num=len(batches),
+                                                                  train_fine_ground_truth=np.array(
+                                                                      total_train_fine_ground_truths),
+                                                                  train_fine_prediction=np.array(
+                                                                      total_train_fine_predictions),
+                                                                  train_coarse_ground_truth=np.array(
+                                                                      total_train_coarse_ground_truths),
+                                                                  train_coarse_prediction=np.array(
+                                                                      total_train_coarse_predictions))
                     batch_total_loss.backward()
                     optimizer.step()
 
-            if epoch == 0:
-                print(utils.blue_text(
-                    f'label use and count: {np.unique(np.array(error_ground_truths), return_counts=True)}'))
+            # if epoch == 0:
+            #     print(utils.blue_text(
+            #         f'label use and count: {np.unique(np.array(error_ground_truths), return_counts=True)}'))
 
             if loss == "error_BCE":
-                error_accuracy, error_f1 = neural_metrics.get_and_print_post_epoch_binary_metrics(
+                neural_metrics.get_and_print_post_epoch_binary_metrics(
                     epoch=epoch,
                     num_epochs=num_epochs,
                     train_predictions=error_predictions,
@@ -215,23 +246,31 @@ def fine_tune_combined_model(
                     total_running_loss=total_running_loss.item()
                 )
             else:
-                training_fine_accuracy, training_coarse_accuracy = (
-                    neural_metrics.get_and_print_post_epoch_metrics(preprocessor=preprocessor,
-                                                                    epoch=epoch,
-                                                                    num_epochs=num_epochs,
-                                                                    # running_fine_loss=running_fine_loss.item(),
-                                                                    # running_coarse_loss=running_coarse_loss.item(),
-                                                                    # num_batches=num_batches,
-                                                                    train_fine_ground_truth=np.array(
-                                                                        train_fine_ground_truths),
-                                                                    train_fine_prediction=np.array(
-                                                                        train_fine_predictions),
-                                                                    train_coarse_ground_truth=np.array(
-                                                                        train_coarse_ground_truths),
-                                                                    train_coarse_prediction=np.array(
-                                                                        train_coarse_predictions)))
+                neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
+                                                          curr_epoch=epoch,
+                                                          total_num_epochs=num_epochs,
+                                                          train_fine_ground_truth=np.array(
+                                                              total_train_fine_ground_truths),
+                                                          train_fine_prediction=np.array(
+                                                              total_train_fine_predictions),
+                                                          train_coarse_ground_truth=np.array(
+                                                              total_train_coarse_ground_truths),
+                                                          train_coarse_prediction=np.array(
+                                                              total_train_coarse_predictions))
 
-            if evaluate_on_train_eval:
+            if evaluate_on_test_between_epochs:
+                evaluate_on_test(data_str=data_str,
+                                 model_name=model_name,
+                                 preprocessor=preprocessor,
+                                 lr=lr,
+                                 best_fine_tuner=best_fine_tuner,
+                                 device=device,
+                                 loaders=loaders,
+                                 loss=loss,
+                                 num_epochs=num_epochs,
+                                 save_files=save_files)
+
+            if early_stopping:
                 if loss == "error_BCE":
                     _, _, train_eval_accuracy, train_eval_f1 = neural_evaluation.evaluate_binary_model(
                         fine_tuner=fine_tuner,
@@ -242,7 +281,7 @@ def fine_tune_combined_model(
                         preprocessor=preprocessor)
                     train_eval_harmonic_mean = 2 / (1 / train_eval_accuracy + 1 / train_eval_f1)
                     print(utils.blue_text(f'harmonic mean of train eval: {train_eval_harmonic_mean}'))
-                    stopping_criteria = train_eval_harmonic_mean
+                    current_stopping_criterion_value = train_eval_harmonic_mean
 
                 else:
                     train_eval_fine_accuracy, train_eval_coarse_accuracy, train_eval_fine_f1, train_eval_coarse_f1 = \
@@ -262,53 +301,35 @@ def fine_tune_combined_model(
                     #
                     # train_eval_fine_accuracy = curr_train_eval_fine_accuracy
                     # train_eval_coarse_accuracy = curr_train_eval_coarse_accuracy
-                    train_eval_mean_accuracy = (train_eval_fine_accuracy + train_eval_coarse_accuracy)/2
-                    train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1)/2
-                    stopping_criteria = 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
 
-                # Update slicing window, and break if the sum of current sliding window is smaller than previous one:
-                if stopping_criteria > slicing_window[1]:
+                    train_eval_mean_accuracy = (train_eval_fine_accuracy + train_eval_coarse_accuracy) / 2
+                    train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1) / 2
+                    current_stopping_criterion_value = 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
+
+                previous_stopping_criterion_value = sliding_window[1]
+                # Update sliding window, and break if the sum of current sliding window is smaller than previous one:
+                if current_stopping_criterion_value > previous_stopping_criterion_value:
                     print(utils.green_text(f'harmonic mean of current fine_tuner is better. Update fine_tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
-                current_sliding_window = [slicing_window[1], stopping_criteria]
-                print(f'current sliding window is {current_sliding_window} and previous one is {slicing_window}')
-                if sum(slicing_window) > sum(current_sliding_window) and epoch > minimum_requirement_epoch:
+
+                current_sliding_window = [previous_stopping_criterion_value, current_stopping_criterion_value]
+                print(f'current sliding window is {current_sliding_window} and previous one is {sliding_window}')
+                if epoch > num_epochs and sum(sliding_window) > sum(current_sliding_window):
                     print(utils.red_text(f'finish training, stop criteria met!!!'))
                     break
-                slicing_window = current_sliding_window
+                sliding_window = current_sliding_window
 
-    if evaluate_on_test and loss == "error_BCE":
-        _, _, test_accuracy, test_f1 = neural_evaluation.evaluate_binary_model(fine_tuner=fine_tuner,
-                                                                               loaders=loaders,
-                                                                               loss=loss,
-                                                                               device=device,
-                                                                               split='test',
-                                                                               preprocessor=preprocessor)
-        test_harmonic_mean = 2 / (1 / test_accuracy + 1 / test_f1)
-        print(utils.blue_text(f'test f1: {test_f1}, test accuracy: {test_accuracy}'))
-        print(utils.blue_text(f'harmonic mean of test: {test_harmonic_mean}'))
-
-    elif evaluate_on_test:
-        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
-                                                           model_name=model_name,
-                                                           split='train',
-                                                           lr=lr,
-                                                           loss=loss,
-                                                           pretrained_fine_tuner=best_fine_tuner,
-                                                           num_epochs=num_epochs,
-                                                           print_results=True,
-                                                           save_files=save_files)
-        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
-                                                           model_name=model_name,
-                                                           split='test',
-                                                           lr=lr,
-                                                           loss=loss,
-                                                           pretrained_fine_tuner=best_fine_tuner,
-                                                           num_epochs=num_epochs,
-                                                           print_results=True,
-                                                           save_files=save_files)
-
-        print('#' * 100)
+    if not evaluate_on_test_between_epochs:
+        evaluate_on_test(data_str=data_str,
+                         model_name=model_name,
+                         preprocessor=preprocessor,
+                         lr=lr,
+                         best_fine_tuner=best_fine_tuner,
+                         device=device,
+                         loaders=loaders,
+                         loss=loss,
+                         num_epochs=num_epochs,
+                         save_files=save_files)
 
     if loss == "error_BCE":
         torch.save(best_fine_tuner.state_dict(),
@@ -318,7 +339,8 @@ def fine_tune_combined_model(
         if loss.split('_')[0] == 'LTN':
             torch.save(fine_tuner.state_dict(), f"models/{fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
         else:
-            torch.save(fine_tuner.state_dict(), f"models/{data_str}_{fine_tuner}_lr{lr}_{loss}_e{num_epochs}.pth")
+            torch.save(fine_tuner.state_dict(),
+                       f"models/{data_str}_{fine_tuner}_lr{lr}_{loss}_e{num_epochs}.pth")
 
     print('#' * 100)
 
@@ -328,19 +350,20 @@ def fine_tune_combined_model(
         if not os.path.exists(f"{backbone_pipeline.combined_results_path}test_coarse_true.npy"):
             np.save(f"{backbone_pipeline.combined_results_path}test_coarse_true.npy", test_coarse_ground_truths)
 
-    return train_fine_predictions, train_coarse_predictions
+    return total_train_fine_predictions, total_train_coarse_predictions
 
 
 def run_combined_fine_tuning_pipeline(data_str: str,
                                       model_name: str,
                                       lr: typing.Union[str, float],
-                                      num_epochs: int,
+                                      minimal_num_epochs: int,
                                       loss: str = 'BCE',
                                       pretrained_path: str = None,
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode(),
                                       additional_model: bool = False,
-                                      evaluate_train_eval=True):
+                                      evaluate_on_test_between_epochs: bool = True,
+                                      evaluate_train_eval: bool = True):
     preprocessor, fine_tuners, loaders, devices = (
         backbone_pipeline.initiate(data_str=data_str,
                                    model_name=model_name,
@@ -348,7 +371,8 @@ def run_combined_fine_tuning_pipeline(data_str: str,
                                    combined=True,
                                    pretrained_path=pretrained_path,
                                    train_eval_split=0.8 if evaluate_train_eval else None,
-                                   debug=debug))
+                                   debug=debug)
+    )
     for fine_tuner in fine_tuners:
         fine_tune_combined_model(
             data_str=data_str,
@@ -359,10 +383,11 @@ def run_combined_fine_tuning_pipeline(data_str: str,
             device=devices[0],
             loaders=loaders,
             loss=loss,
-            num_epochs=num_epochs,
+            num_epochs=minimal_num_epochs,
             save_files=save_files,
             additional_model=additional_model,
-            evaluate_on_train_eval=evaluate_train_eval
+            early_stopping=evaluate_train_eval,
+            evaluate_on_test_between_epochs=evaluate_on_test_between_epochs
         )
         print('#' * 100)
 
@@ -371,7 +396,7 @@ if __name__ == '__main__':
     run_combined_fine_tuning_pipeline(data_str='military_vehicles',
                                       model_name='vit_b_16',
                                       lr=0.0001,
-                                      num_epochs=30,
+                                      minimal_num_epochs=10,
                                       loss='BCE',
                                       additional_model=True,
-                                      )
+                                      evaluate_on_test_between_epochs=False)

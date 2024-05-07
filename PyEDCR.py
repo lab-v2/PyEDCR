@@ -497,16 +497,16 @@ class EDCR:
                                              original_pred_coarse_data=original_pred_coarse_data)
 
         # Calculate boolean masks for each condition
-        correct_coarse_incorrect_fine = np.logical_and(pred_coarse_data == true_coarse_data,
-                                                       pred_fine_data != true_fine_data)
-        incorrect_coarse_correct_fine = np.logical_and(pred_coarse_data != true_coarse_data,
-                                                       pred_fine_data == true_fine_data)
-        incorrect_both = np.logical_and(pred_coarse_data != true_coarse_data, pred_fine_data != true_fine_data)
-        correct_both = np.logical_and(pred_coarse_data == true_coarse_data,
-                                      pred_fine_data == true_fine_data)  # for completeness
-
-        # Calculate total number of examples
-        total_examples = len(pred_coarse_data)  # Assuming shapes are compatible
+        # correct_coarse_incorrect_fine = np.logical_and(pred_coarse_data == true_coarse_data,
+        #                                                pred_fine_data != true_fine_data)
+        # incorrect_coarse_correct_fine = np.logical_and(pred_coarse_data != true_coarse_data,
+        #                                                pred_fine_data == true_fine_data)
+        # incorrect_both = np.logical_and(pred_coarse_data != true_coarse_data, pred_fine_data != true_fine_data)
+        # correct_both = np.logical_and(pred_coarse_data == true_coarse_data,
+        #                               pred_fine_data == true_fine_data)  # for completeness
+        #
+        # # Calculate total number of examples
+        # total_examples = len(pred_coarse_data)  # Assuming shapes are compatible
 
         # fractions = {
         #     'correct_coarse_incorrect_fine': np.sum(correct_coarse_incorrect_fine) / total_examples,
@@ -1056,9 +1056,10 @@ class EDCR:
             #         true_data=self.inconsistency_error_ground_truths,
             #         labels=[0])]
 
+            noise_ratio = len(self.indices_of_fine_labels_to_take_out) / len(self.preprocessor.fine_grain_labels)
             # set values
             input_values = [round(self.epsilon, 3),
-                            len(self.indices_of_fine_labels_to_take_out) / len(self.preprocessor.fine_grain_labels),
+                            noise_ratio,
                             error_accuracy,
                             error_f1,
                             self.recovered_constraints_precision,
