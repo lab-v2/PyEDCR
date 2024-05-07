@@ -278,7 +278,7 @@ def get_and_print_post_metrics(preprocessor: data_preprocessing.DataPreprocessor
                                   labels=range(preprocessor.num_coarse_grain_classes),
                                   average='macro')
     post_str = f'Epoch {curr_epoch + 1}/{total_num_epochs} done' if curr_epoch is not None \
-        else f'Batch {curr_batch_num + 1}/{total_batch_num} done'
+        else f'Batch {curr_batch_num}/{total_batch_num} done'
 
     print(f'\n{post_str}'
           f'\nTraining fine accuracy: {round(training_fine_accuracy * 100, 2)}%'

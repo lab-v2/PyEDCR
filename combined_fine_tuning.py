@@ -212,24 +212,25 @@ def fine_tune_combined_model(data_str: str,
 
                     total_running_loss += batch_total_loss.item()
 
-                    if loss == "error_BCE":
-                        neural_metrics.print_post_batch_binary_metrics(batch_num=batch_num,
-                                                                       num_batches=num_batches,
-                                                                       train_predictions=error_predictions,
-                                                                       train_ground_truths=error_ground_truths,
-                                                                       batch_total_loss=batch_total_loss.item(), )
-                    else:
-                        neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
-                                                                  curr_batch_num=batch_num,
-                                                                  total_batch_num=len(batches),
-                                                                  train_fine_ground_truth=np.array(
-                                                                      total_train_fine_ground_truths),
-                                                                  train_fine_prediction=np.array(
-                                                                      total_train_fine_predictions),
-                                                                  train_coarse_ground_truth=np.array(
-                                                                      total_train_coarse_ground_truths),
-                                                                  train_coarse_prediction=np.array(
-                                                                      total_train_coarse_predictions))
+                    if batch_num > 4 and batch_num % 5 == 0:
+                        if loss == "error_BCE":
+                            neural_metrics.print_post_batch_binary_metrics(batch_num=batch_num,
+                                                                           num_batches=num_batches,
+                                                                           train_predictions=error_predictions,
+                                                                           train_ground_truths=error_ground_truths,
+                                                                           batch_total_loss=batch_total_loss.item(), )
+                        else:
+                            neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
+                                                                      curr_batch_num=batch_num,
+                                                                      total_batch_num=len(batches),
+                                                                      train_fine_ground_truth=np.array(
+                                                                          total_train_fine_ground_truths),
+                                                                      train_fine_prediction=np.array(
+                                                                          total_train_fine_predictions),
+                                                                      train_coarse_ground_truth=np.array(
+                                                                          total_train_coarse_ground_truths),
+                                                                      train_coarse_prediction=np.array(
+                                                                          total_train_coarse_predictions))
                     batch_total_loss.backward()
                     optimizer.step()
 
