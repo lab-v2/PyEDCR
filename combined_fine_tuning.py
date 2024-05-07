@@ -402,7 +402,7 @@ if __name__ == '__main__':
     run_combined_fine_tuning_pipeline(data_str='military_vehicles',
                                       model_name='vit_b_16',
                                       lr=0.0001,
-                                      num_epochs=10,
+                                      num_epochs=30,
                                       loss='BCE',
                                       additional_model=True,
                                       evaluate_on_test_between_epochs=False)
