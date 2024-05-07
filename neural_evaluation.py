@@ -21,7 +21,8 @@ def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor
                                loaders: typing.Dict[str, torch.utils.data.DataLoader],
                                devices: typing.List[torch.device],
                                test: bool) -> (typing.List[int], typing.List[int], float,):
-    loader = loaders[f'test' if test else f'train']
+    split = 'test' if test else 'train'
+    loader = loaders[split]
     fine_fine_tuner, coarse_fine_tuner = fine_tuners
 
     device_1, device_2 = devices
@@ -75,7 +76,7 @@ def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor
                                              true_fine_data=true_fine_data,
                                              true_coarse_data=true_coarse_data,
                                              combined=False,
-                                             test=test))
+                                             split=split))
 
     return (true_fine_data, true_coarse_data, fine_prediction, coarse_prediction,
             fine_accuracy, coarse_accuracy)
@@ -151,7 +152,7 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                  loss=loss,
                                                  true_fine_data=fine_ground_truths,
                                                  true_coarse_data=coarse_ground_truths,
-                                                 test=split == 'test'))
+                                                 split=split))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
             fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1)
