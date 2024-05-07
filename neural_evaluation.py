@@ -387,11 +387,17 @@ def get_error_metric(main_fine_prediction: np.array,
                      main_coarse_prediction: np.array,
                      additional_fine_prediction: np.array,
                      additional_coarse_prediction: np.array,
-                     preprocessor: data_preprocessing.DataPreprocessor,
-                     loaders: typing.Dict[str, torch.utils.data.DataLoader],
-                     device: torch.device,
+                     data_str: str,
+                     model_name: str,
                      split: str,
                      ):
+    preprocessor, fine_tuners, loaders, devices = (backbone_pipeline.initiate(data_str=data_str,
+                                                                              model_name=model_name,
+                                                                              l=l,
+                                                                              lr=lr,
+                                                                              evaluation=True,
+                                                                              fine_predictions=main_fine_prediction,
+                                                                              coarse_predictions=main_coarse_prediction))
     loader = loaders[split]
 
     # Get error from main and additional (a.k.a model use to derive error) model
@@ -419,9 +425,23 @@ def get_error_metric(main_fine_prediction: np.array,
 
 if __name__ == '__main__':
     data_str = 'openimage'
-    main_model_name = new_model_name = 'tresnet_m'
-    pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
+    main_model_name = new_model_name = 'vit_b_16'
     lr = 0.000001
+
+    main_fine_prediction = np.load('')
+    main_coarse_prediction = np.load('')
+    additional_fine_prediction = np.load('')
+    additional_coarse_prediction = np.load('')
+
+    get_error_metric(main_fine_prediction=main_fine_prediction,
+                     main_coarse_prediction=main_coarse_prediction,
+                     additional_fine_prediction=additional_fine_prediction,
+                     additional_coarse_prediction=additional_coarse_prediction,
+                     data_str=data_str,
+                     model_name=main_model_name,
+                     split='test')
+
+
 
     # evaluate_binary_models_from_files(model_name='vit_b_16',
     #                                   g_str='fine',
@@ -446,17 +466,19 @@ if __name__ == '__main__':
     #                                   lrs=0.0001,
     #                                   num_epochs=10)
 
-    run_combined_evaluating_pipeline(data_str=data_str,
-                                     model_name=main_model_name,
-                                     split='train',
-                                     lr=lr,
-                                     loss='BCE',
-                                     num_epochs=0,
-                                     pretrained_path=pretrained_path,
-                                     print_results=True,
-                                     save_files=True)
+    # run_combined_evaluating_pipeline(data_str=data_str,
+    #                                  model_name=main_model_name,
+    #                                  split='train',
+    #                                  lr=lr,
+    #                                  loss='BCE',
+    #                                  num_epochs=0,
+    #                                  pretrained_path=pretrained_path,
+    #                                  print_results=True,
+    #                                  save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],
     #                                  loss='BCE',
     #                                  pretrained_path='models/vit_b_16_BCE_lr0.0001.pth')
+
+
