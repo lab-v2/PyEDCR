@@ -164,7 +164,7 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                  pred_coarse_data=coarse_predictions,
                                                  loss=loss,
                                                  true_fine_data=fine_ground_truths.tolist(),
-                                                 true_coarse_data=coarse_ground_truths,
+                                                 true_coarse_data=coarse_ground_truths.tolist(),
                                                  split=split))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
