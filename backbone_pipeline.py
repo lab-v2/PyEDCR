@@ -221,13 +221,16 @@ def initiate(data_str: str,
              evaluation: bool = False,
              train_eval_split: float = None,
              get_fraction_of_example_with_label: typing.Dict[data_preprocessing.Label, float] = None,
-             fine_predictions: np.array = None,
-             coarse_predictions: np.array = None):
+             train_fine_predictions: np.array = None,
+             train_coarse_predictions: np.array = None,
+             test_fine_predictions: np.array = None,
+             test_coarse_predictions: np.array = None,
+             ):
     """
     Initializes models, datasets, and devices for training.
 
-    :param coarse_predictions:
-    :param fine_predictions:
+    :param train_coarse_predictions:
+    :param train_fine_predictions:
     :param preprocessor:
     :param data_str:
     :param get_fraction_of_example_with_label:
@@ -253,15 +256,19 @@ def initiate(data_str: str,
     if preprocessor is None:
         preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
 
-    datasets = data_preprocessing.get_datasets(preprocessor=preprocessor,
-                                               combined=combined,
-                                               binary_label=l,
-                                               evaluation=evaluation,
-                                               error_fixing=error_indices is not None,
-                                               model_name=model_name,
-                                               weights=weights,
-                                               fine_predictions=fine_predictions,
-                                               coarse_predictions=coarse_predictions)
+    datasets = data_preprocessing.get_datasets(
+        preprocessor=preprocessor,
+        combined=combined,
+        binary_label=l,
+        evaluation=evaluation,
+        error_fixing=error_indices is not None,
+        model_name=model_name,
+        weights=weights,
+        train_fine_predictions=train_fine_predictions,
+        train_coarse_predictions=train_coarse_predictions,
+        test_fine_predictions=test_fine_predictions,
+        test_coarse_predictions=test_coarse_predictions
+    )
 
     device = torch.device('cpu') if debug else (
         torch.device('mps' if utils.is_local() and torch.backends.mps.is_available() else
@@ -276,22 +283,22 @@ def initiate(data_str: str,
                        if curr_model_class.__name__.split('FineTuner')[0].lower().
                        startswith(model_name[:3]))
 
-    if fine_predictions is not None:
+    if train_fine_predictions is not None:
         results_path = binary_results_path
-
-        if pretrained_path is None:
-            fine_tuners = [models.ErrorDetector(model_name=model_name,
-                                                num_classes=preprocessor.num_fine_grain_classes + preprocessor.
-                                                num_coarse_grain_classes,
-                                                preprocessor=preprocessor)]
-        else:
-            fine_tuners = [models.ErrorDetector.from_pretrained(
-                model_name=model_name,
-                num_classes=preprocessor.num_fine_grain_classes + preprocessor.num_coarse_grain_classes,
-                pretrained_path=pretrained_path,
-                device=device,
-                preprocessor=preprocessor
-            )]
+        fine_tuners = None
+        # if pretrained_path is None:
+        #     fine_tuners = [models.ErrorDetector(model_name=model_name,
+        #                                         num_classes=preprocessor.num_fine_grain_classes + preprocessor.
+        #                                         num_coarse_grain_classes,
+        #                                         preprocessor=preprocessor)]
+        # else:
+        #     fine_tuners = [models.ErrorDetector.from_pretrained(
+        #         model_name=model_name,
+        #         num_classes=preprocessor.num_fine_grain_classes + preprocessor.num_coarse_grain_classes,
+        #         pretrained_path=pretrained_path,
+        #         device=device,
+        #         preprocessor=preprocessor
+        #     )]
     else:
         if combined:
             results_path = combined_results_path if l is None else binary_results_path

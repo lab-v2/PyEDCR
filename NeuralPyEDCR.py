@@ -237,7 +237,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             model_name=binary_model_name,
             preprocessor=self.preprocessor,
             lr=binary_lr,
-            fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
+            train_fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
             coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
             # debug=True
         )
