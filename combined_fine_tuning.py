@@ -309,18 +309,17 @@ def fine_tune_combined_model(data_str: str,
                     train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1) / 2
                     current_stopping_criterion_value = 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
 
-                previous_stopping_criterion_value = sliding_window[1]
                 # Update sliding window, and break if the sum of current sliding window is smaller than previous one:
-                if current_stopping_criterion_value > previous_stopping_criterion_value:
+                if current_stopping_criterion_value > max(sliding_window):
                     print(utils.green_text(f'harmonic mean of current fine_tuner is better. Update fine_tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
 
-                current_sliding_window = [previous_stopping_criterion_value, current_stopping_criterion_value]
-                print(f'current sliding window is {current_sliding_window} and previous one is {sliding_window}')
-                if epoch > num_epochs and sum(sliding_window) > sum(current_sliding_window):
+                new_sliding_window = [sliding_window[1], current_stopping_criterion_value]
+                print(f'current sliding window is {new_sliding_window} and previous one is {sliding_window}')
+                if epoch > num_epochs and sum(sliding_window) > sum(new_sliding_window):
                     print(utils.red_text(f'finish training, stop criteria met!!!'))
                     break
-                sliding_window = current_sliding_window
+                sliding_window = new_sliding_window
 
     if not evaluate_on_test_between_epochs:
         evaluate_on_test(data_str=data_str,
