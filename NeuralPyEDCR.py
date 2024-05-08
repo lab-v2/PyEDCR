@@ -383,14 +383,13 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # secondary_model_name = 'vit_l_16'
-    # main_lr = new_lr = binary_lr = 0.0001
-    # original_num_epochs = secondary_num_epochs = 20
-    # binary_num_epochs = 10
-    # max_num_train_images_per_class = 500
-    # number_of_fine_classes = 24
+    data_str = 'military_vehicles'
+    main_model_name = new_model_name = 'vit_b_16'
+    secondary_model_name = 'vit_l_16'
+    main_lr = new_lr = binary_lr = 0.0001
+    original_num_epochs = secondary_num_epochs = 20
+    binary_num_epochs = 10
+    number_of_fine_classes = 24
 
     # data_str = 'imagenet'
     # main_model_name = new_model_name = 'dinov2_vits14'
@@ -399,22 +398,21 @@ if __name__ == '__main__':
     # original_num_epochs = 8
     # secondary_num_epochs = 2
     # binary_num_epochs = 5
-    # max_num_train_images_per_class = 1300
     # number_of_fine_classes = 42
 
-    data_str = 'openimage'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    secondary_model_name = 'dinov2_vitl14'
-    main_lr = new_lr = binary_lr = 0.000001
-    original_num_epochs = 10
-    secondary_num_epochs = 2
-    binary_num_epochs = 5
-    max_num_train_images_per_class = 1300
-    number_of_fine_classes = 42
+    # data_str = 'openimage'
+    # main_model_name = new_model_name = 'tresnet_m'
+    # secondary_model_name = 'dinov2_vitl14'
+    # main_lr = new_lr = binary_lr = 0.000001
+    # original_num_epochs = 0
+    # secondary_num_epochs = 2
+    # binary_num_epochs = 5
+    # number_of_fine_classes = 30
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
-                          if f.startswith(f'{data_str}_{main_model_name}')})
+                          if f.startswith(f'{data_str}_{main_model_name}')
+                          })
 
     maximize_ratio = True
 
@@ -438,9 +436,9 @@ if __name__ == '__main__':
         total_number_of_points=1,
         min_value=0.1,
         max_value=0.1,
-        # binary_l_strs=binary_l_strs,
-        # binary_lr=binary_lr,
-        # binary_num_epochs=binary_num_epochs,
+        binary_l_strs=binary_l_strs,
+        binary_lr=binary_lr,
+        binary_num_epochs=binary_num_epochs,
         multi_process=True,
         # secondary_model_name=secondary_model_name,
         # secondary_model_loss='BCE',

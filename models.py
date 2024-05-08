@@ -400,6 +400,7 @@ def get_filepath(data_str: str,
     """
     Constructs the file path to the model output / ground truth data.
 
+    :param additional_info:
     :param data_str:
     :param l:
     :param lower_prediction_index:
@@ -421,7 +422,8 @@ def get_filepath(data_str: str,
     lower_prediction_index_str = f'_lower_{lower_prediction_index}' if lower_prediction_index is not None else ''
     lower_prediction_folder_str = 'lower_prediction/' if lower_prediction_index is not None else ''
     l_str = f'_{l}' if l is not None else ''
+    additional_str = f'_{additional_info}' if additional_info is not None else ''
 
     return (f"{folder_str}_results/{lower_prediction_folder_str}"
             f"{data_str}_{model_name}_{test_str}{granularity_str}_{pred_str}_{loss}_lr{lr}{epoch_str}"
-            f"{lower_prediction_index_str}{l_str}{f'_{additional_info}' if additional_info is not None else ''}.npy")
+            f"{lower_prediction_index_str}{l_str}{additional_str}.npy")

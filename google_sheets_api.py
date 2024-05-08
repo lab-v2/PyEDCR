@@ -47,16 +47,18 @@ def get_sheet_tab_name(main_model_name: str,
                        data_str: str,
                        secondary_model_name: str = None,
                        binary: bool = False) -> str:
-    if main_model_name == 'tresnet_m' or data_str == 'openimage':
-        return f"Tresnet M on OpenImage Errors"
 
-    model_name_str = 'VIT_b_16' if main_model_name == 'vit_b_16' else 'DINO V2 VIT14_s'
-    data_set_str = 'ImageNet' if data_str == 'imagenet' else 'Military Vehicles'
-    secondary_model_str = ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
+    main_model_name_str = {'vit_b_16': 'VIT_b_16',
+                           'dinov2_vits14': 'DINO V2 VIT14_s',
+                           'tresnet_m': 'Tresnet M'}[main_model_name]
+    data_set_str = {'military_vehicles': 'Military Vehicles',
+                    'imagenet': 'ImageNet',
+                    'openimage': 'OpenImage'}[data_str]
+    secondary_model_str = ((' with ' + ("DINO V2 VIT14_l" if data_str == 'imagenet' else 'VIT_l_16'))
                            if secondary_model_name is not None else '')
     binary_str = ' with Binary' if binary else ''
 
-    return f"{model_name_str} on {data_set_str}{binary_str}{secondary_model_str}"
+    return f"{main_model_name_str} on {data_set_str}{binary_str}{secondary_model_str}"
 
 
 def exponential_backoff(func: typing.Callable) -> typing.Callable:
@@ -91,7 +93,7 @@ def update_sheet(range_: str,
         valueInputOption='USER_ENTERED',
         body=body).execute()
 
-    print(f"{result.get('updatedCells')} cell updated.")
+    print(f"{result.get('updatedCells')} cell updated to {range_}")
 
 
 @exponential_backoff
