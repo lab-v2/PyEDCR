@@ -38,6 +38,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_l_strs: typing.List[str] = [],
+                 binary_model_name: str = None,
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
                  num_train_images_per_class: int = None,
@@ -60,6 +61,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                          secondary_num_epochs=secondary_num_epochs,
                          lower_predictions_indices=lower_predictions_indices,
                          binary_l_strs=binary_l_strs,
+                         binary_model_name=binary_model_name,
                          binary_num_epochs=binary_num_epochs,
                          binary_lr=binary_lr,
                          num_train_images_per_class=num_train_images_per_class,
@@ -268,6 +270,7 @@ def work_on_value(args):
      secondary_model_loss,
      secondary_num_epochs,
      binary_l_strs,
+     binary_model_name,
      binary_lr,
      binary_num_epochs,
      num_train_images_per_class,
@@ -290,6 +293,7 @@ def work_on_value(args):
                         secondary_model_loss=secondary_model_loss,
                         secondary_num_epochs=secondary_num_epochs,
                         binary_l_strs=binary_l_strs,
+                        binary_model_name=binary_model_name,
                         binary_lr=binary_lr,
                         binary_num_epochs=binary_num_epochs,
                         # lower_predictions_indices=lower_predictions_indices,
@@ -376,13 +380,13 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = binary_model_name = 'vit_b_16'
-    # secondary_model_name = 'vit_l_16'
-    # main_lr = binary_lr = 0.0001
-    # original_num_epochs = secondary_num_epochs = 20
-    # binary_num_epochs = 10
-    # number_of_fine_classes = 24
+    data_str = 'military_vehicles'
+    main_model_name = binary_model_name = 'vit_b_16'
+    secondary_model_name = 'vit_l_16'
+    main_lr = binary_lr = 0.0001
+    original_num_epochs = secondary_num_epochs = 20
+    binary_num_epochs = 10
+    number_of_fine_classes = 24
 
     # data_str = 'imagenet'
     # main_model_name = binary_model_name = 'dinov2_vits14'
@@ -393,14 +397,14 @@ if __name__ == '__main__':
     # binary_num_epochs = 5
     # number_of_fine_classes = 42
 
-    data_str = 'openimage'
-    main_model_name = 'tresnet_m'
-    secondary_model_name = binary_model_name = 'dinov2_vits14'
-    main_lr = binary_lr = 0.000001
-    original_num_epochs = 0
-    secondary_num_epochs = 2
-    binary_num_epochs = 4
-    number_of_fine_classes = 30
+    # data_str = 'openimage'
+    # main_model_name = 'tresnet_m'
+    # secondary_model_name = binary_model_name = 'dinov2_vits14'
+    # main_lr = binary_lr = 0.000001
+    # original_num_epochs = 0
+    # secondary_num_epochs = 2
+    # binary_num_epochs = 4
+    # number_of_fine_classes = 30
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
