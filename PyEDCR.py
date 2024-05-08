@@ -127,6 +127,9 @@ class EDCR:
                                  for g in data_preprocessing.DataPreprocessor.granularities.values()}}
              for test_or_train in ['test', 'train']}
 
+        self.noise_ratio = sum(self.preprocessor.get_num_of_train_fine_examples(fine_l_index=l_index)
+                               for l_index in self.indices_of_fine_labels_to_take_out) / self.T_train
+
         self.set_coarse_labels_to_take_out()
         self.replace_labels_with_noise()
 
@@ -1059,11 +1062,9 @@ class EDCR:
             #         true_data=self.inconsistency_error_ground_truths,
             #         labels=[0])]
 
-            noise_ratio = sum(self.preprocessor.get_num_of_train_fine_examples(fine_l_index=l_index)
-                              for l_index in self.indices_of_fine_labels_to_take_out) / self.T_train
             # set values
             input_values = [round(self.epsilon, 3),
-                            noise_ratio,
+                            self.noise_ratio,
                             error_accuracy,
                             error_f1,
                             self.recovered_constraints_precision,
@@ -1091,7 +1092,7 @@ class EDCR:
 
             for cond in error_detection_rule.C_l:
                 if ((isinstance(cond, conditions.PredCondition)) and (cond.secondary_model_name is None)
-                        and (not cond.binary)) and (cond.lower_prediction_index is None):
+                    and (not cond.binary)) and (cond.lower_prediction_index is None):
                     if cond.l.g != l.g:
                         if cond.l.g.g_str == 'fine':
                             fine_index = cond.l.index

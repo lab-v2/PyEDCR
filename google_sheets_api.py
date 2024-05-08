@@ -5,7 +5,7 @@ import google_auth_oauthlib.flow
 import google.auth.transport.requests
 import google.oauth2.credentials
 import googleapiclient.discovery
-import googleapiclient
+import googleapiclient.errors
 import numpy as np
 
 spreadsheet_id = '1JVLylVDMcYZgabsO2VbNCJLlrj7DSlMxYhY6YwQ38ck'
@@ -40,7 +40,7 @@ def initiate_api() -> googleapiclient.discovery.Resource:
     return sheet
 
 
-__sheet = initiate_api()
+__sheet: googleapiclient.discovery.Resource = initiate_api()
 
 
 def get_sheet_tab_name(main_model_name: str,
