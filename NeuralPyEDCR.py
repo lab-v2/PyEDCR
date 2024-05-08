@@ -405,7 +405,7 @@ if __name__ == '__main__':
     main_model_name = new_model_name = 'tresnet_m'
     secondary_model_name = 'dinov2_vitl14'
     main_lr = new_lr = binary_lr = 0.000001
-    original_num_epochs = 10
+    original_num_epochs = 0
     secondary_num_epochs = 2
     binary_num_epochs = 5
     number_of_fine_classes = 30
