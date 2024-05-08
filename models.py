@@ -395,7 +395,8 @@ def get_filepath(data_str: str,
                  l: data_preprocessing.Label = None,
                  epoch: int = None,
                  granularity: str = None,
-                 lower_prediction_index: int = None) -> str:
+                 lower_prediction_index: int = None,
+                 additional_info: str = None) -> str:
     """
     Constructs the file path to the model output / ground truth data.
 
@@ -423,4 +424,4 @@ def get_filepath(data_str: str,
 
     return (f"{folder_str}_results/{lower_prediction_folder_str}"
             f"{data_str}_{model_name}_{test_str}{granularity_str}_{pred_str}_{loss}_lr{lr}{epoch_str}"
-            f"{lower_prediction_index_str}{l_str}.npy")
+            f"{lower_prediction_index_str}{l_str}{f'_{additional_info}' if additional_info is not None else ''}.npy")

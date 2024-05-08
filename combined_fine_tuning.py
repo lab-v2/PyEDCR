@@ -68,7 +68,7 @@ def fine_tune_combined_model(data_str: str,
                              save_files: bool = True,
                              evaluate_on_test_between_epochs: bool = True,
                              early_stopping: bool = False,
-                             additional_model: bool = False,
+                             additional_info: str = None,
                              save_ground_truth: bool = False):
     fine_tuner.to(device)
     fine_tuner.train()
@@ -237,9 +237,13 @@ def fine_tune_combined_model(data_str: str,
                     batch_total_loss.backward()
                     optimizer.step()
 
-            # if epoch == 0:
-            #     print(utils.blue_text(
-            #         f'label use and count: {np.unique(np.array(error_ground_truths), return_counts=True)}'))
+            if epoch == 0:
+                print(utils.blue_text(
+                    f'coarse grain label use and count: '
+                    f'{np.unique(np.array(total_train_coarse_ground_truths), return_counts=True)}'))
+                print(utils.blue_text(
+                    f'fine grain label use and count: '
+                    f'{np.unique(np.array(total_train_fine_ground_truths), return_counts=True)}'))
 
             if loss == "error_BCE":
                 neural_metrics.get_and_print_post_epoch_binary_metrics(
@@ -325,12 +329,10 @@ def fine_tune_combined_model(data_str: str,
                          num_epochs=num_epochs,
                          save_files=save_files)
 
-    additional_str = 'additional' if additional_model else ''
-
     if loss == "error_BCE":
         torch.save(best_fine_tuner.state_dict(),
                    f"models/binary_models/binary_error_{best_fine_tuner}_"
-                   f"lr{lr}_loss_{loss}_e{num_epochs}_{additional_str}.pth")
+                   f"lr{lr}_loss_{loss}_e{num_epochs}_{additional_info}.pth")
     elif loss.split('_')[0] == 'LTN':
         torch.save(best_fine_tuner.state_dict(), f"models/{best_fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
     else:
@@ -338,8 +340,29 @@ def fine_tune_combined_model(data_str: str,
             os.mkdir(f'models')
 
         torch.save(best_fine_tuner.state_dict(),
-                   f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{num_epochs}_{additional_str}.pth")
+                   f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{num_epochs}_{additional_info}.pth")
 
+    # save prediction file for EDCR and error model
+    neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
+                                                       model_name=model_name,
+                                                       split='train',
+                                                       lr=lr,
+                                                       loss=loss,
+                                                       pretrained_fine_tuner=best_fine_tuner,
+                                                       num_epochs=num_epochs,
+                                                       print_results=True,
+                                                       save_files=save_files,
+                                                       additional_info=additional_info)
+    neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
+                                                       model_name=model_name,
+                                                       split='test',
+                                                       lr=lr,
+                                                       loss=loss,
+                                                       pretrained_fine_tuner=best_fine_tuner,
+                                                       num_epochs=num_epochs,
+                                                       print_results=True,
+                                                       save_files=save_files,
+                                                       additional_info=additional_info)
     print('#' * 100)
 
     if save_ground_truth:
@@ -359,7 +382,7 @@ def run_combined_fine_tuning_pipeline(data_str: str,
                                       pretrained_path: str = None,
                                       save_files: bool = True,
                                       debug: bool = utils.is_debug_mode(),
-                                      additional_model: bool = False,
+                                      additional_info: str = None,
                                       evaluate_on_test_between_epochs: bool = True,
                                       evaluate_train_eval: bool = True):
     preprocessor, fine_tuners, loaders, devices = (
@@ -383,7 +406,7 @@ def run_combined_fine_tuning_pipeline(data_str: str,
             loss=loss,
             num_epochs=num_epochs,
             save_files=save_files,
-            additional_model=additional_model,
+            additional_info=additional_info,
             early_stopping=evaluate_train_eval,
             evaluate_on_test_between_epochs=evaluate_on_test_between_epochs
         )
@@ -396,5 +419,5 @@ if __name__ == '__main__':
                                       lr=0.0001,
                                       num_epochs=50,
                                       loss='BCE',
-                                      additional_model=True,
+                                      additional_info='additional',
                                       evaluate_on_test_between_epochs=False)

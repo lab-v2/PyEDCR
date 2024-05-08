@@ -248,7 +248,8 @@ def run_combined_evaluating_pipeline(data_str: str,
                                      debug: bool = False,
                                      print_results: bool = True,
                                      indices: np.array = None,
-                                     lower_predictions_indices: typing.List[int] = []):
+                                     lower_predictions_indices: typing.List[int] = [],
+                                     additional_info: str = None):
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
@@ -309,7 +310,8 @@ def run_combined_evaluating_pipeline(data_str: str,
                                                 coarse_ground_truths=coarse_ground_truths,
                                                 epoch=num_epochs,
                                                 fine_lower_predictions=fine_lower_predictions,
-                                                coarse_lower_predictions=coarse_lower_predictions)
+                                                coarse_lower_predictions=coarse_lower_predictions,
+                                                additional_info=additional_info)
 
     return fine_predictions, coarse_predictions
 
@@ -402,21 +404,36 @@ def evaluate_binary_models_from_files(data_str: str,
         return None
 
 
-def get_error_metric(main_train_fine_prediction: np.array,
-                     main_train_coarse_prediction: np.array,
-                     main_test_fine_prediction: np.array,
-                     main_test_coarse_prediction: np.array,
-                     additional_train_fine_prediction: np.array,
-                     additional_train_coarse_prediction: np.array,
-                     additional_test_fine_prediction: np.array,
-                     additional_test_coarse_prediction: np.array,
-                     data_str: str,
-                     model_name: str,
+def get_error_metric(data_str: str,
+                     main_model_name: str,
+                     additional_model_name: str,
+                     main_lr: float,
+                     additional_lr: float,
+                     main_num_epoch: int,
+                     additional_num_epoch: int
                      ):
+    main_test_fine_prediction = np.load(
+        f'combined_results/{data_str}_{main_model_name}_test_fine_pred_BCE_lr{main_lr}_e{main_num_epoch - 1}.npy')
+    main_test_coarse_prediction = np.load(
+        f'combined_results/{data_str}_{main_model_name}_test_coarse_pred_BCE_lr{main_lr}_e{main_num_epoch - 1}.npy')
+    additional_test_fine_prediction = np.load(
+        f'combined_results/{data_str}_{additional_model_name}_test_fine_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
+    additional_test_coarse_prediction = np.load(
+        f'combined_results/{data_str}_{additional_model_name}_test_coarse_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
+
+    main_train_fine_prediction = np.load(
+        f'combined_results/{data_str}_{main_model_name}_train_fine_pred_BCE_lr{main_lr}_e{main_num_epoch - 1}.npy')
+    main_train_coarse_prediction = np.load(
+        f'combined_results/{data_str}_{main_model_name}_train_coarse_pred_BCE_lr{main_lr}_e{main_num_epoch - 1}.npy')
+    additional_train_fine_prediction = np.load(
+        f'combined_results/{data_str}_{additional_model_name}_train_fine_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
+    additional_train_coarse_prediction = np.load(
+        f'combined_results/{data_str}_{additional_model_name}_train_coarse_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
+
     preprocessor, fine_tuners, loaders, devices = (backbone_pipeline.initiate(
         data_str=data_str,
-        model_name=model_name,
-        lr=lr,
+        model_name='vit_b_16',
+        lr=main_lr,
         evaluation=True,
         train_fine_predictions=main_train_fine_prediction,
         train_coarse_predictions=main_train_coarse_prediction,
@@ -431,10 +448,12 @@ def get_error_metric(main_train_fine_prediction: np.array,
         # Get error from main and additional (a.k.a model use to derive error) model
         error_fine_prediction = np.where(main_train_fine_prediction == additional_train_fine_prediction
                                          if split == 'train'
-                                         else main_test_fine_prediction == additional_test_fine_prediction, 0, 1)
+                                         else main_test_fine_prediction == additional_test_fine_prediction
+                                         , 0, 1)
         error_coarse_prediction = np.where(main_train_coarse_prediction == additional_train_coarse_prediction
                                            if split == 'train'
-                                           else main_test_coarse_prediction == additional_test_coarse_prediction, 0, 1)
+                                           else main_test_coarse_prediction == additional_test_coarse_prediction
+                                           , 0, 1)
         error_prediction = np.where((error_fine_prediction == 1) | (error_coarse_prediction == 1), 1, 0)
 
         error_ground_truth = []
@@ -457,40 +476,22 @@ def get_error_metric(main_train_fine_prediction: np.array,
 
 
 if __name__ == '__main__':
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    lr = 0.000001
-    num_epoch_main = 8
+    data_str = 'openimage'
+    main_model_name = 'tresnet_m'
+    additional_model_name = 'dinov2_vits14'
+    main_lr = 0.000001
+    additional_lr = 0.000001
+    main_num_epoch = 0
+    additional_num_epoch = 10
+    pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
 
-    main_test_fine_prediction = np.load(
-        f'combined_results/{main_model_name}_test_fine_pred_BCE_lr{lr}_e{num_epoch_main - 1}.npy')
-    main_test_coarse_prediction = np.load(
-        f'combined_results/{main_model_name}_test_coarse_pred_BCE_lr{lr}_e{num_epoch_main - 1}.npy')
-    additional_test_fine_prediction = np.load(
-        f'combined_results/{data_str}_{main_model_name}_test_fine_pred_BCE_lr{lr}_e29_additional.npy')
-    additional_test_coarse_prediction = np.load(
-        f'combined_results/{data_str}_{main_model_name}_test_coarse_pred_BCE_lr{lr}_e29_additional.npy')
-
-    main_train_fine_prediction = np.load(
-        f'combined_results/{main_model_name}_train_fine_pred_BCE_lr{lr}_e{num_epoch_main - 1}.npy')
-    main_train_coarse_prediction = np.load(
-        f'combined_results/{main_model_name}_train_coarse_pred_BCE_lr{lr}_e{num_epoch_main - 1}.npy')
-    additional_train_fine_prediction = np.load(
-        f'combined_results/{data_str}_{main_model_name}_train_fine_pred_BCE_lr{lr}_e29_additional.npy')
-    additional_train_coarse_prediction = np.load(
-        f'combined_results/{data_str}_{main_model_name}_train_coarse_pred_BCE_lr{lr}_e29_additional.npy')
-
-    get_error_metric(main_train_fine_prediction=main_train_fine_prediction,
-                     main_train_coarse_prediction=main_train_coarse_prediction,
-                     additional_train_fine_prediction=additional_train_fine_prediction,
-                     additional_train_coarse_prediction=additional_train_coarse_prediction,
-                     main_test_fine_prediction=main_test_fine_prediction,
-                     main_test_coarse_prediction=main_test_coarse_prediction,
-                     additional_test_fine_prediction=additional_test_fine_prediction,
-                     additional_test_coarse_prediction=additional_test_coarse_prediction,
-                     data_str=data_str,
-                     model_name=main_model_name, )
-
+    get_error_metric(data_str=data_str,
+                     main_model_name=main_model_name,
+                     main_lr=main_lr,
+                     main_num_epoch=main_num_epoch,
+                     additional_model_name=additional_model_name,
+                     additional_lr=additional_lr,
+                     additional_num_epoch=additional_num_epoch)
     # evaluate_binary_models_from_files(model_name='vit_b_16',
     #                                   g_str='fine',
     #                                   test=False,
