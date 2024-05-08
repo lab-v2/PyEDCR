@@ -93,7 +93,7 @@ def update_sheet(range_: str,
         valueInputOption='USER_ENTERED',
         body=body).execute()
 
-    print(f"{result.get('updatedCells')} cell updated.")
+    print(f"{result.get('updatedCells')} cell updated to {range_}")
 
 
 @exponential_backoff
