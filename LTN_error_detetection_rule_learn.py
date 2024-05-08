@@ -263,9 +263,9 @@ class EDCR_LTN_experiment(EDCR):
 
                     del X, Y_fine_grain, Y_coarse_grain, indices, Y_pred_fine_grain, Y_pred_coarse_grain
 
-        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_epoch_metrics(
-            epoch=epoch,
-            num_epochs=self.num_ltn_epochs,
+        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_metrics(
+            curr_epoch=epoch,
+            total_num_epochs=self.num_ltn_epochs,
             train_fine_ground_truth=np.array(fine_ground_truths),
             train_fine_prediction=np.array(fine_predictions),
             train_coarse_ground_truth=np.array(coarse_ground_truths),
@@ -380,9 +380,9 @@ class EDCR_LTN_experiment(EDCR):
 
                     del X, Y_fine_grain, Y_coarse_grain, Y_pred_fine_grain, Y_pred_coarse_grain
 
-        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_epoch_metrics(
-            epoch=epoch,
-            num_epochs=self.num_baseline_epochs,
+        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_metrics(
+            curr_epoch=epoch,
+            total_num_epochs=self.num_baseline_epochs,
             train_fine_ground_truth=np.array(fine_ground_truths),
             train_fine_prediction=np.array(fine_predictions),
             train_coarse_ground_truth=np.array(coarse_ground_truths),

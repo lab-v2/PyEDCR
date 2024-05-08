@@ -21,7 +21,8 @@ def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor
                                loaders: typing.Dict[str, torch.utils.data.DataLoader],
                                devices: typing.List[torch.device],
                                test: bool) -> (typing.List[int], typing.List[int], float,):
-    loader = loaders[f'test' if test else f'train']
+    split = 'test' if test else 'train'
+    loader = loaders[split]
     fine_fine_tuner, coarse_fine_tuner = fine_tuners
 
     device_1, device_2 = devices
@@ -75,7 +76,7 @@ def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor
                                              true_fine_data=true_fine_data,
                                              true_coarse_data=true_coarse_data,
                                              combined=False,
-                                             test=test))
+                                             split=split))
 
     return (true_fine_data, true_coarse_data, fine_prediction, coarse_prediction,
             fine_accuracy, coarse_accuracy)
@@ -100,11 +101,13 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
     fine_lower_predictions = {lower_predictions_index: [] for lower_predictions_index in lower_predictions_indices}
     coarse_lower_predictions = {lower_predictions_index: [] for lower_predictions_index in lower_predictions_indices}
 
-    fine_ground_truths = []
-    coarse_ground_truths = []
+    fine_ground_truths = torch.Tensor([]).to(device)
+    coarse_ground_truths = torch.Tensor([]).to(device)
     fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = None, None, None, None
 
     print(utils.blue_text(f'Evaluating {fine_tuner} on {split} using {device}...'))
+
+    total_loss = 0
 
     with torch.no_grad():
         if utils.is_local():
@@ -117,15 +120,26 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
         for i, data in gen:
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
 
-            fine_ground_truths += Y_true_fine.tolist()
-            coarse_ground_truths += Y_true_coarse.tolist()
+            Y_true_fine_one_hot = torch.nn.functional.one_hot(Y_true_fine,
+                                                              num_classes=len(preprocessor.fine_grain_classes_str))
+            Y_true_coarse_one_hot = torch.nn.functional.one_hot(Y_true_coarse,
+                                                                num_classes=len(preprocessor.coarse_grain_classes_str))
+
+            Y_true = torch.cat(tensors=[Y_true_fine_one_hot, Y_true_coarse_one_hot], dim=1).float()
+            fine_ground_truths = torch.cat([fine_ground_truths, Y_true_fine])
+            coarse_ground_truths = torch.cat([coarse_ground_truths, Y_true_coarse])
 
             if config.get_ground_truth:
                 continue
 
             Y_pred = fine_tuner(X)
+
             Y_pred_fine = Y_pred[:, :len(preprocessor.fine_grain_classes_str)]
             Y_pred_coarse = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
+
+            criterion = torch.nn.CrossEntropyLoss()
+            batch_total_loss = criterion(Y_pred, Y_true)
+            total_loss += batch_total_loss.item()
 
             sorted_probs_fine = torch.sort(Y_pred_fine, descending=True)[1]
             predicted_fine = sorted_probs_fine[:, 0]
@@ -143,6 +157,9 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                 fine_lower_predictions[lower_predictions_index] += curr_lower_prediction_fine.tolist()
                 coarse_lower_predictions[lower_predictions_index] += curr_lower_prediction_coarse.tolist()
 
+    fine_ground_truths = fine_ground_truths.tolist()
+    coarse_ground_truths = coarse_ground_truths.tolist()
+
     if print_results:
         fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = (
             neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
@@ -151,10 +168,11 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
                                                  loss=loss,
                                                  true_fine_data=fine_ground_truths,
                                                  true_coarse_data=coarse_ground_truths,
-                                                 test=split == 'test'))
+                                                 split=split))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-            fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1)
+            fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1,
+            total_loss)
 
 
 def evaluate_binary_model(fine_tuner: models.FineTuner,
@@ -267,7 +285,8 @@ def run_combined_evaluating_pipeline(data_str: str,
                                                                              evaluation=True)
 
     (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
-     fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1) = (
+     fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1,
+     total_loss) = (
         evaluate_combined_model(
             preprocessor=preprocessor,
             fine_tuner=fine_tuners[0] if pretrained_fine_tuner is None else pretrained_fine_tuner,
@@ -496,15 +515,15 @@ if __name__ == '__main__':
     #                                   lrs=0.0001,
     #                                   num_epochs=10)
 
-    run_combined_evaluating_pipeline(data_str=data_str,
-                                     model_name=main_model_name,
-                                     split='test',
-                                     lr=main_lr,
-                                     loss='BCE',
-                                     num_epochs=0,
-                                     pretrained_path=pretrained_path,
-                                     print_results=True,
-                                     save_files=True)
+    # run_combined_evaluating_pipeline(data_str=data_str,
+    #                                  model_name=main_model_name,
+    #                                  split='train',
+    #                                  lr=lr,
+    #                                  loss='BCE',
+    #                                  num_epochs=0,
+    #                                  pretrained_path=pretrained_path,
+    #                                  print_results=True,
+    #                                  save_files=True)
     #
     # run_combined_evaluating_pipeline(test=True,
     #                                  lrs=[0.0001],

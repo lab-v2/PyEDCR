@@ -337,6 +337,7 @@ class DataPreprocessor:
                     self.get_num_inconsistencies(fine_labels=self.test_true_fine_data,
                                                  coarse_labels=self.test_true_coarse_data)[0] == 0)
 
+
     def get_ground_truths(self,
                           test: bool,
                           K: typing.List[int] = None,
@@ -355,6 +356,10 @@ class DataPreprocessor:
         else:
             return (true_fine_data[K] if str(g) == 'fine' else true_coarse_data[K]) if K is not None else \
                 (true_fine_data if str(g) == 'fine' else true_coarse_data)
+
+    def get_num_of_train_fine_examples(self,
+                                       fine_l_index: int) -> int:
+        return np.where(self.train_true_fine_data == fine_l_index)[0].shape[0]
 
     def get_num_inconsistencies(self,
                                 fine_labels: typing.Union[np.array, torch.Tensor],

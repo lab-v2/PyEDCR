@@ -406,6 +406,8 @@ class EDCR:
         else:
             pred_data = self.pred_data[test_str][stage]
 
+        pred_data: dict
+
         if g is not None:
             return pred_data[g]
         elif binary:
@@ -452,7 +454,7 @@ class EDCR:
         return where_label_is_l
 
     def print_metrics(self,
-                      test: bool,
+                      split: str,
                       prior: bool = True,
                       print_inconsistencies: bool = True,
                       stage: str = 'original',
@@ -463,14 +465,15 @@ class EDCR:
         Calculates and prints various metrics (accuracy, precision, recall, etc.)
         using appropriate true labels and prediction data based on the specified mode.
 
+        :param split:
         :param print_actual_errors_num:
         :param stage:
         :param print_inconsistencies: whether to print the inconsistencies metric or not
         :param prior:
-        :param test: whether to get data from train or test set
         """
 
         original_pred_fine_data, original_pred_coarse_data = None, None
+        test = split == 'test'
 
         # if stage != 'original':
         #     original_pred_fine_data, original_pred_coarse_data = self.get_predictions(test=test, stage='original')
@@ -485,28 +488,29 @@ class EDCR:
                                              loss=self.loss,
                                              true_fine_data=true_fine_data,
                                              true_coarse_data=true_coarse_data,
-                                             test=test,
+                                             split=split,
                                              prior=prior,
                                              combined=self.combined,
                                              model_name=self.main_model_name,
                                              lr=self.lr,
                                              print_inconsistencies=print_inconsistencies,
-                                             current_num_test_inconsistencies=self.get_constraints_true_positives(),
+                                             current_num_test_inconsistencies=
+                                             self.get_constraints_true_positives_and_total_positives()[0],
                                              original_test_inconsistencies=self.original_test_inconsistencies,
                                              original_pred_fine_data=original_pred_fine_data,
                                              original_pred_coarse_data=original_pred_coarse_data)
 
         # Calculate boolean masks for each condition
-        correct_coarse_incorrect_fine = np.logical_and(pred_coarse_data == true_coarse_data,
-                                                       pred_fine_data != true_fine_data)
-        incorrect_coarse_correct_fine = np.logical_and(pred_coarse_data != true_coarse_data,
-                                                       pred_fine_data == true_fine_data)
-        incorrect_both = np.logical_and(pred_coarse_data != true_coarse_data, pred_fine_data != true_fine_data)
-        correct_both = np.logical_and(pred_coarse_data == true_coarse_data,
-                                      pred_fine_data == true_fine_data)  # for completeness
-
-        # Calculate total number of examples
-        total_examples = len(pred_coarse_data)  # Assuming shapes are compatible
+        # correct_coarse_incorrect_fine = np.logical_and(pred_coarse_data == true_coarse_data,
+        #                                                pred_fine_data != true_fine_data)
+        # incorrect_coarse_correct_fine = np.logical_and(pred_coarse_data != true_coarse_data,
+        #                                                pred_fine_data == true_fine_data)
+        # incorrect_both = np.logical_and(pred_coarse_data != true_coarse_data, pred_fine_data != true_fine_data)
+        # correct_both = np.logical_and(pred_coarse_data == true_coarse_data,
+        #                               pred_fine_data == true_fine_data)  # for completeness
+        #
+        # # Calculate total number of examples
+        # total_examples = len(pred_coarse_data)  # Assuming shapes are compatible
 
         # fractions = {
         #     'correct_coarse_incorrect_fine': np.sum(correct_coarse_incorrect_fine) / total_examples,
@@ -864,9 +868,9 @@ class EDCR:
             q_l = self.epsilon * N_l * P_l / R_l
 
             i = 0
-            DC_star = {cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
-                                                                                C={cond},
-                                                                                stage=stage) <= q_l}
+            # DC_star = {cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
+            #                                                                     C={cond},
+            #                                                                     stage=stage) <= q_l}
             DC_star = self.all_conditions
 
             while DC_star:
@@ -986,12 +990,11 @@ class EDCR:
             self.inconsistency_error_ground_truths |= inconsistency_error_ground_truths
 
             if g.g_str == 'fine':
-                recovered_constraints_true_positives = self.get_constraints_true_positives()
+                recovered_constraints_true_positives, recovered_constraints_positives = (
+                    self.get_constraints_true_positives_and_total_positives())
                 # inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
                 all_possible_consistency_constraints = (self.preprocessor.num_fine_grain_classes *
                                                         (self.preprocessor.num_coarse_grain_classes - 1))
-
-                recovered_constraints_positives = self.get_all_recovered_constraints_num()
 
                 # print(f'Total unique recoverable constraints from the {test_str} predictions: '
                 #       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
@@ -1044,7 +1047,7 @@ class EDCR:
                                                  stage='post_detection')
 
         if test and save_to_google_sheets:
-            error_accuracy, error_f1, _, _, error_matthews = \
+            error_accuracy, error_f1, _, _ = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_test_errors,
                     true_data=self.test_error_ground_truths,
@@ -1056,14 +1059,15 @@ class EDCR:
             #         true_data=self.inconsistency_error_ground_truths,
             #         labels=[0])]
 
+            noise_ratio = sum(self.preprocessor.get_num_of_train_fine_examples(fine_l_index=l_index)
+                              for l_index in self.indices_of_fine_labels_to_take_out) / self.T_train
             # set values
             input_values = [round(self.epsilon, 3),
-                            len(self.indices_of_fine_labels_to_take_out) / len(self.preprocessor.fine_grain_labels),
+                            noise_ratio,
                             error_accuracy,
                             error_f1,
                             self.recovered_constraints_precision,
-                            self.recovered_constraints_recall,
-                            2/(1/self.recovered_constraints_precision + 1/self.recovered_constraints_recall)
+                            self.recovered_constraints_recall
                             ]
 
             print(input_values)
@@ -1073,47 +1077,47 @@ class EDCR:
                                            body={'values': [input_values]})
 
         if print_results:
-            self.print_metrics(test=test,
+            self.print_metrics(split='test' if test else 'train',
                                prior=False,
                                stage='post_detection',
                                print_inconsistencies=False)
 
-    def get_constraints_true_positives(self):
-        true_recovered_constraints = {}
-
-        for l, error_detection_rule in self.error_detection_rules.items():
-            error_detection_rule: rules.ErrorDetectionRule
-
-            for cond in error_detection_rule.C_l:
-                if isinstance(cond, conditions.PredCondition) and cond.l.g != l.g:
-                    fine_index = cond.l.index if cond.l.g.g_str == 'fine' else l.index
-                    coarse_index = cond.l.index if cond.l.g.g_str == 'coarse' else l.index
-                    fine_label_str = self.preprocessor.fine_grain_classes_str[fine_index]
-                    coarse_label_str = self.preprocessor.coarse_grain_classes_str[coarse_index]
-
-                    if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
-                        if fine_label_str not in true_recovered_constraints:
-                            true_recovered_constraints[fine_label_str] = {coarse_label_str}
-                        else:
-                            true_recovered_constraints[fine_label_str] = (
-                                true_recovered_constraints[fine_label_str].union({coarse_label_str}))
-
-        assert all(self.preprocessor.fine_to_coarse[fine_label_str] not in coarse_dict
-                   for fine_label_str, coarse_dict in true_recovered_constraints.items())
-
-        num_recovered_constraints = sum(len(coarse_dict) for coarse_dict in true_recovered_constraints.values())
-
-        return num_recovered_constraints
-
-    def get_all_recovered_constraints_num(self):
+    def get_constraints_true_positives_and_total_positives(self):
+        true_recovered_constraints: dict[str, set[str]] = {}
         num_recovered_constraints = 0
 
         for l, error_detection_rule in self.error_detection_rules.items():
             error_detection_rule: rules.ErrorDetectionRule
 
-            num_recovered_constraints += len(error_detection_rule.C_l)
+            for cond in error_detection_rule.C_l:
+                if ((isinstance(cond, conditions.PredCondition)) and (cond.secondary_model_name is None)
+                        and (not cond.binary)) and (cond.lower_prediction_index is None):
+                    if cond.l.g != l.g:
+                        if cond.l.g.g_str == 'fine':
+                            fine_index = cond.l.index
+                            coarse_index = l.index
+                        else:
+                            fine_index = l.index
+                            coarse_index = cond.l.index
 
-        return num_recovered_constraints
+                        fine_label_str = self.preprocessor.fine_grain_classes_str[fine_index]
+                        coarse_label_str = self.preprocessor.coarse_grain_classes_str[coarse_index]
+
+                        if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
+                            if fine_label_str not in true_recovered_constraints:
+                                true_recovered_constraints[fine_label_str] = {coarse_label_str}
+                            else:
+                                true_recovered_constraints[fine_label_str] = (
+                                    true_recovered_constraints[fine_label_str].union({coarse_label_str}))
+
+                    num_recovered_constraints += 1
+
+        assert all(self.preprocessor.fine_to_coarse[fine_label_str] not in coarse_dict
+                   for fine_label_str, coarse_dict in true_recovered_constraints.items())
+
+        num_true_recovered_constraints = sum(len(coarse_dict) for coarse_dict in true_recovered_constraints.values())
+
+        return num_true_recovered_constraints, num_recovered_constraints
 
 
 if __name__ == '__main__':

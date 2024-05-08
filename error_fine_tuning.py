@@ -57,8 +57,8 @@ class Error_detection_model(PyEDCR.EDCR):
             loaders=loaders,
             loss='error_BCE',
             save_files=False,
-            evaluate_on_train_eval=True,
-            evaluate_on_test=True,
+            early_stopping=True,
+            evaluate_on_test_between_epochs=True,
             num_epochs=10,
             data_str=data_str,
             model_name=main_model_name

@@ -134,7 +134,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             loaders=loaders,
             loss=self.loss,
             save_files=False,
-            evaluate_on_test=False,
+            evaluate_on_test_between_epochs=False,
             num_epochs=self.neural_num_epochs,
             data_str=data_str,
             model_name=main_model_name
@@ -189,7 +189,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                                                    new_test_g_predictions,
                                                                    old_test_g_predictions)
         if print_results:
-            self.print_metrics(test=True, prior=False, stage='post_detection')
+            self.print_metrics(split='test', prior=False, stage='post_detection')
 
             where_fixed_initial_error = set()
             for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -240,7 +240,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             train_fine_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['fine']),
             train_coarse_predictions=self.get_predictions(test=False, g=self.preprocessor.granularities['coarse']),
             test_fine_predictions=self.get_predictions(test=True, g=self.preprocessor.granularities['fine']),
-            test_coarse_predictions=self.get_predictions(test=True, g=self.preprocessor.granularities['coarse']),
+            test_coarse_predictions=self.get_predictions(test=True, g=self.preprocessor.granularities['coarse'])
             # debug=True
         )
 
@@ -252,7 +252,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             loaders=loaders,
             loss='error_BCE',
             save_files=False,
-            evaluate_on_test=False,
+            evaluate_on_test_between_epochs=False,
             num_epochs=2,
             data_str=data_str,
             model_name=main_model_name
@@ -306,7 +306,7 @@ def work_on_value(args):
                         )
     # edcr.learn_error_binary_model(binary_model_name=main_model_name,
     #                               binary_lr=new_lr)
-    edcr.print_metrics(test=True,
+    edcr.print_metrics(split='test',
                        prior=True)
     edcr.run_learning_pipeline(new_model_name=new_model_name,
                                new_lr=new_lr,
@@ -383,24 +383,24 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = new_model_name = 'vit_b_16'
-    # secondary_model_name = 'vit_l_16'
-    # main_lr = new_lr = binary_lr = 0.0001
-    # original_num_epochs = secondary_num_epochs = 20
-    # binary_num_epochs = 10
-    # max_num_train_images_per_class = 500
-    # number_of_fine_classes = 24
+    data_str = 'military_vehicles'
+    main_model_name = new_model_name = 'vit_b_16'
+    secondary_model_name = 'vit_l_16'
+    main_lr = new_lr = binary_lr = 0.0001
+    original_num_epochs = secondary_num_epochs = 20
+    binary_num_epochs = 10
+    max_num_train_images_per_class = 500
+    number_of_fine_classes = 24
 
-    data_str = 'imagenet'
-    main_model_name = new_model_name = 'dinov2_vits14'
-    secondary_model_name = 'dinov2_vitl14'
-    main_lr = new_lr = binary_lr = 0.000001
-    original_num_epochs = 8
-    secondary_num_epochs = 2
-    binary_num_epochs = 5
-    max_num_train_images_per_class = 1300
-    number_of_fine_classes = 42
+    # data_str = 'imagenet'
+    # main_model_name = new_model_name = 'dinov2_vits14'
+    # secondary_model_name = 'dinov2_vitl14'
+    # main_lr = new_lr = binary_lr = 0.000001
+    # original_num_epochs = 8
+    # secondary_num_epochs = 2
+    # binary_num_epochs = 5
+    # max_num_train_images_per_class = 1300
+    # number_of_fine_classes = 42
 
     # data_str = 'openimage'
     # main_model_name = new_model_name = 'dinov2_vits14'
@@ -442,13 +442,10 @@ if __name__ == '__main__':
         binary_l_strs=binary_l_strs,
         binary_lr=binary_lr,
         binary_num_epochs=binary_num_epochs,
-        # num_train_images_per_class=np.linspace(start=1,
-        #                                        stop=1,
-        #                                        num=1),
         multi_process=True,
-        secondary_model_name=secondary_model_name,
-        secondary_model_loss='BCE',
-        secondary_num_epochs=secondary_num_epochs,
+        # secondary_model_name=secondary_model_name,
+        # secondary_model_loss='BCE',
+        # secondary_num_epochs=secondary_num_epochs,
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
