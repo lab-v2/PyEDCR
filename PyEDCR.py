@@ -494,7 +494,8 @@ class EDCR:
                                              model_name=self.main_model_name,
                                              lr=self.lr,
                                              print_inconsistencies=print_inconsistencies,
-                                             current_num_test_inconsistencies=self.get_constraints_true_positives_and_total_positives()[0],
+                                             current_num_test_inconsistencies=
+                                             self.get_constraints_true_positives_and_total_positives()[0],
                                              original_test_inconsistencies=self.original_test_inconsistencies,
                                              original_pred_fine_data=original_pred_fine_data,
                                              original_pred_coarse_data=original_pred_coarse_data)
@@ -1058,15 +1059,15 @@ class EDCR:
             #         true_data=self.inconsistency_error_ground_truths,
             #         labels=[0])]
 
-            noise_ratio = len(self.indices_of_fine_labels_to_take_out) / len(self.preprocessor.fine_grain_labels)
+            noise_ratio = sum(self.preprocessor.get_num_of_train_fine_examples(fine_l_index=l_index)
+                              for l_index in self.indices_of_fine_labels_to_take_out) / self.T_train
             # set values
             input_values = [round(self.epsilon, 3),
                             noise_ratio,
                             error_accuracy,
                             error_f1,
                             self.recovered_constraints_precision,
-                            self.recovered_constraints_recall,
-                            2/(1/self.recovered_constraints_precision + 1/self.recovered_constraints_recall)
+                            self.recovered_constraints_recall
                             ]
 
             print(input_values)
@@ -1111,16 +1112,12 @@ class EDCR:
 
                     num_recovered_constraints += 1
 
-
         assert all(self.preprocessor.fine_to_coarse[fine_label_str] not in coarse_dict
                    for fine_label_str, coarse_dict in true_recovered_constraints.items())
 
         num_true_recovered_constraints = sum(len(coarse_dict) for coarse_dict in true_recovered_constraints.values())
 
         return num_true_recovered_constraints, num_recovered_constraints
-
-    # def get_constraints_total_positives(self):
-    #     return sum(len({cond for cond in C_l}))
 
 
 if __name__ == '__main__':

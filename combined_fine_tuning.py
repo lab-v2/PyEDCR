@@ -113,7 +113,7 @@ def fine_tune_combined_model(data_str: str,
     for epoch in range(num_epochs):
         # print(f"Current lr={optimizer.param_groups[0]['lr']}")
 
-        with context_handlers.TimeWrapper():
+        with (context_handlers.TimeWrapper()):
             total_running_loss = torch.Tensor([0.0]).to(device)
             running_fine_loss = torch.Tensor([0.0]).to(device)
             running_coarse_loss = torch.Tensor([0.0]).to(device)
@@ -296,7 +296,9 @@ def fine_tune_combined_model(data_str: str,
                                                                                      split='train_eval')[-1]
 
                 print(f'The current train eval loss is {utils.red_text(curr_train_eval_loss)}')
-                if len(train_eval_losses) and curr_train_eval_loss < min(train_eval_losses):
+
+                if not len(train_eval_losses) or \
+                        (len(train_eval_losses) and curr_train_eval_loss < min(train_eval_losses)):
                     print(utils.green_text(f'The last loss is lower than previous ones. Updating the best fine tuner'))
                     best_fine_tuner = copy.deepcopy(fine_tuner)
 
@@ -305,13 +307,11 @@ def fine_tune_combined_model(data_str: str,
                 else:
                     consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0
 
-                if consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum == 4:
+                if consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum == 6:
                     print(utils.red_text(f'finish training, stop criteria met!!!'))
                     break
 
                 train_eval_losses += [curr_train_eval_loss]
-
-
 
     if not evaluate_on_test_between_epochs:
         evaluate_on_test(data_str=data_str,
