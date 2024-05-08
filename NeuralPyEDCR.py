@@ -389,7 +389,6 @@ if __name__ == '__main__':
     # main_lr = new_lr = binary_lr = 0.0001
     # original_num_epochs = secondary_num_epochs = 20
     # binary_num_epochs = 10
-    # max_num_train_images_per_class = 500
     # number_of_fine_classes = 24
 
     # data_str = 'imagenet'
@@ -399,7 +398,6 @@ if __name__ == '__main__':
     # original_num_epochs = 8
     # secondary_num_epochs = 2
     # binary_num_epochs = 5
-    # max_num_train_images_per_class = 1300
     # number_of_fine_classes = 42
 
     data_str = 'openimage'
@@ -409,8 +407,7 @@ if __name__ == '__main__':
     original_num_epochs = 10
     secondary_num_epochs = 2
     binary_num_epochs = 5
-    max_num_train_images_per_class = 1300
-    number_of_fine_classes = 42
+    number_of_fine_classes = 30
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
