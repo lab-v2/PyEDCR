@@ -239,7 +239,11 @@ def fine_tune_combined_model(data_str: str,
 
             if epoch == 0:
                 print(utils.blue_text(
-                    f'label use and count: {np.unique(np.array(error_ground_truths), return_counts=True)}'))
+                    f'coarse grain label use and count: '
+                    f'{np.unique(np.array(total_train_coarse_ground_truths), return_counts=True)}'))
+                print(utils.blue_text(
+                    f'fine grain label use and count: '
+                    f'{np.unique(np.array(total_train_fine_ground_truths), return_counts=True)}'))
 
             if loss == "error_BCE":
                 neural_metrics.get_and_print_post_epoch_binary_metrics(
