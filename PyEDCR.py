@@ -51,6 +51,7 @@ class EDCR:
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_l_strs: typing.List[str] = [],
+                 binary_model_name: str = None,
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
                  num_train_images_per_class: int = None,
@@ -71,6 +72,7 @@ class EDCR:
         self.secondary_num_epochs = secondary_num_epochs
         self.lower_predictions_indices = lower_predictions_indices
         self.binary_l_strs = binary_l_strs
+        self.binary_model_name = binary_model_name
         self.binary_num_epochs = binary_num_epochs
         self.binary_lr = binary_lr
         self.num_train_images_per_class = num_train_images_per_class
@@ -277,7 +279,7 @@ class EDCR:
             l = {**self.preprocessor.fine_grain_labels, **self.preprocessor.coarse_grain_labels}[l_str]
             self.pred_paths[l] = {
                 'test' if test else 'train': models.get_filepath(data_str=self.data_str,
-                                                                 model_name=self.main_model_name,
+                                                                 model_name=self.binary_model_name,
                                                                  l=l,
                                                                  test=test,
                                                                  loss=self.loss,
