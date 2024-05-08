@@ -340,7 +340,7 @@ def fine_tune_combined_model(data_str: str,
             os.mkdir(f'models')
 
         torch.save(best_fine_tuner.state_dict(),
-                   f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{num_epochs}_{additional_str}.pth")
+                   f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{num_epochs}_{additional_info}.pth")
 
     # save prediction file for EDCR and error model
     neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
