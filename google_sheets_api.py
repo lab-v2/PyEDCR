@@ -54,7 +54,7 @@ def get_sheet_tab_name(main_model_name: str,
     data_set_str = {'military_vehicles': 'Military Vehicles',
                     'imagenet': 'ImageNet',
                     'openimage': 'OpenImage'}[data_str]
-    secondary_model_str = ((' with ' + "DINO V2 VIT14_l" if data_str == 'imagenet' else 'VIT_l_16')
+    secondary_model_str = ((' with ' + ("DINO V2 VIT14_l" if data_str == 'imagenet' else 'VIT_l_16'))
                            if secondary_model_name is not None else '')
     binary_str = ' with Binary' if binary else ''
 
