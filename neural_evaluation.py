@@ -417,18 +417,22 @@ def get_error_metric(data_str: str,
     main_test_coarse_prediction = np.load(
         f'combined_results/{data_str}_{main_model_name}_test_coarse_pred_BCE_lr{main_lr}_e{main_num_epoch - 1}.npy')
     additional_test_fine_prediction = np.load(
-        f'combined_results/{data_str}_{additional_model_name}_test_fine_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
+        f'combined_results/{data_str}_{additional_model_name}_'
+        f'test_fine_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
     additional_test_coarse_prediction = np.load(
-        f'combined_results/{data_str}_{additional_model_name}_test_coarse_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
+        f'combined_results/{data_str}_{additional_model_name}_'
+        f'test_coarse_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
 
     main_train_fine_prediction = np.load(
         f'combined_results/{data_str}_{main_model_name}_train_fine_pred_BCE_lr{main_lr}_e{main_num_epoch - 1}.npy')
     main_train_coarse_prediction = np.load(
         f'combined_results/{data_str}_{main_model_name}_train_coarse_pred_BCE_lr{main_lr}_e{main_num_epoch - 1}.npy')
     additional_train_fine_prediction = np.load(
-        f'combined_results/{data_str}_{additional_model_name}_train_fine_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
+        f'combined_results/{data_str}_{additional_model_name}_'
+        f'train_fine_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
     additional_train_coarse_prediction = np.load(
-        f'combined_results/{data_str}_{additional_model_name}_train_coarse_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
+        f'combined_results/{data_str}_{additional_model_name}_'
+        f'train_coarse_pred_BCE_lr{additional_lr}_e{additional_num_epoch - 1}_additional.npy')
 
     preprocessor, fine_tuners, loaders, devices = (backbone_pipeline.initiate(
         data_str=data_str,
@@ -476,14 +480,14 @@ def get_error_metric(data_str: str,
 
 
 if __name__ == '__main__':
-    data_str = 'openimage'
-    main_model_name = 'tresnet_m'
+    data_str = 'imagenet'
+    main_model_name = 'dinov2_vits14'
     additional_model_name = 'dinov2_vits14'
     main_lr = 0.000001
     additional_lr = 0.000001
-    main_num_epoch = 0
-    additional_num_epoch = 10
-    pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
+    main_num_epoch = 8
+    additional_num_epoch = 8
+    # pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
 
     get_error_metric(data_str=data_str,
                      main_model_name=main_model_name,
@@ -492,6 +496,7 @@ if __name__ == '__main__':
                      additional_model_name=additional_model_name,
                      additional_lr=additional_lr,
                      additional_num_epoch=additional_num_epoch)
+
     # evaluate_binary_models_from_files(model_name='vit_b_16',
     #                                   g_str='fine',
     #                                   test=False,
