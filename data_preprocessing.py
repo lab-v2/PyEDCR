@@ -10,6 +10,7 @@ import typing
 import abc
 import random
 import config
+import utils
 
 random.seed(42)
 np.random.seed(42)
@@ -302,7 +303,7 @@ class DataPreprocessor:
         if data_str == 'imagenet':
             data_path_str = 'data/ImageNet100/'
         elif data_str == 'openimage':
-            data_path_str = '../../ngocbach/OpenImage/'
+            data_path_str = (f'../../ngocbach/' if not utils.is_local() else 'data/') + 'OpenImage/'
         else:
             data_path_str = 'data/'
 
