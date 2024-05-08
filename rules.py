@@ -176,7 +176,8 @@ class ErrorDetectionRule(Rule):
         return altered_pred_data
 
     def __str__(self) -> str:
-        return '\n'.join(f'error_{self.l}(x) <- pred_{self.l}(x) ^ {cond}(x)' for cond in self.C_l)
+        return (f"error_{self.l}(x) <- pred_{self.l}(x) ^ {'(' if len(self) > 1 else ''}"
+                + ' v '.join(f'{cond}(x)' for cond in self.C_l) + (')' if len(self) > 1 else ''))
 
 
 class ErrorCorrectionRule(Rule):

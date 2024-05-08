@@ -46,8 +46,7 @@ __sheet: googleapiclient.discovery.Resource = initiate_api()
 def get_sheet_tab_name(main_model_name: str,
                        data_str: str,
                        secondary_model_name: str = None,
-                       binary: bool = False,
-                       maximize_ratio: bool = True) -> str:
+                       binary: bool = False) -> str:
     if main_model_name == 'tresnet_m' or data_str == 'openimage':
         return f"Tresnet M on OpenImage Errors"
 
@@ -56,9 +55,8 @@ def get_sheet_tab_name(main_model_name: str,
     secondary_model_str = ((" with DINO V2 VIT14_l" if data_str == 'imagenet' else ' with VIT_l_16')
                            if secondary_model_name is not None else '')
     binary_str = ' with Binary' if binary else ''
-    maximize_ratio_str = ' ratio' if maximize_ratio else ''
 
-    return f"{model_name_str} on {data_set_str}{binary_str}{secondary_model_str}{maximize_ratio_str}"
+    return f"{model_name_str} on {data_set_str}{binary_str}{secondary_model_str}"
 
 
 def exponential_backoff(func: typing.Callable) -> typing.Callable:
