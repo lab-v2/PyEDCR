@@ -202,8 +202,7 @@ class EDCR:
         self.sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                                    data_str=data_str,
                                                                    secondary_model_name=secondary_model_name,
-                                                                   binary=len(binary_l_strs) > 0,
-                                                                   maximize_ratio=maximize_ratio)
+                                                                   binary=len(binary_l_strs) > 0)
         print(f'\nsheet_tab_name: {self.sheet_tab_name}\n')
 
         self.recovered_constraints_recall = 0
@@ -323,7 +322,6 @@ class EDCR:
 
                 for label_to_take_out_index in indices_of_labels_to_take_out:
                     next_true_label = indices_of_labels_to_keep[i % max_value]
-                    # next_pred_label = indices_of_labels_to_keep[(i + 1) % max_value]
 
                     train_true_indices_where_label_to_take_out = (
                         np.where(self.preprocessor.get_ground_truths(test=False, g=g) == label_to_take_out_index))[0]
@@ -1068,7 +1066,8 @@ class EDCR:
                             error_accuracy,
                             error_f1,
                             self.recovered_constraints_precision,
-                            self.recovered_constraints_recall
+                            self.recovered_constraints_recall,
+                            2/(1/self.recovered_constraints_precision + 1/self.recovered_constraints_recall)
                             ]
 
             print(input_values)
@@ -1085,14 +1084,14 @@ class EDCR:
 
     def get_constraints_true_positives_and_total_positives(self):
         true_recovered_constraints: dict[str, set[str]] = {}
-        num_recovered_constraints = 0
+        recovered_constraints: dict[str, set[str]] = {}
 
         for l, error_detection_rule in self.error_detection_rules.items():
             error_detection_rule: rules.ErrorDetectionRule
 
             for cond in error_detection_rule.C_l:
                 if ((isinstance(cond, conditions.PredCondition)) and (cond.secondary_model_name is None)
-                    and (not cond.binary)) and (cond.lower_prediction_index is None):
+                        and (not cond.binary)) and (cond.lower_prediction_index is None):
                     if cond.l.g != l.g:
                         if cond.l.g.g_str == 'fine':
                             fine_index = cond.l.index
@@ -1111,12 +1110,17 @@ class EDCR:
                                 true_recovered_constraints[fine_label_str] = (
                                     true_recovered_constraints[fine_label_str].union({coarse_label_str}))
 
-                    num_recovered_constraints += 1
+                        if fine_label_str not in recovered_constraints:
+                            recovered_constraints[fine_label_str] = {coarse_label_str}
+                        else:
+                            recovered_constraints[fine_label_str] = (
+                                recovered_constraints[fine_label_str].union({coarse_label_str}))
 
         assert all(self.preprocessor.fine_to_coarse[fine_label_str] not in coarse_dict
                    for fine_label_str, coarse_dict in true_recovered_constraints.items())
 
         num_true_recovered_constraints = sum(len(coarse_dict) for coarse_dict in true_recovered_constraints.values())
+        num_recovered_constraints = sum(len(coarse_dict) for coarse_dict in recovered_constraints.values())
 
         return num_true_recovered_constraints, num_recovered_constraints
 
