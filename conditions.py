@@ -48,9 +48,12 @@ class PredCondition(Condition):
         super().__init__()
         self.l = l
         self.secondary_model_name = secondary_model_name
-        self.binary = binary
+        #self.binary = binary
         # self.negatePredCondition = NegatePredCondition(l=l, secondary=secondary_model)
-        self.lower_prediction_index = lower_prediction_index
+        #self.lower_prediction_index = lower_prediction_index
+        self.binary = binary 
+        self.lower_prediction_index = None
+
 
     def __call__(self,
                  fine_data: np.array,
@@ -60,13 +63,13 @@ class PredCondition(Condition):
                  lower_predictions_fine_data: dict,
                  lower_predictions_coarse_data: dict,
                  binary_data: typing.Dict[data_preprocessing.Label, np.array]) -> np.array:
-        fine = self.l.g.g_str == 'fine'
+        fine = self.l.g == data_preprocessing.DataPreprocessor.granularities['fine']
 
         if self.secondary_model_name is not None:
             granularity_data = secondary_fine_data if fine else secondary_coarse_data
         elif self.lower_prediction_index is not None:
             granularity_data = lower_predictions_fine_data if fine else lower_predictions_coarse_data
-        elif self.binary:
+        elif self.binary :
             granularity_data = binary_data[self.l]
         else:
             granularity_data = fine_data if fine else coarse_data
