@@ -406,7 +406,7 @@ if __name__ == '__main__':
     main_model_name = new_model_name = 'dinov2_vits14'
     secondary_model_name = 'dinov2_vitl14'
     main_lr = new_lr = binary_lr = 0.000001
-    original_num_epochs = 8
+    original_num_epochs = 10
     secondary_num_epochs = 2
     binary_num_epochs = 5
     max_num_train_images_per_class = 1300
@@ -448,7 +448,7 @@ if __name__ == '__main__':
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
-        lists_of_fine_labels_to_take_out=  [list(range(i)) for i in range(number_of_fine_classes)]
+        lists_of_fine_labels_to_take_out= [list(range(i)) for i in range(number_of_fine_classes)]
     )
 
     # (x_values, y_values, error_accuracies, error_f1s, error_MMCs, error_acc_f1s) = (
