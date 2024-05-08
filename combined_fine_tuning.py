@@ -329,12 +329,10 @@ def fine_tune_combined_model(data_str: str,
                          num_epochs=num_epochs,
                          save_files=save_files)
 
-    additional_str = 'additional' if additional_model else ''
-
     if loss == "error_BCE":
         torch.save(best_fine_tuner.state_dict(),
                    f"models/binary_models/binary_error_{best_fine_tuner}_"
-                   f"lr{lr}_loss_{loss}_e{num_epochs}_{additional_str}.pth")
+                   f"lr{lr}_loss_{loss}_e{num_epochs}_{additional_info}.pth")
     elif loss.split('_')[0] == 'LTN':
         torch.save(best_fine_tuner.state_dict(), f"models/{best_fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
     else:
