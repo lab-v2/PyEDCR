@@ -17,8 +17,14 @@ import neural_fine_tuning
 import neural_metrics
 
 
+
+
+
+
+
 class EDCR_LTN_experiment(EDCR):
     def __init__(self,
+                 data_str: str,
                  main_model_name: str,
                  combined: bool,
                  loss: str,
@@ -29,8 +35,11 @@ class EDCR_LTN_experiment(EDCR):
                  K_test: list[(int, int)] = None,
                  include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
+                 secondary_model_loss: str = None,
+                 secondary_num_epochs: int = None,
                  config=None):
-        super().__init__(main_model_name=main_model_name,
+        super().__init__(data_str = data_str,
+                         main_model_name=main_model_name,
                          combined=combined,
                          loss=loss,
                          lr=lr,
@@ -39,26 +48,30 @@ class EDCR_LTN_experiment(EDCR):
                          K_train=K_train,
                          K_test=K_test,
                          include_inconsistency_constraint=include_inconsistency_constraint,
-                         secondary_model_name=secondary_model_name)
+                         secondary_model_name=secondary_model_name,
+                         secondary_model_loss = secondary_model_loss,
+                         secondary_num_epochs = secondary_num_epochs, 
+                        )
+        self.data_str = config.data_str
         self.batch_size = config.batch_size
         self.scheduler_gamma = config.scheduler_gamma
         self.num_ltn_epochs = config.ltn_num_epochs
         self.num_baseline_epochs = config.baseline_num_epochs
-        self.scheduler_step_size = num_epochs
+        self.scheduler_step_size = config.scheduler_step_size
         self.pretrain_path = config.main_pretrained_path
         self.beta = config.beta
         self.correction_model = {}
         self.num_models = config.num_models
-        self.get_fraction_of_example_with_label = config.get_fraction_of_example_with_label
+        #self.get_fraction_of_example_with_label = config.get_fraction_of_example_with_label
 
-        self.formatted_removed_label = ",".join(f"{key},{value}"
-                                                for key, value in self.get_fraction_of_example_with_label.items())
+        #self.formatted_removed_label = ",".join(f"{key},{value}"
+                                                #for key, value in self.get_fraction_of_example_with_label.items())
 
         if self.pretrain_path is None:
             pretrained_model_path = (f"models/vit_b_16/combined_{self.loss}_"
                                      f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                                     f"remove_label_{self.formatted_removed_label}.pth")
+                                     f"baseline_epoch_{self.num_baseline_epochs}.pth")
+                                     #f"remove_label_{self.formatted_removed_label}.pth")
 
             if os.path.exists(pretrained_model_path):
                 print(f"Previous model is found!")
@@ -66,56 +79,66 @@ class EDCR_LTN_experiment(EDCR):
             else:
                 print("Previous model is not found. The baseline will be pretrained")
 
-        path_to_prediction_result = (f"combined_results/vit_b_16_test_coarse_{self.loss}_lr_{self.lr}_"
-                                     f"batch_size_{self.batch_size}_baseline_epoch_{self.num_baseline_epochs}_"
-                                     f"remove_label_{self.formatted_removed_label}.npy")
-
-        if os.path.exists(path_to_prediction_result) and self.pretrain_path is not None:
-            print(f"Previous result is found! Loading the previous prediction for conditions")
-            self.pred_data['train']['original'][config.g_fine] = (
-                np.load(file=f"combined_results/vit_b_16_train_fine_{self.loss}_"
-                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                             f"baseline_epoch_{self.num_baseline_epochs}_"
-                             f"remove_label_{self.formatted_removed_label}.npy"))
-
-            self.pred_data['train']['original'][config.g_coarse] = (
-                np.load(file=f"combined_results/vit_b_16_train_coarse_{self.loss}_"
-                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                             f"baseline_epoch_{self.num_baseline_epochs}_"
-                             f"remove_label_{self.formatted_removed_label}.npy"))
-
-            self.pred_data['test']['original'][config.g_fine] = (
-                np.load(file=f"combined_results/vit_b_16_test_fine_{self.loss}_"
-                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                             f"baseline_epoch_{self.num_baseline_epochs}_"
-                             f"remove_label_{self.formatted_removed_label}.npy"))
-
-            self.pred_data['test']['original'][config.g_coarse] = (
-                np.load(file=f"combined_results/vit_b_16_test_coarse_{self.loss}_"
-                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                             f"baseline_epoch_{self.num_baseline_epochs}_"
-                             f"remove_label_{self.formatted_removed_label}.npy"))
-        # else:
-        #     raise FileNotFoundError("Previous result is not found. The baseline will be pretrained. "
-        #                             "Consider changing the code")
-
-        self.fine_tuners, self.loaders, self.devices, _, _ = (
-            vit_pipeline.initiate(
+        self.datapreprocessing, self.fine_tuners, self.loaders, self.devices = (
+            backbone_pipeline.initiate(
+                data_str = data_str,
                 lr=[self.lr],
                 combined=self.combined,
                 debug=False,
                 pretrained_path=self.pretrain_path,
-                get_indices=True,
-                train_eval_split=0.8,
-                get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
+                #get_indices=True,
+                train_eval_split=0.8))
+                #get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
 
+        ## Define the g-fine and g-coarse 
+        g_fine = self.datapreprocessing.granularities['fine']
+        g_coarse = self.datapreprocessing.granularities['coarse']
+
+        path_to_prediction_result = (f"combined_results/vit_b_16_test_coarse_{self.loss}_lr_{self.lr}_"
+                                     f"batch_size_{self.batch_size}_baseline_epoch_{self.num_baseline_epochs}.npy")
+                                     #f"remove_label_{self.formatted_removed_label}.npy")
+
+        if os.path.exists(path_to_prediction_result) and self.pretrain_path is not None:
+            print(f"Previous result is found! Loading the previous prediction for conditions")
+            self.pred_data['train']['original'][g_fine] = (
+                np.load(file=f"combined_results/vit_b_16_train_fine_{self.loss}_"
+                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
+                             f"baseline_epoch_{self.num_baseline_epochs}.npy"))
+                             #f"remove_label_{self.formatted_removed_label}.npy"))
+
+            self.pred_data['train']['original'][g_coarse] = (
+                np.load(file=f"combined_results/vit_b_16_train_coarse_{self.loss}_"
+                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
+                             f"baseline_epoch_{self.num_baseline_epochs}.npy"))
+                             #f"remove_label_{self.formatted_removed_label}.npy"))
+
+            self.pred_data['test']['original'][g_fine] = (
+                np.load(file=f"combined_results/vit_b_16_test_fine_{self.loss}_"
+                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
+                             f"baseline_epoch_{self.num_baseline_epochs}.npy"))
+                             #f"remove_label_{self.formatted_removed_label}.npy"))
+
+            self.pred_data['test']['original'][g_coarse] = (
+                np.load(file=f"combined_results/vit_b_16_test_coarse_{self.loss}_"
+                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
+                             f"baseline_epoch_{self.num_baseline_epochs}.npy"))
+                             #f"remove_label_{self.formatted_removed_label}.npy"))
+        # else:
+        #     raise FileNotFoundError("Previous result is not found. The baseline will be pretrained. "
+        #                             "Consider changing the code")
+
+
+
+
+        
         if self.pretrain_path is None:
             self.run_baseline_pipeline()
         else:
             self.baseline_model = self.fine_tuners[0]
             print('Load pretrain model successfully!')
 
-        neural_evaluation.evaluate_combined_model(fine_tuner=self.baseline_model,
+        neural_evaluation.evaluate_combined_model(preprocessor = self.datapreprocessing,
+                                                  fine_tuner=self.baseline_model,
                                                   loaders=self.loaders,
                                                   loss='BCE',
                                                   device=self.devices[0],
@@ -159,11 +182,11 @@ class EDCR_LTN_experiment(EDCR):
             original_secondary_pred_fines = []
             original_secondary_pred_coarses = []
 
-            batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=loader,
-                                                                 num_batches=num_batches,
-                                                                 debug=False)
+            #batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=loader,
+                                                                 #num_batches=num_batches,
+                                                                 #debug=False)
 
-            for batch_num, batch in batches:
+            for batch_num, batch in enumerate(loader):
                 with context_handlers.ClearCache(device=device):
                     X, Y_fine_grain, Y_coarse_grain, indices = (
                         batch[0].to(device), batch[1].to(device), batch[3].to(device), batch[4])
@@ -183,9 +206,9 @@ class EDCR_LTN_experiment(EDCR):
                         original_secondary_pred_coarse_batch = None
 
                     Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
-                        data_preprocessing.fine_grain_classes_str))
+                        self.datapreprocessing.fine_grain_classes_str))
                     Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
-                        data_preprocessing.coarse_grain_classes_str))
+                        self.datapreprocessing.coarse_grain_classes_str))
 
                     Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
 
@@ -193,8 +216,8 @@ class EDCR_LTN_experiment(EDCR):
                     # fine / coarse or both
                     Y_pred = fine_tuner(X)
 
-                    Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
-                    Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
+                    Y_pred_fine_grain = Y_pred[:, :len(self.datapreprocessing.fine_grain_classes_str)]
+                    Y_pred_coarse_grain = Y_pred[:, len(self.datapreprocessing.fine_grain_classes_str):]
 
                     if mode == 'train' and optimizer is not None and scheduler is not None:
                         optimizer.zero_grad()
@@ -203,6 +226,7 @@ class EDCR_LTN_experiment(EDCR):
                             criterion = torch.nn.BCEWithLogitsLoss()
 
                             sat_agg = ltn_support.compute_sat_normally(
+                                data_preprocessor = self.datapreprocessing, 
                                 logits_to_predicate=logits_to_predicate,
                                 train_pred_fine_batch=Y_pred_fine_grain,
                                 train_pred_coarse_batch=Y_pred_coarse_grain,
@@ -221,6 +245,7 @@ class EDCR_LTN_experiment(EDCR):
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
                             sat_agg = ltn_support.compute_sat_normally(
+                                data_preprocessor = self.dataprocessing,
                                 logits_to_predicate=logits_to_predicate,
                                 train_pred_fine_batch=Y_pred_fine_grain,
                                 train_pred_coarse_batch=Y_pred_coarse_grain,
@@ -263,15 +288,17 @@ class EDCR_LTN_experiment(EDCR):
 
                     del X, Y_fine_grain, Y_coarse_grain, indices, Y_pred_fine_grain, Y_pred_coarse_grain
 
-        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_metrics(
-            curr_epoch=epoch,
-            total_num_epochs=self.num_ltn_epochs,
+        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_epoch_metrics(
+            preprocessor = self.datapreprocessing,
+            epoch=epoch,
+            num_epochs=self.num_ltn_epochs,
             train_fine_ground_truth=np.array(fine_ground_truths),
             train_fine_prediction=np.array(fine_predictions),
             train_coarse_ground_truth=np.array(coarse_ground_truths),
             train_coarse_prediction=np.array(coarse_predictions))
 
         ltn_support.compute_sat_testing_value(
+            data_preprocessor = self.datapreprocessing,
             logits_to_predicate=logits_to_predicate,
             pred_fine_batch=torch.tensor(fine_predictions).to(device),
             pred_coarse_batch=torch.tensor(coarse_predictions).to(device),
@@ -323,19 +350,19 @@ class EDCR_LTN_experiment(EDCR):
             coarse_ground_truths = []
             batch_indices = []
 
-            batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=loader,
-                                                                 num_batches=num_batches,
-                                                                 debug=False)
+            #batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=loader,
+                                                                 #num_batches=num_batches,
+                                                                 #debug=False)
 
-            for batch_num, batch in batches:
+            for batch_num, batch in enumerate(loader):
                 with context_handlers.ClearCache(device=device):
                     X, Y_fine_grain, Y_coarse_grain, batch_index = (
                         batch[0].to(device), batch[1].to(device), batch[3].to(device), batch[4])
 
                     Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
-                        data_preprocessing.fine_grain_classes_str))
+                        self.datapreprocessing.fine_grain_classes_str))
                     Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
-                        data_preprocessing.coarse_grain_classes_str))
+                        self.datapreprocessing.coarse_grain_classes_str))
 
                     Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
 
@@ -343,8 +370,8 @@ class EDCR_LTN_experiment(EDCR):
                     # fine / coarse or both
                     Y_pred = fine_tuner(X)
 
-                    Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
-                    Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
+                    Y_pred_fine_grain = Y_pred[:, :len(self.datapreprocessing.fine_grain_classes_str)]
+                    Y_pred_coarse_grain = Y_pred[:, len(self.datapreprocessing.fine_grain_classes_str):]
 
                     if mode == 'train':
 
@@ -380,9 +407,10 @@ class EDCR_LTN_experiment(EDCR):
 
                     del X, Y_fine_grain, Y_coarse_grain, Y_pred_fine_grain, Y_pred_coarse_grain
 
-        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_metrics(
-            curr_epoch=epoch,
-            total_num_epochs=self.num_baseline_epochs,
+        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_epoch_metrics(
+            preprocessor = self.datapreprocessing,
+            epoch=epoch,
+            num_epochs=self.num_baseline_epochs,
             train_fine_ground_truth=np.array(fine_ground_truths),
             train_fine_prediction=np.array(fine_predictions),
             train_coarse_ground_truth=np.array(coarse_ground_truths),
@@ -411,7 +439,7 @@ class EDCR_LTN_experiment(EDCR):
         train_coarse_accuracies = []
 
         for epoch in range(self.num_baseline_epochs):
-            with ((context_handlers.ClearSession())):
+            #with ((context_handlers.ClearCache(device=self.devices[0]))):
 
                 train_fine_prediction, train_coarse_prediction, train_indices, _, _ = (
                     self.train_and_evaluate_baseline_combined_model(
@@ -447,15 +475,17 @@ class EDCR_LTN_experiment(EDCR):
                     break
 
         print(f'\nfinish train and eval baseline model!\n')
+        g_fine = self.datapreprocessing.granularities['fine']
+        g_coarse = self.datapreprocessing.granularities['coarse']
 
-        self.pred_data['train']['original'][config.g_fine] = np.ones_like(data_preprocessing.train_true_fine_data) * -1
-        self.pred_data['train']['original'][config.g_fine][train_indices] = np.array(train_fine_prediction)
-        self.pred_data['train']['original'][config.g_fine][train_eval_indices] = np.array(train_eval_fine_prediction)
+        self.pred_data['train']['original'][g_fine] = np.ones_like(self.datapreprocessing.train_true_fine_data) * -1
+        self.pred_data['train']['original'][g_fine][train_indices] = np.array(train_fine_prediction)
+        self.pred_data['train']['original'][g_fine][train_eval_indices] = np.array(train_eval_fine_prediction)
 
-        self.pred_data['train']['original'][config.g_coarse] = np.ones_like(
-            data_preprocessing.train_true_fine_data) * -1
-        self.pred_data['train']['original'][config.g_coarse][train_indices] = np.array(train_coarse_prediction)
-        self.pred_data['train']['original'][config.g_coarse][train_eval_indices] = np.array(
+        self.pred_data['train']['original'][g_coarse] = np.ones_like(
+            self.datapreprocessing.train_true_fine_data) * -1
+        self.pred_data['train']['original'][g_coarse][train_indices] = np.array(train_coarse_prediction)
+        self.pred_data['train']['original'][g_coarse][train_eval_indices] = np.array(
             train_eval_coarse_prediction)
 
         print(f'\nupdate original prediction!\n')
@@ -469,41 +499,41 @@ class EDCR_LTN_experiment(EDCR):
                 mode='test'
             ))
 
-        self.pred_data['test']['original'][config.g_coarse] = np.ones_like(data_preprocessing.test_true_fine_data) * -1
-        self.pred_data['test']['original'][config.g_coarse][test_indices] = np.array(test_coarse_prediction)
+        self.pred_data['test']['original'][g_coarse] = np.ones_like(self.datapreprocessing.test_true_fine_data) * -1
+        self.pred_data['test']['original'][g_coarse][test_indices] = np.array(test_coarse_prediction)
 
-        self.pred_data['test']['original'][config.g_fine] = np.ones_like(data_preprocessing.test_true_fine_data) * -1
-        self.pred_data['test']['original'][config.g_fine][test_indices] = np.array(test_coarse_prediction)
+        self.pred_data['test']['original'][g_fine] = np.ones_like(self.datapreprocessing.test_true_fine_data) * -1
+        self.pred_data['test']['original'][g_fine][test_indices] = np.array(test_coarse_prediction)
 
         torch.save(obj=self.baseline_model.state_dict(),
                    f=f"models/vit_b_16/combined_{self.loss}_"
                      f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.pth")
+                     f"baseline_epoch_{self.num_baseline_epochs}.pth")
+                     #f"remove_label_{self.formatted_removed_label}.pth")
 
         np.save(file=f"combined_results/vit_b_16_train_fine_{self.loss}_"
                      f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.npy",
-                arr=self.pred_data['train']['original'][config.g_fine])
+                     f"baseline_epoch_{self.num_baseline_epochs}.npy",
+                     #f"remove_label_{self.formatted_removed_label}.npy",
+                arr=self.pred_data['train']['original'][g_fine])
 
         np.save(file=f"combined_results/vit_b_16_train_coarse_{self.loss}_"
                      f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.npy",
-                arr=self.pred_data['train']['original'][config.g_coarse])
+                     f"baseline_epoch_{self.num_baseline_epochs}.npy",
+                     #f"remove_label_{self.formatted_removed_label}.npy",
+                arr=self.pred_data['train']['original'][g_coarse])
 
         np.save(file=f"combined_results/vit_b_16_test_fine_{self.loss}_"
                      f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.npy",
-                arr=self.pred_data['test']['original'][config.g_fine])
+                     f"baseline_epoch_{self.num_baseline_epochs}.npy",
+                     #f"remove_label_{self.formatted_removed_label}.npy",
+                arr=self.pred_data['test']['original'][g_fine])
 
         np.save(file=f"combined_results/vit_b_16_test_coarse_{self.loss}_"
                      f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.npy",
-                arr=self.pred_data['test']['original'][config.g_coarse])
+                     f"baseline_epoch_{self.num_baseline_epochs}.npy",
+                     #f"remove_label_{self.formatted_removed_label}.npy",
+                arr=self.pred_data['test']['original'][g_coarse])
 
         print('#' * 100)
 
@@ -512,15 +542,26 @@ class EDCR_LTN_experiment(EDCR):
                               EDCR_epoch_num=0):
         print('Started learning pipeline...\n')
 
-        for g in data_preprocessing.granularities.values():
+        for g in self.datapreprocessing.granularities.values():
             self.learn_detection_rules(g=g)
 
         print('\nRule learning completed\n')
+        
 
         print(f'\nStarted train and eval LTN model {model_index}...\n')
 
-        self.correction_model[model_index] = copy.deepcopy(self.baseline_model)
+        _,self.new_fine_tuners,_,_ = (
+            backbone_pipeline.initiate(
+                data_str = self.data_str,
+                lr=[self.lr],
+                combined=self.combined,
+                debug=False,
+                pretrained_path=None,
+                #get_indices=True,
+                train_eval_split=0.8))
 
+        self.correction_model[model_index] = self.new_fine_tuners[0]
+        print(f'\nLoaded new LTN model {model_index}...\n')
         train_fine_accuracies = []
         train_coarse_accuracies = []
 
@@ -531,7 +572,7 @@ class EDCR_LTN_experiment(EDCR):
                                                     step_size=self.scheduler_step_size,
                                                     gamma=self.scheduler_gamma)
         for epoch in range(self.num_ltn_epochs):
-            with context_handlers.ClearSession():
+            #with context_handlers.ClearSession():
 
                 self.fine_tune_and_evaluate_combined_model(
                     fine_tuner=self.correction_model[model_index],
@@ -597,10 +638,10 @@ class EDCR_LTN_experiment(EDCR):
         # Count the occurrences of each class for each example (axis=0)
         all_prediction = torch.zeros_like(torch.nn.functional.one_hot(torch.tensor(predictions[0]),
                                                                       num_classes=len(
-                                                                          data_preprocessing.get_labels(g))))
+                                                                          self.datapreprocessing.get_labels(g))))
         for i in range(self.num_models):
             all_prediction += torch.nn.functional.one_hot(torch.tensor(predictions[i]),
-                                                          num_classes=len(data_preprocessing.get_labels(g)))
+                                                          num_classes=len(self.datapreprocessing.get_labels(g)))
 
         # Get the index of the majority class
         majority_votes = torch.argmax(all_prediction, dim=1)
@@ -617,33 +658,36 @@ class EDCR_LTN_experiment(EDCR):
         print("\nGot all the prediction from test model!\n")
 
         final_fine_prediction = self.get_majority_vote(fine_prediction,
-                                                       g=data_preprocessing.granularities['fine'])
+                                                       g=self.datapreprocessing.granularities['fine'])
         final_coarse_prediction = self.get_majority_vote(coarse_prediction,
-                                                         g=data_preprocessing.granularities['coarse'])
+                                                         g=self.datapreprocessing.granularities['coarse'])
+        
 
-        np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_fine_{self.loss}_"
+        
+        np.save(f"combined_results/vit_b_16_test_fine_{self.loss}_"
                 f"lr_{self.lr}_batch_size_{self.batch_size}_"
                 f"ltn_epoch_{self.num_ltn_epochs}_"
-                f"beta_{self.beta}_num_model_{self.num_models}_"
-                f"remove_label_{self.formatted_removed_label}.npy",
+                f"beta_{self.beta}_num_model_{self.num_models}.npy",
+                #f"remove_label_{self.formatted_removed_label}.npy",
                 np.array(final_fine_prediction))
-
-        np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_coarse_{self.loss}_"
+        
+        np.save(f"combined_results/vit_b_16_test_coarse_{self.loss}_"
                 f"lr_{self.lr}_batch_size_{self.batch_size}_"
                 f"ltn_epoch_{self.num_ltn_epochs}_"
-                f"beta_{self.beta}_num_model_{self.num_models}_"
-                f"remove_label_{self.formatted_removed_label}.npy",
+                f"beta_{self.beta}_num_model_{self.num_models}.npy",
+                #f"remove_label_{self.formatted_removed_label}.npy",
                 np.array(final_coarse_prediction))
 
-        neural_metrics.get_and_print_metrics(pred_fine_data=np.array(final_fine_prediction),
+        neural_metrics.get_and_print_metrics(preprocessor = self.datapreprocessing,
+                                             pred_fine_data=np.array(final_fine_prediction),
                                              pred_coarse_data=np.array(final_coarse_prediction),
                                              loss=self.loss,
-                                             true_fine_data=data_preprocessing.get_ground_truths(
+                                             true_fine_data=self.datapreprocessing.get_ground_truths(
                                                  test=True,
-                                                 g=data_preprocessing.granularities['fine']),
-                                             true_coarse_data=data_preprocessing.get_ground_truths(
+                                                 g=self.datapreprocessing.granularities['fine']),
+                                             true_coarse_data=self.datapreprocessing.get_ground_truths(
                                                  test=True,
-                                                 g=data_preprocessing.granularities['coarse']),
+                                                 g=self.datapreprocessing.granularities['coarse']),
                                              test=True)
 
 
@@ -656,6 +700,7 @@ if __name__ == '__main__':
         print('#' * 25 + f'eps = {eps}' + '#' * 50)
         edcr = EDCR_LTN_experiment(
             epsilon=eps,
+            data_str = config.data_str,
             main_model_name=config.vit_model_names[0],
             combined=config.combined,
             loss=config.loss,
@@ -663,5 +708,7 @@ if __name__ == '__main__':
             num_epochs=config.num_epochs,
             include_inconsistency_constraint=config.include_inconsistency_constraint,
             secondary_model_name=config.secondary_model_name,
+            secondary_model_loss=config.secondary_model_loss,
+            secondary_num_epochs=config.secondary_num_epochs,
             config=config)
         edcr.run_evaluating_pipeline_all_models()
