@@ -214,7 +214,7 @@ def fine_tune_combined_model(data_str: str,
                         del X, Y_true_fine, Y_true_coarse, Y_pred, Y_pred_fine, Y_pred_coarse
 
                     total_running_loss += batch_total_loss.item() / len(batches)
-                    print(f'Current total loss: {total_running_loss}')
+                    print(f'Current total loss: {total_running_loss.item()}')
 
                     if batch_num > 4 and batch_num % 5 == 0:
                         if loss == "error_BCE":
