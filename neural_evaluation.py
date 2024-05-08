@@ -112,12 +112,12 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
     with torch.no_grad():
         if utils.is_local():
             from tqdm import tqdm
-            gen = tqdm(enumerate(loader), total=len(loader))
+            batches = tqdm(enumerate(loader), total=len(loader))
         else:
             from tqdm import tqdm
-            gen = tqdm(enumerate(loader), total=len(loader))
+            batches = tqdm(enumerate(loader), total=len(loader))
 
-        for i, data in gen:
+        for i, data in batches:
             X, Y_true_fine, Y_true_coarse = data[0].to(device), data[1].to(device), data[3].to(device)
 
             Y_true_fine_one_hot = torch.nn.functional.one_hot(Y_true_fine,
@@ -139,7 +139,7 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
 
             criterion = torch.nn.CrossEntropyLoss()
             batch_total_loss = criterion(Y_pred, Y_true)
-            total_loss += batch_total_loss.item()
+            total_loss += batch_total_loss.item() / len(batches)
 
             sorted_probs_fine = torch.sort(Y_pred_fine, descending=True)[1]
             predicted_fine = sorted_probs_fine[:, 0]
