@@ -132,8 +132,6 @@ class EDCR_LTN_experiment(EDCR):
             for label, rules in self.error_detection_rules.items():
                 print(f'rule for {label}: {rules}')
 
-        print(utils.blue_text(f'\nTrain {fine_tuner} with {len(fine_tuner)} parameters '
-                              f'for {self.num_ltn_epochs} epochs using lr={self.lr} on {device}...'))
         neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
                                                             num_epochs=self.num_ltn_epochs,
                                                             lr=self.lr,
