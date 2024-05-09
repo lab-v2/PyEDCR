@@ -94,13 +94,6 @@ def fine_tune_combined_model(data_str: str,
     train_eval_losses = []
     best_fine_tuner = copy.deepcopy(fine_tuner)
 
-    # if loss.split('_')[0] == 'LTN':
-    #     import ltn
-    #     import ltn_support
-    #
-    #     num_epochs = backbone_pipeline.ltn_num_epochs
-    #     logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
-
     neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
                                                         num_epochs=num_epochs,
                                                         lr=lr,
@@ -187,20 +180,6 @@ def fine_tune_combined_model(data_str: str,
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
                             batch_total_loss = criterion(Y_pred, Y_true)
-
-                        # elif loss.split('_')[0] == 'LTN':
-                        #     if loss == 'LTN_BCE':
-                        #         criterion = torch.nn.BCEWithLogitsLoss()
-                        #         sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
-                        #                                                    Y_pred, Y_true_coarse, Y_true_fine)
-                        #         batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true)
-                        #
-                        #     if loss == "LTN_soft_marginal":
-                        #         criterion = torch.nn.MultiLabelSoftMarginLoss()
-                        #
-                        #         sat_agg = ltn_support.compute_sat_normally(logits_to_predicate,
-                        #                                                    Y_pred, Y_true_coarse, Y_true_fine)
-                        #         batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (criterion(Y_pred, Y_true))
 
                         current_train_fine_predictions = torch.max(Y_pred_fine, 1)[1]
                         current_train_coarse_predictions = torch.max(Y_pred_coarse, 1)[1]
@@ -333,8 +312,6 @@ def fine_tune_combined_model(data_str: str,
         torch.save(best_fine_tuner.state_dict(),
                    f"models/binary_models/binary_error_{best_fine_tuner}_"
                    f"lr{lr}_loss_{loss}_e{num_epochs}_{additional_info}.pth")
-    elif loss.split('_')[0] == 'LTN':
-        torch.save(best_fine_tuner.state_dict(), f"models/{best_fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
     else:
         if not os.path.isdir(f'models'):
             os.mkdir(f'models')

@@ -1,5 +1,7 @@
 import os
 import torch.utils.data
+from tqdm import tqdm
+
 import context_handlers
 import models
 import ltn
@@ -7,6 +9,7 @@ import ltn_support
 import numpy as np
 import copy
 
+import utils
 from PyEDCR import EDCR
 import data_preprocessing
 import backbone_pipeline
@@ -17,651 +20,348 @@ import neural_fine_tuning
 import neural_metrics
 
 
+def evaluate_on_test(data_str: str,
+                     model_name: str,
+                     lr: typing.Union[str, float],
+                     fine_tuner: models.FineTuner,
+                     loss: str,
+                     num_epochs: int,
+                     save_files: bool = False):
+    neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
+                                                       model_name=model_name,
+                                                       split='test',
+                                                       lr=lr,
+                                                       loss=loss,
+                                                       pretrained_fine_tuner=fine_tuner,
+                                                       num_epochs=num_epochs,
+                                                       print_results=True,
+                                                       save_files=save_files)
+
+    print('#' * 100)
+
 class EDCR_LTN_experiment(EDCR):
     def __init__(self,
+                 data_str: str,
                  main_model_name: str,
                  combined: bool,
                  loss: str,
                  lr: typing.Union[str, float],
-                 num_epochs: int,
+                 original_num_epochs: int,
                  epsilon: typing.Union[str, float],
-                 K_train: list[(int, int)] = None,
-                 K_test: list[(int, int)] = None,
-                 include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
-                 config=None):
-        super().__init__(main_model_name=main_model_name,
+                 secondary_model_loss: str = None,
+                 secondary_num_epochs: int = None,
+                 binary_l_strs: typing.List[str] = [],
+                 binary_num_epochs: int = None,
+                 binary_lr: typing.Union[str, float] = None):
+
+        super().__init__(data_str=data_str,
+                         main_model_name=main_model_name,
                          combined=combined,
                          loss=loss,
                          lr=lr,
-                         original_num_epochs=num_epochs,
+                         original_num_epochs=original_num_epochs,
                          epsilon=epsilon,
-                         K_train=K_train,
-                         K_test=K_test,
-                         include_inconsistency_constraint=include_inconsistency_constraint,
-                         secondary_model_name=secondary_model_name)
+                         secondary_model_name=secondary_model_name if config.use_secondary_model else None,
+                         secondary_model_loss=secondary_model_loss if config.use_secondary_model else None,
+                         secondary_num_epochs=secondary_num_epochs if config.use_secondary_model else None,
+                         binary_l_strs=binary_l_strs if config.use_binary_model else [],
+                         binary_num_epochs=binary_num_epochs if config.use_binary_model else None,
+                         binary_lr=binary_lr if config.use_binary_model else None,)
+
+        print(utils.blue_text(f'EDCR has {config.use_binary_model} flag for using binary model '
+                              f'and {config.use_secondary_model} flag for using secondary model'))
+
         self.batch_size = config.batch_size
         self.scheduler_gamma = config.scheduler_gamma
         self.num_ltn_epochs = config.ltn_num_epochs
-        self.num_baseline_epochs = config.baseline_num_epochs
-        self.scheduler_step_size = num_epochs
-        self.pretrain_path = config.main_pretrained_path
+        self.scheduler_step_size = config.scheduler_step_size
         self.beta = config.beta
-        self.correction_model = {}
-        self.num_models = config.num_models
-        self.get_fraction_of_example_with_label = config.get_fraction_of_example_with_label
+        self.ltn_loss = config.ltn_loss
 
-        self.formatted_removed_label = ",".join(f"{key},{value}"
-                                                for key, value in self.get_fraction_of_example_with_label.items())
-
-        if self.pretrain_path is None:
-            pretrained_model_path = (f"models/vit_b_16/combined_{self.loss}_"
-                                     f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                                     f"remove_label_{self.formatted_removed_label}.pth")
-
-            if os.path.exists(pretrained_model_path):
-                print(f"Previous model is found!")
-                self.pretrain_path = pretrained_model_path
-            else:
-                print("Previous model is not found. The baseline will be pretrained")
-
-        path_to_prediction_result = (f"combined_results/vit_b_16_test_coarse_{self.loss}_lr_{self.lr}_"
-                                     f"batch_size_{self.batch_size}_baseline_epoch_{self.num_baseline_epochs}_"
-                                     f"remove_label_{self.formatted_removed_label}.npy")
-
-        if os.path.exists(path_to_prediction_result) and self.pretrain_path is not None:
-            print(f"Previous result is found! Loading the previous prediction for conditions")
-            self.pred_data['train']['original'][config.g_fine] = (
-                np.load(file=f"combined_results/vit_b_16_train_fine_{self.loss}_"
-                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                             f"baseline_epoch_{self.num_baseline_epochs}_"
-                             f"remove_label_{self.formatted_removed_label}.npy"))
-
-            self.pred_data['train']['original'][config.g_coarse] = (
-                np.load(file=f"combined_results/vit_b_16_train_coarse_{self.loss}_"
-                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                             f"baseline_epoch_{self.num_baseline_epochs}_"
-                             f"remove_label_{self.formatted_removed_label}.npy"))
-
-            self.pred_data['test']['original'][config.g_fine] = (
-                np.load(file=f"combined_results/vit_b_16_test_fine_{self.loss}_"
-                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                             f"baseline_epoch_{self.num_baseline_epochs}_"
-                             f"remove_label_{self.formatted_removed_label}.npy"))
-
-            self.pred_data['test']['original'][config.g_coarse] = (
-                np.load(file=f"combined_results/vit_b_16_test_coarse_{self.loss}_"
-                             f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                             f"baseline_epoch_{self.num_baseline_epochs}_"
-                             f"remove_label_{self.formatted_removed_label}.npy"))
-        # else:
-        #     raise FileNotFoundError("Previous result is not found. The baseline will be pretrained. "
-        #                             "Consider changing the code")
-
-        self.fine_tuners, self.loaders, self.devices, _, _ = (
-            vit_pipeline.initiate(
-                lr=[self.lr],
-                combined=self.combined,
-                debug=False,
-                pretrained_path=self.pretrain_path,
-                get_indices=True,
-                train_eval_split=0.8,
-                get_fraction_of_example_with_label=self.get_fraction_of_example_with_label))
-
-        if self.pretrain_path is None:
-            self.run_baseline_pipeline()
-        else:
-            self.baseline_model = self.fine_tuners[0]
-            print('Load pretrain model successfully!')
-
-        neural_evaluation.evaluate_combined_model(fine_tuner=self.baseline_model,
-                                                  loaders=self.loaders,
-                                                  loss='BCE',
-                                                  device=self.devices[0],
-                                                  split='test')
-
-    def fine_tune_and_evaluate_combined_model(self,
-                                              fine_tuner: models.FineTuner,
-                                              device: torch.device,
-                                              loaders: dict[str, torch.utils.data.DataLoader],
-                                              loss: str,
-                                              mode: str,
-                                              epoch: int = 0,
-                                              beta: float = 0.1,
-                                              optimizer=None,
-                                              scheduler=None):
-        fine_tuner.to(device)
-        fine_tuner.train()
-        loader = loaders[mode]
-        num_batches = len(loader)
-        train_or_test = 'train' if mode != 'test' else 'test'
-
-        total_losses = []
-        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
-
-        print(f'\n{mode} {fine_tuner} with {len(fine_tuner)} parameters for {self.num_ltn_epochs} epochs '
-              f'using lr={self.lr} on {device}...')
-        print('#' * 100 + '\n')
-
-        with context_handlers.TimeWrapper():
-            total_running_loss = 0.0
-
-            fine_predictions = []
-            coarse_predictions = []
-
-            fine_ground_truths = []
-            coarse_ground_truths = []
-
-            original_pred_fines = []
-            original_pred_coarses = []
-
-            original_secondary_pred_fines = []
-            original_secondary_pred_coarses = []
-
-            batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=loader,
-                                                                 num_batches=num_batches,
-                                                                 debug=False)
-
-            for batch_num, batch in batches:
-                with context_handlers.ClearCache(device=device):
-                    X, Y_fine_grain, Y_coarse_grain, indices = (
-                        batch[0].to(device), batch[1].to(device), batch[3].to(device), batch[4])
-
-                    # slice the condition from the indices you get above
-                    original_pred_fine_batch = torch.tensor(
-                        self.pred_data[train_or_test]['original']['fine'][indices]).to(device)
-                    original_pred_coarse_batch = torch.tensor(
-                        self.pred_data[train_or_test]['original']['coarse'][indices]).to(device)
-                    if self.secondary_model_name is not None:
-                        original_secondary_pred_fine_batch = torch.tensor(
-                            self.pred_data['secondary_model'][train_or_test]['fine'][indices]).to(device)
-                        original_secondary_pred_coarse_batch = torch.tensor(
-                            self.pred_data['secondary_model'][train_or_test]['coarse'][indices]).to(device)
-                    else:
-                        original_secondary_pred_fine_batch = None
-                        original_secondary_pred_coarse_batch = None
-
-                    Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
-                        data_preprocessing.fine_grain_classes_str))
-                    Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
-                        data_preprocessing.coarse_grain_classes_str))
-
-                    Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
-
-                    # currently we have many option to get prediction, depend on whether fine_tuner predict
-                    # fine / coarse or both
-                    Y_pred = fine_tuner(X)
-
-                    Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
-                    Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
-
-                    if mode == 'train' and optimizer is not None and scheduler is not None:
-                        optimizer.zero_grad()
-
-                        if loss == 'BCE':
-                            criterion = torch.nn.BCEWithLogitsLoss()
-
-                            sat_agg = ltn_support.compute_sat_normally(
-                                logits_to_predicate=logits_to_predicate,
-                                train_pred_fine_batch=Y_pred_fine_grain,
-                                train_pred_coarse_batch=Y_pred_coarse_grain,
-                                train_true_fine_batch=Y_fine_grain,
-                                train_true_coarse_batch=Y_coarse_grain,
-                                original_train_pred_fine_batch=original_pred_fine_batch,
-                                original_train_pred_coarse_batch=original_pred_coarse_batch,
-                                original_secondary_train_pred_fine_batch=original_secondary_pred_fine_batch,
-                                original_secondary_train_pred_coarse_batch=original_secondary_pred_coarse_batch,
-                                error_detection_rules=self.error_detection_rules,
-                                device=device
-                            )
-                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_combine)
-
-                        if loss == "soft_marginal":
-                            criterion = torch.nn.MultiLabelSoftMarginLoss()
-
-                            sat_agg = ltn_support.compute_sat_normally(
-                                logits_to_predicate=logits_to_predicate,
-                                train_pred_fine_batch=Y_pred_fine_grain,
-                                train_pred_coarse_batch=Y_pred_coarse_grain,
-                                train_true_fine_batch=Y_fine_grain,
-                                train_true_coarse_batch=Y_coarse_grain,
-                                original_train_pred_fine_batch=original_pred_fine_batch,
-                                original_train_pred_coarse_batch=original_pred_coarse_batch,
-                                original_secondary_train_pred_fine_batch=original_secondary_pred_fine_batch,
-                                original_secondary_train_pred_coarse_batch=original_secondary_pred_coarse_batch,
-                                error_detection_rules=self.error_detection_rules,
-                                device=device
-                            )
-                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * (
-                                criterion(Y_pred, Y_combine))
-
-                        neural_metrics.print_post_batch_metrics(batch_num=batch_num,
-                                                                num_batches=num_batches,
-                                                                batch_total_loss=batch_total_loss.item())
-
-                        batch_total_loss.backward()
-                        optimizer.step()
-
-                        total_running_loss += batch_total_loss.item()
-
-                    predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
-                    predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
-
-                    fine_predictions += predicted_fine.tolist()
-                    coarse_predictions += predicted_coarse.tolist()
-
-                    fine_ground_truths += Y_fine_grain.tolist()
-                    coarse_ground_truths += Y_coarse_grain.tolist()
-
-                    original_pred_fines += original_pred_fine_batch.tolist()
-                    original_pred_coarses += original_pred_coarse_batch.tolist()
-
-                    if self.secondary_model_name is not None:
-                        original_secondary_pred_fines += original_secondary_pred_fine_batch.tolist()
-                        original_secondary_pred_coarses += original_secondary_pred_coarse_batch.tolist()
-
-                    del X, Y_fine_grain, Y_coarse_grain, indices, Y_pred_fine_grain, Y_pred_coarse_grain
-
-        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_metrics(
-            curr_epoch=epoch,
-            total_num_epochs=self.num_ltn_epochs,
-            train_fine_ground_truth=np.array(fine_ground_truths),
-            train_fine_prediction=np.array(fine_predictions),
-            train_coarse_ground_truth=np.array(coarse_ground_truths),
-            train_coarse_prediction=np.array(coarse_predictions))
-
-        ltn_support.compute_sat_testing_value(
-            logits_to_predicate=logits_to_predicate,
-            pred_fine_batch=torch.tensor(fine_predictions).to(device),
-            pred_coarse_batch=torch.tensor(coarse_predictions).to(device),
-            true_fine_batch=torch.tensor(fine_ground_truths).to(device),
-            true_coarse_batch=torch.tensor(coarse_ground_truths).to(device),
-            original_pred_fine_batch=torch.tensor(original_pred_fines).to(device),
-            original_pred_coarse_batch=torch.tensor(original_pred_coarses).to(device),
-            original_secondary_pred_fine_batch=torch.tensor(original_secondary_pred_fines).to(device)
-            if self.secondary_model_name is not None else None,
-            original_secondary_pred_coarse_batch=torch.tensor(original_secondary_pred_coarses).to(device)
-            if self.secondary_model_name is not None else None,
-            error_detection_rules=self.error_detection_rules,
-            device=device
+        self.preprocessor, self.fine_tuners, self.loaders, self.devices = backbone_pipeline.initiate(
+            data_str=self.data_str,
+            preprocessor=self.preprocessor,
+            lr=self.lr,
+            model_name=main_model_name,
         )
 
-        if mode == 'train':
-            scheduler.step()
-
-        print('#' * 100)
-
-        return fine_accuracy, coarse_accuracy, fine_predictions, coarse_predictions
-
-    def train_and_evaluate_baseline_combined_model(self,
-                                                   fine_tuner: models.FineTuner,
-                                                   device: torch.device,
-                                                   loaders: dict[str, torch.utils.data.DataLoader],
-                                                   loss: str,
-                                                   mode: str,
-                                                   epoch: int = 0,
-                                                   optimizer=None,
-                                                   scheduler=None
-                                                   ):
-        fine_tuner.to(device)
-        fine_tuner.train()
-        loader = loaders[mode]
-        num_batches = len(loader)
-
-        print(f'\n{mode} {fine_tuner} with {len(fine_tuner)} parameters for {self.num_ltn_epochs} epochs '
-              f'using lr={self.lr} on {device}...')
-        print('#' * 100 + '\n')
-
-        with context_handlers.TimeWrapper():
-            total_running_loss = 0.0
-
-            fine_predictions = []
-            coarse_predictions = []
-
-            fine_ground_truths = []
-            coarse_ground_truths = []
-            batch_indices = []
-
-            batches = neural_fine_tuning.get_fine_tuning_batches(train_loader=loader,
-                                                                 num_batches=num_batches,
-                                                                 debug=False)
-
-            for batch_num, batch in batches:
-                with context_handlers.ClearCache(device=device):
-                    X, Y_fine_grain, Y_coarse_grain, batch_index = (
-                        batch[0].to(device), batch[1].to(device), batch[3].to(device), batch[4])
-
-                    Y_fine_grain_one_hot = torch.nn.functional.one_hot(Y_fine_grain, num_classes=len(
-                        data_preprocessing.fine_grain_classes_str))
-                    Y_coarse_grain_one_hot = torch.nn.functional.one_hot(Y_coarse_grain, num_classes=len(
-                        data_preprocessing.coarse_grain_classes_str))
-
-                    Y_combine = torch.cat(tensors=[Y_fine_grain_one_hot, Y_coarse_grain_one_hot], dim=1).float()
-
-                    # currently we have many option to get prediction, depend on whether fine_tuner predict
-                    # fine / coarse or both
-                    Y_pred = fine_tuner(X)
-
-                    Y_pred_fine_grain = Y_pred[:, :len(data_preprocessing.fine_grain_classes_str)]
-                    Y_pred_coarse_grain = Y_pred[:, len(data_preprocessing.fine_grain_classes_str):]
-
-                    if mode == 'train':
-
-                        optimizer.zero_grad()
-
-                        if loss == 'BCE':
-                            criterion = torch.nn.BCEWithLogitsLoss()
-                            batch_total_loss = criterion(Y_pred, Y_combine)
-
-                        if loss == "soft_marginal":
-                            criterion = torch.nn.MultiLabelSoftMarginLoss()
-                            batch_total_loss = criterion(Y_pred, Y_combine)
-
-                        neural_metrics.print_post_batch_metrics(batch_num=batch_num,
-                                                                num_batches=num_batches,
-                                                                batch_total_loss=batch_total_loss.item())
-
-                        batch_total_loss.backward()
-                        optimizer.step()
-
-                        total_running_loss += batch_total_loss.item()
-
-                    predicted_fine = torch.max(Y_pred_fine_grain, 1)[1]
-                    predicted_coarse = torch.max(Y_pred_coarse_grain, 1)[1]
-
-                    fine_predictions += predicted_fine.tolist()
-                    coarse_predictions += predicted_coarse.tolist()
-
-                    fine_ground_truths += Y_fine_grain.tolist()
-                    coarse_ground_truths += Y_coarse_grain.tolist()
-
-                    batch_indices += batch_index.tolist()
-
-                    del X, Y_fine_grain, Y_coarse_grain, Y_pred_fine_grain, Y_pred_coarse_grain
-
-        fine_accuracy, coarse_accuracy = neural_metrics.get_and_print_post_metrics(
-            curr_epoch=epoch,
-            total_num_epochs=self.num_baseline_epochs,
-            train_fine_ground_truth=np.array(fine_ground_truths),
-            train_fine_prediction=np.array(fine_predictions),
-            train_coarse_ground_truth=np.array(coarse_ground_truths),
-            train_coarse_prediction=np.array(coarse_predictions))
-
-        if mode == 'train':
-            scheduler.step()
-
-        return (np.array(fine_predictions), np.array(coarse_predictions), np.array(batch_indices),
-                fine_accuracy, coarse_accuracy)
-
-    def run_baseline_pipeline(self):
-
-        print(f'\nStarted train baseline model ...\n')
-
-        self.baseline_model = self.fine_tuners[0]
-
-        optimizer = torch.optim.Adam(params=self.baseline_model.parameters(),
-                                     lr=self.lr)
-
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
-                                                    step_size=self.scheduler_step_size,
-                                                    gamma=self.scheduler_gamma)
-
-        train_fine_accuracies = []
-        train_coarse_accuracies = []
-
-        for epoch in range(self.num_baseline_epochs):
-            with ((context_handlers.ClearSession())):
-
-                train_fine_prediction, train_coarse_prediction, train_indices, _, _ = (
-                    self.train_and_evaluate_baseline_combined_model(
-                        fine_tuner=self.baseline_model,
-                        device=self.devices[0],
-                        loaders=self.loaders,
-                        loss=self.loss,
-                        epoch=epoch,
-                        mode='train',
-                        optimizer=optimizer,
-                        scheduler=scheduler
-                    ))
-
-                (train_eval_fine_prediction, train_eval_coarse_prediction, train_eval_indices,
-                 train_eval_fine_accuracy, train_eval_coarse_accuracy) = (
-                    self.train_and_evaluate_baseline_combined_model(
-                        fine_tuner=self.baseline_model,
-                        device=self.devices[0],
-                        loaders=self.loaders,
-                        loss=self.loss,
-                        epoch=epoch,
-                        mode='train_eval'
-                    ))
-
-                train_fine_accuracies += [train_eval_fine_accuracy]
-                train_coarse_accuracies += [train_eval_coarse_accuracy]
-
-                slicing_window_last = (sum(train_fine_accuracies[-3:]) + sum(train_coarse_accuracies[-3:])) / 6
-                slicing_window_before_last = (sum(train_fine_accuracies[-4:-2]) + sum(
-                    train_coarse_accuracies[-4:-2])) / 6
-
-                if epoch >= 10 and slicing_window_last <= slicing_window_before_last:
-                    break
-
-        print(f'\nfinish train and eval baseline model!\n')
-
-        self.pred_data['train']['original'][config.g_fine] = np.ones_like(data_preprocessing.train_true_fine_data) * -1
-        self.pred_data['train']['original'][config.g_fine][train_indices] = np.array(train_fine_prediction)
-        self.pred_data['train']['original'][config.g_fine][train_eval_indices] = np.array(train_eval_fine_prediction)
-
-        self.pred_data['train']['original'][config.g_coarse] = np.ones_like(
-            data_preprocessing.train_true_fine_data) * -1
-        self.pred_data['train']['original'][config.g_coarse][train_indices] = np.array(train_coarse_prediction)
-        self.pred_data['train']['original'][config.g_coarse][train_eval_indices] = np.array(
-            train_eval_coarse_prediction)
-
-        print(f'\nupdate original prediction!\n')
-
-        test_fine_prediction, test_coarse_prediction, test_indices, _, _ = (
-            self.train_and_evaluate_baseline_combined_model(
-                fine_tuner=self.baseline_model,
-                device=self.devices[0],
-                loaders=self.loaders,
-                loss=self.loss,
-                mode='test'
-            ))
-
-        self.pred_data['test']['original'][config.g_coarse] = np.ones_like(data_preprocessing.test_true_fine_data) * -1
-        self.pred_data['test']['original'][config.g_coarse][test_indices] = np.array(test_coarse_prediction)
-
-        self.pred_data['test']['original'][config.g_fine] = np.ones_like(data_preprocessing.test_true_fine_data) * -1
-        self.pred_data['test']['original'][config.g_fine][test_indices] = np.array(test_coarse_prediction)
-
-        torch.save(obj=self.baseline_model.state_dict(),
-                   f=f"models/vit_b_16/combined_{self.loss}_"
-                     f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.pth")
-
-        np.save(file=f"combined_results/vit_b_16_train_fine_{self.loss}_"
-                     f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.npy",
-                arr=self.pred_data['train']['original'][config.g_fine])
-
-        np.save(file=f"combined_results/vit_b_16_train_coarse_{self.loss}_"
-                     f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.npy",
-                arr=self.pred_data['train']['original'][config.g_coarse])
-
-        np.save(file=f"combined_results/vit_b_16_test_fine_{self.loss}_"
-                     f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.npy",
-                arr=self.pred_data['test']['original'][config.g_fine])
-
-        np.save(file=f"combined_results/vit_b_16_test_coarse_{self.loss}_"
-                     f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                     f"baseline_epoch_{self.num_baseline_epochs}_"
-                     f"remove_label_{self.formatted_removed_label}.npy",
-                arr=self.pred_data['test']['original'][config.g_coarse])
-
-        print('#' * 100)
-
     def run_learning_pipeline(self,
-                              model_index: int,
-                              EDCR_epoch_num=0):
+                              multi_threading: bool = True):
         print('Started learning pipeline...\n')
 
-        for g in data_preprocessing.granularities.values():
-            self.learn_detection_rules(g=g)
+        for g in data_preprocessing.DataPreprocessor.granularities.values():
+            self.learn_detection_rules(g=g,
+                                       multi_threading=multi_threading)
 
         print('\nRule learning completed\n')
 
-        print(f'\nStarted train and eval LTN model {model_index}...\n')
+    def fine_tune_and_evaluate_combined_model(self,
+                                              print_rules: bool = False,
+                                              additional_info: str = None):
 
-        self.correction_model[model_index] = copy.deepcopy(self.baseline_model)
+        fine_tuner = self.fine_tuners[0]
+        device = self.devices[0]
+        preprocessor = self.preprocessor
+        loss = self.ltn_loss
+        beta = self.beta
+        data_str = self.preprocessor.data_str
+        model_name = self.main_model_name
+        lr = self.lr
+        evaluate_on_test_between_epochs = True
+        loaders = self.loaders
+        early_stopping = True
 
-        train_fine_accuracies = []
-        train_coarse_accuracies = []
+        fine_tuner.to(device)
+        fine_tuner.train()
+        train_loader = loaders['train']
+        num_batches = len(train_loader)
 
-        optimizer = torch.optim.Adam(params=self.correction_model[model_index].parameters(),
-                                     lr=self.lr)
+        optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
+                                     lr=lr)
 
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
-                                                    step_size=self.scheduler_step_size,
-                                                    gamma=self.scheduler_gamma)
+        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
+
+        train_eval_losses = []
+        best_fine_tuner = copy.deepcopy(fine_tuner)
+
+        if print_rules:
+            print(utils.blue_text(f'Rules that are using: '))
+            for label, rules in self.error_detection_rules.items():
+                print(f'rule for {label}: {rules}')
+
+        print(utils.blue_text(f'\nTrain {fine_tuner} with {len(fine_tuner)} parameters '
+                              f'for {self.num_ltn_epochs} epochs using lr={self.lr} on {device}...'))
+        neural_fine_tuning.print_fine_tuning_initialization(fine_tuner=fine_tuner,
+                                                            num_epochs=self.num_ltn_epochs,
+                                                            lr=self.lr,
+                                                            device=device,
+                                                            early_stopping=True)
+        print('#' * 100 + '\n')
+        print('#' * 100 + '\n')
+
+        consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0
+
         for epoch in range(self.num_ltn_epochs):
-            with context_handlers.ClearSession():
 
-                self.fine_tune_and_evaluate_combined_model(
-                    fine_tuner=self.correction_model[model_index],
-                    device=self.devices[0],
-                    loaders=self.loaders,
-                    loss=self.loss,
-                    epoch=epoch,
-                    mode='train',
-                    optimizer=optimizer,
-                    scheduler=scheduler
-                )
+            with ((context_handlers.TimeWrapper())):
+                total_running_loss = torch.Tensor([0.0]).to(device)
 
-                training_fine_accuracy, training_coarse_accuracy, _, _ = self.fine_tune_and_evaluate_combined_model(
-                    fine_tuner=self.correction_model[model_index],
-                    device=self.devices[0],
-                    loaders=self.loaders,
-                    loss=self.loss,
-                    epoch=epoch,
-                    mode='train_eval'
-                )
+                total_train_fine_predictions = []
+                total_train_coarse_predictions = []
 
-                train_fine_accuracies += [training_fine_accuracy]
-                train_coarse_accuracies += [training_coarse_accuracy]
+                total_train_fine_ground_truths = []
+                total_train_coarse_ground_truths = []
 
-                slicing_window_last = (sum(train_fine_accuracies[-3:]) + sum(train_coarse_accuracies[-3:])) / 6
-                slicing_window_before_last = (sum(train_fine_accuracies[-4:-2]) + sum(
-                    train_coarse_accuracies[-4:-2])) / 6
+                batches = tqdm(enumerate(train_loader),
+                               total=num_batches)
 
-                if epoch >= 6 and slicing_window_last <= slicing_window_before_last:
-                    break
+                for batch_num, batch in batches:
+                    with context_handlers.ClearCache(device=device):
+                        X, Y_true_fine, Y_true_coarse, indices = [batch[i].to(device) for i in [0, 1, 3, 4]]
 
-        print(f'\nfinish train and eval model {model_index}!\n')
+                        # slice the condition from the indices you get above
+                        original_pred_fine_batch = torch.tensor(
+                            self.pred_data['train']['original']['fine'][indices]).to(device)
+                        original_pred_coarse_batch = torch.tensor(
+                            self.pred_data['train']['original']['coarse'][indices]).to(device)
 
+                        original_secondary_pred_fine_batch = None if not config.use_secondary_model else torch.tensor(
+                            self.pred_data['secondary_model']['train']['fine'][indices]).to(device)
+                        original_secondary_pred_coarse_batch = None if not config.use_secondary_model else torch.tensor(
+                            self.pred_data['secondary_model']['train']['coarse'][indices]).to(device)
+
+                        Y_true_fine_one_hot = torch.nn.functional.one_hot(Y_true_fine, num_classes=len(
+                            preprocessor.fine_grain_classes_str))
+                        Y_true_coarse_one_hot = torch.nn.functional.one_hot(Y_true_coarse, num_classes=len(
+                            preprocessor.coarse_grain_classes_str))
+
+                        Y_true_combine = torch.cat(tensors=[Y_true_fine_one_hot, Y_true_coarse_one_hot], dim=1).float()
+
+                        # currently we have many option to get prediction, depend on whether fine_tuner predict
+                        # fine / coarse or both
+                        Y_pred = fine_tuner(X)
+
+                        Y_pred_fine_grain = Y_pred[:, :len(preprocessor.fine_grain_classes_str)]
+                        Y_pred_coarse_grain = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
+
+                        if 'LTN_BCE' in loss:
+                            criterion = torch.nn.BCEWithLogitsLoss()
+                        if "LTN_soft_marginal" in loss:
+                            criterion = torch.nn.MultiLabelSoftMarginLoss()
+
+                        sat_agg = ltn_support.compute_sat_normally(
+                            preprocessor=preprocessor,
+                            logits_to_predicate=logits_to_predicate,
+                            train_pred_fine_batch=Y_pred_fine_grain,
+                            train_pred_coarse_batch=Y_pred_coarse_grain,
+                            train_true_fine_batch=Y_true_fine,
+                            train_true_coarse_batch=Y_true_coarse,
+                            original_train_pred_fine_batch=original_pred_fine_batch,
+                            original_train_pred_coarse_batch=original_pred_coarse_batch,
+                            original_secondary_train_pred_fine_batch=original_secondary_pred_fine_batch,
+                            original_secondary_train_pred_coarse_batch=original_secondary_pred_coarse_batch,
+                            binary_pred=None,
+                            error_detection_rules=self.error_detection_rules,
+                            device=device
+                        )
+                        batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
+
+                        current_train_fine_predictions = torch.max(Y_pred_fine_grain, 1)[1]
+                        current_train_coarse_predictions = torch.max(Y_pred_coarse_grain, 1)[1]
+
+                        total_train_fine_predictions += current_train_fine_predictions.tolist()
+                        total_train_coarse_predictions += current_train_coarse_predictions.tolist()
+
+                        total_train_fine_ground_truths += Y_true_fine.tolist()
+                        total_train_coarse_ground_truths += Y_true_coarse.tolist()
+
+                        del X, Y_true_fine, Y_true_coarse, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
+
+                        total_running_loss += batch_total_loss.item()
+
+                        if batch_num > 4 and batch_num % 5 == 0:
+                            neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
+                                                                      curr_batch_num=batch_num,
+                                                                      total_batch_num=len(batches),
+                                                                      train_fine_ground_truth=np.array(
+                                                                          total_train_fine_ground_truths),
+                                                                      train_fine_prediction=np.array(
+                                                                          total_train_fine_predictions),
+                                                                      train_coarse_ground_truth=np.array(
+                                                                          total_train_coarse_ground_truths),
+                                                                      train_coarse_prediction=np.array(
+                                                                          total_train_coarse_predictions))
+                        batch_total_loss.backward()
+                        optimizer.step()
+
+                if epoch == 0:
+                    print(utils.blue_text(
+                        f'coarse grain label use and count: '
+                        f'{np.unique(np.array(total_train_coarse_ground_truths), return_counts=True)}'))
+                    print(utils.blue_text(
+                        f'fine grain label use and count: '
+                        f'{np.unique(np.array(total_train_fine_ground_truths), return_counts=True)}'))
+
+                neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
+                                                          curr_epoch=epoch,
+                                                          total_num_epochs=self.num_ltn_epochs,
+                                                          train_fine_ground_truth=np.array(
+                                                              total_train_fine_ground_truths),
+                                                          train_fine_prediction=np.array(
+                                                              total_train_fine_predictions),
+                                                          train_coarse_ground_truth=np.array(
+                                                              total_train_coarse_ground_truths),
+                                                          train_coarse_prediction=np.array(
+                                                              total_train_coarse_predictions))
+
+                if evaluate_on_test_between_epochs:
+                    evaluate_on_test(data_str=preprocessor.data_str,
+                                     model_name=self.main_model_name,
+                                     lr=lr,
+                                     fine_tuner=best_fine_tuner,
+                                     loss=loss,
+                                     num_epochs=self.num_ltn_epochs,
+                                     save_files=False)
+
+                if early_stopping:
+                    train_eval_fine_accuracy, train_eval_coarse_accuracy, train_eval_fine_f1, train_eval_coarse_f1 = \
+                        neural_evaluation.evaluate_combined_model(
+                            preprocessor=preprocessor,
+                            fine_tuner=fine_tuner,
+                            loaders=loaders,
+                            loss=loss,
+                            device=device,
+                            split='train_eval')[-3:-1]
+                    train_eval_mean_accuracy = (train_eval_fine_accuracy + train_eval_coarse_accuracy) / 2
+                    train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1) / 2
+
+                    harmonic_mean = 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
+
+                    print(f'The current train eval loss is {utils.red_text(harmonic_mean)}')
+
+                    if not len(train_eval_losses) or \
+                            (len(train_eval_losses) and harmonic_mean < min(train_eval_losses)):
+                        print(utils.green_text(
+                            f'The last loss is lower than previous ones. Updating the best fine tuner'))
+                        best_fine_tuner = copy.deepcopy(fine_tuner)
+
+                    if len(train_eval_losses) and harmonic_mean >= min(train_eval_losses):
+                        consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum += 1
+                    else:
+                        consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0
+
+                    if consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum == 6:
+                        print(utils.red_text(f'finish training, stop criteria met!!!'))
+                        break
+
+                    train_eval_losses += [harmonic_mean]
+
+        if not evaluate_on_test_between_epochs:
+            evaluate_on_test(data_str=data_str,
+                             model_name=model_name,
+                             lr=lr,
+                             fine_tuner=best_fine_tuner,
+                             loss=loss,
+                             num_epochs=self.num_ltn_epochs,
+                             save_files=False)
+
+        torch.save(best_fine_tuner.state_dict(), f"models/{best_fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
+
+        # save prediction file
+        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
+                                                           model_name=model_name,
+                                                           split='train',
+                                                           lr=lr,
+                                                           loss=loss,
+                                                           pretrained_fine_tuner=best_fine_tuner,
+                                                           num_epochs=self.num_ltn_epochs,
+                                                           print_results=True,
+                                                           save_files=True,
+                                                           additional_info=additional_info)
+        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
+                                                           model_name=model_name,
+                                                           split='test',
+                                                           lr=lr,
+                                                           loss=loss,
+                                                           pretrained_fine_tuner=best_fine_tuner,
+                                                           num_epochs=self.num_ltn_epochs,
+                                                           print_results=True,
+                                                           save_files=True,
+                                                           additional_info=additional_info)
         print('#' * 100)
-
-    def run_evaluating_pipeline(self,
-                                model_index: int):
-
-        print(f'\nStarted testing LTN model {model_index}...\n')
-
-        _, _, fine_predictions, coarse_prediction = self.fine_tune_and_evaluate_combined_model(
-            fine_tuner=self.correction_model[model_index],
-            device=self.devices[0],
-            loaders=self.loaders,
-            loss=self.loss,
-            mode='test'
-        )
-        return fine_predictions, coarse_prediction
-
-    def get_majority_vote(self,
-                          predictions: dict[int, tuple[list, list]],
-                          g: data_preprocessing.Granularity):
-        """
-        Performs majority vote on a list of 1D numpy arrays representing predictions.
-
-        Args:
-            predictions: A list of 1D numpy arrays, where each array represents the
-                         predictions from a single model.
-
-        Returns:
-            A 1D numpy array representing the majority vote prediction for each element.
-        """
-        # Count the occurrences of each class for each example (axis=0)
-        all_prediction = torch.zeros_like(torch.nn.functional.one_hot(torch.tensor(predictions[0]),
-                                                                      num_classes=len(
-                                                                          data_preprocessing.get_labels(g))))
-        for i in range(self.num_models):
-            all_prediction += torch.nn.functional.one_hot(torch.tensor(predictions[i]),
-                                                          num_classes=len(data_preprocessing.get_labels(g)))
-
-        # Get the index of the majority class
-        majority_votes = torch.argmax(all_prediction, dim=1)
-
-        return majority_votes
-
-    def run_evaluating_pipeline_all_models(self):
-
-        fine_prediction, coarse_prediction = {}, {}
-        for i in range(self.num_models):
-            self.run_learning_pipeline(model_index=i)
-            fine_prediction[i], coarse_prediction[i] = self.run_evaluating_pipeline(model_index=i)
-
-        print("\nGot all the prediction from test model!\n")
-
-        final_fine_prediction = self.get_majority_vote(fine_prediction,
-                                                       g=data_preprocessing.granularities['fine'])
-        final_coarse_prediction = self.get_majority_vote(coarse_prediction,
-                                                         g=data_preprocessing.granularities['coarse'])
-
-        np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_fine_{self.loss}_"
-                f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                f"ltn_epoch_{self.num_ltn_epochs}_"
-                f"beta_{self.beta}_num_model_{self.num_models}_"
-                f"remove_label_{self.formatted_removed_label}.npy",
-                np.array(final_fine_prediction))
-
-        np.save(f"combined_results/LTN_EDCR_result/vit_b_16_test_coarse_{self.loss}_"
-                f"lr_{self.lr}_batch_size_{self.batch_size}_"
-                f"ltn_epoch_{self.num_ltn_epochs}_"
-                f"beta_{self.beta}_num_model_{self.num_models}_"
-                f"remove_label_{self.formatted_removed_label}.npy",
-                np.array(final_coarse_prediction))
-
-        neural_metrics.get_and_print_metrics(pred_fine_data=np.array(final_fine_prediction),
-                                             pred_coarse_data=np.array(final_coarse_prediction),
-                                             loss=self.loss,
-                                             true_fine_data=data_preprocessing.get_ground_truths(
-                                                 test=True,
-                                                 g=data_preprocessing.granularities['fine']),
-                                             true_coarse_data=data_preprocessing.get_ground_truths(
-                                                 test=True,
-                                                 g=data_preprocessing.granularities['coarse']),
-                                             test=True)
 
 
 if __name__ == '__main__':
-    epsilons = [0.1 * i for i in range(2, 3)]
-    test_bool = False
-    main_pretrained_path = config
+    data_str = 'military_vehicles'
+    epsilon = 0.1
+    main_model_name = 'vit_b_16'
+    main_lr = 0.0001
+    original_num_epochs = 20
 
-    for eps in epsilons:
-        print('#' * 25 + f'eps = {eps}' + '#' * 50)
-        edcr = EDCR_LTN_experiment(
-            epsilon=eps,
-            main_model_name=config.vit_model_names[0],
-            combined=config.combined,
-            loss=config.loss,
-            lr=config.lr,
-            num_epochs=config.num_epochs,
-            include_inconsistency_constraint=config.include_inconsistency_constraint,
-            secondary_model_name=config.secondary_model_name,
-            config=config)
-        edcr.run_evaluating_pipeline_all_models()
+    secondary_model_name = 'vit_l_16'
+    secondary_model_loss = 'BCE'
+    secondary_num_epochs = 20
+
+    binary_num_epochs = 10
+    binary_lr = 0.0001
+    binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
+                          for f in os.listdir('binary_results')
+                          if f.startswith(f'{data_str}_{main_model_name}')
+                          })
+
+    edcr = EDCR_LTN_experiment(data_str=data_str,
+                               epsilon=epsilon,
+                               main_model_name=main_model_name,
+                               combined=True,
+                               loss='BCE',
+                               lr=main_lr,
+                               original_num_epochs=original_num_epochs,
+                               secondary_model_name=secondary_model_name,
+                               secondary_model_loss=secondary_model_loss,
+                               secondary_num_epochs=secondary_num_epochs,
+                               binary_l_strs=binary_l_strs,
+                               binary_lr=binary_lr,
+                               binary_num_epochs=binary_num_epochs)
+    edcr.run_learning_pipeline()
+    edcr.fine_tune_and_evaluate_combined_model(additional_info='LTN')

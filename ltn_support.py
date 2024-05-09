@@ -4,6 +4,7 @@ import torch
 import data_preprocessing
 import conditions
 import rules
+import typing
 
 
 class LogitsToPredicate(torch.nn.Module):
@@ -72,7 +73,8 @@ def true_predicate(examples: torch.tensor,
     return torch.where(pred_indices == true_data[0], 1., 0.).to(device)
 
 
-def compute_sat_normally(logits_to_predicate: torch.nn.Module,
+def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
+                         logits_to_predicate: torch.nn.Module,
                          train_pred_fine_batch: torch.tensor,
                          train_pred_coarse_batch: torch.tensor,
                          train_true_fine_batch: torch.tensor,
@@ -81,6 +83,7 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
                          original_train_pred_coarse_batch: torch.tensor,
                          original_secondary_train_pred_fine_batch: torch.tensor,
                          original_secondary_train_pred_coarse_batch: torch.tensor,
+                         binary_pred: typing.Dict[data_preprocessing.Label, torch.tensor],
                          error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule],
                          device: torch.device):
     """
@@ -94,8 +97,8 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     return:
       sat_agg: sat_agg for all the rules
     """
-    g_fine = data_preprocessing.granularities['fine']
-    g_coarse = data_preprocessing.granularities['coarse']
+    g_fine = preprocessor.granularities['fine']
+    g_coarse = preprocessor.granularities['coarse']
 
     # Define predicate
     Not = ltn.Connective(ltn.fuzzy_ops.NotStandard())
@@ -108,8 +111,8 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
 
     # Cond predicate l: 1 if example satisfy any cond in DC_l and 0 otherwise]
     Conds_predicate = {}
-    for l in (list(data_preprocessing.get_labels(g_fine).values()) +
-              list(data_preprocessing.get_labels(g_coarse).values())):
+    for l in (list(preprocessor.fine_grain_labels) +
+              list(preprocessor.coarse_grain_labels)):
         Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction: conds_predicate(
             examples=x,
             prediction=prediction,
@@ -132,13 +135,13 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     true_fine_data = ltn.Constant(train_true_fine_batch)
     true_coarse_data = ltn.Constant(train_true_coarse_batch)
     label_one_hot = {}
-    for l in data_preprocessing.get_labels(g_fine).values():
-        one_hot = torch.zeros(len(data_preprocessing.fine_grain_classes_str))
+    for l in preprocessor.fine_grain_labels:
+        one_hot = torch.zeros(len(preprocessor.fine_grain_classes_str))
         one_hot[l.index] = 1.0
         label_one_hot[l] = ltn.Constant(one_hot.to(device))
 
-    for l in data_preprocessing.get_labels(g_coarse).values():
-        one_hot = torch.zeros(len(data_preprocessing.coarse_grain_classes_str))
+    for l in preprocessor.coarse_grain_labels:
+        one_hot = torch.zeros(len(preprocessor.coarse_grain_classes_str))
         one_hot[l.index] = 1.0
         label_one_hot[l] = ltn.Constant(one_hot.to(device))
 
@@ -147,10 +150,10 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     x_fine = ltn.Variable("x_fine", train_pred_fine_batch)
     x_coarse = ltn.Variable("x_coarse", train_pred_coarse_batch)
 
-    for l in data_preprocessing.get_labels(g=g_fine).values():
+    for l in preprocessor.fine_grain_labels:
         x_variables[l] = ltn.Variable(
             str(l), train_pred_fine_batch[train_pred_fine_batch == l.index])
-    for l in data_preprocessing.get_labels(g=g_coarse).values():
+    for l in preprocessor.coarse_grain_labels:
         x_variables[l] = ltn.Variable(
             str(l), train_pred_coarse_batch[train_pred_coarse_batch == l.index])
 
@@ -159,7 +162,7 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     # Detection Rule: pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w))
     # error_i(w) = pred_i(w) and not(true_i(w))
 
-    for l in data_preprocessing.get_labels(g_fine).values():
+    for l in preprocessor.fine_grain_labels:
         confidence_score = (
             Forall(x_fine,
                    Implies(
@@ -172,7 +175,7 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
                    ))
         sat_agg_list.append(confidence_score)
 
-    for l in data_preprocessing.get_labels(g_coarse).values():
+    for l in preprocessor.coarse_grain_labels:
         confidence_score = (
             Forall(x_coarse,
                    Implies(
@@ -192,126 +195,125 @@ def compute_sat_normally(logits_to_predicate: torch.nn.Module,
     return sat_agg
 
 
-def compute_sat_testing_value(logits_to_predicate: torch.nn.Module,
-                              pred_fine_batch: torch.tensor,
-                              pred_coarse_batch: torch.tensor,
-                              true_fine_batch: torch.tensor,
-                              true_coarse_batch: torch.tensor,
-                              original_pred_fine_batch: torch.tensor,
-                              original_pred_coarse_batch: torch.tensor,
-                              original_secondary_pred_fine_batch: torch.tensor,
-                              original_secondary_pred_coarse_batch: torch.tensor,
-                              error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule],
-                              device: torch.device):
-    """
-        compute satagg function for rules
-        argument:
-          - logits_to_predicate: get the satisfaction of a variable given the label
-          - prediction: output of fine tuner,
-          - labels_coarse, labels_fine: ground truth of coarse and fine label
-          - fine_to_coarse: dictionary mapping fine-grain class to coarse-grain class
-
-        return:
-          sat_agg: sat_agg for all the rules
-        """
-    g_fine = data_preprocessing.granularities['fine']
-    g_coarse = data_preprocessing.granularities['coarse']
-
-    # Define predicate
-    Not = ltn.Connective(ltn.fuzzy_ops.NotStandard())
-    And = ltn.Connective(ltn.fuzzy_ops.AndProd())
-    Or = ltn.Connective(ltn.fuzzy_ops.OrProbSum())
-    Implies = ltn.Connective(ltn.fuzzy_ops.ImpliesReichenbach())
-    Forall = ltn.Quantifier(
-        ltn.fuzzy_ops.AggregPMeanError(p=4), quantifier="f")
-    SatAgg = ltn.fuzzy_ops.SatAgg()
-
-    # Cond predicate l: 1 if example satisfy any cond in DC_l and 0 otherwise]
-    Conds_predicate = {}
-    for l in (list(data_preprocessing.get_labels(g_fine).values()) +
-              list(data_preprocessing.get_labels(g_coarse).values())):
-        Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction: conds_predicate(
-            examples=x,
-            prediction=prediction,
-            cond_fine_data=original_pred_fine_batch,
-            cond_coarse_data=original_pred_coarse_batch,
-            cond_second_fine_data=original_secondary_pred_fine_batch,
-            cond_second_coarse_data=original_secondary_pred_coarse_batch,
-            conds=error_detection_rules[l].C_l,
-            device=device))
-
-    True_predicate = ltn.Predicate(func=lambda x, true_batch: true_predicate(
-        examples=x,
-        true_data=true_batch,
-        device=device)
-                                   )
-
-    # Define constant: already done in data_preprocessing.py
-    pred_fine_data = ltn.Constant(pred_fine_batch)
-    pred_coarse_data = ltn.Constant(pred_coarse_batch)
-    true_fine_data = ltn.Constant(true_fine_batch)
-    true_coarse_data = ltn.Constant(true_coarse_batch)
-    label_one_hot = {}
-    for l in data_preprocessing.get_labels(g_fine).values():
-        one_hot = torch.zeros(len(data_preprocessing.fine_grain_classes_str))
-        one_hot[l.index] = 1.0
-        label_one_hot[l] = ltn.Constant(one_hot.to(device))
-
-    for l in data_preprocessing.get_labels(g_coarse).values():
-        one_hot = torch.zeros(len(data_preprocessing.coarse_grain_classes_str))
-        one_hot[l.index] = 1.0
-        label_one_hot[l] = ltn.Constant(one_hot.to(device))
-
-    # Define variables
-    x_variables = {}
-    x_fine = ltn.Variable("x_fine", pred_fine_batch)
-    x_coarse = ltn.Variable("x_coarse", pred_coarse_batch)
-
-    for l in data_preprocessing.get_labels(g=g_fine).values():
-        x_variables[l] = ltn.Variable(
-            str(l), pred_fine_batch[pred_fine_batch == l.index])
-    for l in data_preprocessing.get_labels(g=g_coarse).values():
-        x_variables[l] = ltn.Variable(
-            str(l), pred_coarse_batch[pred_coarse_batch == l.index])
-
-    sat_agg_list = []
-    sat_agg_average_score = 0
-
-    # Detection Rule: pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w))
-    # error_i(w) = pred_i(w) and not(true_i(w))
-
-    for l in data_preprocessing.get_labels(g_fine).values():
-        confidence_score = (
-            Forall(x_fine,
-                   Implies(
-                       And(logits_to_predicate(x_fine, label_one_hot[l]),
-                           Conds_predicate[l](x_fine, pred_fine_data)),
-                       And(
-                           Not(True_predicate(x_fine, true_fine_data)),
-                           logits_to_predicate(x_fine, label_one_hot[l]))
-                   )
-                   ))
-        sat_agg_list.append(confidence_score)
-        sat_agg_average_score += confidence_score.value.detach().item()
-    print(f'for all w in operational data, i in fine grain classes, rule \n'
-          f'pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w)) \n'
-          f'has average score {sat_agg_average_score / len(data_preprocessing.fine_grain_classes_str)}')
-
-    sat_agg_average_score = 0
-    for l in data_preprocessing.get_labels(g_coarse).values():
-        confidence_score = (
-            Forall(x_coarse,
-                   Implies(
-                       And(logits_to_predicate(x_coarse, label_one_hot[l]),
-                           Conds_predicate[l](x_coarse, pred_coarse_data)),
-                       And(
-                           Not(True_predicate(x_coarse, true_coarse_data)),
-                           logits_to_predicate(x_coarse, label_one_hot[l]))
-                   )
-                   ))
-        sat_agg_list.append(confidence_score)
-        sat_agg_average_score += confidence_score.value.detach().item()
-    print(f'for all w in operational data, i in coarse grain classes, rule \n'
-          f'pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w)) \n'
-          f'has average score {sat_agg_average_score / len(data_preprocessing.coarse_grain_classes_str)}')
-
+# def compute_sat_testing_value(logits_to_predicate: torch.nn.Module,
+#                               pred_fine_batch: torch.tensor,
+#                               pred_coarse_batch: torch.tensor,
+#                               true_fine_batch: torch.tensor,
+#                               true_coarse_batch: torch.tensor,
+#                               original_pred_fine_batch: torch.tensor,
+#                               original_pred_coarse_batch: torch.tensor,
+#                               original_secondary_pred_fine_batch: torch.tensor,
+#                               original_secondary_pred_coarse_batch: torch.tensor,
+#                               error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule],
+#                               device: torch.device):
+#     """
+#         compute satagg function for rules
+#         argument:
+#           - logits_to_predicate: get the satisfaction of a variable given the label
+#           - prediction: output of fine tuner,
+#           - labels_coarse, labels_fine: ground truth of coarse and fine label
+#           - fine_to_coarse: dictionary mapping fine-grain class to coarse-grain class
+#
+#         return:
+#           sat_agg: sat_agg for all the rules
+#         """
+#     g_fine = data_preprocessing.granularities['fine']
+#     g_coarse = data_preprocessing.granularities['coarse']
+#
+#     # Define predicate
+#     Not = ltn.Connective(ltn.fuzzy_ops.NotStandard())
+#     And = ltn.Connective(ltn.fuzzy_ops.AndProd())
+#     Or = ltn.Connective(ltn.fuzzy_ops.OrProbSum())
+#     Implies = ltn.Connective(ltn.fuzzy_ops.ImpliesReichenbach())
+#     Forall = ltn.Quantifier(
+#         ltn.fuzzy_ops.AggregPMeanError(p=4), quantifier="f")
+#     SatAgg = ltn.fuzzy_ops.SatAgg()
+#
+#     # Cond predicate l: 1 if example satisfy any cond in DC_l and 0 otherwise]
+#     Conds_predicate = {}
+#     for l in (list(data_preprocessing.get_labels(g_fine).values()) +
+#               list(data_preprocessing.get_labels(g_coarse).values())):
+#         Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction: conds_predicate(
+#             examples=x,
+#             prediction=prediction,
+#             cond_fine_data=original_pred_fine_batch,
+#             cond_coarse_data=original_pred_coarse_batch,
+#             cond_second_fine_data=original_secondary_pred_fine_batch,
+#             cond_second_coarse_data=original_secondary_pred_coarse_batch,
+#             conds=error_detection_rules[l].C_l,
+#             device=device))
+#
+#     True_predicate = ltn.Predicate(func=lambda x, true_batch: true_predicate(
+#         examples=x,
+#         true_data=true_batch,
+#         device=device)
+#                                    )
+#
+#     # Define constant: already done in data_preprocessing.py
+#     pred_fine_data = ltn.Constant(pred_fine_batch)
+#     pred_coarse_data = ltn.Constant(pred_coarse_batch)
+#     true_fine_data = ltn.Constant(true_fine_batch)
+#     true_coarse_data = ltn.Constant(true_coarse_batch)
+#     label_one_hot = {}
+#     for l in data_preprocessing.get_labels(g_fine).values():
+#         one_hot = torch.zeros(len(data_preprocessing.fine_grain_classes_str))
+#         one_hot[l.index] = 1.0
+#         label_one_hot[l] = ltn.Constant(one_hot.to(device))
+#
+#     for l in data_preprocessing.get_labels(g_coarse).values():
+#         one_hot = torch.zeros(len(data_preprocessing.coarse_grain_classes_str))
+#         one_hot[l.index] = 1.0
+#         label_one_hot[l] = ltn.Constant(one_hot.to(device))
+#
+#     # Define variables
+#     x_variables = {}
+#     x_fine = ltn.Variable("x_fine", pred_fine_batch)
+#     x_coarse = ltn.Variable("x_coarse", pred_coarse_batch)
+#
+#     for l in data_preprocessing.get_labels(g=g_fine).values():
+#         x_variables[l] = ltn.Variable(
+#             str(l), pred_fine_batch[pred_fine_batch == l.index])
+#     for l in data_preprocessing.get_labels(g=g_coarse).values():
+#         x_variables[l] = ltn.Variable(
+#             str(l), pred_coarse_batch[pred_coarse_batch == l.index])
+#
+#     sat_agg_list = []
+#     sat_agg_average_score = 0
+#
+#     # Detection Rule: pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w))
+#     # error_i(w) = pred_i(w) and not(true_i(w))
+#
+#     for l in data_preprocessing.get_labels(g_fine).values():
+#         confidence_score = (
+#             Forall(x_fine,
+#                    Implies(
+#                        And(logits_to_predicate(x_fine, label_one_hot[l]),
+#                            Conds_predicate[l](x_fine, pred_fine_data)),
+#                        And(
+#                            Not(True_predicate(x_fine, true_fine_data)),
+#                            logits_to_predicate(x_fine, label_one_hot[l]))
+#                    )
+#                    ))
+#         sat_agg_list.append(confidence_score)
+#         sat_agg_average_score += confidence_score.value.detach().item()
+#     print(f'for all w in operational data, i in fine grain classes, rule \n'
+#           f'pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w)) \n'
+#           f'has average score {sat_agg_average_score / len(data_preprocessing.fine_grain_classes_str)}')
+#
+#     sat_agg_average_score = 0
+#     for l in data_preprocessing.get_labels(g_coarse).values():
+#         confidence_score = (
+#             Forall(x_coarse,
+#                    Implies(
+#                        And(logits_to_predicate(x_coarse, label_one_hot[l]),
+#                            Conds_predicate[l](x_coarse, pred_coarse_data)),
+#                        And(
+#                            Not(True_predicate(x_coarse, true_coarse_data)),
+#                            logits_to_predicate(x_coarse, label_one_hot[l]))
+#                    )
+#                    ))
+#         sat_agg_list.append(confidence_score)
+#         sat_agg_average_score += confidence_score.value.detach().item()
+#     print(f'for all w in operational data, i in coarse grain classes, rule \n'
+#           f'pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w)) \n'
+#           f'has average score {sat_agg_average_score / len(data_preprocessing.coarse_grain_classes_str)}')
