@@ -135,12 +135,12 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
     true_fine_data = ltn.Constant(train_true_fine_batch)
     true_coarse_data = ltn.Constant(train_true_coarse_batch)
     label_one_hot = {}
-    for l in preprocessor.fine_grain_labels:
+    for l in preprocessor.fine_grain_labels.values():
         one_hot = torch.zeros(len(preprocessor.fine_grain_classes_str))
         one_hot[l.index] = 1.0
         label_one_hot[l] = ltn.Constant(one_hot.to(device))
 
-    for l in preprocessor.coarse_grain_labels:
+    for l in preprocessor.coarse_grain_labels.values():
         one_hot = torch.zeros(len(preprocessor.coarse_grain_classes_str))
         one_hot[l.index] = 1.0
         label_one_hot[l] = ltn.Constant(one_hot.to(device))
@@ -150,10 +150,10 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
     x_fine = ltn.Variable("x_fine", train_pred_fine_batch)
     x_coarse = ltn.Variable("x_coarse", train_pred_coarse_batch)
 
-    for l in preprocessor.fine_grain_labels:
+    for l in preprocessor.fine_grain_labels.values():
         x_variables[l] = ltn.Variable(
             str(l), train_pred_fine_batch[train_pred_fine_batch == l.index])
-    for l in preprocessor.coarse_grain_labels:
+    for l in preprocessor.coarse_grain_labels.values():
         x_variables[l] = ltn.Variable(
             str(l), train_pred_coarse_batch[train_pred_coarse_batch == l.index])
 
@@ -162,7 +162,7 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
     # Detection Rule: pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w))
     # error_i(w) = pred_i(w) and not(true_i(w))
 
-    for l in preprocessor.fine_grain_labels:
+    for l in preprocessor.fine_grain_labels.values():
         confidence_score = (
             Forall(x_fine,
                    Implies(
@@ -175,7 +175,7 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
                    ))
         sat_agg_list.append(confidence_score)
 
-    for l in preprocessor.coarse_grain_labels:
+    for l in preprocessor.coarse_grain_labels.values():
         confidence_score = (
             Forall(x_coarse,
                    Implies(
