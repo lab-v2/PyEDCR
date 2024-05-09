@@ -312,7 +312,7 @@ class EDCR_LTN_experiment(EDCR):
                              num_epochs=self.num_ltn_epochs,
                              save_files=False)
 
-        torch.save(best_fine_tuner.state_dict(), f"models/{best_fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
+        torch.save(best_fine_tuner.state_dict(), f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_beta{beta}.pth")
 
         # save prediction file
         neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
