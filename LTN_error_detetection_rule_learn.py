@@ -67,7 +67,8 @@ class EDCR_LTN_experiment(EDCR):
                          secondary_num_epochs=secondary_num_epochs if config.use_secondary_model else None,
                          binary_l_strs=binary_l_strs if config.use_binary_model else [],
                          binary_num_epochs=binary_num_epochs if config.use_binary_model else None,
-                         binary_lr=binary_lr if config.use_binary_model else None,)
+                         binary_lr=binary_lr if config.use_binary_model else None,
+                         use_google_api=False)
 
         print(utils.blue_text(f'EDCR has {config.use_binary_model} flag for using binary model '
                               f'and {config.use_secondary_model} flag for using secondary model'))
@@ -160,6 +161,7 @@ class EDCR_LTN_experiment(EDCR):
                     with context_handlers.ClearCache(device=device):
                         X, Y_true_fine, Y_true_coarse, indices = [batch[i].to(device) for i in [0, 1, 3, 4]]
 
+                        indices = indices.detach.to('cpu')
                         # slice the condition from the indices you get above
                         original_pred_fine_batch = torch.tensor(
                             self.pred_data['train']['original']['fine'][indices]).to(device)

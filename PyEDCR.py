@@ -57,7 +57,8 @@ class EDCR:
                  num_train_images_per_class: int = None,
                  maximize_ratio: bool = True,
                  train_labels_noise_ratio: float = None,
-                 indices_of_fine_labels_to_take_out: typing.List[int] = []):
+                 indices_of_fine_labels_to_take_out: typing.List[int] = [],
+                 use_google_api: bool = True):
         self.data_str = data_str
         self.preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
         self.main_model_name = main_model_name
@@ -201,11 +202,12 @@ class EDCR:
             f"Num of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
-        self.sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-                                                                   data_str=data_str,
-                                                                   secondary_model_name=secondary_model_name,
-                                                                   binary=len(binary_l_strs) > 0)
-        print(f'\nsheet_tab_name: {self.sheet_tab_name}\n')
+        if use_google_api:
+            self.sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                                       data_str=data_str,
+                                                                       secondary_model_name=secondary_model_name,
+                                                                       binary=len(binary_l_strs) > 0)
+            print(f'\nsheet_tab_name: {self.sheet_tab_name}\n')
 
         self.recovered_constraints_recall = 0
         self.recovered_constraints_precision = 0
