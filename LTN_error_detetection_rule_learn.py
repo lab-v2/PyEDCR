@@ -361,6 +361,22 @@ if __name__ == '__main__':
     binary_num_epochs = 10
     binary_lr = 0.0001
     binary_model_name = 'vit_b_16'
+
+    # data_str = 'imagenet'
+    # epsilon = 0.1
+    #
+    # main_model_name = 'dinov2_vits14'
+    # main_lr = 0.000001
+    # original_num_epochs = 8
+    #
+    # secondary_model_name = 'dinov2_vitl14'
+    # secondary_model_loss = 'BCE'
+    # secondary_num_epochs = 2
+    #
+    # binary_num_epochs = 5
+    # binary_lr = 0.000001
+    # binary_model_name = 'dinov2_vits14'
+
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
                           if f.startswith(f'{data_str}_{main_model_name}')
