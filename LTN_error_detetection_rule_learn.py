@@ -187,6 +187,7 @@ class EDCR_LTN_experiment(EDCR):
                         Y_pred_fine_grain = Y_pred[:, :len(preprocessor.fine_grain_classes_str)]
                         Y_pred_coarse_grain = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
 
+                        # You can modify how the loss is defined here
                         if 'LTN_BCE' in loss:
                             criterion = torch.nn.BCEWithLogitsLoss()
                         if "LTN_soft_marginal" in loss:
@@ -267,6 +268,8 @@ class EDCR_LTN_experiment(EDCR):
                                      save_files=False)
 
                 if early_stopping:
+                    # You can modify how to perform early stopping by modify the early stopping value. The example here
+                    # showing how harmonic mean is maximized and use for early stopping
                     train_eval_fine_accuracy, train_eval_coarse_accuracy, train_eval_fine_f1, train_eval_coarse_f1 = \
                         neural_evaluation.evaluate_combined_model(
                             preprocessor=preprocessor,
