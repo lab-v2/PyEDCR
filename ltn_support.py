@@ -111,8 +111,8 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
 
     # Cond predicate l: 1 if example satisfy any cond in DC_l and 0 otherwise]
     Conds_predicate = {}
-    for l in (list(preprocessor.fine_grain_labels) +
-              list(preprocessor.coarse_grain_labels)):
+    for l in (list(preprocessor.fine_grain_labels.values()) +
+              list(preprocessor.coarse_grain_labels.values())):
         Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction: conds_predicate(
             examples=x,
             prediction=prediction,
