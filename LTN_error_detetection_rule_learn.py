@@ -53,7 +53,8 @@ class EDCR_LTN_experiment(EDCR):
                  secondary_num_epochs: int = None,
                  binary_l_strs: typing.List[str] = [],
                  binary_num_epochs: int = None,
-                 binary_lr: typing.Union[str, float] = None):
+                 binary_lr: typing.Union[str, float] = None,
+                 binary_model_name: str = None):
 
         super().__init__(data_str=data_str,
                          main_model_name=main_model_name,
@@ -68,6 +69,7 @@ class EDCR_LTN_experiment(EDCR):
                          binary_l_strs=binary_l_strs if config.use_binary_model else [],
                          binary_num_epochs=binary_num_epochs if config.use_binary_model else None,
                          binary_lr=binary_lr if config.use_binary_model else None,
+                         binary_model_name=binary_model_name if config.use_binary_model else None,
                          use_google_api=False)
 
         print(utils.blue_text(f'EDCR has {config.use_binary_model} flag for using binary model '
@@ -346,6 +348,7 @@ class EDCR_LTN_experiment(EDCR):
 if __name__ == '__main__':
     data_str = 'military_vehicles'
     epsilon = 0.1
+
     main_model_name = 'vit_b_16'
     main_lr = 0.0001
     original_num_epochs = 20
@@ -356,6 +359,7 @@ if __name__ == '__main__':
 
     binary_num_epochs = 10
     binary_lr = 0.0001
+    binary_model_name = 'vit_b_16'
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
                           if f.startswith(f'{data_str}_{main_model_name}')
@@ -373,6 +377,7 @@ if __name__ == '__main__':
                                secondary_num_epochs=secondary_num_epochs,
                                binary_l_strs=binary_l_strs,
                                binary_lr=binary_lr,
-                               binary_num_epochs=binary_num_epochs)
+                               binary_num_epochs=binary_num_epochs,
+                               binary_model_name=binary_model_name)
     edcr.run_learning_pipeline()
     edcr.fine_tune_and_evaluate_combined_model(additional_info='LTN')
