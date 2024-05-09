@@ -159,9 +159,10 @@ class EDCR_LTN_experiment(EDCR):
 
                 for batch_num, batch in batches:
                     with context_handlers.ClearCache(device=device):
+                        optimizer.zero_grad()
                         X, Y_true_fine, Y_true_coarse, indices = [batch[i].to(device) for i in [0, 1, 3, 4]]
 
-                        indices = indices.detach.to('cpu')
+                        indices = indices.detach().to('cpu')
                         # slice the condition from the indices you get above
                         original_pred_fine_batch = torch.tensor(
                             self.pred_data['train']['original']['fine'][indices]).to(device)
