@@ -380,4 +380,6 @@ if __name__ == '__main__':
                                binary_num_epochs=binary_num_epochs,
                                binary_model_name=binary_model_name)
     edcr.run_learning_pipeline()
-    edcr.fine_tune_and_evaluate_combined_model(additional_info='LTN')
+    edcr.fine_tune_and_evaluate_combined_model(
+        additional_info=f"LTN{'_binary' if config.use_binary_model else ''}"
+                        f"{'_secondary' if config.use_secondary_model else ''}")

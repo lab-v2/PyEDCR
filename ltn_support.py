@@ -59,7 +59,7 @@ def conds_predicate(examples: torch.tensor,
                      'cpu').numpy() if cond_second_fine_data is not None else None,
                  secondary_coarse_data=cond_second_coarse_data.detach().to(
                      'cpu').numpy() if cond_second_coarse_data is not None else None,
-                 binary_pred=binary_pred if binary_pred is not None else None))
+                 binary_data=binary_pred if binary_pred is not None else None))
     return any_condition_satisfied.to(device)
 
 
