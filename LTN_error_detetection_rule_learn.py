@@ -276,7 +276,7 @@ class EDCR_LTN_experiment(EDCR):
                             loaders=loaders,
                             loss=loss,
                             device=device,
-                            split='train_eval')[-3:-1]
+                            split='train_eval')[-5:-1]
                     train_eval_mean_accuracy = (train_eval_fine_accuracy + train_eval_coarse_accuracy) / 2
                     train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1) / 2
 
