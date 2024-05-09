@@ -47,14 +47,16 @@ def get_sheet_tab_name(main_model_name: str,
                        data_str: str,
                        secondary_model_name: str = None,
                        binary: bool = False) -> str:
+    models_dict = {'vit_b_16': 'VIT_b_16',
+                   'dinov2_vits14': 'DINO V2 VIT14_s',
+                   'tresnet_m': 'Tresnet M'}
+    data_dict = {'military_vehicles': 'Military Vehicles',
+                 'imagenet': 'ImageNet',
+                 'openimage': 'OpenImage'}
+    main_model_name_str = models_dict[main_model_name]
+    data_set_str = data_dict[data_str]
 
-    main_model_name_str = {'vit_b_16': 'VIT_b_16',
-                           'dinov2_vits14': 'DINO V2 VIT14_s',
-                           'tresnet_m': 'Tresnet M'}[main_model_name]
-    data_set_str = {'military_vehicles': 'Military Vehicles',
-                    'imagenet': 'ImageNet',
-                    'openimage': 'OpenImage'}[data_str]
-    secondary_model_str = ((' with ' + ("DINO V2 VIT14_l" if data_str == 'imagenet' else 'VIT_l_16'))
+    secondary_model_str = ((' with ' + models_dict[secondary_model_name])
                            if secondary_model_name is not None else '')
     binary_str = ' with Binary' if binary else ''
 

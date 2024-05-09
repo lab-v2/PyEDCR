@@ -38,6 +38,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_l_strs: typing.List[str] = [],
+                 binary_model_name: str = None,
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
                  num_train_images_per_class: int = None,
@@ -60,6 +61,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                          secondary_num_epochs=secondary_num_epochs,
                          lower_predictions_indices=lower_predictions_indices,
                          binary_l_strs=binary_l_strs,
+                         binary_model_name=binary_model_name,
                          binary_num_epochs=binary_num_epochs,
                          binary_lr=binary_lr,
                          num_train_images_per_class=num_train_images_per_class,
@@ -200,8 +202,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print(f'where_fixed_initial_error: {len(where_fixed_initial_error)}')
 
     def run_learning_pipeline(self,
-                              new_model_name: str,
-                              new_lr: float,
                               multi_threading: bool = True):
         print('Started learning pipeline...\n')
         # self.print_metrics(test=False, prior=True)
@@ -270,10 +270,9 @@ def work_on_value(args):
      secondary_model_loss,
      secondary_num_epochs,
      binary_l_strs,
+     binary_model_name,
      binary_lr,
      binary_num_epochs,
-     new_model_name,
-     new_lr,
      num_train_images_per_class,
      maximize_ratio,
      train_labels_noise_ratio,
@@ -294,6 +293,7 @@ def work_on_value(args):
                         secondary_model_loss=secondary_model_loss,
                         secondary_num_epochs=secondary_num_epochs,
                         binary_l_strs=binary_l_strs,
+                        binary_model_name=binary_model_name,
                         binary_lr=binary_lr,
                         binary_num_epochs=binary_num_epochs,
                         # lower_predictions_indices=lower_predictions_indices,
@@ -308,9 +308,7 @@ def work_on_value(args):
     #                               binary_lr=new_lr)
     edcr.print_metrics(split='test',
                        prior=True)
-    edcr.run_learning_pipeline(new_model_name=new_model_name,
-                               new_lr=new_lr,
-                               multi_threading=True)
+    edcr.run_learning_pipeline(multi_threading=True)
     edcr.run_error_detection_application_pipeline(test=True,
                                                   print_results=False,
                                                   save_to_google_sheets=True)
@@ -362,10 +360,9 @@ def simulate_for_values(total_number_of_points: int = 10,
               secondary_model_loss,
               secondary_num_epochs,
               binary_l_strs,
+              binary_model_name,
               binary_lr,
               binary_num_epochs,
-              new_model_name,
-              new_lr,
               None,
               maximize_ratio,
               noise_value,
@@ -383,36 +380,35 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    main_model_name = new_model_name = 'vit_b_16'
-    secondary_model_name = 'vit_l_16'
-    main_lr = new_lr = binary_lr = 0.0001
-    original_num_epochs = secondary_num_epochs = 20
-    binary_num_epochs = 10
-    number_of_fine_classes = 24
+    # data_str = 'military_vehicles'
+    # main_model_name = binary_model_name = 'vit_b_16'
+    # secondary_model_name = 'vit_l_16'
+    # main_lr = binary_lr = 0.0001
+    # original_num_epochs = secondary_num_epochs = 20
+    # binary_num_epochs = 10
+    # number_of_fine_classes = 24
 
     # data_str = 'imagenet'
-    # main_model_name = new_model_name = 'dinov2_vits14'
+    # main_model_name = binary_model_name = 'dinov2_vits14'
     # secondary_model_name = 'dinov2_vitl14'
-    # main_lr = new_lr = binary_lr = 0.000001
+    # main_lr = binary_lr = 0.000001
     # original_num_epochs = 8
     # secondary_num_epochs = 2
     # binary_num_epochs = 5
     # number_of_fine_classes = 42
 
-    # data_str = 'openimage'
-    # main_model_name = new_model_name = 'tresnet_m'
-    # secondary_model_name = 'dinov2_vitl14'
-    # main_lr = new_lr = binary_lr = 0.000001
-    # original_num_epochs = 0
-    # secondary_num_epochs = 2
-    # binary_num_epochs = 5
-    # number_of_fine_classes = 30
+    data_str = 'openimage'
+    main_model_name = 'tresnet_m'
+    secondary_model_name = binary_model_name = 'dinov2_vits14'
+    main_lr = binary_lr = 0.000001
+    original_num_epochs = 0
+    secondary_num_epochs = 20
+    binary_num_epochs = 4
+    number_of_fine_classes = 30
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
-                          if f.startswith(f'{data_str}_{main_model_name}')
-                          })
+                          if f.startswith(f'{data_str}_{binary_model_name}')})
 
     maximize_ratio = True
 
@@ -428,7 +424,7 @@ if __name__ == '__main__':
 
     sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                           data_str=data_str,
-                                                          # secondary_model_name=secondary_model_name,
+                                                          secondary_model_name=secondary_model_name,
                                                           binary=len(binary_l_strs) > 0)
     number_of_ratios = 10
 
@@ -440,13 +436,14 @@ if __name__ == '__main__':
         binary_lr=binary_lr,
         binary_num_epochs=binary_num_epochs,
         multi_process=True,
-        # secondary_model_name=secondary_model_name,
-        # secondary_model_loss='BCE',
-        # secondary_num_epochs=secondary_num_epochs,
+        secondary_model_name=secondary_model_name,
+        secondary_model_loss='BCE',
+        secondary_num_epochs=secondary_num_epochs,
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
-        lists_of_fine_labels_to_take_out= [list(range(i)) for i in range(number_of_fine_classes)]
+        lists_of_fine_labels_to_take_out= [[]]
+        # [list(range(i)) for i in range(number_of_fine_classes)]
     )
 
     # (x_values, y_values, error_accuracies, error_f1s, error_MMCs, error_acc_f1s) = (

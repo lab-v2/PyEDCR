@@ -51,6 +51,7 @@ class EDCR:
                  secondary_num_epochs: int = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_l_strs: typing.List[str] = [],
+                 binary_model_name: str = None,
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
                  num_train_images_per_class: int = None,
@@ -71,6 +72,7 @@ class EDCR:
         self.secondary_num_epochs = secondary_num_epochs
         self.lower_predictions_indices = lower_predictions_indices
         self.binary_l_strs = binary_l_strs
+        self.binary_model_name = binary_model_name
         self.binary_num_epochs = binary_num_epochs
         self.binary_lr = binary_lr
         self.num_train_images_per_class = num_train_images_per_class
@@ -277,7 +279,7 @@ class EDCR:
             l = {**self.preprocessor.fine_grain_labels, **self.preprocessor.coarse_grain_labels}[l_str]
             self.pred_paths[l] = {
                 'test' if test else 'train': models.get_filepath(data_str=self.data_str,
-                                                                 model_name=self.main_model_name,
+                                                                 model_name=self.binary_model_name,
                                                                  l=l,
                                                                  test=test,
                                                                  loss=self.loss,
@@ -865,8 +867,8 @@ class EDCR:
         init_value = float('inf')
 
         if N_l:
-            P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage=stage)
-            q_l = self.epsilon * N_l * P_l / R_l
+            # P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage=stage)
+            # q_l = self.epsilon * N_l * P_l / R_l
 
             i = 0
             # DC_star = {cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
@@ -885,7 +887,7 @@ class EDCR:
                     BOD_l_i_gain = self.get_BOD_l_C(l=l, C=DC_l_i.union({cond})) - self.get_BOD_l_C(l=l, C=DC_l_i)
                     ratio_l_i = (BOD_l_i_gain / POS_l_i_gain) if (POS_l_i_gain > 0) else init_value
 
-                    if ratio_l_i <= best_score:
+                    if ratio_l_i < best_score:
                         best_score = ratio_l_i
                         best_cond = cond
 
@@ -908,7 +910,7 @@ class EDCR:
             BOD_l_i_gain = self.get_BOD_l_C(l=l, C=DC_l_i)
             ratio_l_i = (BOD_l_i_gain / POS_l_i_gain) if (POS_l_i_gain > 0) else init_value
 
-            if ratio_l_i <= best_score:
+            if ratio_l_i < best_score:
                 best_score = ratio_l_i
                 best_set = DC_l_i
 
