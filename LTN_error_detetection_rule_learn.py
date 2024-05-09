@@ -85,6 +85,7 @@ class EDCR_LTN_experiment(EDCR):
             preprocessor=self.preprocessor,
             lr=self.lr,
             model_name=main_model_name,
+            train_eval_split=0.8
         )
 
     def run_learning_pipeline(self,
@@ -123,7 +124,7 @@ class EDCR_LTN_experiment(EDCR):
 
         logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
-        train_eval_losses = []
+        early_stopping_value_list = []
         best_fine_tuner = copy.deepcopy(fine_tuner)
 
         if print_rules:
@@ -279,17 +280,19 @@ class EDCR_LTN_experiment(EDCR):
                     train_eval_mean_accuracy = (train_eval_fine_accuracy + train_eval_coarse_accuracy) / 2
                     train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1) / 2
 
-                    harmonic_mean = 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
+                    # Negative early stopping value means we are maximizing the value, and positive value
+                    # have an opposite meaning
+                    early_stopping_value = - 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
 
-                    print(f'The current train eval loss is {utils.red_text(harmonic_mean)}')
+                    print(f'The current value use for early stopping is {utils.red_text(early_stopping_value)}')
 
-                    if not len(train_eval_losses) or \
-                            (len(train_eval_losses) and harmonic_mean < min(train_eval_losses)):
+                    if not len(early_stopping_value_list) or \
+                            (len(early_stopping_value_list) and early_stopping_value < min(early_stopping_value_list)):
                         print(utils.green_text(
-                            f'The last loss is lower than previous ones. Updating the best fine tuner'))
+                            f'The last value is lower than previous ones. Updating the best fine tuner'))
                         best_fine_tuner = copy.deepcopy(fine_tuner)
 
-                    if len(train_eval_losses) and harmonic_mean >= min(train_eval_losses):
+                    if len(early_stopping_value_list) and early_stopping_value >= min(early_stopping_value_list):
                         consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum += 1
                     else:
                         consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0
@@ -298,7 +301,7 @@ class EDCR_LTN_experiment(EDCR):
                         print(utils.red_text(f'finish training, stop criteria met!!!'))
                         break
 
-                    train_eval_losses += [harmonic_mean]
+                    early_stopping_value_list += [early_stopping_value]
 
         if not evaluate_on_test_between_epochs:
             evaluate_on_test(data_str=data_str,
