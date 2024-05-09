@@ -139,6 +139,7 @@ class EDCR_LTN_experiment(EDCR):
                                                             lr=self.lr,
                                                             device=device,
                                                             early_stopping=True)
+        print(utils.blue_text(f'additional parameter: beta = {beta}, loss = {loss}'))
         print('#' * 100 + '\n')
         print('#' * 100 + '\n')
 
