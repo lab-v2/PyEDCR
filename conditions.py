@@ -55,11 +55,11 @@ class PredCondition(Condition):
     def __call__(self,
                  fine_data: np.array,
                  coarse_data: np.array,
-                 secondary_fine_data: np.array,
-                 secondary_coarse_data: np.array,
-                 lower_predictions_fine_data: dict,
-                 lower_predictions_coarse_data: dict,
-                 binary_data: typing.Dict[data_preprocessing.Label, np.array]) -> np.array:
+                 secondary_fine_data: np.array = None,
+                 secondary_coarse_data: np.array = None,
+                 lower_predictions_fine_data: dict = None,
+                 lower_predictions_coarse_data: dict = None,
+                 binary_data: typing.Dict[data_preprocessing.Label, np.array] = None) -> np.array:
         fine = self.l.g.g_str == 'fine'
 
         if self.secondary_model_name is not None:
@@ -67,10 +67,16 @@ class PredCondition(Condition):
         elif self.lower_prediction_index is not None:
             granularity_data = lower_predictions_fine_data if fine else lower_predictions_coarse_data
         elif self.binary:
-            granularity_data = binary_data[self.l]
+            granularity_data = None if binary_data is None else binary_data[self.l]
         else:
             granularity_data = fine_data if fine else coarse_data
 
+        if granularity_data is None:
+            raise ValueError(f'Condition with parameter: l={self.l}, '
+                             f'secondary={self.secondary_model_name}, '
+                             f'binary={self.binary},'
+                             f'lower prediction index={self.lower_prediction_index}'
+                             f'do not have associate data when do inference')
         return np.where(granularity_data == self.l.index, 1, 0)
 
     def __str__(self) -> str:
