@@ -168,10 +168,13 @@ class EDCR_LTN_experiment(EDCR):
                         original_pred_coarse_batch = torch.tensor(
                             self.pred_data['train']['original']['coarse'][indices]).to(device)
 
-                        original_secondary_pred_fine_batch = None if not config.use_secondary_model else torch.tensor(
+                        secondary_pred_fine_batch = None if not config.use_secondary_model else torch.tensor(
                             self.pred_data['secondary_model']['train']['fine'][indices]).to(device)
-                        original_secondary_pred_coarse_batch = None if not config.use_secondary_model else torch.tensor(
+                        secondary_pred_coarse_batch = None if not config.use_secondary_model else torch.tensor(
                             self.pred_data['secondary_model']['train']['coarse'][indices]).to(device)
+
+                        # binary_pred = {label: torch.tensor(binary_data).to(device)
+                        #                for label, binary_data in self.pred_data['binary'].items()}
 
                         Y_true_fine_one_hot = torch.nn.functional.one_hot(Y_true_fine, num_classes=len(
                             preprocessor.fine_grain_classes_str))
@@ -202,9 +205,9 @@ class EDCR_LTN_experiment(EDCR):
                             train_true_coarse_batch=Y_true_coarse,
                             original_train_pred_fine_batch=original_pred_fine_batch,
                             original_train_pred_coarse_batch=original_pred_coarse_batch,
-                            original_secondary_train_pred_fine_batch=original_secondary_pred_fine_batch,
-                            original_secondary_train_pred_coarse_batch=original_secondary_pred_coarse_batch,
-                            binary_pred=None,
+                            secondary_train_pred_fine_batch=secondary_pred_fine_batch,
+                            secondary_train_pred_coarse_batch=secondary_pred_coarse_batch,
+                            binary_pred=self.pred_data['binary'],
                             error_detection_rules=self.error_detection_rules,
                             device=device
                         )

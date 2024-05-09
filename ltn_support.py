@@ -1,5 +1,6 @@
 # Logic Tensor Network
 import ltn
+import numpy as np
 import torch
 import data_preprocessing
 import conditions
@@ -46,16 +47,19 @@ def conds_predicate(examples: torch.tensor,
                     cond_coarse_data: torch.tensor,
                     cond_second_fine_data: torch.tensor,
                     cond_second_coarse_data: torch.tensor,
+                    binary_pred: typing.Dict[data_preprocessing.Label, np.array],
                     conds: set[conditions.Condition],
                     device: torch.device):
     any_condition_satisfied = torch.zeros_like(cond_fine_data).detach().to('cpu')
     for cond in conds:
-        any_condition_satisfied |= torch.tensor(cond(fine_data=cond_fine_data.detach().to('cpu').numpy(),
-                                                     coarse_data=cond_coarse_data.detach().to('cpu').numpy(),
-                                                     secondary_fine_data=cond_second_fine_data.detach().to(
-                                                         'cpu').numpy() if cond_second_fine_data is not None else None,
-                                                     secondary_coarse_data=cond_second_coarse_data.detach().to(
-                                                         'cpu').numpy() if cond_second_coarse_data is not None else None))
+        any_condition_satisfied |= torch.tensor(
+            cond(fine_data=cond_fine_data.detach().to('cpu').numpy(),
+                 coarse_data=cond_coarse_data.detach().to('cpu').numpy(),
+                 secondary_fine_data=cond_second_fine_data.detach().to(
+                     'cpu').numpy() if cond_second_fine_data is not None else None,
+                 secondary_coarse_data=cond_second_coarse_data.detach().to(
+                     'cpu').numpy() if cond_second_coarse_data is not None else None,
+                 binary_pred=binary_pred if binary_pred is not None else None))
     return any_condition_satisfied.to(device)
 
 
@@ -81,9 +85,9 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
                          train_true_coarse_batch: torch.tensor,
                          original_train_pred_fine_batch: torch.tensor,
                          original_train_pred_coarse_batch: torch.tensor,
-                         original_secondary_train_pred_fine_batch: torch.tensor,
-                         original_secondary_train_pred_coarse_batch: torch.tensor,
-                         binary_pred: typing.Dict[data_preprocessing.Label, torch.tensor],
+                         secondary_train_pred_fine_batch: torch.tensor,
+                         secondary_train_pred_coarse_batch: torch.tensor,
+                         binary_pred: typing.Dict[data_preprocessing.Label, np.array],
                          error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule],
                          device: torch.device):
     """
@@ -118,8 +122,9 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
             prediction=prediction,
             cond_fine_data=original_train_pred_fine_batch,
             cond_coarse_data=original_train_pred_coarse_batch,
-            cond_second_fine_data=original_secondary_train_pred_fine_batch,
-            cond_second_coarse_data=original_secondary_train_pred_coarse_batch,
+            cond_second_fine_data=secondary_train_pred_fine_batch,
+            cond_second_coarse_data=secondary_train_pred_coarse_batch,
+            binary_pred=binary_pred,
             conds=error_detection_rules[l].C_l,
             device=device))
 
@@ -193,7 +198,6 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
     )
 
     return sat_agg
-
 
 # def compute_sat_testing_value(logits_to_predicate: torch.nn.Module,
 #                               pred_fine_batch: torch.tensor,
