@@ -156,9 +156,9 @@ class EDCR:
                 self.condition_datas[g] = self.condition_datas[g].union(
                     {conditions.InconsistencyCondition(preprocessor=self.preprocessor)})
 
-        self.all_conditions = set().union(*[self.condition_datas[g]
-                                            for g in data_preprocessing.DataPreprocessor.granularities.values()])
-
+        self.all_conditions = sorted(set().union(*[self.condition_datas[g]
+                                                   for g in data_preprocessing.DataPreprocessor.granularities.values()])
+                                     ,key=lambda cond: str(cond))
         self.CC_all = {g: set() for g in data_preprocessing.DataPreprocessor.granularities.values()}
 
         self.num_predicted_l = {'original': {g: {}
@@ -850,7 +850,7 @@ class EDCR:
 
                 DC_l = DC_l.union({best_cond})
                 DC_star = {cond for cond in
-                           self.all_conditions.difference(DC_l)
+                           sorted(set(self.all_conditions).difference(DC_l), key=lambda cond: str(cond))
                            if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l}
 
         return DC_l
