@@ -369,7 +369,7 @@ def simulate_for_values(total_number_of_points: int = 10,
               fine_labels_to_take_out
               ) for i, (noise_value, fine_labels_to_take_out) in all_values.items()]
 
-    if multi_process:
+    if multi_process and not utils.is_debug_mode():
         processes_num = min([len(datas), 10 if utils.is_local() else 100])
         process_map(work_on_value,
                     datas,
@@ -411,7 +411,7 @@ if __name__ == '__main__':
                           for f in os.listdir('binary_results')
                           if f.startswith(f'{data_str}_{binary_model_name}')})
 
-    maximize_ratio = True
+    maximize_ratio = False
 
     # secondary_model_name = 'vit_l_16_BCE'
     # secondary_model_name = 'dinov2_vitl14'
@@ -423,23 +423,23 @@ if __name__ == '__main__':
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    # sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-    #                                                       data_str=data_str,
-    #                                                       secondary_model_name=secondary_model_name,
-    #                                                       binary=len(binary_l_strs) > 0)
+    sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+                                                          data_str=data_str,
+                                                          secondary_model_name=secondary_model_name,
+                                                          binary=len(binary_l_strs) > 0)
     number_of_ratios = 10
 
     simulate_for_values(
         total_number_of_points=1,
         min_value=0.1,
         max_value=0.1,
-        binary_l_strs=binary_l_strs,
-        binary_lr=binary_lr,
-        binary_num_epochs=binary_num_epochs,
-        multi_process=False,
-        secondary_model_name=secondary_model_name,
-        secondary_model_loss='BCE',
-        secondary_num_epochs=secondary_num_epochs,
+        # binary_l_strs=binary_l_strs,
+        # binary_lr=binary_lr,
+        # binary_num_epochs=binary_num_epochs,
+        multi_process=True,
+        # secondary_model_name=secondary_model_name,
+        # secondary_model_loss='BCE',
+        # secondary_num_epochs=secondary_num_epochs,
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],

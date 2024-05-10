@@ -139,14 +139,14 @@ class EDCR:
         # conditions data
         self.condition_datas = {}
 
-        if self.maximize_ratio:
-            self.set_pred_conditions()
-            self.set_binary_conditions()
-        else:
-            if len(self.binary_l_strs) > 0:
-                self.set_binary_conditions()
-            else:
-                self.set_pred_conditions()
+        # if self.maximize_ratio:
+        self.set_pred_conditions()
+        self.set_binary_conditions()
+        # else:
+        #     if len(self.binary_l_strs) > 0:
+        #         self.set_binary_conditions()
+        #     else:
+        #         self.set_pred_conditions()
 
         self.set_secondary_conditions()
         self.set_lower_prediction_conditions()
@@ -855,6 +855,18 @@ class EDCR:
 
         return DC_l
 
+    def get_ratio_value(self,
+                        l: data_preprocessing.Label,
+                        DC_l_i: set[conditions.Condition],
+                        cond: conditions.Condition,
+                        stage: str,
+                        init_value: float) -> float:
+        BOD_margin = self.get_BOD_l_C(l=l, C=DC_l_i.union({cond})) - self.get_BOD_l_C(l=l, C=DC_l_i)
+        POS_margin = (self.get_POS_l_C(l=l, C=DC_l_i.union({cond}), stage=stage) -
+                      self.get_POS_l_C(l=l, C=DC_l_i, stage=stage))
+
+        return (BOD_margin / POS_margin) if (POS_margin > 0) else init_value
+
     def RatioDetRuleLearn(self,
                           l: data_preprocessing.Label) -> set[conditions.Condition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
@@ -863,19 +875,14 @@ class EDCR:
         :param l: The label of interest.
         :return: A set of `Condition` representing the learned error detection rules.
         """
-        DC_ls = {0: set()}
         stage = 'original' if self.correction_model is None else 'post_detection'
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l, stage=stage))
         init_value = float('inf')
+        DC_ls = {0: set()}
+        DC_l_scores = {0: init_value}
 
         if N_l:
-            # P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage=stage)
-            # q_l = self.epsilon * N_l * P_l / R_l
-
             i = 0
-            # DC_star = {cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
-            #                                                                     C={cond},
-            #                                                                     stage=stage) <= q_l}
             DC_star = self.all_conditions
 
             while DC_star:
@@ -883,26 +890,36 @@ class EDCR:
                 best_score = init_value
                 best_cond = None
 
+                # print({str(cond): ((self.get_BOD_l_C(l=l, C=DC_l_i.union({cond})) - self.get_BOD_l_C(l=l, C=DC_l_i)) /
+                #         (self.get_POS_l_C(l=l, C=DC_l_i.union({cond}), stage=stage) -
+                #          self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)))
+                #        if ((self.get_POS_l_C(l=l, C=DC_l_i.union({cond}), stage=stage) -
+                #             self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)) > 0)
+                #        else init_value for cond in DC_star})
+
+                # best_cond = sorted(DC_star,
+                #                    key=lambda cond: self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=cond,
+                #                                                          stage=stage, init_value=init_value))[0]
+
                 for cond in DC_star:
-                    POS_l_i_gain = (self.get_POS_l_C(l=l, C=DC_l_i.union({cond}), stage=stage) -
-                                    self.get_POS_l_C(l=l, C=DC_l_i, stage=stage))
-                    BOD_l_i_gain = self.get_BOD_l_C(l=l, C=DC_l_i.union({cond})) - self.get_BOD_l_C(l=l, C=DC_l_i)
-                    ratio_l_i = (BOD_l_i_gain / POS_l_i_gain) if (POS_l_i_gain > 0) else init_value
+                    ratio_l_i = self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=cond,
+                                                     stage=stage, init_value=init_value)
 
                     if ratio_l_i < best_score:
                         best_score = ratio_l_i
                         best_cond = cond
 
                 DC_ls[i + 1] = DC_l_i.union({best_cond})
+                # DC_l_scores[i + 1] = self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=best_cond,
+                #                                           stage=stage, init_value=init_value)
                 DC_star = {cond for cond in DC_star
                            if (self.get_POS_l_C(l=l, C=DC_ls[i + 1].union({cond}), stage=stage) >
-                               self.get_POS_l_C(l=l, C=DC_ls[i + 1], stage=stage))
-                           # and (self.get_NEG_l_C(l=l,
-                           #                       C=DC_ls[i + 1].union({cond}),
-                           #                       stage=stage) <= q_l)
-                           }
+                               self.get_POS_l_C(l=l, C=DC_ls[i + 1], stage=stage))}
 
                 i += 1
+
+        # best_set_index = sorted(DC_l_scores.keys(), key=lambda i: DC_l_scores[i])[0]
+        # best_set = DC_ls[best_set_index]
 
         best_score = init_value
         best_set = None
@@ -931,7 +948,7 @@ class EDCR:
 
         DC_ls = thread_map(maximizer,
                            granularity_labels,
-                           max_workers=processes_num) if multi_threading else \
+                           max_workers=processes_num) if (multi_threading and not utils.is_debug_mode()) else \
             [maximizer(l=l) for l in granularity_labels]
 
         for l, DC_l in zip(granularity_labels, DC_ls):
@@ -1009,7 +1026,8 @@ class EDCR:
                                                      all_possible_consistency_constraints)
 
                 self.recovered_constraints_precision = (recovered_constraints_true_positives /
-                                                        recovered_constraints_positives)
+                                                        recovered_constraints_positives) \
+                    if recovered_constraints_positives else 0
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
 
@@ -1071,7 +1089,8 @@ class EDCR:
                             error_f1,
                             self.recovered_constraints_precision,
                             self.recovered_constraints_recall,
-                            2/(1/self.recovered_constraints_precision + 1/self.recovered_constraints_recall)
+                            2 / (1 / self.recovered_constraints_precision + 1 / self.recovered_constraints_recall)
+                            if self.recovered_constraints_precision and self.recovered_constraints_recall else 0
                             ]
 
             print(input_values)
@@ -1095,7 +1114,7 @@ class EDCR:
 
             for cond in error_detection_rule.C_l:
                 if ((isinstance(cond, conditions.PredCondition)) and (cond.secondary_model_name is None)
-                        and (not cond.binary)) and (cond.lower_prediction_index is None):
+                    and (not cond.binary)) and (cond.lower_prediction_index is None):
                     if cond.l.g != l.g:
                         if cond.l.g.g_str == 'fine':
                             fine_index = cond.l.index
