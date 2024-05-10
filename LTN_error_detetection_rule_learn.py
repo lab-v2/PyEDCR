@@ -39,6 +39,7 @@ def evaluate_on_test(data_str: str,
 
     print('#' * 100)
 
+
 class EDCR_LTN_experiment(EDCR):
     def __init__(self,
                  data_str: str,
@@ -314,35 +315,37 @@ class EDCR_LTN_experiment(EDCR):
             evaluate_on_test(data_str=data_str,
                              model_name=model_name,
                              lr=lr,
-                             fine_tuner=best_fine_tuner,
+                             fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
                              loss=loss,
                              num_epochs=self.num_ltn_epochs,
                              save_files=False)
 
-        torch.save(best_fine_tuner.state_dict(),
+        torch.save(best_fine_tuner.state_dict() if early_stopping else fine_tuner.state_dict(),
                    f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.pth")
 
         # save prediction file
-        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
-                                                           model_name=model_name,
-                                                           split='train',
-                                                           lr=lr,
-                                                           loss=loss,
-                                                           pretrained_fine_tuner=best_fine_tuner,
-                                                           num_epochs=self.num_ltn_epochs,
-                                                           print_results=True,
-                                                           save_files=True,
-                                                           additional_info=additional_info)
-        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
-                                                           model_name=model_name,
-                                                           split='test',
-                                                           lr=lr,
-                                                           loss=loss,
-                                                           pretrained_fine_tuner=best_fine_tuner,
-                                                           num_epochs=self.num_ltn_epochs,
-                                                           print_results=True,
-                                                           save_files=True,
-                                                           additional_info=additional_info)
+        neural_evaluation.run_combined_evaluating_pipeline(
+            data_str=data_str,
+            model_name=model_name,
+            split='train',
+            lr=lr,
+            loss=loss,
+            pretrained_fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
+            num_epochs=self.num_ltn_epochs,
+            print_results=True,
+            save_files=True,
+            additional_info=additional_info)
+        neural_evaluation.run_combined_evaluating_pipeline(
+            data_str=data_str,
+            model_name=model_name,
+            split='test',
+            lr=lr,
+            loss=loss,
+            pretrained_fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
+            num_epochs=self.num_ltn_epochs,
+            print_results=True,
+            save_files=True,
+            additional_info=additional_info)
         print('#' * 100)
 
 
