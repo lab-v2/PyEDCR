@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import typing
 import numpy as np
 import warnings
@@ -175,12 +176,22 @@ class EDCR:
                                                                                           l=l,
                                                                                           stage='original'))
 
-        actual_test_examples_with_errors = set()
-        for g in data_preprocessing.DataPreprocessor.granularities.values():
-            actual_test_examples_with_errors = actual_test_examples_with_errors.union(set(
-                np.where(self.get_where_predicted_incorrect(test=True, g=g) == 1)[0]))
+        # actual_test_examples_with_errors = set()
+        # for g in data_preprocessing.DataPreprocessor.granularities.values():
+        #     actual_test_examples_with_errors = actual_test_examples_with_errors.union(set(
+        #         np.where(self.get_where_predicted_incorrect(test=True, g=g) == 1)[0]))
+        #
+        # self.actual_examples_with_errors = np.array(list(actual_test_examples_with_errors))
 
-        self.actual_examples_with_errors = np.array(list(actual_test_examples_with_errors))
+        self.where_train_errors = np.zeros_like(self.get_predictions(test=False,
+                                                                     g=self.preprocessor.granularities['fine']))
+        for g in self.preprocessor.granularities:
+            self.where_train_errors |= (
+                np.where(self.get_predictions(test=False, g=g) !=
+                         self.preprocessor.get_ground_truths(test=False, g=g), 1, 0))
+
+        self.num_train_errors = np.sum(self.where_train_errors)
+
         self.error_detection_rules: typing.Dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
         self.error_correction_rules: typing.Dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
         self.predicted_test_errors = np.zeros_like(self.pred_data['test']['original'][
@@ -530,9 +541,9 @@ class EDCR:
         #       f"incorrect_both: {round(fractions['incorrect_both'], 2)} \n",
         #       f"correct_both: {round(fractions['correct_both'], 2)} \n")
 
-        if print_actual_errors_num:
-            print(utils.red_text(f'\nNumber of actual errors on test: {len(self.actual_examples_with_errors)} / '
-                                 f'{self.T_test}\n'))
+        # if print_actual_errors_num:
+        #     print(utils.red_text(f'\nNumber of actual errors on test: {len(self.actual_examples_with_errors)} / '
+        #                          f'{self.T_test}\n'))
 
     def get_where_predicted_correct(self,
                                     test: bool,
@@ -855,67 +866,75 @@ class EDCR:
 
         return DC_l
 
-    def get_BOD_margin(self,
-                       l: data_preprocessing.Label,
-                       DC_l_i: set[conditions.Condition],
-                       cond: conditions.Condition):
-        return self.get_BOD_l_C(l=l, C=DC_l_i.union({cond})) - self.get_BOD_l_C(l=l, C=DC_l_i)
+    def get_minimization_denominator(self,
+                                     l: data_preprocessing.Label,
+                                     C: set[conditions.Condition],
+                                     stage: str = 'original'):
+        return 2 * self.get_POS_l_C(l=l, C=C, stage=stage)
 
-    def get_POS_margin(self,
-                       l: data_preprocessing.Label,
-                       DC_l_i: set[conditions.Condition],
-                       cond: conditions.Condition,
-                       stage: str):
-        return (self.get_POS_l_C(l=l, C=DC_l_i.union({cond}), stage=stage) -
-                self.get_POS_l_C(l=l, C=DC_l_i, stage=stage))
+    @staticmethod
+    def get_f_margin(f: typing.Callable,
+                     l: data_preprocessing.Label,
+                     DC_l_i: set[conditions.Condition],
+                     cond: conditions.Condition, ):
+        return f(l=l, C=DC_l_i.union({cond})) - f(l=l, C=DC_l_i)
+
+    def get_minimization_numerator(self,
+                                   l: data_preprocessing.Label,
+                                   C: set[conditions.Condition]):
+        return self.get_BOD_l_C(l=l, C=C) + self.num_train_errors
 
     def get_ratio_of_margins(self,
                              l: data_preprocessing.Label,
                              DC_l_i: set[conditions.Condition],
                              cond: conditions.Condition,
-                             stage: str,
-                             init_value: float,
-                             minimizing: bool = True) -> float:
-        BOD_margin = self.get_BOD_margin(l=l, DC_l_i=DC_l_i, cond=cond)
-        POS_margin = self.get_POS_margin(l=l, DC_l_i=DC_l_i, cond=cond, stage=stage)
-        minimizing_value = (BOD_margin / POS_margin) if (POS_margin > 0) else init_value
-        maximizing_value = (POS_margin / BOD_margin) if (BOD_margin > 0) else init_value
+                             init_value: float) -> float:
+        minimization_numerator_margin = self.get_f_margin(f=self.get_minimization_numerator,
+                                                          l=l,
+                                                          DC_l_i=DC_l_i,
+                                                          cond=cond)
+        minimization_denominator_margin = self.get_f_margin(f=self.get_minimization_denominator,
+                                                            l=l,
+                                                            DC_l_i=DC_l_i,
+                                                            cond=cond)
 
-        return minimizing_value if minimizing else maximizing_value
+        return (minimization_numerator_margin / minimization_denominator_margin) \
+            if (minimization_denominator_margin > 0) else init_value
 
-    def get_ratio(self,
-                  l: data_preprocessing.Label,
-                  DC_l_i: set[conditions.Condition],
-                  stage: str,
-                  init_value: float,
-                  minimizing: bool = True) -> float:
-        BOD = self.get_BOD_l_C(l=l, C=DC_l_i)
-        POS = self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)
-        minimizing_value = (BOD / POS) if (POS > 0) else init_value
-        maximizing_value = (POS / BOD) if (BOD > 0) else init_value
+    def get_minimization_ratio(self,
+                               l: data_preprocessing.Label,
+                               DC_l_i: set[conditions.Condition],
+                               init_value: float) -> float:
+        minimization_numerator = self.get_minimization_numerator(l=l, C=DC_l_i)
+        minimization_denominator = self.get_minimization_denominator(l=l, C=DC_l_i)
 
-        return minimizing_value if minimizing else maximizing_value
+        return (minimization_numerator / minimization_denominator) if (minimization_denominator > 0) else init_value
 
     def RatioDetRuleLearn(self,
-                          l: data_preprocessing.Label,
-                          minimizing: bool = False) -> set[conditions.Condition]:
+                          l: data_preprocessing.Label) -> set[conditions.Condition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
         that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
 
-        :param minimizing:
         :param l: The label of interest.
         :return: A set of `Condition` representing the learned error detection rules.
         """
         stage = 'original' if self.correction_model is None else 'post_detection'
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l, stage=stage))
-        init_value = float('inf') if minimizing else -1
-        sort_index = 0 if minimizing else -1
+        init_value = float('inf')
+        sort_index = 0
         DC_ls = {0: set()}
         DC_l_scores = {0: init_value}
 
+        # f_for_POS = lambda POS: math.pow(POS, 1/1.1) if POS else 0
+        # f_for_BOD = lambda BOD: math.log(BOD) if BOD else 0
+
         if N_l:
             i = 0
-            DC_star = sorted(self.all_conditions, key=lambda cond: str(cond))
+            DC_star = list(reversed(sorted(self.all_conditions,
+                                           key=lambda cond:
+                                           self.get_minimization_denominator(l=l, C={cond}) /
+                                           self.get_minimization_numerator(l=l, C={cond})
+                                           )))
 
             while DC_star:
                 DC_l_i = DC_ls[i]
@@ -930,9 +949,11 @@ class EDCR:
                 #        else init_value for cond in DC_star})
 
                 best_cond = sorted(DC_star,
-                                   key=lambda cond: self.get_ratio_of_margins(l=l, DC_l_i=DC_l_i, cond=cond,
-                                                                              stage=stage, init_value=init_value,
-                                                                              minimizing=minimizing))[sort_index]
+                                   key=lambda cond: self.get_ratio_of_margins(l=l,
+                                                                              DC_l_i=DC_l_i,
+                                                                              cond=cond,
+                                                                              init_value=init_value,
+                                                                              ))[sort_index]
 
                 # for cond in DC_star:
                 #     ratio_l_i = self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=cond,
@@ -942,23 +963,24 @@ class EDCR:
                 #         best_score = ratio_l_i
                 #         best_cond = cond
 
-                DC_ls[i + 1] = DC_l_i.union({best_cond})
-                DC_l_scores[i + 1] = self.get_ratio(l=l,
-                                                    DC_l_i=DC_ls[i + 1],
-                                                    stage=stage,
-                                                    init_value=init_value,
-                                                    minimizing=minimizing)
+                DC_l_i_1 = DC_l_i.union({best_cond})
+                DC_ls[i + 1] = DC_l_i_1
+                DC_l_scores[i + 1] = self.get_minimization_ratio(l=l,
+                                                                 DC_l_i=DC_l_i_1,
+                                                                 init_value=init_value
+                                                                 )
                 DC_star = [cond for cond in DC_star
-                           if (self.get_POS_margin(l=l, DC_l_i=DC_ls[i + 1], cond=cond, stage=stage)
-                               if minimizing else self.get_BOD_margin(l=l, DC_l_i=DC_ls[i + 1], cond=cond)) > 0]
+                           if self.get_f_margin(f=self.get_minimization_denominator,
+                                                l=l,
+                                                DC_l_i=DC_l_i,
+                                                cond=cond) > 0]
 
                 i += 1
 
         # best_set_index = sorted(DC_l_scores.keys(), key=lambda i: DC_l_scores[i])[0]
         best_set_score = sorted(DC_l_scores.values())[sort_index]
-        DC_l_best_scores = {i: score for i, score in DC_l_scores.items() if score == best_set_score}
-        best_set_index = sorted(DC_l_best_scores.keys(), key=lambda i: len(DC_ls[i]))[-1]
-        best_set = DC_ls[best_set_index]
+        best_score_DC_ls = [DC_ls[i] for i, score in DC_l_scores.items() if score == best_set_score]
+        best_set = sorted(best_score_DC_ls, key=lambda DC_l_i: len(DC_l_i))[-1]
 
         # best_score = init_value
         # best_set = None
@@ -1109,12 +1131,13 @@ class EDCR:
                                                  stage='post_detection')
 
         if test and save_to_google_sheets:
-            error_accuracy, error_f1, _, _ = \
+            error_accuracy, error_f1, error_precision, error_recall = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_test_errors,
                     true_data=self.test_error_ground_truths,
-                    labels=[0])]
+                    labels=[0, 1])]
 
+            print()
             # inconsistency_error_accuracy, inconsistency_error_f1, _, _, _ = \
             #     [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
             #         pred_data=self.predicted_test_errors,
@@ -1125,6 +1148,8 @@ class EDCR:
             input_values = [round(self.epsilon, 3),
                             self.noise_ratio,
                             error_accuracy,
+                            error_precision,
+                            error_recall,
                             error_f1,
                             self.recovered_constraints_precision,
                             self.recovered_constraints_recall,
@@ -1153,7 +1178,7 @@ class EDCR:
 
             for cond in error_detection_rule.C_l:
                 if ((isinstance(cond, conditions.PredCondition)) and (cond.secondary_model_name is None)
-                    and (not cond.binary)) and (cond.lower_prediction_index is None):
+                        and (not cond.binary)) and (cond.lower_prediction_index is None):
                     if cond.l.g != l.g:
                         if cond.l.g.g_str == 'fine':
                             fine_index = cond.l.index
