@@ -883,12 +883,12 @@ class EDCR:
 
         if N_l:
             i = 0
-            DC_star = self.all_conditions
+            DC_star = sorted(self.all_conditions, key=lambda cond: str(cond))
 
             while DC_star:
                 DC_l_i = DC_ls[i]
-                best_score = init_value
-                best_cond = None
+                # best_score = init_value
+                # best_cond = None
 
                 # print({str(cond): ((self.get_BOD_l_C(l=l, C=DC_l_i.union({cond})) - self.get_BOD_l_C(l=l, C=DC_l_i)) /
                 #         (self.get_POS_l_C(l=l, C=DC_l_i.union({cond}), stage=stage) -
@@ -897,41 +897,41 @@ class EDCR:
                 #             self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)) > 0)
                 #        else init_value for cond in DC_star})
 
-                # best_cond = sorted(DC_star,
-                #                    key=lambda cond: self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=cond,
-                #                                                          stage=stage, init_value=init_value))[0]
+                best_cond = sorted(DC_star,
+                                   key=lambda cond: self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=cond,
+                                                                         stage=stage, init_value=init_value))[0]
 
-                for cond in DC_star:
-                    ratio_l_i = self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=cond,
-                                                     stage=stage, init_value=init_value)
-
-                    if ratio_l_i < best_score:
-                        best_score = ratio_l_i
-                        best_cond = cond
+                # for cond in DC_star:
+                #     ratio_l_i = self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=cond,
+                #                                      stage=stage, init_value=init_value)
+                #
+                #     if ratio_l_i < best_score:
+                #         best_score = ratio_l_i
+                #         best_cond = cond
 
                 DC_ls[i + 1] = DC_l_i.union({best_cond})
-                # DC_l_scores[i + 1] = self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=best_cond,
-                #                                           stage=stage, init_value=init_value)
-                DC_star = {cond for cond in DC_star
+                DC_l_scores[i + 1] = self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=best_cond,
+                                                          stage=stage, init_value=init_value)
+                DC_star = [cond for cond in DC_star
                            if (self.get_POS_l_C(l=l, C=DC_ls[i + 1].union({cond}), stage=stage) >
-                               self.get_POS_l_C(l=l, C=DC_ls[i + 1], stage=stage))}
+                               self.get_POS_l_C(l=l, C=DC_ls[i + 1], stage=stage))]
 
                 i += 1
 
-        # best_set_index = sorted(DC_l_scores.keys(), key=lambda i: DC_l_scores[i])[0]
-        # best_set = DC_ls[best_set_index]
+        best_set_index = sorted(DC_l_scores.keys(), key=lambda i: DC_l_scores[i])[0]
+        best_set = DC_ls[best_set_index]
 
-        best_score = init_value
-        best_set = None
+        # best_score = init_value
+        # best_set = None
 
-        for DC_l_i in DC_ls.values():
-            POS_l_i_gain = self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)
-            BOD_l_i_gain = self.get_BOD_l_C(l=l, C=DC_l_i)
-            ratio_l_i = (BOD_l_i_gain / POS_l_i_gain) if (POS_l_i_gain > 0) else init_value
-
-            if ratio_l_i < best_score:
-                best_score = ratio_l_i
-                best_set = DC_l_i
+        # for DC_l_i in DC_ls.values():
+        #     POS_l_i_gain = self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)
+        #     BOD_l_i_gain = self.get_BOD_l_C(l=l, C=DC_l_i)
+        #     ratio_l_i = (BOD_l_i_gain / POS_l_i_gain) if (POS_l_i_gain > 0) else init_value
+        #
+        #     if ratio_l_i < best_score:
+        #         best_score = ratio_l_i
+        #         best_set = DC_l_i
 
         return best_set
 

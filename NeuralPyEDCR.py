@@ -384,7 +384,7 @@ if __name__ == '__main__':
     main_model_name = binary_model_name = 'vit_b_16'
     secondary_model_name = 'vit_l_16'
     main_lr = binary_lr = 0.0001
-    original_num_epochs = 10
+    original_num_epochs = 20
     secondary_num_epochs = 20
     binary_num_epochs = 10
     number_of_fine_classes = 24
@@ -411,7 +411,7 @@ if __name__ == '__main__':
                           for f in os.listdir('binary_results')
                           if f.startswith(f'{data_str}_{binary_model_name}')})
 
-    maximize_ratio = False
+    maximize_ratio = True
 
     # secondary_model_name = 'vit_l_16_BCE'
     # secondary_model_name = 'dinov2_vitl14'
