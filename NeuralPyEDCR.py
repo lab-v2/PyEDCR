@@ -380,13 +380,14 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = binary_model_name = 'vit_b_16'
-    # secondary_model_name = 'vit_l_16'
-    # main_lr = binary_lr = 0.0001
-    # original_num_epochs = secondary_num_epochs = 20
-    # binary_num_epochs = 10
-    # number_of_fine_classes = 24
+    data_str = 'military_vehicles'
+    main_model_name = binary_model_name = 'vit_b_16'
+    secondary_model_name = 'vit_l_16'
+    main_lr = binary_lr = 0.0001
+    original_num_epochs = 10
+    secondary_num_epochs = 20
+    binary_num_epochs = 10
+    number_of_fine_classes = 24
 
     # data_str = 'imagenet'
     # main_model_name = binary_model_name = 'dinov2_vits14'
@@ -397,14 +398,14 @@ if __name__ == '__main__':
     # binary_num_epochs = 5
     # number_of_fine_classes = 42
 
-    data_str = 'openimage'
-    main_model_name = 'tresnet_m'
-    secondary_model_name = binary_model_name = 'dinov2_vits14'
-    main_lr = binary_lr = 0.000001
-    original_num_epochs = 0
-    secondary_num_epochs = 20
-    binary_num_epochs = 4
-    number_of_fine_classes = 30
+    # data_str = 'openimage'
+    # main_model_name = 'tresnet_m'
+    # secondary_model_name = binary_model_name = 'dinov2_vits14'
+    # main_lr = binary_lr = 0.000001
+    # original_num_epochs = 0
+    # secondary_num_epochs = 20
+    # binary_num_epochs = 4
+    # number_of_fine_classes = 30
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
@@ -422,10 +423,10 @@ if __name__ == '__main__':
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-                                                          data_str=data_str,
-                                                          secondary_model_name=secondary_model_name,
-                                                          binary=len(binary_l_strs) > 0)
+    # sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+    #                                                       data_str=data_str,
+    #                                                       secondary_model_name=secondary_model_name,
+    #                                                       binary=len(binary_l_strs) > 0)
     number_of_ratios = 10
 
     simulate_for_values(
@@ -435,7 +436,7 @@ if __name__ == '__main__':
         binary_l_strs=binary_l_strs,
         binary_lr=binary_lr,
         binary_num_epochs=binary_num_epochs,
-        multi_process=True,
+        multi_process=False,
         secondary_model_name=secondary_model_name,
         secondary_model_loss='BCE',
         secondary_num_epochs=secondary_num_epochs,
