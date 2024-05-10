@@ -19,6 +19,9 @@ import neural_evaluation
 import neural_fine_tuning
 import neural_metrics
 
+import torch
+import torch.nn as nn 
+
 
 def evaluate_on_test(data_str: str,
                      model_name: str,
@@ -38,7 +41,6 @@ def evaluate_on_test(data_str: str,
                                                        save_files=save_files)
 
     print('#' * 100)
-
 
 class EDCR_LTN_experiment(EDCR):
     def __init__(self,
@@ -82,6 +84,9 @@ class EDCR_LTN_experiment(EDCR):
         self.scheduler_step_size = config.scheduler_step_size
         self.beta = config.beta
         self.ltn_loss = config.ltn_loss
+        self.beta_learn = config.beta_learn 
+        self.noise_learn_log = config.noise_learn_log
+        self.dynamic_weight_averaging = config.dynamic_weight
 
         self.preprocessor, self.fine_tuners, self.loaders, self.devices = backbone_pipeline.initiate(
             data_str=self.data_str,
@@ -115,19 +120,69 @@ class EDCR_LTN_experiment(EDCR):
         lr = self.lr
         evaluate_on_test_between_epochs = True
         loaders = self.loaders
-        early_stopping = True
+        early_stopping = False
 
         fine_tuner.to(device)
         fine_tuner.train()
         train_loader = loaders['train']
         num_batches = len(train_loader)
 
-        optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
+        ## initialise learnable parameters 
+        ## initialise beta,sigma1,sigma2 
+
+        ## initialise using torch.normal_ and limit the numbers using torch.clamp 
+
+        ## Learnable Beta is an added beta parameter between 1e2 and 1e4 to weigh LTN loss only 
+        ## Noise optimisation is based on Multi Task learning paper which optimizes sigma parameters
+
+        if self.beta_learn is True:
+             shape = (1,)
+             mean = 100
+             std = 10
+
+             beta_param = nn.Parameter(torch.empty(*shape, dtype=torch.float).normal_(mean,std).to(device))
+            
+
+             model_parameters = list(fine_tuner.parameters()) + [beta_param]
+
+             optimizer = torch.optim.Adam(params=model_parameters,lr=self.lr)
+             scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
+                                                    step_size= config.scheduler_step_size,
+                                                    gamma=self.scheduler_gamma)
+
+        elif self.noise_learn_log is True: 
+             shape = (1,)
+             sigma_1 = nn.Parameter(torch.empty(*shape, dtype=torch.float).normal_().to(device))
+             sigma_2 = nn.Parameter(torch.empty(*shape, dtype=torch.float).normal_().to(device))
+             model_parameters = list(fine_tuner.parameters()) + [sigma_1,sigma_2]
+              
+             optimizer = torch.optim.Adam(params=model_parameters,lr=self.lr)
+             scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
+                                                    step_size= config.scheduler_step_size,
+                                                    gamma=self.scheduler_gamma)
+
+        elif self.dynamic_weight_averaging is True:
+            shape = (1,)
+            temperature = nn.Parameter(torch.empty(*shape, dtype=torch.float).normal_().to(device))
+            model_parameters = list(fine_tuner.parameters()) + [temperature]
+
+            optimizer = torch.optim.Adam(params=model_parameters, lr=self.lr)
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
+                                                        step_size=config.scheduler_step_size,
+                                                        gamma=self.scheduler_gamma)
+
+        else:
+            optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                      lr=lr)
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
+                                                    step_size= config.scheduler_step_size,
+                                                    gamma=self.scheduler_gamma)
+
+        
 
         logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
-        early_stopping_value_list = []
+        train_eval_losses = []
         best_fine_tuner = copy.deepcopy(fine_tuner)
 
         if print_rules:
@@ -145,6 +200,12 @@ class EDCR_LTN_experiment(EDCR):
         print('#' * 100 + '\n')
 
         consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0
+
+        if self.dynamic_weight_averaging:
+            LTN_losses = []
+            NN_losses = []
+            ratios_LTN = []
+            ratios_NN = []
 
         for epoch in range(self.num_ltn_epochs):
 
@@ -215,7 +276,79 @@ class EDCR_LTN_experiment(EDCR):
                             error_detection_rules=self.error_detection_rules,
                             device=device
                         )
-                        batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
+                        #modify the batch loss according to the optimisation used
+                        if self.dynamic_weight_averaging is True:
+                            print("Using dynamic weight allocation")
+                            LTN_losses.append((1. - sat_agg).item())
+                            NN_losses.append((criterion(Y_pred, Y_true_combine)).item())
+
+                            if len(LTN_losses) < 2  and len(NN_losses) < 2 :
+                               ratio_LTN = torch.randn(1)
+                               ratio_NN = torch.randn(1)
+                               ratios_LTN.append(ratio_LTN)
+                               ratios_NN.append(ratio_NN)
+
+                            else:
+                               ratio_LTN = (LTN_losses[-1] / LTN_losses[-2])
+                               ratio_NN = (NN_losses[-1] / NN_losses[-2])
+                               ratios_LTN.append(ratio_LTN)
+                               ratios_NN.append(ratio_NN)
+
+                            if len(ratios_LTN) < 1 and len(ratios_NN) < 1
+                               alpha_1 = torch.randn(1)
+                               alpha_2 = torch.randn(1)
+
+                            else:
+                                ratio_tensor = torch.Tensor([ratio_LTN,ratio_NN])
+
+                                softmax = torch.nn.Softmax(dim = 1)
+                                alphas = softmax(ratio_tensor/temperature)
+                                alpha_1 = 2*alphas[0]
+                                alpha_2 = 2*alphas[1]
+
+
+
+                            batch_total_loss = alpha_1 * (1. - sat_agg) + alpha_2*criterion(Y_pred, Y_true_combine)
+
+
+
+
+
+
+
+                        if self.beta_learn is True:
+                            print('Using learnable beta')
+                            min_value = 1e1
+                            max_value = 1e4
+                            # Apply torch.clamp to ensure the values fall within the specified range
+                            beta_param.data = torch.clamp(beta_param.data, min_value, max_value)
+
+                            print(beta_param.item())
+
+                            ## modified loss to make LTN loss comparable to NN loss  
+                            batch_total_loss = beta_param * (1. - sat_agg) + criterion(Y_pred, Y_true_combine)
+
+                        elif self.noise_learn_log is True: 
+                            print('Using learnable noise')
+                            ## keeping the magnitude more than 1e-6 order 
+                            if sigma_1.data < 0:
+                                sigma_1.data = torch.clamp(sigma_1.data, -float('inf') , 1e-3)
+                            else:
+                                sigma_1.data = torch.clamp(sigma_1.data,1e-3,float('inf'))
+
+                            if sigma_2.data < 0:
+                                sigma_2.data = torch.clamp(sigma_1.data, -float('inf') , 1e-3)
+                            else:
+                                sigma_2.data = torch.clamp(sigma_1.data, 1e-3, float('inf'))
+
+                            ## modified loss for multi task learning 
+                            ## adding 1e-8 to the log term to avoid log(0) 
+                            batch_total_loss = (0.5 / (sigma_1)**2) * (1. - sat_agg) + \
+                                              (1.0 / (sigma_2)**2) * (criterion(Y_pred,Y_true_combine)) + \
+                                              torch.log((sigma_1)*(sigma_2) + 1e-8)
+                        else:
+                            print('using constant beta')
+                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
 
                         current_train_fine_predictions = torch.max(Y_pred_fine_grain, 1)[1]
                         current_train_coarse_predictions = torch.max(Y_pred_coarse_grain, 1)[1]
@@ -285,67 +418,74 @@ class EDCR_LTN_experiment(EDCR):
                             loss=loss,
                             device=device,
                             split='train_eval')[-5:-1]
-                    train_eval_mean_accuracy = (train_eval_fine_accuracy + train_eval_coarse_accuracy) / 2
-                    train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1) / 2
+                    #train_eval_mean_accuracy = (train_eval_fine_accuracy + train_eval_coarse_accuracy) / 2
+                    #train_eval_mean_f1 = (train_eval_fine_f1 + train_eval_coarse_f1) / 2
 
                     # Negative early stopping value means we are maximizing the value, and positive value
                     # have an opposite meaning
-                    early_stopping_value = - 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
+                    #early_stopping_value = - 2 / (1 / train_eval_mean_accuracy + 1 / train_eval_mean_f1)
 
-                    print(f'The current value use for early stopping is {utils.red_text(early_stopping_value)}')
+                    curr_train_eval_loss = neural_evaluation.evaluate_combined_model(preprocessor=preprocessor,
+                                                                                     fine_tuner=fine_tuner,
+                                                                                     loaders=loaders,
+                                                                                     loss=loss,
+                                                                                     device=device,
+                                                                                     split='train_eval')[-1]
 
-                    if not len(early_stopping_value_list) or \
-                            (len(early_stopping_value_list) and early_stopping_value < min(early_stopping_value_list)):
+                    
+
+                    print(f'The current value use for early stopping is {utils.red_text(curr_train_eval_loss)}')
+
+                    if not len(train_eval_losses) or \
+                            (len(train_eval_losses) and curr_train_eval_loss < min(train_eval_losses)):
                         print(utils.green_text(
                             f'The last value is lower than previous ones. Updating the best fine tuner'))
                         best_fine_tuner = copy.deepcopy(fine_tuner)
 
-                    if len(early_stopping_value_list) and early_stopping_value >= min(early_stopping_value_list):
+                    if len(train_eval_losses) and curr_train_eval_loss >= min(train_eval_losses):
                         consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum += 1
                     else:
                         consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0
 
-                    if consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum == 6:
+                    if consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum == 10:
                         print(utils.red_text(f'finish training, stop criteria met!!!'))
                         break
 
-                    early_stopping_value_list += [early_stopping_value]
+                    train_eval_losses += [curr_train_eval_loss]
 
         if not evaluate_on_test_between_epochs:
             evaluate_on_test(data_str=data_str,
                              model_name=model_name,
                              lr=lr,
-                             fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
+                             fine_tuner=best_fine_tuner,
                              loss=loss,
                              num_epochs=self.num_ltn_epochs,
                              save_files=False)
 
-        torch.save(best_fine_tuner.state_dict() if early_stopping else fine_tuner.state_dict(),
+        torch.save(best_fine_tuner.state_dict(),
                    f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.pth")
 
         # save prediction file
-        neural_evaluation.run_combined_evaluating_pipeline(
-            data_str=data_str,
-            model_name=model_name,
-            split='train',
-            lr=lr,
-            loss=loss,
-            pretrained_fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
-            num_epochs=self.num_ltn_epochs,
-            print_results=True,
-            save_files=True,
-            additional_info=additional_info)
-        neural_evaluation.run_combined_evaluating_pipeline(
-            data_str=data_str,
-            model_name=model_name,
-            split='test',
-            lr=lr,
-            loss=loss,
-            pretrained_fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
-            num_epochs=self.num_ltn_epochs,
-            print_results=True,
-            save_files=True,
-            additional_info=additional_info)
+        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
+                                                           model_name=model_name,
+                                                           split='train',
+                                                           lr=lr,
+                                                           loss=loss,
+                                                           pretrained_fine_tuner=best_fine_tuner,
+                                                           num_epochs=self.num_ltn_epochs,
+                                                           print_results=True,
+                                                           save_files=True,
+                                                           additional_info=additional_info)
+        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
+                                                           model_name=model_name,
+                                                           split='test',
+                                                           lr=lr,
+                                                           loss=loss,
+                                                           pretrained_fine_tuner=best_fine_tuner,
+                                                           num_epochs=self.num_ltn_epochs,
+                                                           print_results=True,
+                                                           save_files=True,
+                                                           additional_info=additional_info)
         print('#' * 100)
 
 
@@ -403,3 +543,4 @@ if __name__ == '__main__':
     edcr.fine_tune_and_evaluate_combined_model(
         additional_info=f"LTN{'_binary' if config.use_binary_model else ''}"
                         f"{'_secondary' if config.use_secondary_model else ''}")
+
