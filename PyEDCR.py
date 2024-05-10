@@ -855,39 +855,61 @@ class EDCR:
 
         return DC_l
 
+    def get_BOD_margin(self,
+                       l: data_preprocessing.Label,
+                       DC_l_i: set[conditions.Condition],
+                       cond: conditions.Condition):
+        return self.get_BOD_l_C(l=l, C=DC_l_i.union({cond})) - self.get_BOD_l_C(l=l, C=DC_l_i)
+
+    def get_POS_margin(self,
+                       l: data_preprocessing.Label,
+                       DC_l_i: set[conditions.Condition],
+                       cond: conditions.Condition,
+                       stage: str):
+        return (self.get_POS_l_C(l=l, C=DC_l_i.union({cond}), stage=stage) -
+                self.get_POS_l_C(l=l, C=DC_l_i, stage=stage))
+
     def get_ratio_of_margins(self,
                              l: data_preprocessing.Label,
                              DC_l_i: set[conditions.Condition],
                              cond: conditions.Condition,
                              stage: str,
-                             init_value: float) -> float:
-        BOD_margin = self.get_BOD_l_C(l=l, C=DC_l_i.union({cond})) - self.get_BOD_l_C(l=l, C=DC_l_i)
-        POS_margin = (self.get_POS_l_C(l=l, C=DC_l_i.union({cond}), stage=stage) -
-                      self.get_POS_l_C(l=l, C=DC_l_i, stage=stage))
+                             init_value: float,
+                             minimizing: bool = True) -> float:
+        BOD_margin = self.get_BOD_margin(l=l, DC_l_i=DC_l_i, cond=cond)
+        POS_margin = self.get_POS_margin(l=l, DC_l_i=DC_l_i, cond=cond, stage=stage)
+        minimizing_value = (BOD_margin / POS_margin) if (POS_margin > 0) else init_value
+        maximizing_value = (POS_margin / BOD_margin) if (BOD_margin > 0) else init_value
 
-        return (BOD_margin / POS_margin) if (POS_margin > 0) else init_value
+        return minimizing_value if minimizing else maximizing_value
 
     def get_ratio(self,
                   l: data_preprocessing.Label,
                   DC_l_i: set[conditions.Condition],
                   stage: str,
-                  init_value: float) -> float:
-        BOD_margin = self.get_BOD_l_C(l=l, C=DC_l_i)
-        POS_margin = self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)
+                  init_value: float,
+                  minimizing: bool = True) -> float:
+        BOD = self.get_BOD_l_C(l=l, C=DC_l_i)
+        POS = self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)
+        minimizing_value = (BOD / POS) if (POS > 0) else init_value
+        maximizing_value = (POS / BOD) if (BOD > 0) else init_value
 
-        return (BOD_margin / POS_margin) if (POS_margin > 0) else init_value
+        return minimizing_value if minimizing else maximizing_value
 
     def RatioDetRuleLearn(self,
-                          l: data_preprocessing.Label) -> set[conditions.Condition]:
+                          l: data_preprocessing.Label,
+                          minimizing: bool = False) -> set[conditions.Condition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
         that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
 
+        :param minimizing:
         :param l: The label of interest.
         :return: A set of `Condition` representing the learned error detection rules.
         """
         stage = 'original' if self.correction_model is None else 'post_detection'
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l, stage=stage))
-        init_value = float('inf')
+        init_value = float('inf') if minimizing else -1
+        sort_index = 0 if minimizing else -1
         DC_ls = {0: set()}
         DC_l_scores = {0: init_value}
 
@@ -909,7 +931,8 @@ class EDCR:
 
                 best_cond = sorted(DC_star,
                                    key=lambda cond: self.get_ratio_of_margins(l=l, DC_l_i=DC_l_i, cond=cond,
-                                                                              stage=stage, init_value=init_value))[0]
+                                                                              stage=stage, init_value=init_value,
+                                                                              minimizing=minimizing))[sort_index]
 
                 # for cond in DC_star:
                 #     ratio_l_i = self.get_ratio_value(l=l, DC_l_i=DC_l_i, cond=cond,
@@ -923,15 +946,16 @@ class EDCR:
                 DC_l_scores[i + 1] = self.get_ratio(l=l,
                                                     DC_l_i=DC_ls[i + 1],
                                                     stage=stage,
-                                                    init_value=init_value)
+                                                    init_value=init_value,
+                                                    minimizing=minimizing)
                 DC_star = [cond for cond in DC_star
-                           if (self.get_POS_l_C(l=l, C=DC_ls[i + 1].union({cond}), stage=stage) >
-                               self.get_POS_l_C(l=l, C=DC_ls[i + 1], stage=stage))]
+                           if (self.get_POS_margin(l=l, DC_l_i=DC_ls[i + 1], cond=cond, stage=stage)
+                               if minimizing else self.get_BOD_margin(l=l, DC_l_i=DC_ls[i + 1], cond=cond)) > 0]
 
                 i += 1
 
         # best_set_index = sorted(DC_l_scores.keys(), key=lambda i: DC_l_scores[i])[0]
-        best_set_score = sorted(DC_l_scores.values())[0]
+        best_set_score = sorted(DC_l_scores.values())[sort_index]
         DC_l_best_scores = {i: score for i, score in DC_l_scores.items() if score == best_set_score}
         best_set_index = sorted(DC_l_best_scores.keys(), key=lambda i: len(DC_ls[i]))[-1]
         best_set = DC_ls[best_set_index]
