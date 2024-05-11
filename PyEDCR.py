@@ -969,8 +969,8 @@ class EDCR:
                 DC_ls[i + 1] = DC_l_i_1
                 DC_l_scores[i + 1] = self.get_minimization_ratio(l=l,
                                                                  DC_l_i=DC_l_i_1,
-                                                                 init_value=init_value
-                                                                 )
+                                                                 init_value=init_value)
+
                 DC_star = sorted([cond for cond in DC_star
                                   if init_value > self.get_f_margin(f=self.get_minimization_denominator,
                                                                     l=l,
@@ -987,6 +987,7 @@ class EDCR:
         best_score_DC_ls = [DC_ls[i] for i, score in DC_l_scores.items() if score == best_set_score]
         best_set = sorted(best_score_DC_ls, key=lambda DC_l_i: len(DC_l_i))[0]
         # print(f'\nBest set for {l}: {[str(cond) for cond in best_set]}\n')
+
         return best_set
 
     def learn_detection_rules(self,
