@@ -220,7 +220,7 @@ class EDCR:
     def set_pred_conditions(self):
         for g in data_preprocessing.DataPreprocessor.granularities.values():
             fine = g.g_str == 'fine'
-            self.condition_datas[g] = {}
+            self.condition_datas[g] = set()
             for l in self.preprocessor.get_labels(g).values():
                 if not ((fine and l.index in self.indices_of_fine_labels_to_take_out)
                         or (not fine and l.index in self.indices_of_coarse_labels_to_take_out)):
@@ -977,7 +977,7 @@ class EDCR:
         best_set_score = sorted(DC_l_scores.values())[0]
         best_score_DC_ls = [DC_ls[i] for i, score in DC_l_scores.items() if score == best_set_score]
         best_set = sorted(best_score_DC_ls, key=lambda DC_l_i: len(DC_l_i))[0]
-        print(f'\nBest set for {l}: {[str(cond) for cond in best_set]}\n')
+        # print(f'\nBest set for {l}: {[str(cond) for cond in best_set]}\n')
         return best_set
 
     def learn_detection_rules(self,
