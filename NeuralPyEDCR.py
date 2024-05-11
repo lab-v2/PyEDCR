@@ -44,7 +44,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  num_train_images_per_class: int = None,
                  maximize_ratio: bool = True,
                  train_labels_noise_ratio: float = None,
-                 indices_of_fine_labels_to_take_out: typing.List[int] = []):
+                 indices_of_fine_labels_to_take_out: typing.List[int] = [],
+                 negated_conditions: bool = False):
         super().__init__(data_str=data_str,
                          main_model_name=main_model_name,
                          combined=combined,
@@ -67,7 +68,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                          num_train_images_per_class=num_train_images_per_class,
                          maximize_ratio=maximize_ratio,
                          train_labels_noise_ratio=train_labels_noise_ratio,
-                         indices_of_fine_labels_to_take_out=indices_of_fine_labels_to_take_out)
+                         indices_of_fine_labels_to_take_out=indices_of_fine_labels_to_take_out,
+                         negated_conditions=negated_conditions)
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
@@ -276,7 +278,8 @@ def work_on_value(args):
      num_train_images_per_class,
      maximize_ratio,
      train_labels_noise_ratio,
-     fine_labels_to_take_out
+     fine_labels_to_take_out,
+     negated_conditions
      ) = args
 
     print('#' * 25 + f'num_train_images_per_class = {num_train_images_per_class}, eps = {epsilon}' + '#' * 50)
@@ -302,7 +305,8 @@ def work_on_value(args):
                         # num_train_images_per_class=num_train_images_per_class
                         maximize_ratio=maximize_ratio,
                         train_labels_noise_ratio=train_labels_noise_ratio,
-                        indices_of_fine_labels_to_take_out=fine_labels_to_take_out
+                        indices_of_fine_labels_to_take_out=fine_labels_to_take_out,
+                        negated_conditions=negated_conditions
                         )
     # edcr.learn_error_binary_model(binary_model_name=main_model_name,
     #                               binary_lr=new_lr)
@@ -329,7 +333,8 @@ def simulate_for_values(total_number_of_points: int = 10,
                         only_from_missing_values: bool = False,
                         maximize_ratio: bool = True,
                         train_labels_noise_ratios: typing.Sequence[float] = None,
-                        lists_of_fine_labels_to_take_out: typing.List[typing.List[int]] = []):
+                        lists_of_fine_labels_to_take_out: typing.List[typing.List[int]] = [],
+                        negated_conditions: bool = False):
     all_values = {i: element for i, element
                   in enumerate(itertools.product(train_labels_noise_ratios,
                                                  lists_of_fine_labels_to_take_out
@@ -366,7 +371,8 @@ def simulate_for_values(total_number_of_points: int = 10,
               None,
               maximize_ratio,
               noise_value,
-              fine_labels_to_take_out
+              fine_labels_to_take_out,
+              negated_conditions
               ) for i, (noise_value, fine_labels_to_take_out) in all_values.items()]
 
     if multi_process and not utils.is_debug_mode():
@@ -380,23 +386,23 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    main_model_name = binary_model_name = 'vit_b_16'
-    secondary_model_name = 'vit_l_16'
-    main_lr = binary_lr = 0.0001
-    original_num_epochs = 10
-    secondary_num_epochs = 20
-    binary_num_epochs = 10
-    number_of_fine_classes = 24
+    # data_str = 'military_vehicles'
+    # main_model_name = binary_model_name = 'vit_b_16'
+    # secondary_model_name = 'vit_l_16'
+    # main_lr = binary_lr = 0.0001
+    # original_num_epochs = 10
+    # secondary_num_epochs = 20
+    # binary_num_epochs = 10
+    # number_of_fine_classes = 24
 
-    # data_str = 'imagenet'
-    # main_model_name = binary_model_name = 'dinov2_vits14'
-    # secondary_model_name = 'dinov2_vitl14'
-    # main_lr = binary_lr = 0.000001
-    # original_num_epochs = 8
-    # secondary_num_epochs = 2
-    # binary_num_epochs = 5
-    # number_of_fine_classes = 42
+    data_str = 'imagenet'
+    main_model_name = binary_model_name = 'dinov2_vits14'
+    secondary_model_name = 'dinov2_vitl14'
+    main_lr = binary_lr = 0.000001
+    original_num_epochs = 8
+    secondary_num_epochs = 2
+    binary_num_epochs = 5
+    number_of_fine_classes = 42
 
     # data_str = 'openimage'
     # main_model_name = 'tresnet_m'
@@ -433,18 +439,19 @@ if __name__ == '__main__':
         total_number_of_points=1,
         min_value=0.1,
         max_value=0.1,
-        binary_l_strs=binary_l_strs,
-        binary_lr=binary_lr,
-        binary_num_epochs=binary_num_epochs,
+        # binary_l_strs=binary_l_strs,
+        # binary_lr=binary_lr,
+        # binary_num_epochs=binary_num_epochs,
         multi_process=True,
-        secondary_model_name=secondary_model_name,
-        secondary_model_loss='BCE',
-        secondary_num_epochs=secondary_num_epochs,
+        # secondary_model_name=secondary_model_name,
+        # secondary_model_loss='BCE',
+        # secondary_num_epochs=secondary_num_epochs,
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
-        lists_of_fine_labels_to_take_out= [[]]
+        lists_of_fine_labels_to_take_out= [[]],
         # [list(range(i)) for i in range(number_of_fine_classes)]
+        negated_conditions=False
     )
 
     # (x_values, y_values, error_accuracies, error_f1s, error_MMCs, error_acc_f1s) = (

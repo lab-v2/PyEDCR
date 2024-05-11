@@ -341,7 +341,7 @@ class DataPreprocessor:
     def get_ground_truths(self,
                           test: bool,
                           K: typing.List[int] = None,
-                          g: Granularity = None,
+                          g: typing.Union[Granularity, str] = None,
                           # noisy: bool = False
                           ) -> np.array:
         if test:
