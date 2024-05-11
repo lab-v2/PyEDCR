@@ -923,7 +923,9 @@ class EDCR:
 
         if N_l:
             i = 0
-            DC_star = sorted(self.all_conditions,
+            DC_star = sorted([cond for cond in self.all_conditions
+                              if not (isinstance(cond, conditions.PredCondition) and cond.l == l
+                                      and cond.secondary_model_name is None and not cond.binary)],
                              key=lambda cond: self.get_minimization_ratio(l=l,
                                                                           DC_l_i={cond},
                                                                           init_value=init_value))
@@ -944,7 +946,6 @@ class EDCR:
                                                                               cond=cond,
                                                                               init_value=init_value,
                                                                               ))[0]
-                print(best_cond)
 
                 DC_l_i_1 = DC_l_i.union({best_cond})
                 DC_ls[i + 1] = DC_l_i_1
@@ -967,7 +968,7 @@ class EDCR:
         best_set_score = sorted(DC_l_scores.values())[0]
         best_score_DC_ls = [DC_ls[i] for i, score in DC_l_scores.items() if score == best_set_score]
         best_set = sorted(best_score_DC_ls, key=lambda DC_l_i: len(DC_l_i))[0]
-
+        print(f'\nBest set for {l}: {[str(cond) for cond in best_set]}\n')
         return best_set
 
     def learn_detection_rules(self,

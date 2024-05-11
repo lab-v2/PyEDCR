@@ -109,8 +109,8 @@ class ErrorDetectionRule(Rule):
                                            and cond_prime.secondary_model_name is None and not cond_prime.binary
                                            and cond_prime.lower_prediction_index is None}
 
-        # assert all(self.l != cond.l for cond in pred_conditions_from_main_model), \
-        #     f'We have an error rule for l={l} with the same label!'
+        assert all(self.l != cond.l for cond in pred_conditions_from_main_model), \
+            f'We have an error rule for l={l} with the same label!'
 
         # pred_condition_from_main_model_and_other_g = {cond_prime for cond_prime in pred_conditions_from_main_model
         #                                               if self.l.g != cond_prime.l.g}
