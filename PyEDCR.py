@@ -59,7 +59,8 @@ class EDCR:
                  maximize_ratio: bool = True,
                  train_labels_noise_ratio: float = None,
                  indices_of_fine_labels_to_take_out: typing.List[int] = [],
-                 use_google_api: bool = True):
+                 use_google_api: bool = True,
+                 negated_conditions: bool = False):
         self.data_str = data_str
         self.preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
         self.main_model_name = main_model_name
@@ -82,6 +83,7 @@ class EDCR:
         self.train_labels_noise_ratio = train_labels_noise_ratio
         self.indices_of_fine_labels_to_take_out = indices_of_fine_labels_to_take_out
         self.indices_of_coarse_labels_to_take_out = []
+        self.negated_conditions = negated_conditions
 
         # predictions data
         self.pred_paths: typing.Dict[str, dict] = {
@@ -144,6 +146,8 @@ class EDCR:
         self.condition_datas = {}
 
         # if self.maximize_ratio:
+
+
         self.set_pred_conditions()
         self.set_binary_conditions()
         # else:
@@ -224,9 +228,10 @@ class EDCR:
             for l in self.preprocessor.get_labels(g).values():
                 if not ((fine and l.index in self.indices_of_fine_labels_to_take_out)
                         or (not fine and l.index in self.indices_of_coarse_labels_to_take_out)):
-                    self.condition_datas[g] = (
-                        self.condition_datas[g].union({conditions.PredCondition(l=l),
-                                                       conditions.PredCondition(l=l, negated=True)}))
+                    conditions_to_add = {conditions.PredCondition(l=l)}
+                    if self.negated_conditions:
+                        conditions_to_add = conditions_to_add.union({conditions.PredCondition(l=l, negated=True)})
+                    self.condition_datas[g] = self.condition_datas[g].union(conditions_to_add)
 
     def set_secondary_conditions(self):
         if self.secondary_model_name is not None:
@@ -250,12 +255,15 @@ class EDCR:
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 for l in self.preprocessor.get_labels(g).values():
-                    self.condition_datas[g] = self.condition_datas[g].union(
-                        {conditions.PredCondition(l=l,
-                                                  secondary_model_name=self.secondary_model_name),
-                         conditions.PredCondition(l=l,
-                                                  secondary_model_name=self.secondary_model_name,
-                                                  negated=True)})
+                    conditions_to_add = {conditions.PredCondition(l=l,
+                                                                  secondary_model_name=self.secondary_model_name)}
+                    if self.negated_conditions:
+                        conditions_to_add = (
+                            conditions_to_add.union({
+                                conditions.PredCondition(l=l,
+                                                         secondary_model_name=self.secondary_model_name,
+                                                         negated=True)}))
+                    self.condition_datas[g] = self.condition_datas[g].union(conditions_to_add)
 
     def set_lower_prediction_conditions(self):
         for lower_prediction_index in self.lower_predictions_indices:
@@ -306,9 +314,10 @@ class EDCR:
                 {test_or_train: np.load(self.pred_paths[l][test_or_train])
                  for test_or_train in ['test', 'train']}
 
-            binary_condition = conditions.PredCondition(l=l, binary=True)
-            negated_binary_condition = conditions.PredCondition(l=l, binary=True, negated=False)
-            binary_conditions = {binary_condition, negated_binary_condition}
+            binary_conditions = {conditions.PredCondition(l=l, binary=True)}
+
+            if self.negated_conditions:
+                binary_conditions = binary_conditions.union({conditions.PredCondition(l=l, binary=True, negated=False)})
 
             for g in self.preprocessor.granularities.values():
                 if g in self.condition_datas:

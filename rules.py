@@ -106,19 +106,19 @@ class ErrorDetectionRule(Rule):
                          preprocessor=preprocessor)
         pred_conditions_from_main_model = {cond_prime for cond_prime in self.C_l
                                            if isinstance(cond_prime, conditions.PredCondition)
-                                           and cond_prime.secondary_model_name is None and not cond_prime.binary
+                                           and cond_prime.secondary_model_name is None and (not cond_prime.binary)
                                            and cond_prime.lower_prediction_index is None}
 
         assert all(self.l != cond.l for cond in pred_conditions_from_main_model), \
             f'We have an error rule for l={l} with the same label!'
 
-        # pred_condition_from_main_model_and_other_g = {cond_prime for cond_prime in pred_conditions_from_main_model
-        #                                               if self.l.g != cond_prime.l.g}
+        pred_condition_from_main_model_and_other_g = {cond for cond in pred_conditions_from_main_model
+                                                      if self.l.g != cond.l.g}
 
-        # assert all((self.preprocessor.fine_to_coarse[self.l.l_str] != cond.l) if self.l.g.g_str == 'fine'
-        #            else (self.l != self.preprocessor.fine_to_coarse[cond.l.l_str])
-        #            for cond in pred_condition_from_main_model_and_other_g), \
-        #     f'We have an error rule for l={l} with consistent labels!'
+        assert all((self.preprocessor.fine_to_coarse[self.l.l_str] != cond.l) if self.l.g.g_str == 'fine'
+                   else (self.l != self.preprocessor.fine_to_coarse[cond.l.l_str])
+                   for cond in pred_condition_from_main_model_and_other_g), \
+            f'We have an error rule for l={l} with consistent labels!'
 
     def get_where_body_is_satisfied(self,
                                     pred_fine_data: np.array,
