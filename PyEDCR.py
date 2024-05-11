@@ -969,8 +969,8 @@ class EDCR:
                 DC_ls[i + 1] = DC_l_i_1
                 DC_l_scores[i + 1] = self.get_minimization_ratio(l=l,
                                                                  DC_l_i=DC_l_i_1,
-                                                                 init_value=init_value
-                                                                 )
+                                                                 init_value=init_value)
+
                 DC_star = sorted([cond for cond in DC_star
                                   if init_value > self.get_f_margin(f=self.get_minimization_denominator,
                                                                     l=l,
