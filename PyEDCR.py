@@ -219,12 +219,14 @@ class EDCR:
 
     def set_pred_conditions(self):
         for g in data_preprocessing.DataPreprocessor.granularities.values():
-            self.condition_datas[g] = {conditions.PredCondition(l=l)
-                                       for l in self.preprocessor.get_labels(g).values()
-                                       if not ((g.g_str == 'fine' and l.index
-                                                in self.indices_of_fine_labels_to_take_out)
-                                               or (g.g_str == 'coarse' and l.index
-                                                   in self.indices_of_coarse_labels_to_take_out))}
+            fine = g.g_str == 'fine'
+            self.condition_datas[g] = {}
+            for l in self.preprocessor.get_labels(g).values():
+                if not ((fine and l.index in self.indices_of_fine_labels_to_take_out)
+                        or (not fine and l.index in self.indices_of_coarse_labels_to_take_out)):
+                    self.condition_datas[g] = (
+                        self.condition_datas[g].union({conditions.PredCondition(l=l),
+                                                       conditions.PredCondition(l=l, negated=True)}))
 
     def set_secondary_conditions(self):
         if self.secondary_model_name is not None:
@@ -247,9 +249,13 @@ class EDCR:
                  for test_or_train in ['test', 'train']}
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
-                self.condition_datas[g] = self.condition_datas[g].union(
-                    {conditions.PredCondition(l=l, secondary_model_name=self.secondary_model_name)
-                     for l in self.preprocessor.get_labels(g).values()})
+                for l in self.preprocessor.get_labels(g).values():
+                    self.condition_datas[g] = self.condition_datas[g].union(
+                        {conditions.PredCondition(l=l,
+                                                  secondary_model_name=self.secondary_model_name),
+                         conditions.PredCondition(l=l,
+                                                  secondary_model_name=self.secondary_model_name,
+                                                  negated=True)})
 
     def set_lower_prediction_conditions(self):
         for lower_prediction_index in self.lower_predictions_indices:
@@ -300,12 +306,15 @@ class EDCR:
                 {test_or_train: np.load(self.pred_paths[l][test_or_train])
                  for test_or_train in ['test', 'train']}
 
+            binary_condition = conditions.PredCondition(l=l, binary=True)
+            negated_binary_condition = conditions.PredCondition(l=l, binary=True, negated=False)
+            binary_conditions = {binary_condition, negated_binary_condition}
+
             for g in self.preprocessor.granularities.values():
                 if g in self.condition_datas:
-                    self.condition_datas[g] = self.condition_datas[g].union(
-                        {conditions.PredCondition(l=l, binary=True)})
+                    self.condition_datas[g] = self.condition_datas[g].union(binary_conditions)
                 else:
-                    self.condition_datas[g] = {conditions.PredCondition(l=l, binary=True)}
+                    self.condition_datas[g] = {binary_conditions}
 
     def set_coarse_labels_to_take_out(self):
         g_coarse = self.preprocessor.granularities['coarse']
