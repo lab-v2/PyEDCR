@@ -395,23 +395,23 @@ if __name__ == '__main__':
     # binary_num_epochs = 10
     # number_of_fine_classes = 24
 
-    data_str = 'imagenet'
-    main_model_name = binary_model_name = 'dinov2_vits14'
-    secondary_model_name = 'dinov2_vitl14'
-    main_lr = binary_lr = 0.000001
-    original_num_epochs = 8
-    secondary_num_epochs = 2
-    binary_num_epochs = 5
-    number_of_fine_classes = 42
-
-    # data_str = 'openimage'
-    # main_model_name = 'tresnet_m'
-    # secondary_model_name = binary_model_name = 'dinov2_vits14'
+    # data_str = 'imagenet'
+    # main_model_name = binary_model_name = 'dinov2_vits14'
+    # secondary_model_name = 'dinov2_vitl14'
     # main_lr = binary_lr = 0.000001
-    # original_num_epochs = 0
-    # secondary_num_epochs = 20
-    # binary_num_epochs = 4
-    # number_of_fine_classes = 30
+    # original_num_epochs = 8
+    # secondary_num_epochs = 2
+    # binary_num_epochs = 5
+    # number_of_fine_classes = 42
+
+    data_str = 'openimage'
+    main_model_name = 'tresnet_m'
+    secondary_model_name = binary_model_name = 'dinov2_vits14'
+    main_lr = binary_lr = 0.000001
+    original_num_epochs = 0
+    secondary_num_epochs = 20
+    binary_num_epochs = 4
+    number_of_fine_classes = 30
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
@@ -443,9 +443,9 @@ if __name__ == '__main__':
         binary_lr=binary_lr,
         binary_num_epochs=binary_num_epochs,
         multi_process=True,
-        # secondary_model_name=secondary_model_name,
-        # secondary_model_loss='BCE',
-        # secondary_num_epochs=secondary_num_epochs,
+        secondary_model_name=secondary_model_name,
+        secondary_model_loss='BCE',
+        secondary_num_epochs=secondary_num_epochs,
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
