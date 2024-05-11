@@ -443,9 +443,9 @@ if __name__ == '__main__':
         # binary_lr=binary_lr,
         # binary_num_epochs=binary_num_epochs,
         multi_process=True,
-        secondary_model_name=secondary_model_name,
-        secondary_model_loss='BCE',
-        secondary_num_epochs=secondary_num_epochs,
+        # secondary_model_name=secondary_model_name,
+        # secondary_model_loss='BCE',
+        # secondary_num_epochs=secondary_num_epochs,
         # only_from_missing_values=True
         maximize_ratio=maximize_ratio,
         train_labels_noise_ratios=[0],
