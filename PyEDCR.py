@@ -987,6 +987,7 @@ class EDCR:
         best_score_DC_ls = [DC_ls[i] for i, score in DC_l_scores.items() if score == best_set_score]
         best_set = sorted(best_score_DC_ls, key=lambda DC_l_i: len(DC_l_i))[0]
         # print(f'\nBest set for {l}: {[str(cond) for cond in best_set]}\n')
+
         return best_set
 
     def learn_detection_rules(self,
