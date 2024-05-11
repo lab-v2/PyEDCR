@@ -1016,6 +1016,17 @@ class EDCR:
             #             and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
             #         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
+    def get_num_all_possible_constraint_can_recover_in_train(self):
+        train_fine_prediction, train_coarse_prediction = self.get_predictions(test=False)
+
+        unique_set_of_fine_coarse_prediction = set([(train_fine_prediction[i], train_coarse_prediction[i])
+                                                    for i in range(len(train_fine_prediction))])
+
+        remove_constraint = set([(fine_label_idx, coarse_label_idx)
+                                 for fine_label_idx, coarse_label_idx in self.preprocessor.fine_to_course_idx.items()])
+
+        return len(unique_set_of_fine_coarse_prediction.difference(remove_constraint))
+
     def apply_detection_rules(self,
                               test: bool,
                               g: data_preprocessing.Granularity,
@@ -1069,8 +1080,7 @@ class EDCR:
                 recovered_constraints_true_positives, recovered_constraints_positives = (
                     self.get_constraints_true_positives_and_total_positives())
                 # inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
-                all_possible_consistency_constraints = (self.preprocessor.num_fine_grain_classes *
-                                                        (self.preprocessor.num_coarse_grain_classes - 1))
+                all_possible_consistency_constraints = self.get_num_all_possible_constraint_can_recover_in_train()
 
                 # print(f'Total unique recoverable constraints from the {test_str} predictions: '
                 #       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
