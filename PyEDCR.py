@@ -147,7 +147,6 @@ class EDCR:
 
         # if self.maximize_ratio:
 
-
         self.set_pred_conditions()
         self.set_binary_conditions()
         # else:
@@ -941,6 +940,7 @@ class EDCR:
 
         if N_l:
             i = 0
+            # 1. sorting the conditions by their 1/f1 value from least to greatest
             DC_star = sorted([cond for cond in self.all_conditions
                               if not (isinstance(cond, conditions.PredCondition) and cond.l == l
                                       and cond.secondary_model_name is None and not cond.binary)],
@@ -958,6 +958,7 @@ class EDCR:
                 #             self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)) > 0)
                 #        else init_value for cond in DC_star})
 
+                # 2. minimizing the margin of 1/f1 based on the algorithm
                 best_cond = sorted(DC_star,
                                    key=lambda cond: self.get_ratio_of_margins(l=l,
                                                                               DC_l_i=DC_l_i,
@@ -967,10 +968,13 @@ class EDCR:
 
                 DC_l_i_1 = DC_l_i.union({best_cond})
                 DC_ls[i + 1] = DC_l_i_1
+                # 3. updating the new set 1/f1 score
                 DC_l_scores[i + 1] = self.get_minimization_ratio(l=l,
                                                                  DC_l_i=DC_l_i_1,
                                                                  init_value=init_value)
 
+                # 4. updating the set of conditions based on the algorithm and also again sorting like in step 1
+                # from least to greatest
                 DC_star = sorted([cond for cond in DC_star
                                   if init_value > self.get_f_margin(f=self.get_minimization_denominator,
                                                                     l=l,
@@ -983,6 +987,8 @@ class EDCR:
                 i += 1
 
         # best_set_index = sorted(DC_l_scores.keys(), key=lambda i: DC_l_scores[i])[0]
+
+        # 5. picking the set with the most conditions from all the sets that have the same best score
         best_set_score = sorted(DC_l_scores.values())[0]
         best_score_DC_ls = [DC_ls[i] for i, score in DC_l_scores.items() if score == best_set_score]
         best_set = sorted(best_score_DC_ls, key=lambda DC_l_i: len(DC_l_i))[0]
@@ -1020,13 +1026,14 @@ class EDCR:
     def get_num_all_possible_constraint_can_recover_in_train(self):
         train_fine_prediction, train_coarse_prediction = self.get_predictions(test=False)
 
-        unique_set_of_fine_coarse_prediction = set([(train_fine_prediction[i], train_coarse_prediction[i])
+        unique_set_of_fine_coarse_predictions = set([(train_fine_prediction[i], train_coarse_prediction[i])
                                                     for i in range(len(train_fine_prediction))])
 
-        remove_constraint = set([(fine_label_idx, coarse_label_idx)
-                                 for fine_label_idx, coarse_label_idx in self.preprocessor.fine_to_course_idx.items()])
+        consistent_prediction = set([(fine_label_idx, coarse_label_idx)
+                                     for fine_label_idx, coarse_label_idx in
+                                     self.preprocessor.fine_to_course_idx.items()])
 
-        return len(unique_set_of_fine_coarse_prediction.difference(remove_constraint))
+        return len(unique_set_of_fine_coarse_predictions.difference(consistent_prediction))
 
     def apply_detection_rules(self,
                               test: bool,
@@ -1135,11 +1142,12 @@ class EDCR:
                                                  stage='post_detection')
 
         if test and save_to_google_sheets:
-            error_accuracy, error_f1, error_precision, error_recall = \
+            error_accuracy, error_f1, error_precision, error_recall, error_balanced_accuracy = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_test_errors,
                     true_data=self.test_error_ground_truths,
-                    labels=[1])]
+                    labels=[1],
+                    binary=True)]
 
             print()
             # inconsistency_error_accuracy, inconsistency_error_f1, _, _, _ = \
@@ -1152,6 +1160,7 @@ class EDCR:
             input_values = [round(self.epsilon, 3),
                             self.noise_ratio,
                             error_accuracy,
+                            error_balanced_accuracy,
                             error_precision,
                             error_recall,
                             error_f1,
