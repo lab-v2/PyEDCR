@@ -857,24 +857,21 @@ class EDCR:
             P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage=stage)
             q_l = self.epsilon * N_l * P_l / R_l
 
-            DC_star = {cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
+            DC_star = [cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
                                                                                 C={cond},
-                                                                                stage=stage) <= q_l}
+                                                                                stage=stage) <= q_l
+                       and not (isinstance(cond, conditions.PredCondition) and cond.l == l
+                                and cond.secondary_model_name is None)]
 
             while DC_star:
-                best_score = -1
-                best_cond = None
-
-                for cond in DC_star:
-                    POS_l = self.get_POS_l_C(l=l, C=DC_l.union({cond}), stage=stage)
-                    if POS_l >= best_score:
-                        best_score = POS_l
-                        best_cond = cond
+                best_cond = sorted(DC_star,
+                                   key=lambda cond: self.get_POS_l_C(l=l, C=DC_l.union({cond}), stage=stage))[-1]
 
                 DC_l = DC_l.union({best_cond})
-                DC_star = {cond for cond in
-                           sorted(set(self.all_conditions).difference(DC_l), key=lambda cond: str(cond))
-                           if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l}
+                DC_star = sorted([cond for cond in
+                                  set(self.all_conditions).difference(DC_l)
+                                  if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l],
+                                 key=lambda cond: str(cond))
 
         return DC_l
 
@@ -943,7 +940,7 @@ class EDCR:
             # 1. sorting the conditions by their 1/f1 value from least to greatest
             DC_star = sorted([cond for cond in self.all_conditions
                               if not (isinstance(cond, conditions.PredCondition) and cond.l == l
-                                      and cond.secondary_model_name is None and not cond.binary)],
+                                      and cond.secondary_model_name is None)],
                              key=lambda cond: self.get_minimization_ratio(l=l,
                                                                           DC_l_i={cond},
                                                                           init_value=init_value))
@@ -1027,7 +1024,7 @@ class EDCR:
         train_fine_prediction, train_coarse_prediction = self.get_predictions(test=False)
 
         unique_set_of_fine_coarse_predictions = set([(train_fine_prediction[i], train_coarse_prediction[i])
-                                                    for i in range(len(train_fine_prediction))])
+                                                     for i in range(len(train_fine_prediction))])
 
         consistent_prediction = set([(fine_label_idx, coarse_label_idx)
                                      for fine_label_idx, coarse_label_idx in
