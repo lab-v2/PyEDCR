@@ -34,10 +34,10 @@ def print_num_inconsistencies(preprocessor: data_preprocessing.DataPreprocessor,
           f"{utils.red_text(inconsistencies)}/{utils.red_text(len(pred_fine_data))} "
           f'({utils.red_text(round(inconsistencies / len(pred_fine_data) * 100, 2))}%)\n')
 
-    if current_num_test_inconsistencies is not None and original_test_inconsistencies is not None:
-        print(f'Recovered inconsistencies: '
-              f'{round(current_num_test_inconsistencies / original_test_inconsistencies[1] * 100, 2)}%'
-              )
+    # if current_num_test_inconsistencies is not None and original_test_inconsistencies is not None:
+    #     print(f'Recovered inconsistencies: '
+    #           f'{round(current_num_test_inconsistencies / original_test_inconsistencies[1] * 100, 2)}%'
+    #           )
 
 
 def get_individual_metrics(pred_data: np.array,

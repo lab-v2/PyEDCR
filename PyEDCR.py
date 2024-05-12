@@ -42,7 +42,7 @@ class EDCR:
                  loss: str,
                  lr: typing.Union[str, float],
                  original_num_epochs: int,
-                 epsilon: typing.Union[str, float],
+                 epsilon: typing.Union[str, float] = None,
                  sheet_index: int = None,
                  K_train: typing.List[(int, int)] = None,
                  K_test: typing.List[(int, int)] = None,
@@ -69,7 +69,7 @@ class EDCR:
         self.lr = lr
         self.original_num_epochs = original_num_epochs
         self.epsilon = epsilon
-        self.sheet_index = sheet_index + 2 if sheet_index is not None else None
+        self.sheet_index = 2 if self.epsilon is not None else (sheet_index + 3 if sheet_index is not None else None)
         self.secondary_model_name = secondary_model_name
         self.secondary_model_loss = secondary_model_loss
         self.secondary_num_epochs = secondary_num_epochs
@@ -870,7 +870,10 @@ class EDCR:
                 DC_l = DC_l.union({best_cond})
                 DC_star = sorted([cond for cond in
                                   set(self.all_conditions).difference(DC_l)
-                                  if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l],
+                                  if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l
+                                  and not (isinstance(cond, conditions.PredCondition) and cond.l == l
+                                           and cond.secondary_model_name is None)
+                                  ],
                                  key=lambda cond: str(cond))
 
         return DC_l
@@ -1091,11 +1094,11 @@ class EDCR:
                 #       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
                 #       f'Recovered constraints: {recovered_constraints_str}')
 
-                self.recovered_constraints_recall = (recovered_constraints_true_positives /
-                                                     all_possible_consistency_constraints)
+                self.recovered_constraints_recall = min(recovered_constraints_true_positives /
+                                                        all_possible_consistency_constraints, 1)
 
-                self.recovered_constraints_precision = (recovered_constraints_true_positives /
-                                                        recovered_constraints_positives) \
+                self.recovered_constraints_precision = min(recovered_constraints_true_positives /
+                                                           recovered_constraints_positives, 1)\
                     if recovered_constraints_positives else 0
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
@@ -1139,14 +1142,13 @@ class EDCR:
                                                  stage='post_detection')
 
         if test and save_to_google_sheets:
-            error_accuracy, error_f1, error_precision, error_recall, error_balanced_accuracy = \
+            error_accuracy, error_balanced_accuracy, error_f1, error_precision, error_recall,  = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_test_errors,
                     true_data=self.test_error_ground_truths,
                     labels=[1],
                     binary=True)]
 
-            print()
             # inconsistency_error_accuracy, inconsistency_error_f1, _, _, _ = \
             #     [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
             #         pred_data=self.predicted_test_errors,
@@ -1154,7 +1156,7 @@ class EDCR:
             #         labels=[0])]
 
             # set values
-            input_values = [round(self.epsilon, 3),
+            input_values = [round(self.epsilon, 3) if self.epsilon is not None else '',
                             self.noise_ratio,
                             error_accuracy,
                             error_balanced_accuracy,
@@ -1163,7 +1165,7 @@ class EDCR:
                             error_f1,
                             self.recovered_constraints_precision,
                             self.recovered_constraints_recall,
-                            2 / (1 / self.recovered_constraints_precision + 1 / self.recovered_constraints_recall)
+                            2 / ((1 / self.recovered_constraints_precision) + (1 / self.recovered_constraints_recall))
                             if self.recovered_constraints_precision and self.recovered_constraints_recall else 0
                             ]
 
