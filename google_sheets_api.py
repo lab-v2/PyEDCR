@@ -51,8 +51,7 @@ def get_sheet_tab_name(main_model_name: str,
                    'dinov2_vits14': 'DINO V2 VIT14_s',
                    'dinov2_vitl14': 'DINO V2 VIT14_l',
                    'tresnet_m': 'Tresnet M',
-                   'vit_l_16': 'VIT_l_16',
-                   'dinov2_vitl14': 'DINO V2 VIT14_l'}
+                   'vit_l_16': 'VIT_l_16'}
     data_dict = {'military_vehicles': 'Military Vehicles',
                  'imagenet': 'ImageNet',
                  'openimage': 'OpenImage'}

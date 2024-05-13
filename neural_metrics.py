@@ -1,6 +1,6 @@
 import typing
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, balanced_accuracy_score
 
 import utils
 import data_preprocessing
@@ -34,17 +34,20 @@ def print_num_inconsistencies(preprocessor: data_preprocessing.DataPreprocessor,
           f"{utils.red_text(inconsistencies)}/{utils.red_text(len(pred_fine_data))} "
           f'({utils.red_text(round(inconsistencies / len(pred_fine_data) * 100, 2))}%)\n')
 
-    if current_num_test_inconsistencies is not None and original_test_inconsistencies is not None:
-        print(f'Recovered inconsistencies: '
-              f'{round(current_num_test_inconsistencies / original_test_inconsistencies[1] * 100, 2)}%'
-              )
+    # if current_num_test_inconsistencies is not None and original_test_inconsistencies is not None:
+    #     print(f'Recovered inconsistencies: '
+    #           f'{round(current_num_test_inconsistencies / original_test_inconsistencies[1] * 100, 2)}%'
+    #           )
 
 
 def get_individual_metrics(pred_data: np.array,
                            true_data: np.array,
-                           labels: list = None):
+                           labels: list = None,
+                           binary: bool = False):
     accuracy = accuracy_score(y_true=true_data,
                               y_pred=pred_data)
+    balanced_accuracy = balanced_accuracy_score(y_true=true_data,
+                                                y_pred=pred_data)
     f1 = f1_score(y_true=true_data,
                   y_pred=pred_data,
                   labels=labels,
@@ -66,7 +69,10 @@ def get_individual_metrics(pred_data: np.array,
     # y_pred=pred_data, labels=labels, average=None)[idx] print(f'class {idx} has precision {precision_per_class} and
     # recall {recall_per_class}')
 
-    return accuracy, f1, precision, recall
+    if not binary:
+        return accuracy, f1, precision, recall
+
+    return accuracy, balanced_accuracy, f1, precision, recall
 
 
 def get_metrics(preprocessor: data_preprocessing.DataPreprocessor,

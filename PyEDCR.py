@@ -42,7 +42,7 @@ class EDCR:
                  loss: str,
                  lr: typing.Union[str, float],
                  original_num_epochs: int,
-                 epsilon: typing.Union[str, float],
+                 epsilon: typing.Union[str, float] = None,
                  sheet_index: int = None,
                  K_train: typing.List[(int, int)] = None,
                  K_test: typing.List[(int, int)] = None,
@@ -69,7 +69,7 @@ class EDCR:
         self.lr = lr
         self.original_num_epochs = original_num_epochs
         self.epsilon = epsilon
-        self.sheet_index = sheet_index + 2 if sheet_index is not None else None
+        self.sheet_index = 2 if self.epsilon is not None else (sheet_index + 3 if sheet_index is not None else None)
         self.secondary_model_name = secondary_model_name
         self.secondary_model_loss = secondary_model_loss
         self.secondary_num_epochs = secondary_num_epochs
@@ -146,7 +146,6 @@ class EDCR:
         self.condition_datas = {}
 
         # if self.maximize_ratio:
-
 
         self.set_pred_conditions()
         self.set_binary_conditions()
@@ -858,24 +857,24 @@ class EDCR:
             P_l, R_l = self.get_l_precision_and_recall(test=False, l=l, stage=stage)
             q_l = self.epsilon * N_l * P_l / R_l
 
-            DC_star = {cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
+            DC_star = [cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
                                                                                 C={cond},
-                                                                                stage=stage) <= q_l}
+                                                                                stage=stage) <= q_l
+                       and not (isinstance(cond, conditions.PredCondition) and cond.l == l
+                                and cond.secondary_model_name is None)]
 
             while DC_star:
-                best_score = -1
-                best_cond = None
-
-                for cond in DC_star:
-                    POS_l = self.get_POS_l_C(l=l, C=DC_l.union({cond}), stage=stage)
-                    if POS_l >= best_score:
-                        best_score = POS_l
-                        best_cond = cond
+                best_cond = sorted(DC_star,
+                                   key=lambda cond: self.get_POS_l_C(l=l, C=DC_l.union({cond}), stage=stage))[-1]
 
                 DC_l = DC_l.union({best_cond})
-                DC_star = {cond for cond in
-                           sorted(set(self.all_conditions).difference(DC_l), key=lambda cond: str(cond))
-                           if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l}
+                DC_star = sorted([cond for cond in
+                                  set(self.all_conditions).difference(DC_l)
+                                  if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l
+                                  and not (isinstance(cond, conditions.PredCondition) and cond.l == l
+                                           and cond.secondary_model_name is None)
+                                  ],
+                                 key=lambda cond: str(cond))
 
         return DC_l
 
@@ -941,9 +940,10 @@ class EDCR:
 
         if N_l:
             i = 0
+            # 1. sorting the conditions by their 1/f1 value from least to greatest
             DC_star = sorted([cond for cond in self.all_conditions
                               if not (isinstance(cond, conditions.PredCondition) and cond.l == l
-                                      and cond.secondary_model_name is None and not cond.binary)],
+                                      and cond.secondary_model_name is None)],
                              key=lambda cond: self.get_minimization_ratio(l=l,
                                                                           DC_l_i={cond},
                                                                           init_value=init_value))
@@ -958,6 +958,7 @@ class EDCR:
                 #             self.get_POS_l_C(l=l, C=DC_l_i, stage=stage)) > 0)
                 #        else init_value for cond in DC_star})
 
+                # 2. minimizing the margin of 1/f1 based on the algorithm
                 best_cond = sorted(DC_star,
                                    key=lambda cond: self.get_ratio_of_margins(l=l,
                                                                               DC_l_i=DC_l_i,
@@ -967,10 +968,13 @@ class EDCR:
 
                 DC_l_i_1 = DC_l_i.union({best_cond})
                 DC_ls[i + 1] = DC_l_i_1
+                # 3. updating the new set 1/f1 score
                 DC_l_scores[i + 1] = self.get_minimization_ratio(l=l,
                                                                  DC_l_i=DC_l_i_1,
                                                                  init_value=init_value)
 
+                # 4. updating the set of conditions based on the algorithm and also again sorting like in step 1
+                # from least to greatest
                 DC_star = sorted([cond for cond in DC_star
                                   if init_value > self.get_f_margin(f=self.get_minimization_denominator,
                                                                     l=l,
@@ -983,6 +987,8 @@ class EDCR:
                 i += 1
 
         # best_set_index = sorted(DC_l_scores.keys(), key=lambda i: DC_l_scores[i])[0]
+
+        # 5. picking the set with the most conditions from all the sets that have the same best score
         best_set_score = sorted(DC_l_scores.values())[0]
         best_score_DC_ls = [DC_ls[i] for i, score in DC_l_scores.items() if score == best_set_score]
         best_set = sorted(best_score_DC_ls, key=lambda DC_l_i: len(DC_l_i))[0]
@@ -1020,13 +1026,14 @@ class EDCR:
     def get_num_all_possible_constraint_can_recover_in_train(self):
         train_fine_prediction, train_coarse_prediction = self.get_predictions(test=False)
 
-        unique_set_of_fine_coarse_prediction = set([(train_fine_prediction[i], train_coarse_prediction[i])
-                                                    for i in range(len(train_fine_prediction))])
+        unique_set_of_fine_coarse_predictions = set([(train_fine_prediction[i], train_coarse_prediction[i])
+                                                     for i in range(len(train_fine_prediction))])
 
-        remove_constraint = set([(fine_label_idx, coarse_label_idx)
-                                 for fine_label_idx, coarse_label_idx in self.preprocessor.fine_to_course_idx.items()])
+        consistent_prediction = set([(fine_label_idx, coarse_label_idx)
+                                     for fine_label_idx, coarse_label_idx in
+                                     self.preprocessor.fine_to_course_idx.items()])
 
-        return len(unique_set_of_fine_coarse_prediction.difference(remove_constraint))
+        return len(unique_set_of_fine_coarse_predictions.difference(consistent_prediction))
 
     def apply_detection_rules(self,
                               test: bool,
@@ -1087,11 +1094,11 @@ class EDCR:
                 #       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
                 #       f'Recovered constraints: {recovered_constraints_str}')
 
-                self.recovered_constraints_recall = (recovered_constraints_true_positives /
-                                                     all_possible_consistency_constraints)
+                self.recovered_constraints_recall = min(recovered_constraints_true_positives /
+                                                        all_possible_consistency_constraints, 1)
 
-                self.recovered_constraints_precision = (recovered_constraints_true_positives /
-                                                        recovered_constraints_positives) \
+                self.recovered_constraints_precision = min(recovered_constraints_true_positives /
+                                                           recovered_constraints_positives, 1)\
                     if recovered_constraints_positives else 0
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
@@ -1135,13 +1142,13 @@ class EDCR:
                                                  stage='post_detection')
 
         if test and save_to_google_sheets:
-            error_accuracy, error_f1, error_precision, error_recall = \
+            error_accuracy, error_balanced_accuracy, error_f1, error_precision, error_recall,  = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_test_errors,
                     true_data=self.test_error_ground_truths,
-                    labels=[1])]
+                    labels=[1],
+                    binary=True)]
 
-            print()
             # inconsistency_error_accuracy, inconsistency_error_f1, _, _, _ = \
             #     [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
             #         pred_data=self.predicted_test_errors,
@@ -1149,15 +1156,16 @@ class EDCR:
             #         labels=[0])]
 
             # set values
-            input_values = [round(self.epsilon, 3),
+            input_values = [round(self.epsilon, 3) if self.epsilon is not None else '',
                             self.noise_ratio,
                             error_accuracy,
+                            error_balanced_accuracy,
                             error_precision,
                             error_recall,
                             error_f1,
                             self.recovered_constraints_precision,
                             self.recovered_constraints_recall,
-                            2 / (1 / self.recovered_constraints_precision + 1 / self.recovered_constraints_recall)
+                            2 / ((1 / self.recovered_constraints_precision) + (1 / self.recovered_constraints_recall))
                             if self.recovered_constraints_precision and self.recovered_constraints_recall else 0
                             ]
 

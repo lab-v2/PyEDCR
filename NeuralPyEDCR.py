@@ -26,9 +26,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  loss: str,
                  lr: typing.Union[str, float],
                  original_num_epochs: int,
-                 epsilon: typing.Union[str, float],
-                 EDCR_num_epochs: int,
-                 neural_num_epochs: int,
+                 epsilon: typing.Union[str, float] = None,
+                 EDCR_num_epochs: int = 1,
+                 neural_num_epochs: int = 1,
                  sheet_index: int = None,
                  K_train: typing.Union[typing.List[typing.Tuple[int]], np.ndarray] = None,
                  K_test: typing.List[typing.Tuple[int]] = None,
@@ -356,7 +356,7 @@ def simulate_for_values(total_number_of_points: int = 10,
                               or (first_value > last_first_value))}
 
     datas = [(i,
-              0.1,
+              None if maximize_ratio else 0.1,
               data_str,
               main_model_name,
               main_lr,
@@ -386,23 +386,23 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = binary_model_name = 'vit_b_16'
-    # secondary_model_name = 'vit_l_16'
-    # main_lr = binary_lr = 0.0001
-    # original_num_epochs = 10
-    # secondary_num_epochs = 20
-    # binary_num_epochs = 10
-    # number_of_fine_classes = 24
+    data_str = 'military_vehicles'
+    main_model_name = binary_model_name = 'vit_b_16'
+    secondary_model_name = 'vit_l_16'
+    main_lr = binary_lr = 0.0001
+    original_num_epochs = 10
+    secondary_num_epochs = 20
+    binary_num_epochs = 10
+    number_of_fine_classes = 24
 
-    data_str = 'imagenet'
-    main_model_name = binary_model_name = 'dinov2_vits14'
-    secondary_model_name = 'dinov2_vitl14'
-    main_lr = binary_lr = 0.000001
-    original_num_epochs = 8
-    secondary_num_epochs = 2
-    binary_num_epochs = 5
-    number_of_fine_classes = 42
+    # data_str = 'imagenet'
+    # main_model_name = binary_model_name = 'dinov2_vits14'
+    # secondary_model_name = 'dinov2_vitl14'
+    # main_lr = binary_lr = 0.000001
+    # original_num_epochs = 8
+    # secondary_num_epochs = 2
+    # binary_num_epochs = 5
+    # number_of_fine_classes = 42
 
     # data_str = 'openimage'
     # main_model_name = 'tresnet_m'
@@ -417,16 +417,6 @@ if __name__ == '__main__':
                           for f in os.listdir('binary_results')
                           if f.startswith(f'{data_str}_{binary_model_name}')})
 
-    maximize_ratio = True
-
-    # secondary_model_name = 'vit_l_16_BCE'
-    # secondary_model_name = 'dinov2_vitl14'
-
-    # data_str = 'openimage'
-    # main_model_name = new_model_name = 'tresnet_m'
-    # main_lr = new_lr = 0.000001
-    # original_num_epochs = 0
-
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
     sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
@@ -435,22 +425,25 @@ if __name__ == '__main__':
                                                           binary=len(binary_l_strs) > 0)
     number_of_ratios = 10
 
+    # lists_of_fine_labels_to_take_out = [list(range(i)) for i in range(number_of_fine_classes)]
+    lists_of_fine_labels_to_take_out = [[]]
+    # lists_of_fine_labels_to_take_out = [list(range(number_of_fine_classes-1))]
+
     simulate_for_values(
         total_number_of_points=1,
         min_value=0.1,
         max_value=0.1,
-        # binary_l_strs=binary_l_strs,
-        # binary_lr=binary_lr,
-        # binary_num_epochs=binary_num_epochs,
+        binary_l_strs=binary_l_strs,
+        binary_lr=binary_lr,
+        binary_num_epochs=binary_num_epochs,
         multi_process=True,
         secondary_model_name=secondary_model_name,
         secondary_model_loss='BCE',
         secondary_num_epochs=secondary_num_epochs,
         # only_from_missing_values=True
-        maximize_ratio=maximize_ratio,
+        maximize_ratio=False,
         train_labels_noise_ratios=[0],
-        lists_of_fine_labels_to_take_out=[[0]],
-        # [list(range(i)) for i in range(number_of_fine_classes)],
+        lists_of_fine_labels_to_take_out=lists_of_fine_labels_to_take_out,
         negated_conditions=False
     )
 
