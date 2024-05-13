@@ -108,8 +108,6 @@ def save_prediction_files(data_str: str,
             # if ground_truth_data and not os.path.isfile(ground_truth_filename):
             #     np.save(ground_truth_filename, ground_truth_data)
 
-
-
     else:
         np.save(f"{individual_results_path}_{test_str}_{fine_tuners['fine']}"
                 f"_pred_lr{lrs['fine']}_{epoch_str}_fine_individual.npy",

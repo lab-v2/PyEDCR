@@ -50,6 +50,7 @@ class EDCR:
                  secondary_model_name: str = None,
                  secondary_model_loss: str = None,
                  secondary_num_epochs: int = None,
+                 secondary_lr: float = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_l_strs: typing.List[str] = [],
                  binary_model_name: str = None,
@@ -73,6 +74,7 @@ class EDCR:
         self.secondary_model_name = secondary_model_name
         self.secondary_model_loss = secondary_model_loss
         self.secondary_num_epochs = secondary_num_epochs
+        self.secondary_lr = secondary_lr
         self.lower_predictions_indices = lower_predictions_indices
         self.binary_l_strs = binary_l_strs
         self.binary_model_name = binary_model_name
@@ -241,7 +243,7 @@ class EDCR:
                                                                          test=test,
                                                                          granularity=g_str,
                                                                          loss=self.secondary_model_loss,
-                                                                         lr=self.lr,
+                                                                         lr=self.secondary_lr,
                                                                          pred=True,
                                                                          epoch=self.secondary_num_epochs)
                                               for g_str in data_preprocessing.DataPreprocessor.granularities_str}

@@ -36,6 +36,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  secondary_model_name: str = None,
                  secondary_model_loss: str = None,
                  secondary_num_epochs: int = None,
+                 secondary_lr: float = None,
                  lower_predictions_indices: typing.List[int] = [],
                  binary_l_strs: typing.List[str] = [],
                  binary_model_name: str = None,
@@ -65,6 +66,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                          binary_model_name=binary_model_name,
                          binary_num_epochs=binary_num_epochs,
                          binary_lr=binary_lr,
+                         secondary_lr=secondary_lr,
                          num_train_images_per_class=num_train_images_per_class,
                          maximize_ratio=maximize_ratio,
                          train_labels_noise_ratio=train_labels_noise_ratio,
@@ -271,6 +273,7 @@ def work_on_value(args):
      secondary_model_name,
      secondary_model_loss,
      secondary_num_epochs,
+     secondary_lr,
      binary_l_strs,
      binary_model_name,
      binary_lr,
@@ -295,6 +298,7 @@ def work_on_value(args):
                         secondary_model_name=secondary_model_name,
                         secondary_model_loss=secondary_model_loss,
                         secondary_num_epochs=secondary_num_epochs,
+                        secondary_lr=secondary_lr,
                         binary_l_strs=binary_l_strs,
                         binary_model_name=binary_model_name,
                         binary_lr=binary_lr,
@@ -326,6 +330,7 @@ def simulate_for_values(total_number_of_points: int = 10,
                         secondary_model_name: str = None,
                         secondary_model_loss: str = None,
                         secondary_num_epochs: int = None,
+                        secondary_lr: float = None,
                         binary_l_strs: typing.List[str] = [],
                         binary_lr: typing.Union[str, float] = None,
                         binary_num_epochs: int = None,
@@ -364,6 +369,7 @@ def simulate_for_values(total_number_of_points: int = 10,
               secondary_model_name,
               secondary_model_loss,
               secondary_num_epochs,
+              secondary_lr,
               binary_l_strs,
               binary_model_name,
               binary_lr,
@@ -389,29 +395,31 @@ if __name__ == '__main__':
     # data_str = 'military_vehicles'
     # main_model_name = binary_model_name = 'vit_b_16'
     # secondary_model_name = 'vit_l_16'
-    # main_lr = binary_lr = 0.0001
+    # main_lr = secondary_lr = binary_lr = 0.0001
     # original_num_epochs = 10
     # secondary_num_epochs = 20
     # binary_num_epochs = 10
     # number_of_fine_classes = 24
 
-    data_str = 'imagenet'
-    main_model_name = binary_model_name = 'dinov2_vits14'
-    secondary_model_name = 'dinov2_vitl14'
-    main_lr = binary_lr = 0.000001
-    original_num_epochs = 8
-    secondary_num_epochs = 2
-    binary_num_epochs = 5
-    number_of_fine_classes = 42
+    # data_str = 'imagenet'
+    # main_model_name = binary_model_name = 'dinov2_vits14'
+    # secondary_model_name = 'dinov2_vitl14'
+    # main_lr = secondary_lr = binary_lr = 0.000001
+    # original_num_epochs = 8
+    # secondary_num_epochs = 2
+    # binary_num_epochs = 5
+    # number_of_fine_classes = 42
 
-    # data_str = 'openimage'
-    # main_model_name = 'tresnet_m'
-    # secondary_model_name = binary_model_name = 'dinov2_vits14'
-    # main_lr = binary_lr = 0.000001
-    # original_num_epochs = 0
-    # secondary_num_epochs = 20
-    # binary_num_epochs = 4
-    # number_of_fine_classes = 30
+    data_str = 'openimage'
+    main_model_name = 'vit_b_16'
+    secondary_model_name = binary_model_name = 'dinov2_vits14'
+    main_lr = 0.0001
+    binary_lr = 0.000001
+    secondary_lr = 0.000001
+    original_num_epochs = 20
+    secondary_num_epochs = 20
+    binary_num_epochs = 4
+    number_of_fine_classes = 30
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
@@ -429,10 +437,10 @@ if __name__ == '__main__':
     # lists_of_fine_labels_to_take_out = [[]]
     # lists_of_fine_labels_to_take_out = [list(range(number_of_fine_classes-1))]
 
-    for (curr_secondary_model_name, curr_secondary_model_loss, curr_secondary_num_epochs) in \
-            [[None] * 3, (secondary_model_name, 'BCE', secondary_num_epochs)]:
+    for (curr_secondary_model_name, curr_secondary_model_loss, curr_secondary_num_epochs, curr_secondary_lr) in \
+            [(secondary_model_name, 'BCE', secondary_num_epochs, secondary_lr), [None] * 4]:
         for (curr_binary_l_strs, curr_binary_lr, curr_binary_num_epochs) in \
-                [([], None, None), (binary_l_strs, binary_lr, binary_num_epochs)]:
+                [(binary_l_strs, binary_lr, binary_num_epochs), ([], None, None)]:
             for (lists_of_fine_labels_to_take_out, maximize_ratio) in \
                     [([[]], False), ([list(range(i)) for i in range(number_of_fine_classes)], True)]:
                 simulate_for_values(
@@ -446,6 +454,7 @@ if __name__ == '__main__':
                     secondary_model_name=curr_secondary_model_name,
                     secondary_model_loss=curr_secondary_model_loss,
                     secondary_num_epochs=curr_secondary_num_epochs,
+                    secondary_lr=curr_secondary_lr,
                     # only_from_missing_values=True
                     maximize_ratio=maximize_ratio,
                     train_labels_noise_ratios=[0],
