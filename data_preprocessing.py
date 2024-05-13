@@ -253,6 +253,24 @@ class DataPreprocessor:
                     if fine_grain_class in fine_grain_class_list:
                         self.fine_to_coarse[fine_grain_class] = coarse_grain_class
 
+        elif data_str == 'coco':
+            self.coarse_to_fine = {
+                "vehicle": ["bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat"],
+                "animal": ["bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"],
+                "sports": ["ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis"],
+                "food": ["banana", "apple", "sandwich", "orange", "broccoli", "carrot"],
+                "electronic": ["tv", "laptop", "mouse", "remote", "keyboard"],
+                "kitchen": ["microwave", "oven", "toaster", "sink", "refrigerator"]
+            }
+            self.fine_grain_classes_str = sorted(
+                [item for category, items in self.coarse_to_fine.items() for item in items])
+            self.coarse_grain_classes_str = sorted([item for item in self.coarse_to_fine.keys()])
+
+            self.fine_to_coarse = {}
+            for fine_grain_class_idx, fine_grain_class in enumerate(self.fine_grain_classes_str):
+                for coarse_grain_class, fine_grain_class_list in self.coarse_to_fine.items():
+                    if fine_grain_class in fine_grain_class_list:
+                        self.fine_to_coarse[fine_grain_class] = coarse_grain_class
         else:
             self.coarse_to_fine = {
                 'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
@@ -304,6 +322,8 @@ class DataPreprocessor:
             data_path_str = 'data/ImageNet100/'
         elif data_str == 'openimage':
             data_path_str = (f'../../ngocbach/' if not utils.is_local() else 'data/') + 'OpenImage/'
+        elif data_str == 'coco':
+            data_path_str = 'scratch/ngocbach/COCO/'
         else:
             data_path_str = 'data/'
 
