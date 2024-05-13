@@ -357,7 +357,6 @@ class DataPreprocessor:
                     self.get_num_inconsistencies(fine_labels=self.test_true_fine_data,
                                                  coarse_labels=self.test_true_coarse_data)[0] == 0)
 
-
     def get_ground_truths(self,
                           test: bool,
                           K: typing.List[int] = None,
