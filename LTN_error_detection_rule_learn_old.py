@@ -52,6 +52,7 @@ class EDCR_LTN_experiment(EDCR):
                  secondary_model_name: str = None,
                  secondary_model_loss: str = None,
                  secondary_num_epochs: int = None,
+                 secondary_lr: float = None,
                  binary_l_strs: typing.List[str] = [],
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
@@ -67,6 +68,7 @@ class EDCR_LTN_experiment(EDCR):
                          secondary_model_name=secondary_model_name if config.use_secondary_model else None,
                          secondary_model_loss=secondary_model_loss if config.use_secondary_model else None,
                          secondary_num_epochs=secondary_num_epochs if config.use_secondary_model else None,
+                         secondary_lr=secondary_lr,
                          binary_l_strs=binary_l_strs if config.use_binary_model else [],
                          binary_num_epochs=binary_num_epochs if config.use_binary_model else None,
                          binary_lr=binary_lr if config.use_binary_model else None,
@@ -350,20 +352,20 @@ class EDCR_LTN_experiment(EDCR):
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    epsilon = 0.1
-
-    main_model_name = 'vit_b_16'
-    main_lr = 0.0001
-    original_num_epochs = 20
-
-    secondary_model_name = 'vit_l_16'
-    secondary_model_loss = 'BCE'
-    secondary_num_epochs = 20
-
-    binary_num_epochs = 10
-    binary_lr = 0.0001
-    binary_model_name = 'vit_b_16'
+    # data_str = 'military_vehicles'
+    # epsilon = 0.1
+    #
+    # main_model_name = 'vit_b_16'
+    # main_lr = 0.0001
+    # original_num_epochs = 20
+    #
+    # secondary_model_name = 'vit_l_16'
+    # secondary_model_loss = 'BCE'
+    # secondary_num_epochs = 20
+    #
+    # binary_num_epochs = 10
+    # binary_lr = 0.0001
+    # binary_model_name = 'vit_b_16'
 
     # data_str = 'imagenet'
     # epsilon = 0.1
@@ -380,6 +382,22 @@ if __name__ == '__main__':
     # binary_lr = 0.000001
     # binary_model_name = 'dinov2_vits14'
 
+    data_str = 'openimage'
+    epsilon = 0.1
+
+    main_model_name = 'vit_b_16'
+    main_lr = 0.0001
+    original_num_epochs = 20
+
+    secondary_model_name = 'dinov2_vits14'
+    secondary_model_loss = 'BCE'
+    secondary_num_epochs = 20
+    secondary_lr = 0.000001
+
+    binary_num_epochs = 4
+    binary_lr = 0.000001
+    binary_model_name = 'dinov2_vits14'
+
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
                           if f.startswith(f'{data_str}_{main_model_name}')
@@ -395,6 +413,7 @@ if __name__ == '__main__':
                                secondary_model_name=secondary_model_name,
                                secondary_model_loss=secondary_model_loss,
                                secondary_num_epochs=secondary_num_epochs,
+                               secondary_lr=secondary_lr,
                                binary_l_strs=binary_l_strs,
                                binary_lr=binary_lr,
                                binary_num_epochs=binary_num_epochs,

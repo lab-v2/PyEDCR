@@ -74,7 +74,7 @@ class EDCR:
         self.secondary_model_name = secondary_model_name
         self.secondary_model_loss = secondary_model_loss
         self.secondary_num_epochs = secondary_num_epochs
-        self.secondary_lr = secondary_lr
+        self.secondary_lr = secondary_lr if secondary_lr is not None else lr
         self.lower_predictions_indices = lower_predictions_indices
         self.binary_l_strs = binary_l_strs
         self.binary_model_name = binary_model_name
