@@ -54,7 +54,8 @@ def get_sheet_tab_name(main_model_name: str,
                    'vit_l_16': 'VIT_l_16'}
     data_dict = {'military_vehicles': 'Military Vehicles',
                  'imagenet': 'ImageNet',
-                 'openimage': 'OpenImage'}
+                 'openimage': 'OpenImage',
+                 'coco': 'COCO'}
     main_model_name_str = models_dict[main_model_name]
     data_set_str = data_dict[data_str]
 
