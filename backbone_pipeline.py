@@ -100,12 +100,13 @@ def save_prediction_files(data_str: str,
                                             lower_prediction_index=lower_prediction_index),
                         lower_prediction_values)
 
-            ground_truth_filename = f"{data_path_str}{test_str}_fine/{test_str}_true_{g_str}.npy"
-            ground_truth_data = {'fine': fine_ground_truths,
-                                 'coarse': coarse_ground_truths}[g_str]
-
-            if ground_truth_data and not os.path.isfile(ground_truth_filename):
-                np.save(ground_truth_filename, ground_truth_data)
+            # disable saving ground truth for now
+            # ground_truth_filename = f"{data_path_str}{test_str}_fine/{test_str}_true_{g_str}.npy"
+            # ground_truth_data = {'fine': fine_ground_truths,
+            #                      'coarse': coarse_ground_truths}[g_str]
+            #
+            # if ground_truth_data and not os.path.isfile(ground_truth_filename):
+            #     np.save(ground_truth_filename, ground_truth_data)
 
 
 
