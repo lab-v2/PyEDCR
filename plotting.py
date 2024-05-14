@@ -135,7 +135,8 @@ def plot_2d_metrics(data_str: str,
 
     plt.xlabel("Noise ratio")
     plt.ylabel("Percentage (%)")
-    plt.title(f"Noise ratio experiments for {models_dict[model_name]} on {data_dict[data_str]} with metrics")
+    plt.title(f"Noise ratio experiments for {models_dict[model_name]} on {data_dict[data_str]} "
+              f"with binary and secondary conditions")
 
     # Add legend
     plt.legend()
