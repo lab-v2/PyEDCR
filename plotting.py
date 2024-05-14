@@ -1,3 +1,4 @@
+import typing
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import scipy
@@ -107,4 +108,39 @@ def plot_3d_metrics(x_values: np.array,
     # ax.legend(handles=legend_patches, loc='best', fontsize='15')
 
     plt.tight_layout()
+    plt.show()
+
+
+def plot_2d_metrics(data_str: str,
+                    model_name: str,
+                    x_values,
+                    metrics: typing.Dict):
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+
+    # Plot each metric
+    for metric_name, (metric_values, color) in metrics.items():
+        plt.plot(x_values, metric_values, label=metric_name, color=color)
+
+    # Add labels and title
+    models_dict = {'vit_b_16': 'VIT_b_16',
+                   'dinov2_vits14': 'DINO V2 VIT14_s',
+                   'dinov2_vitl14': 'DINO V2 VIT14_l',
+                   'tresnet_m': 'Tresnet M',
+                   'vit_l_16': 'VIT_l_16'}
+    data_dict = {'military_vehicles': 'Military Vehicles',
+                 'imagenet': 'ImageNet',
+                 'openimage': 'OpenImage',
+                 'coco': 'COCO'}
+
+    plt.xlabel("Noise ratio")
+    plt.ylabel("Percentage (%)")
+    plt.title(f"Noise ratio experiments for {models_dict[model_name]} on {data_dict[data_str]} "
+              f"with binary and secondary conditions")
+
+    # Add legend
+    plt.legend()
+
+    # Show the plot
+    plt.grid(True)
     plt.show()

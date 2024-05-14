@@ -253,6 +253,24 @@ class DataPreprocessor:
                     if fine_grain_class in fine_grain_class_list:
                         self.fine_to_coarse[fine_grain_class] = coarse_grain_class
 
+        elif data_str == 'coco':
+            self.coarse_to_fine = {
+                "vehicle": ["bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat"],
+                "animal": ["bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"],
+                "sports": ["ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis"],
+                "food": ["banana", "apple", "sandwich", "orange", "broccoli", "carrot"],
+                "electronic": ["tv", "laptop", "mouse", "remote", "keyboard"],
+                "kitchen": ["microwave", "oven", "toaster", "sink", "refrigerator"]
+            }
+            self.fine_grain_classes_str = sorted(
+                [item for category, items in self.coarse_to_fine.items() for item in items])
+            self.coarse_grain_classes_str = sorted([item for item in self.coarse_to_fine.keys()])
+
+            self.fine_to_coarse = {}
+            for fine_grain_class_idx, fine_grain_class in enumerate(self.fine_grain_classes_str):
+                for coarse_grain_class, fine_grain_class_list in self.coarse_to_fine.items():
+                    if fine_grain_class in fine_grain_class_list:
+                        self.fine_to_coarse[fine_grain_class] = coarse_grain_class
         else:
             self.coarse_to_fine = {
                 'Air Defense': ['30N6E', 'Iskander', 'Pantsir-S1', 'Rs-24'],
@@ -304,6 +322,8 @@ class DataPreprocessor:
             data_path_str = 'data/ImageNet100/'
         elif data_str == 'openimage':
             data_path_str = (f'../../ngocbach/' if not utils.is_local() else 'data/') + 'OpenImage/'
+        elif data_str == 'coco':
+            data_path_str = 'scratch/ngocbach/COCO/'
         else:
             data_path_str = 'data/'
 
@@ -336,7 +356,6 @@ class DataPreprocessor:
                                                  coarse_labels=self.train_true_coarse_data)[0] ==
                     self.get_num_inconsistencies(fine_labels=self.test_true_fine_data,
                                                  coarse_labels=self.test_true_coarse_data)[0] == 0)
-
 
     def get_ground_truths(self,
                           test: bool,
@@ -502,7 +521,7 @@ def get_dataset_transforms(data: str,
                            torchvision.transforms.CenterCrop(224)
                            ]
 
-    elif data == 'openimage':
+    elif data == 'openimage' or data == 'coco':
         # normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
         #                                              std=[0.229, 0.224, 0.225])
         standard_transforms = [
@@ -804,6 +823,8 @@ def get_datasets(preprocessor: DataPreprocessor,
         if preprocessor.data_str == 'openimage':
             full_data_dir = f'scratch/ngocbach/OpenImage/{train_or_test}_fine' if not config.running_on_sol \
                 else f'/scratch/ngocbach/OpenImage/{train_or_test}_fine'
+        elif preprocessor.data_str == 'coco':
+            full_data_dir = f'scratch/ngocbach/COCO/{train_or_test}_fine'
         else:
             data_dir_name = f'ImageNet100/{train_or_test}_fine' if preprocessor.data_str == 'imagenet' \
                 else f'{train_or_test}_fine'

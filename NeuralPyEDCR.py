@@ -392,14 +392,14 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    main_model_name = binary_model_name = 'vit_b_16'
-    secondary_model_name = 'vit_l_16'
-    main_lr = secondary_lr = binary_lr = 0.0001
-    original_num_epochs = 10
-    secondary_num_epochs = 20
-    binary_num_epochs = 10
-    number_of_fine_classes = 24
+    # data_str = 'military_vehicles'
+    # main_model_name = binary_model_name = 'vit_b_16'
+    # secondary_model_name = 'vit_l_16'
+    # main_lr = secondary_lr = binary_lr = 0.0001
+    # original_num_epochs = 10
+    # secondary_num_epochs = 20
+    # binary_num_epochs = 10
+    # number_of_fine_classes = 24
 
     # data_str = 'imagenet'
     # main_model_name = binary_model_name = 'dinov2_vits14'
@@ -410,16 +410,16 @@ if __name__ == '__main__':
     # binary_num_epochs = 5
     # number_of_fine_classes = 42
 
-    # data_str = 'openimage'
-    # main_model_name = 'vit_b_16'
-    # secondary_model_name = binary_model_name = 'dinov2_vits14'
-    # main_lr = 0.0001
-    # binary_lr = 0.000001
-    # secondary_lr = 0.000001
-    # original_num_epochs = 20
-    # secondary_num_epochs = 20
-    # binary_num_epochs = 4
-    # number_of_fine_classes = 30
+    data_str = 'openimage'
+    main_model_name = 'vit_b_16'
+    secondary_model_name = binary_model_name = 'dinov2_vits14'
+    main_lr = 0.0001
+    binary_lr = 0.000001
+    secondary_lr = 0.000001
+    original_num_epochs = 20
+    secondary_num_epochs = 20
+    binary_num_epochs = 4
+    number_of_fine_classes = 30
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
@@ -473,3 +473,14 @@ if __name__ == '__main__':
     # plotting.plot_3d_metrics(x_values=x_values,
     #                          y_values=y_values,
     #                          metrics={'Error F1': (error_f1s, 'Greens', 'g')})
+
+    (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
+        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+                                                  column_letters=['B', 'D', 'E', 'J']))
+
+    plotting.plot_2d_metrics(data_str=data_str,
+                             model_name=main_model_name,
+                             x_values=x_values[1:],
+                             metrics={'Error F1': (error_f1s[1:], 'green'),
+                                      'Balance error acc': (balance_error_accuracies[1:], 'red'),
+                                      'Constraint F1': (constraint_f1s[1:], 'blue')})

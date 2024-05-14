@@ -66,6 +66,8 @@ def save_prediction_files(data_str: str,
     elif data_str == 'openimage':
         data_path_str = 'scratch/ngocbach/OpenImage/' if not config.running_on_sol \
             else '/scratch/ngocbach/OpenImage/'
+    elif data_str == 'coco':
+        data_path_str = 'scratch/ngocbach/COCO/'
     else:
         data_path_str = 'data/'
 
@@ -175,8 +177,6 @@ def save_binary_prediction_files(data_str: str,
                     ground_truths)
     except FileNotFoundError:
         print('cannot save binary model')
-    except:
-        print('do not know error')
 
     if not evaluation:
         torch.save(fine_tuner.state_dict(),
