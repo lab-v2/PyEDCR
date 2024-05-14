@@ -111,7 +111,9 @@ def plot_3d_metrics(x_values: np.array,
     plt.show()
 
 
-def plot_2d_metrics(x_values,
+def plot_2d_metrics(data_str: str,
+                    model_name: str,
+                    x_values,
                     metrics: typing.Dict):
     # Create the plot
     plt.figure(figsize=(10, 6))
@@ -121,9 +123,19 @@ def plot_2d_metrics(x_values,
         plt.plot(x_values, metric_values, label=metric_name, color=color)
 
     # Add labels and title
+    models_dict = {'vit_b_16': 'VIT_b_16',
+                   'dinov2_vits14': 'DINO V2 VIT14_s',
+                   'dinov2_vitl14': 'DINO V2 VIT14_l',
+                   'tresnet_m': 'Tresnet M',
+                   'vit_l_16': 'VIT_l_16'}
+    data_dict = {'military_vehicles': 'Military Vehicles',
+                 'imagenet': 'ImageNet',
+                 'openimage': 'OpenImage',
+                 'coco': 'COCO'}
+
     plt.xlabel("Noise ratio")
-    plt.ylabel("Percentage")
-    plt.title("Noise ratio experiments with metrics")
+    plt.ylabel("Percentage (%)")
+    plt.title(f"Noise ratio experiments for {models_dict[model_name]} on {data_dict[data_str]} with metrics")
 
     # Add legend
     plt.legend()

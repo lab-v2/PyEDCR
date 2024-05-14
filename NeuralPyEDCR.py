@@ -474,8 +474,9 @@ if __name__ == '__main__':
         google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
                                                   column_letters=['B', 'D', 'E', 'J']))
 
-    plotting.plot_2d_metrics(x_values=x_values[1:],
+    plotting.plot_2d_metrics(data_str=data_str,
+                             model_name=main_model_name,
+                             x_values=x_values[1:],
                              metrics={'Error F1': (error_f1s[1:], 'green'),
                                       'Balance error acc': (balance_error_accuracies[1:], 'red'),
                                       'Constraint F1': (constraint_f1s[1:], 'blue')})
-
