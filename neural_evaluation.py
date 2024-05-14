@@ -480,13 +480,13 @@ def get_error_metric(data_str: str,
 
 
 if __name__ == '__main__':
-    data_str = 'imagenet'
-    main_model_name = 'dinov2_vits14'
+    data_str = 'openimage'
+    main_model_name = 'vit_b_16'
     additional_model_name = 'dinov2_vits14'
-    main_lr = 0.000001
+    main_lr = 0.0001
     additional_lr = 0.000001
-    main_num_epoch = 10
-    additional_num_epoch = 8
+    main_num_epoch = 20
+    additional_num_epoch = 10
     # pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
 
     get_error_metric(data_str=data_str,

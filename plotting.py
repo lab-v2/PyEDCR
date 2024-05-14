@@ -1,3 +1,4 @@
+import typing
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import scipy
@@ -107,4 +108,26 @@ def plot_3d_metrics(x_values: np.array,
     # ax.legend(handles=legend_patches, loc='best', fontsize='15')
 
     plt.tight_layout()
+    plt.show()
+
+
+def plot_2d_metrics(x_values,
+                    metrics: typing.Dict):
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+
+    # Plot each metric
+    for metric_name, (metric_values, color) in metrics.items():
+        plt.plot(x_values, metric_values, label=metric_name, color=color)
+
+    # Add labels and title
+    plt.xlabel("Noise ratio")
+    plt.ylabel("Percentage")
+    plt.title("Noise ratio experiments with metrics")
+
+    # Add legend
+    plt.legend()
+
+    # Show the plot
+    plt.grid(True)
     plt.show()
