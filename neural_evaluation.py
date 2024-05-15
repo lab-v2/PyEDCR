@@ -445,7 +445,7 @@ def get_error_metric(data_str: str,
         test_coarse_predictions=main_test_coarse_prediction,
     ))
 
-    for split in ['train', 'test']:
+    for split in ['test', 'train']:
         loader = loaders[split]
         device = torch.device('cpu')
 
@@ -483,9 +483,9 @@ if __name__ == '__main__':
     data_str = 'imagenet'
     main_model_name = 'dinov2_vits14'
     additional_model_name = 'dinov2_vits14'
-    main_lr = 0.000001
+    main_lr = 0.00001
     additional_lr = 0.000001
-    main_num_epoch = 7
+    main_num_epoch = 8
     additional_num_epoch = 8
     # pretrained_path = 'models/tresnet_m_open_images_200_groups_86_8.pth'
 
