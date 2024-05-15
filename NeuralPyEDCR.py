@@ -446,7 +446,7 @@ if __name__ == '__main__':
                  # ([], None, None)
                  ]:
             for (lists_of_fine_labels_to_take_out, maximize_ratio) in \
-                    [([[]], False),
+                    [([[]], True),
                      # ([list(range(i)) for i in range(number_of_fine_classes)], True)
                      ]:
                 simulate_for_values(
@@ -476,13 +476,13 @@ if __name__ == '__main__':
     #                          y_values=y_values,
     #                          metrics={'Error F1': (error_f1s, 'Greens', 'g')})
 
-    # (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
-    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-    #                                               column_letters=['B', 'D', 'E', 'J']))
-    #
-    # plotting.plot_2d_metrics(data_str=data_str,
-    #                          model_name=main_model_name,
-    #                          x_values=x_values[1:],
-    #                          metrics={'Error F1': (error_f1s[1:], 'green'),
-    #                                   'Balance error acc': (balance_error_accuracies[1:], 'red'),
-    #                                   'Constraint F1': (constraint_f1s[1:], 'blue')})
+    (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
+        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+                                                  column_letters=['B', 'D', 'E', 'J']))
+
+    plotting.plot_2d_metrics(data_str=data_str,
+                             model_name=main_model_name,
+                             x_values=x_values[1:],
+                             metrics={'Error F1': (error_f1s[1:], 'green'),
+                                      'Balance error acc': (balance_error_accuracies[1:], 'red'),
+                                      'Constraint F1': (constraint_f1s[1:], 'blue')})
