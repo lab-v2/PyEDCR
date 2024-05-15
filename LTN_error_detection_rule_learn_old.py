@@ -26,7 +26,8 @@ def evaluate_on_test(data_str: str,
                      fine_tuner: models.FineTuner,
                      loss: str,
                      num_epochs: int,
-                     save_files: bool = False):
+                     save_files: bool = False,
+                     additional_info: str = None):
     neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
                                                        model_name=model_name,
                                                        split='test',
@@ -35,7 +36,8 @@ def evaluate_on_test(data_str: str,
                                                        pretrained_fine_tuner=fine_tuner,
                                                        num_epochs=num_epochs,
                                                        print_results=True,
-                                                       save_files=save_files)
+                                                       save_files=save_files,
+                                                       additional_info=f'{additional_info}_for_plotting')
 
     print('#' * 100)
 
@@ -232,18 +234,18 @@ class EDCR_LTN_experiment(EDCR):
 
                         total_running_loss += batch_total_loss.item()
 
-                        if batch_num > 4 and batch_num % 5 == 0:
-                            neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
-                                                                      curr_batch_num=batch_num,
-                                                                      total_batch_num=len(batches),
-                                                                      train_fine_ground_truth=np.array(
-                                                                          total_train_fine_ground_truths),
-                                                                      train_fine_prediction=np.array(
-                                                                          total_train_fine_predictions),
-                                                                      train_coarse_ground_truth=np.array(
-                                                                          total_train_coarse_ground_truths),
-                                                                      train_coarse_prediction=np.array(
-                                                                          total_train_coarse_predictions))
+                        # if batch_num > 4 and batch_num % 5 == 0:
+                        #     neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
+                        #                                               curr_batch_num=batch_num,
+                        #                                               total_batch_num=len(batches),
+                        #                                               train_fine_ground_truth=np.array(
+                        #                                                   total_train_fine_ground_truths),
+                        #                                               train_fine_prediction=np.array(
+                        #                                                   total_train_fine_predictions),
+                        #                                               train_coarse_ground_truth=np.array(
+                        #                                                   total_train_coarse_ground_truths),
+                        #                                               train_coarse_prediction=np.array(
+                        #                                                   total_train_coarse_predictions))
                         batch_total_loss.backward()
                         optimizer.step()
 
@@ -273,8 +275,9 @@ class EDCR_LTN_experiment(EDCR):
                                      lr=lr,
                                      fine_tuner=best_fine_tuner,
                                      loss=loss,
-                                     num_epochs=self.num_ltn_epochs,
-                                     save_files=False)
+                                     num_epochs=epoch,
+                                     save_files=True,
+                                     additional_info=additional_info)
 
                 if early_stopping:
                     # You can modify how to perform early stopping by modify the early stopping value. The example here
@@ -421,5 +424,5 @@ if __name__ == '__main__':
     edcr.run_learning_pipeline()
     edcr.fine_tune_and_evaluate_combined_model(
         additional_info=f"LTN{'_binary' if config.use_binary_model else ''}"
-                        f"{'_secondary' if config.use_secondary_model else ''}")
+                        f"{'_secondary' if config.use_secondary_model else ''}_beta_{config.beta}")
 v
