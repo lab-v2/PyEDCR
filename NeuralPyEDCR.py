@@ -437,30 +437,36 @@ if __name__ == '__main__':
     # lists_of_fine_labels_to_take_out = [[]]
     # lists_of_fine_labels_to_take_out = [list(range(number_of_fine_classes-1))]
 
-    # for (curr_secondary_model_name, curr_secondary_model_loss, curr_secondary_num_epochs, curr_secondary_lr) in \
-    #         [(secondary_model_name, 'BCE', secondary_num_epochs, secondary_lr), [None] * 4]:
-    #     for (curr_binary_l_strs, curr_binary_lr, curr_binary_num_epochs) in \
-    #             [(binary_l_strs, binary_lr, binary_num_epochs), ([], None, None)]:
-    #         for (lists_of_fine_labels_to_take_out, maximize_ratio) in \
-    #                 [([[]], False), ([list(range(i)) for i in range(number_of_fine_classes)], True)]:
-    #             simulate_for_values(
-    #                 total_number_of_points=1,
-    #                 min_value=0.1,
-    #                 max_value=0.1,
-    #                 binary_l_strs=curr_binary_l_strs,
-    #                 binary_lr=curr_binary_lr,
-    #                 binary_num_epochs=curr_binary_num_epochs,
-    #                 multi_process=True,
-    #                 secondary_model_name=curr_secondary_model_name,
-    #                 secondary_model_loss=curr_secondary_model_loss,
-    #                 secondary_num_epochs=curr_secondary_num_epochs,
-    #                 secondary_lr=curr_secondary_lr,
-    #                 # only_from_missing_values=True
-    #                 maximize_ratio=maximize_ratio,
-    #                 train_labels_noise_ratios=[0],
-    #                 lists_of_fine_labels_to_take_out=lists_of_fine_labels_to_take_out,
-    #                 negated_conditions=False
-    #             )
+    for (curr_secondary_model_name, curr_secondary_model_loss, curr_secondary_num_epochs, curr_secondary_lr) in \
+            [(secondary_model_name, 'BCE', secondary_num_epochs, secondary_lr),
+             # [None] * 4
+             ]:
+        for (curr_binary_l_strs, curr_binary_lr, curr_binary_num_epochs) in \
+                [(binary_l_strs, binary_lr, binary_num_epochs),
+                 # ([], None, None)
+                 ]:
+            for (lists_of_fine_labels_to_take_out, maximize_ratio) in \
+                    [([[]], True),
+                     # ([list(range(i)) for i in range(number_of_fine_classes)], True)
+                     ]:
+                simulate_for_values(
+                    total_number_of_points=1,
+                    min_value=0.1,
+                    max_value=0.1,
+                    binary_l_strs=curr_binary_l_strs,
+                    binary_lr=curr_binary_lr,
+                    binary_num_epochs=curr_binary_num_epochs,
+                    multi_process=True,
+                    secondary_model_name=curr_secondary_model_name,
+                    secondary_model_loss=curr_secondary_model_loss,
+                    secondary_num_epochs=curr_secondary_num_epochs,
+                    secondary_lr=curr_secondary_lr,
+                    # only_from_missing_values=True
+                    maximize_ratio=maximize_ratio,
+                    train_labels_noise_ratios=[0],
+                    lists_of_fine_labels_to_take_out=lists_of_fine_labels_to_take_out,
+                    negated_conditions=False
+                )
 
     # (x_values, y_values, error_accuracies, error_f1s, error_MMCs, error_acc_f1s) = (
     #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,

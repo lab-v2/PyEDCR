@@ -897,7 +897,6 @@ class EDCR:
     def get_minimization_numerator(self,
                                    l: data_preprocessing.Label,
                                    C: set[conditions.Condition]):
-        # return len(set(self.all_conditions).difference(C))
         return self.get_BOD_l_C(l=l, C=C) + np.sum(self.get_where_fp_l(l=l, test=False))
 
     def get_ratio_of_margins(self,
@@ -941,6 +940,7 @@ class EDCR:
         DC_l_scores = {0: init_value}
 
         if N_l:
+            print(f'Curvature for {l} is: {self.get_numerator_curvature(l=l)}')
             i = 0
             # 1. sorting the conditions by their 1/f1 value from least to greatest
             DC_star = sorted([cond for cond in self.all_conditions
@@ -997,6 +997,21 @@ class EDCR:
         # print(f'\nBest set for {l}: {[str(cond) for cond in best_set]}\n')
 
         return best_set
+
+    def get_curvature_term(self,
+                           l: data_preprocessing.Label,
+                           cond: conditions.Condition,
+                           ):
+        return self.get_f_margin(f=self.get_minimization_numerator,
+                                 l=l,
+                                 DC_l_i=set(self.all_conditions).difference({cond}),
+                                 cond=cond) / self.get_minimization_numerator(l=l, C={cond})
+
+    def get_numerator_curvature(self,
+                                l: data_preprocessing.Label,
+                                ):
+        min_value = sorted([self.get_curvature_term(l=l, cond=cond) for cond in self.all_conditions])[0]
+        return 1 - min_value
 
     def learn_detection_rules(self,
                               g: data_preprocessing.Granularity,
@@ -1100,7 +1115,7 @@ class EDCR:
                                                         all_possible_consistency_constraints, 1)
 
                 self.recovered_constraints_precision = min(recovered_constraints_true_positives /
-                                                           recovered_constraints_positives, 1)\
+                                                           recovered_constraints_positives, 1) \
                     if recovered_constraints_positives else 0
 
         # error_mask = np.where(self.test_pred_data['post_detection'][g] == -1, -1, 0)
@@ -1144,7 +1159,7 @@ class EDCR:
                                                  stage='post_detection')
 
         if test and save_to_google_sheets:
-            error_accuracy, error_balanced_accuracy, error_f1, error_precision, error_recall,  = \
+            error_accuracy, error_balanced_accuracy, error_f1, error_precision, error_recall, = \
                 [f'{round(metric_result * 100, 2)}%' for metric_result in neural_metrics.get_individual_metrics(
                     pred_data=self.predicted_test_errors,
                     true_data=self.test_error_ground_truths,
