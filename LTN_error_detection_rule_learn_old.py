@@ -36,7 +36,7 @@ def evaluate_on_test(data_str: str,
                                                        pretrained_fine_tuner=fine_tuner,
                                                        num_epochs=num_epochs,
                                                        print_results=True,
-                                                       save_files=True,
+                                                       save_files=save_files,
                                                        additional_info=f'{additional_info}_for_plotting')
 
     print('#' * 100)
@@ -276,7 +276,7 @@ class EDCR_LTN_experiment(EDCR):
                                      fine_tuner=best_fine_tuner,
                                      loss=loss,
                                      num_epochs=epoch,
-                                     save_files=False,
+                                     save_files=True,
                                      additional_info=additional_info)
 
                 if early_stopping:
