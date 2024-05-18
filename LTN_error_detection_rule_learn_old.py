@@ -187,8 +187,9 @@ class EDCR_LTN_experiment(EDCR):
                         secondary_pred_coarse_batch = None if not config.use_secondary_model else torch.tensor(
                             self.pred_data['secondary_model']['train']['coarse'][indices]).to(device)
 
-                        # binary_pred = {label: torch.tensor(binary_data).to(device)
-                        #                for label, binary_data in self.pred_data['binary'].items()}
+                        binary_pred = {label: torch.tensor(binary_data['train'][indices]).to(device)
+                                       for label, binary_data in self.pred_data['binary'].items()} \
+                            if self.pred_data is not None else None
 
                         Y_true_fine_one_hot = torch.nn.functional.one_hot(Y_true_fine, num_classes=len(
                             preprocessor.fine_grain_classes_str))
@@ -221,7 +222,7 @@ class EDCR_LTN_experiment(EDCR):
                             original_train_pred_coarse_batch=original_pred_coarse_batch,
                             secondary_train_pred_fine_batch=secondary_pred_fine_batch,
                             secondary_train_pred_coarse_batch=secondary_pred_coarse_batch,
-                            binary_pred=self.pred_data['binary'],
+                            binary_pred=binary_pred,
                             error_detection_rules=self.error_detection_rules,
                             device=device
                         )
