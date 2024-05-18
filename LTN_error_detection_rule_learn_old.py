@@ -276,9 +276,13 @@ class EDCR_LTN_experiment(EDCR):
                         batch_total_loss.backward()
                         optimizer.step()
 
-                ltn_loss_per_epoch_list.append(total_running_ltn_loss.detach().to('cpu') / batch_num)
-                bce_loss_per_epoch_list.append(total_running_bce_loss.detach().to('cpu') / batch_num)
-                ltn_bce_loss_per_epoch_list.append(total_running_loss.detach().to('cpu') / batch_num)
+                # ltn_loss_per_epoch_list.append(total_running_ltn_loss.detach().to('cpu') / batch_num)
+                # bce_loss_per_epoch_list.append(total_running_bce_loss.detach().to('cpu') / batch_num)
+                # ltn_bce_loss_per_epoch_list.append(total_running_loss.detach().to('cpu') / batch_num)
+
+                ltn_loss_per_epoch_list.append(total_running_ltn_loss / batch_num)
+                bce_loss_per_epoch_list.append(total_running_bce_loss / batch_num)
+                ltn_bce_loss_per_epoch_list.append(total_running_loss / batch_num)
 
                 if epoch == 0:
                     print(utils.blue_text(
@@ -359,6 +363,10 @@ class EDCR_LTN_experiment(EDCR):
         torch.save(best_fine_tuner.state_dict() if early_stopping else fine_tuner.state_dict(),
                    f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.pth")
 
+        ltn_loss_per_epoch_list = [loss.detach().to('cpu') for loss in ltn_loss_per_epoch_list]
+        bce_loss_per_epoch_list = [loss.detach().to('cpu') for loss in bce_loss_per_epoch_list]
+        ltn_bce_loss_per_epoch_list = [loss.detach().to('cpu') for loss in ltn_bce_loss_per_epoch_list]
+
         # Plot each list with different colors and labels
         plt.plot(ltn_loss_per_epoch_list, label='ltn loss', color='blue')
         plt.plot(bce_loss_per_epoch_list, label='bce loss', color='green')
@@ -367,7 +375,7 @@ class EDCR_LTN_experiment(EDCR):
         # Add labels and title
         plt.xlabel('Epoch')
         plt.ylabel('Loss value')
-        plt.title(f'Line Plot of loss per epoch for beta = {beta}')
+        plt.title(f'Loss per epoch for loss {loss}')
 
         # Add legend
         plt.legend()
