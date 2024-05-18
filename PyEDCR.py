@@ -5,7 +5,7 @@ import typing
 import numpy as np
 import warnings
 import multiprocessing as mp
-from tqdm.contrib.concurrent import thread_map
+from tqdm.contrib.concurrent import thread_map, process_map
 
 warnings.filterwarnings('ignore')
 
@@ -206,10 +206,13 @@ class EDCR:
                 coarse_labels=self.get_predictions(test=True,
                                                    g=data_preprocessing.DataPreprocessor.granularities['coarse'])))
 
+        print(f'Number of fine classes: {self.preprocessor.num_fine_grain_classes}')
+        print(f'Number of coarse classes: {self.preprocessor.num_coarse_grain_classes}')
+
         print(utils.blue_text(
-            f"Num of fine conditions: "
+            f"Number of fine conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['fine']])}\n"
-            f"Num of coarse conditions: "
+            f"Number of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.DataPreprocessor.granularities['coarse']])}\n"))
 
         if use_google_api:
@@ -940,7 +943,7 @@ class EDCR:
         DC_l_scores = {0: init_value}
 
         if N_l:
-            print(f'Curvature for {l} is: {self.get_numerator_curvature(l=l)}')
+            # print(f'Curvature for {l} is: {self.get_numerator_curvature(l=l)}')
             i = 0
             # 1. sorting the conditions by their 1/f1 value from least to greatest
             DC_star = sorted([cond for cond in self.all_conditions
@@ -1015,7 +1018,7 @@ class EDCR:
 
     def learn_detection_rules(self,
                               g: data_preprocessing.Granularity,
-                              multi_threading: bool = True):
+                              multi_processing: bool = True):
         # self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
         granularity_labels = list(self.preprocessor.get_labels(g).values())
         processes_num = min(len(granularity_labels), mp.cpu_count())
@@ -1023,10 +1026,11 @@ class EDCR:
         print(f'\nLearning {g}-grain error detection rules...')
 
         maximizer: typing.Callable = self.RatioDetRuleLearn if self.maximize_ratio else self.DetRuleLearn
+        mapper = process_map if multi_processing else thread_map
 
-        DC_ls = thread_map(maximizer,
-                           granularity_labels,
-                           max_workers=processes_num) if (multi_threading and not utils.is_debug_mode()) else \
+        DC_ls = mapper(maximizer,
+                       granularity_labels,
+                       max_workers=processes_num) if (not utils.is_debug_mode()) else \
             [maximizer(l=l) for l in granularity_labels]
 
         for l, DC_l in zip(granularity_labels, DC_ls):

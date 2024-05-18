@@ -206,14 +206,14 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             print(f'where_fixed_initial_error: {len(where_fixed_initial_error)}')
 
     def run_learning_pipeline(self,
-                              multi_threading: bool = True):
+                              multi_processing: bool = True):
         print('Started learning pipeline...\n')
         # self.print_metrics(test=False, prior=True)
 
         for EDCR_epoch in range(self.EDCR_num_epochs):
             for g in data_preprocessing.DataPreprocessor.granularities.values():
                 self.learn_detection_rules(g=g,
-                                           multi_threading=multi_threading)
+                                           multi_processing=multi_processing)
                 # self.apply_detection_rules(test=False,
                 #                            g=g)
 
@@ -280,6 +280,7 @@ def work_on_value(args):
      binary_num_epochs,
      num_train_images_per_class,
      maximize_ratio,
+     multi_processing,
      train_labels_noise_ratio,
      fine_labels_to_take_out,
      negated_conditions
@@ -316,7 +317,7 @@ def work_on_value(args):
     #                               binary_lr=new_lr)
     edcr.print_metrics(split='test',
                        prior=True)
-    edcr.run_learning_pipeline(multi_threading=True)
+    edcr.run_learning_pipeline(multi_processing=multi_processing)
     edcr.run_error_detection_application_pipeline(test=True,
                                                   print_results=False,
                                                   save_to_google_sheets=True)
@@ -326,7 +327,7 @@ def work_on_value(args):
 def simulate_for_values(total_number_of_points: int = 10,
                         min_value: float = 0.1,
                         max_value: float = 0.3,
-                        multi_process: bool = True,
+                        multi_processing: bool = True,
                         secondary_model_name: str = None,
                         secondary_model_loss: str = None,
                         secondary_num_epochs: int = None,
@@ -376,12 +377,13 @@ def simulate_for_values(total_number_of_points: int = 10,
               binary_num_epochs,
               None,
               maximize_ratio,
+              multi_processing,
               noise_value,
               fine_labels_to_take_out,
               negated_conditions
               ) for i, (noise_value, fine_labels_to_take_out) in all_values.items()]
 
-    if multi_process and not utils.is_debug_mode():
+    if not utils.is_debug_mode():
         processes_num = min([len(datas), 10 if utils.is_local() else 100])
         process_map(work_on_value,
                     datas,
@@ -392,23 +394,24 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    main_model_name = binary_model_name = 'vit_b_16'
-    secondary_model_name = 'vit_l_16'
-    main_lr = secondary_lr = binary_lr = 0.0001
-    original_num_epochs = 10
-    secondary_num_epochs = 20
-    binary_num_epochs = 10
-    number_of_fine_classes = 24
+    # data_str = 'military_vehicles'
+    # main_model_name = binary_model_name = 'vit_b_16'
+    # secondary_model_name = 'vit_l_16'
+    # main_lr = secondary_lr = binary_lr = 0.0001
+    # original_num_epochs = 10
+    # secondary_num_epochs = 20
+    # binary_num_epochs = 10
+    # number_of_fine_classes = 24
 
-    # data_str = 'imagenet'
-    # main_model_name = binary_model_name = 'dinov2_vits14'
-    # secondary_model_name = 'dinov2_vitl14'
-    # main_lr = secondary_lr = binary_lr = 0.000001
-    # original_num_epochs = 8
-    # secondary_num_epochs = 2
-    # binary_num_epochs = 5
-    # number_of_fine_classes = 42
+    data_str = 'imagenet'
+    main_model_name = binary_model_name = 'dinov2_vits14'
+    secondary_model_name = 'dinov2_vitl14'
+    main_lr = 0.00001
+    secondary_lr = binary_lr = 0.000001
+    original_num_epochs = 8
+    secondary_num_epochs = 2
+    binary_num_epochs = 5
+    number_of_fine_classes = 42
 
     # data_str = 'openimage'
     # main_model_name = 'vit_b_16'
@@ -445,8 +448,8 @@ if __name__ == '__main__':
                 [(binary_l_strs, binary_lr, binary_num_epochs),
                  # ([], None, None)
                  ]:
-            for (lists_of_fine_labels_to_take_out, maximize_ratio) in \
-                    [([[]], True),
+            for (lists_of_fine_labels_to_take_out, maximize_ratio, multi_processing) in \
+                    [([[]], False, True),
                      # ([list(range(i)) for i in range(number_of_fine_classes)], True)
                      ]:
                 simulate_for_values(
@@ -456,7 +459,7 @@ if __name__ == '__main__':
                     binary_l_strs=curr_binary_l_strs,
                     binary_lr=curr_binary_lr,
                     binary_num_epochs=curr_binary_num_epochs,
-                    multi_process=True,
+                    multi_processing=multi_processing,
                     secondary_model_name=curr_secondary_model_name,
                     secondary_model_loss=curr_secondary_model_loss,
                     secondary_num_epochs=curr_secondary_num_epochs,
@@ -476,13 +479,13 @@ if __name__ == '__main__':
     #                          y_values=y_values,
     #                          metrics={'Error F1': (error_f1s, 'Greens', 'g')})
 
-    (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
-        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-                                                  column_letters=['B', 'D', 'E', 'J']))
-
-    plotting.plot_2d_metrics(data_str=data_str,
-                             model_name=main_model_name,
-                             x_values=x_values[1:],
-                             metrics={'Error F1': (error_f1s[1:], 'green'),
-                                      'Balance error acc': (balance_error_accuracies[1:], 'red'),
-                                      'Constraint F1': (constraint_f1s[1:], 'blue')})
+    # (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
+    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+    #                                               column_letters=['B', 'D', 'E', 'J']))
+    #
+    # plotting.plot_2d_metrics(data_str=data_str,
+    #                          model_name=main_model_name,
+    #                          x_values=x_values[1:],
+    #                          metrics={'Error F1-Score': (error_f1s[1:], 'green'),
+    #                                   'Balanced Error Accuracy': (balance_error_accuracies[1:], 'red'),
+    #                                   'Constraints F1-Score': (constraint_f1s[1:], 'blue')})
