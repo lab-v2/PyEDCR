@@ -230,8 +230,21 @@ class EDCR_LTN_experiment(EDCR):
                         if batch_num % 20 == 0:
                             print(1. - sat_agg)
                             print(criterion(Y_pred, Y_true_combine))
-
-                        batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
+                        if 'normal' in loss:
+                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
+                        elif 'ltn_weight' in loss and epoch != 0:
+                            batch_total_loss = criterion(Y_pred, Y_true_combine) \
+                                               + (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1]
+                        elif 'ltn_weight_normalize' in loss and epoch != 0:
+                            batch_total_loss = criterion(Y_pred, Y_true_combine) \
+                                               + (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1] / \
+                                               max(ltn_loss_per_epoch_list[epoch - 1], ltn_loss_per_epoch_list[epoch])
+                        elif 'ltn_bce_weight_normalize' in loss and epoch != 0:
+                            bce_loss = criterion(Y_pred, Y_true_combine) * bce_loss_per_epoch_list[epoch - 1] / \
+                                       max(bce_loss_per_epoch_list[epoch - 1], bce_loss_per_epoch_list[epoch])
+                            ltn_loss = (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1] / \
+                                       max(ltn_loss_per_epoch_list[epoch - 1], ltn_loss_per_epoch_list[epoch])
+                            batch_total_loss = bce_loss + ltn_loss
 
                         current_train_fine_predictions = torch.max(Y_pred_fine_grain, 1)[1]
                         current_train_coarse_predictions = torch.max(Y_pred_coarse_grain, 1)[1]
@@ -390,35 +403,35 @@ class EDCR_LTN_experiment(EDCR):
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    epsilon = 0.1
-
-    main_model_name = 'vit_b_16'
-    main_lr = secondary_lr = 0.0001
-    original_num_epochs = 20
-
-    secondary_model_name = 'vit_l_16'
-    secondary_model_loss = 'BCE'
-    secondary_num_epochs = 20
-
-    binary_num_epochs = 10
-    binary_lr = 0.0001
-    binary_model_name = 'vit_b_16'
-
-    # data_str = 'imagenet'
+    # data_str = 'military_vehicles'
     # epsilon = 0.1
     #
-    # main_model_name = 'dinov2_vits14'
-    # main_lr = secondary_lr = 0.000001
-    # original_num_epochs = 8
+    # main_model_name = 'vit_b_16'
+    # main_lr = secondary_lr = 0.0001
+    # original_num_epochs = 20
     #
-    # secondary_model_name = 'dinov2_vitl14'
+    # secondary_model_name = 'vit_l_16'
     # secondary_model_loss = 'BCE'
-    # secondary_num_epochs = 2
+    # secondary_num_epochs = 20
     #
-    # binary_num_epochs = 5
-    # binary_lr = 0.000001
-    # binary_model_name = 'dinov2_vits14'
+    # binary_num_epochs = 10
+    # binary_lr = 0.0001
+    # binary_model_name = 'vit_b_16'
+
+    data_str = 'imagenet'
+    epsilon = 0.1
+
+    main_model_name = 'dinov2_vits14'
+    main_lr = secondary_lr = 0.000001
+    original_num_epochs = 8
+
+    secondary_model_name = 'dinov2_vitl14'
+    secondary_model_loss = 'BCE'
+    secondary_num_epochs = 2
+
+    binary_num_epochs = 5
+    binary_lr = 0.000001
+    binary_model_name = 'dinov2_vits14'
 
     # data_str = 'openimage'
     # epsilon = 0.1
