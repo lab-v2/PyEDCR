@@ -237,12 +237,12 @@ class EDCR_LTN_experiment(EDCR):
                         elif 'ltn_weight_normalize' in loss and epoch != 0:
                             batch_total_loss = criterion(Y_pred, Y_true_combine) \
                                                + (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1] / \
-                                               max(ltn_loss_per_epoch_list[epoch - 1], ltn_loss_per_epoch_list[epoch])
+                                               max(ltn_loss_per_epoch_list[epoch - 1], 1. - sat_agg)
                         elif 'ltn_bce_weight_normalize' in loss and epoch != 0:
                             bce_loss = criterion(Y_pred, Y_true_combine) * bce_loss_per_epoch_list[epoch - 1] / \
-                                       max(bce_loss_per_epoch_list[epoch - 1], bce_loss_per_epoch_list[epoch])
+                                       max(bce_loss_per_epoch_list[epoch - 1], criterion(Y_pred, Y_true_combine))
                             ltn_loss = (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1] / \
-                                       max(ltn_loss_per_epoch_list[epoch - 1], ltn_loss_per_epoch_list[epoch])
+                                       max(ltn_loss_per_epoch_list[epoch - 1], 1. - sat_agg)
                             batch_total_loss = bce_loss + ltn_loss
                         else:
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
