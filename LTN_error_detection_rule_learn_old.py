@@ -8,6 +8,7 @@ import ltn
 import ltn_support
 import numpy as np
 import copy
+import matplotlib.pyplot as plt
 
 import utils
 from PyEDCR import EDCR
@@ -132,6 +133,9 @@ class EDCR_LTN_experiment(EDCR):
         logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
 
         early_stopping_value_list = []
+        ltn_loss_per_epoch_list = []
+        bce_loss_per_epoch_list = []
+        ltn_bce_loss_per_epoch_list = []
         best_fine_tuner = copy.deepcopy(fine_tuner)
 
         if print_rules:
@@ -154,6 +158,8 @@ class EDCR_LTN_experiment(EDCR):
 
             with ((context_handlers.TimeWrapper())):
                 total_running_loss = torch.Tensor([0.0]).to(device)
+                total_running_ltn_loss = torch.Tensor([0.0]).to(device)
+                total_running_bce_loss = torch.Tensor([0.0]).to(device)
 
                 total_train_fine_predictions = []
                 total_train_coarse_predictions = []
@@ -236,6 +242,8 @@ class EDCR_LTN_experiment(EDCR):
                         del X, Y_true_fine, Y_true_coarse, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
 
                         total_running_loss += batch_total_loss.item()
+                        total_running_ltn_loss += 1. - sat_agg.item()
+                        total_running_bce_loss += criterion(Y_pred, Y_true_combine)
 
                         # if batch_num > 4 and batch_num % 5 == 0:
                         #     neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
@@ -251,6 +259,10 @@ class EDCR_LTN_experiment(EDCR):
                         #                                                   total_train_coarse_predictions))
                         batch_total_loss.backward()
                         optimizer.step()
+
+                ltn_loss_per_epoch_list.append(total_running_ltn_loss.detach().to('cpu'))
+                bce_loss_per_epoch_list.append(total_running_bce_loss.detach().to('cpu'))
+                ltn_bce_loss_per_epoch_list.append(total_running_loss.detach().to('cpu'))
 
                 if epoch == 0:
                     print(utils.blue_text(
@@ -330,6 +342,23 @@ class EDCR_LTN_experiment(EDCR):
 
         torch.save(best_fine_tuner.state_dict() if early_stopping else fine_tuner.state_dict(),
                    f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.pth")
+
+        # Plot each list with different colors and labels
+        plt.plot(ltn_loss_per_epoch_list, label='ltn loss', color='blue')
+        plt.plot(bce_loss_per_epoch_list, label='bce loss', color='green')
+        plt.plot(ltn_bce_loss_per_epoch_list, label='List 3 (red)', color='red')
+
+        # Add labels and title
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss value')
+        plt.title(f'Line Plot of loss per epoch for beta = {beta}')
+
+        # Add legend
+        plt.legend()
+
+        # Save the plot as an image file (replace 'my_plot.png' with your desired filename)
+        plt.savefig(f'fig/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.png',
+                    bbox_inches='tight')
 
         # save prediction file
         neural_evaluation.run_combined_evaluating_pipeline(
@@ -428,4 +457,3 @@ if __name__ == '__main__':
     edcr.fine_tune_and_evaluate_combined_model(
         additional_info=f"LTN{'_binary' if config.use_binary_model else ''}"
                         f"{'_secondary' if config.use_secondary_model else ''}_beta_{config.beta}")
-v
