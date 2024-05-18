@@ -227,7 +227,7 @@ class EDCR_LTN_experiment(EDCR):
                             device=device
                         )
 
-                        if batch_num % 20 == 0:
+                        if batch_num % 80 == 0:
                             print(1. - sat_agg)
                             print(criterion(Y_pred, Y_true_combine))
 
