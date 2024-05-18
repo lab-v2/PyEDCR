@@ -241,11 +241,11 @@ class EDCR_LTN_experiment(EDCR):
                         total_train_fine_ground_truths += Y_true_fine.tolist()
                         total_train_coarse_ground_truths += Y_true_coarse.tolist()
 
-                        del X, Y_true_fine, Y_true_coarse, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
-
                         total_running_loss += batch_total_loss.item()
                         total_running_ltn_loss += 1. - sat_agg.item()
                         total_running_bce_loss += criterion(Y_pred, Y_true_combine)
+
+                        del X, Y_true_fine, Y_true_coarse, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
 
                         # if batch_num > 4 and batch_num % 5 == 0:
                         #     neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
