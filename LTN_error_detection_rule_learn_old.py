@@ -386,17 +386,17 @@ class EDCR_LTN_experiment(EDCR):
                     bbox_inches='tight')
 
         # save prediction file
-        neural_evaluation.run_combined_evaluating_pipeline(
-            data_str=data_str,
-            model_name=model_name,
-            split='train',
-            lr=lr,
-            loss=loss,
-            pretrained_fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
-            num_epochs=self.num_ltn_epochs,
-            print_results=True,
-            save_files=True,
-            additional_info=additional_info)
+        # neural_evaluation.run_combined_evaluating_pipeline(
+        #     data_str=data_str,
+        #     model_name=model_name,
+        #     split='train',
+        #     lr=lr,
+        #     loss=loss,
+        #     pretrained_fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
+        #     num_epochs=self.num_ltn_epochs,
+        #     print_results=True,
+        #     save_files=True,
+        #     additional_info=additional_info)
         neural_evaluation.run_combined_evaluating_pipeline(
             data_str=data_str,
             model_name=model_name,
