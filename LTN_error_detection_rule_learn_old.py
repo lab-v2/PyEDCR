@@ -240,10 +240,11 @@ class EDCR_LTN_experiment(EDCR):
                                                max(ltn_loss_per_epoch_list[epoch - 1], 1. - sat_agg)
                         elif 'ltn_bce_weight_normalize' in loss and epoch != 0:
                             bce_loss = criterion(Y_pred, Y_true_combine) * bce_loss_per_epoch_list[epoch - 1] / \
-                                       max(bce_loss_per_epoch_list[epoch - 1],
+                                       max(bce_loss_per_epoch_list[epoch - 1].detach().to('cpu'),
                                            criterion(Y_pred, Y_true_combine).detach().to('cpu'))
                             ltn_loss = (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1] / \
-                                       max(ltn_loss_per_epoch_list[epoch - 1], 1. - sat_agg.detach().to('cpu'))
+                                       max(ltn_loss_per_epoch_list[epoch - 1].detach().to('cpu'),
+                                           1. - sat_agg.detach().to('cpu'))
                             batch_total_loss = bce_loss + ltn_loss
                         else:
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
