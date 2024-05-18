@@ -230,9 +230,8 @@ class EDCR_LTN_experiment(EDCR):
                         if batch_num % 20 == 0:
                             print(1. - sat_agg)
                             print(criterion(Y_pred, Y_true_combine))
-                        if 'normal' in loss:
-                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
-                        elif 'ltn_weight' in loss and epoch != 0:
+
+                        if 'ltn_weight' in loss and epoch != 0:
                             batch_total_loss = criterion(Y_pred, Y_true_combine) \
                                                + (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1]
                         elif 'ltn_weight_normalize' in loss and epoch != 0:
@@ -245,6 +244,8 @@ class EDCR_LTN_experiment(EDCR):
                             ltn_loss = (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1] / \
                                        max(ltn_loss_per_epoch_list[epoch - 1], ltn_loss_per_epoch_list[epoch])
                             batch_total_loss = bce_loss + ltn_loss
+                        else:
+                            batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
 
                         current_train_fine_predictions = torch.max(Y_pred_fine_grain, 1)[1]
                         current_train_coarse_predictions = torch.max(Y_pred_coarse_grain, 1)[1]
