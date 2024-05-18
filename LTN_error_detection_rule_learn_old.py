@@ -96,12 +96,12 @@ class EDCR_LTN_experiment(EDCR):
         )
 
     def run_learning_pipeline(self,
-                              multi_threading: bool = True):
+                              multi_processing: bool = True):
         print('Started learning pipeline...\n')
 
         for g in data_preprocessing.DataPreprocessor.granularities.values():
             self.learn_detection_rules(g=g,
-                                       multi_threading=multi_threading)
+                                       multi_processing=multi_processing)
 
         print('\nRule learning completed\n')
 
