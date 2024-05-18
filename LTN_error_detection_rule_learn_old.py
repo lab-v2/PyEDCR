@@ -262,9 +262,9 @@ class EDCR_LTN_experiment(EDCR):
                         batch_total_loss.backward()
                         optimizer.step()
 
-                ltn_loss_per_epoch_list.append(total_running_ltn_loss.detach().to('cpu'))
-                bce_loss_per_epoch_list.append(total_running_bce_loss.detach().to('cpu'))
-                ltn_bce_loss_per_epoch_list.append(total_running_loss.detach().to('cpu'))
+                ltn_loss_per_epoch_list.append(total_running_ltn_loss.detach().to('cpu') / batch_num)
+                bce_loss_per_epoch_list.append(total_running_bce_loss.detach().to('cpu') / batch_num)
+                ltn_bce_loss_per_epoch_list.append(total_running_loss.detach().to('cpu') / batch_num)
 
                 if epoch == 0:
                     print(utils.blue_text(
@@ -408,7 +408,7 @@ if __name__ == '__main__':
     # epsilon = 0.1
     #
     # main_model_name = 'dinov2_vits14'
-    # main_lr = 0.000001
+    # main_lr = secondary_lr = 0.000001
     # original_num_epochs = 8
     #
     # secondary_model_name = 'dinov2_vitl14'
