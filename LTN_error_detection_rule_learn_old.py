@@ -187,7 +187,7 @@ class EDCR_LTN_experiment(EDCR):
                         secondary_pred_coarse_batch = None if not config.use_secondary_model else torch.tensor(
                             self.pred_data['secondary_model']['train']['coarse'][indices]).to(device)
 
-                        binary_pred = {label: torch.tensor(binary_data['train'][indices]).to(device)
+                        binary_pred = {label: torch.tensor(binary_data['train'][indices])
                                        for label, binary_data in self.pred_data['binary'].items()} \
                             if self.pred_data is not None else None
 
