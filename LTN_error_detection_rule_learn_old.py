@@ -219,6 +219,9 @@ class EDCR_LTN_experiment(EDCR):
                             error_detection_rules=self.error_detection_rules,
                             device=device
                         )
+                        print(1. - sat_agg)
+                        print(criterion(Y_pred, Y_true_combine))
+
                         batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
 
                         current_train_fine_predictions = torch.max(Y_pred_fine_grain, 1)[1]
@@ -355,20 +358,20 @@ class EDCR_LTN_experiment(EDCR):
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # epsilon = 0.1
-    #
-    # main_model_name = 'vit_b_16'
-    # main_lr = 0.0001
-    # original_num_epochs = 20
-    #
-    # secondary_model_name = 'vit_l_16'
-    # secondary_model_loss = 'BCE'
-    # secondary_num_epochs = 20
-    #
-    # binary_num_epochs = 10
-    # binary_lr = 0.0001
-    # binary_model_name = 'vit_b_16'
+    data_str = 'military_vehicles'
+    epsilon = 0.1
+
+    main_model_name = 'vit_b_16'
+    main_lr = secondary_lr = 0.0001
+    original_num_epochs = 20
+
+    secondary_model_name = 'vit_l_16'
+    secondary_model_loss = 'BCE'
+    secondary_num_epochs = 20
+
+    binary_num_epochs = 10
+    binary_lr = 0.0001
+    binary_model_name = 'vit_b_16'
 
     # data_str = 'imagenet'
     # epsilon = 0.1
@@ -385,21 +388,21 @@ if __name__ == '__main__':
     # binary_lr = 0.000001
     # binary_model_name = 'dinov2_vits14'
 
-    data_str = 'openimage'
-    epsilon = 0.1
-
-    main_model_name = 'vit_b_16'
-    main_lr = 0.0001
-    original_num_epochs = 20
-
-    secondary_model_name = 'dinov2_vits14'
-    secondary_model_loss = 'BCE'
-    secondary_num_epochs = 20
-    secondary_lr = 0.000001
-
-    binary_num_epochs = 4
-    binary_lr = 0.000001
-    binary_model_name = 'dinov2_vits14'
+    # data_str = 'openimage'
+    # epsilon = 0.1
+    #
+    # main_model_name = 'vit_b_16'
+    # main_lr = 0.0001
+    # original_num_epochs = 20
+    #
+    # secondary_model_name = 'dinov2_vits14'
+    # secondary_model_loss = 'BCE'
+    # secondary_num_epochs = 20
+    # secondary_lr = 0.000001
+    #
+    # binary_num_epochs = 4
+    # binary_lr = 0.000001
+    # binary_model_name = 'dinov2_vits14'
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
