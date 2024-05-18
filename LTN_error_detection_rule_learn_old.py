@@ -348,7 +348,7 @@ class EDCR_LTN_experiment(EDCR):
         # Plot each list with different colors and labels
         plt.plot(ltn_loss_per_epoch_list, label='ltn loss', color='blue')
         plt.plot(bce_loss_per_epoch_list, label='bce loss', color='green')
-        plt.plot(ltn_bce_loss_per_epoch_list, label='List 3 (red)', color='red')
+        plt.plot(ltn_bce_loss_per_epoch_list, label='total loss', color='red')
 
         # Add labels and title
         plt.xlabel('Epoch')
