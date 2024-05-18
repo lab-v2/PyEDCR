@@ -244,7 +244,7 @@ class EDCR_LTN_experiment(EDCR):
                                            criterion(Y_pred, Y_true_combine).item())
                             ltn_loss = (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1] / \
                                        max(ltn_loss_per_epoch_list[epoch - 1].item(),
-                                           1. - sat_agg.detach().item())
+                                           1. - sat_agg.item())
                             batch_total_loss = bce_loss + ltn_loss
                         else:
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
