@@ -225,8 +225,10 @@ class EDCR_LTN_experiment(EDCR):
                             error_detection_rules=self.error_detection_rules,
                             device=device
                         )
-                        print(1. - sat_agg)
-                        print(criterion(Y_pred, Y_true_combine))
+
+                        if batch_num % 20 == 0:
+                            print(1. - sat_agg)
+                            print(criterion(Y_pred, Y_true_combine))
 
                         batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
 
