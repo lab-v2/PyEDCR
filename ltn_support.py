@@ -163,10 +163,10 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
                                    )
 
     # Define constant
-    pred_fine_data = ltn.Constant(train_pred_fine_batch)
-    pred_coarse_data = ltn.Constant(train_pred_coarse_batch)
-    true_fine_data = ltn.Constant(train_true_fine_batch)
-    true_coarse_data = ltn.Constant(train_true_coarse_batch)
+    pred_fine_data = ltn.Variable("pred_fine_data", train_pred_fine_batch)
+    pred_coarse_data = ltn.Variable("pred_coarse_data", train_pred_coarse_batch)
+    true_fine_data = ltn.Variable("true_fine_data", train_true_fine_batch)
+    true_coarse_data = ltn.Variable("true_coarse_data", train_true_coarse_batch)
     label_one_hot = {}
     for l in preprocessor.fine_grain_labels.values():
         one_hot = torch.zeros(len(preprocessor.fine_grain_classes_str))
@@ -305,7 +305,6 @@ def compute_sat_with_features(preprocessor: data_preprocessing.DataPreprocessor,
     # error_i(w) = pred_i(w) and not(true_i(w))
 
     for l in preprocessor.fine_grain_labels.values():
-
         true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l][train_pred_fine_batch == l.index],
                               add_batch_dim=False)
         cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_fine_batch == l.index],
