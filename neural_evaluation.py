@@ -132,7 +132,7 @@ def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
             if config.get_ground_truth:
                 continue
 
-            Y_pred = fine_tuner(X)
+            Y_pred = fine_tuner(X) if 'LTN' not in fine_tuner.__name__ else fine_tuner(X)[0]
 
             Y_pred_fine = Y_pred[:, :len(preprocessor.fine_grain_classes_str)]
             Y_pred_coarse = Y_pred[:, len(preprocessor.fine_grain_classes_str):]

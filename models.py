@@ -283,6 +283,161 @@ class VITFineTuner(FineTuner):
         return self.vit(X)
 
 
+class VITFineTunerLTN(FineTuner):
+    """
+    This class inherits from `FineTuner` to provide specific functionalities for
+    fine-tuning vision transformer (ViT) models.
+    """
+
+    def __init__(self,
+                 model_name: str,
+                 num_classes: int,
+                 weights: str = 'DEFAULT'):
+        """
+        Initializes the VITFineTuner with a pre-trained ViT model and number of classes.
+
+        :param model_name: The name of the pre-trained ViT model to use (e.g., 'vit_base_patch16').
+        :param num_classes: The number of output classes for classification.
+        """
+        super().__init__(model_name=model_name,
+                         num_classes=num_classes)
+        self.vit_model_name = model_name[:-4]
+        vit_model = getattr(torchvision.models, model_name[:-4])
+
+        vit_weights = getattr(getattr(
+            torchvision.models,
+            f"ViT_{'_'.join([s.upper() for s in self.vit_model_name.split('vit_')[-1].split('_')])}_Weights"),
+            weights)
+        self.vit = vit_model(weights=vit_weights)
+        self.vit.heads[-1] = torch.nn.Linear(in_features=self.vit.hidden_dim,
+                                             out_features=self.vit.hidden_dim)
+        self.elu = torch.nn.ELU()
+        self.fc_main = torch.nn.Linear(in_features=self.vit.hidden_dim,
+                                       out_features=num_classes)
+        self.fc_branch = torch.nn.Linear(in_features=self.vit.hidden_dim,
+                                         out_features=1024)
+
+    @classmethod
+    def from_pretrained(cls,
+                        model_name: str,
+                        num_classes: int,
+                        pretrained_path: str,
+                        device: torch.device):
+        """
+        Loads a pre-trained VITFineTuner model from a specified path.
+
+        :param model_name: The name of the pre-trained ViT model used during training.
+        :param num_classes: The number of output classes for the loaded model.
+        :param pretrained_path: The path to the saved pre-trained model checkpoint.
+        :param device: The device (CPU or GPU) to load the model onto.
+
+        :return: An instance of VITFineTuner loaded with pre-trained weights.
+        """
+        instance = cls(model_name, num_classes)
+        predefined_weights = torch.load(pretrained_path,
+                                        map_location=device)
+
+        if 'model_state_dict' in predefined_weights.keys():
+            predefined_weights = predefined_weights['model_state_dict']
+
+        new_predefined_weights = {}
+        for key, value in predefined_weights.items():
+            new_key = key.replace('vit.', '')
+            new_predefined_weights[new_key] = value
+
+        instance.vit.load_state_dict(new_predefined_weights)
+
+        return instance
+
+    def forward(self,
+                X: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Performs a forward pass through the fine-tuned ViT model for prediction.
+        :param X: Input tensor of image data (batch_num, channels_num, height, width).
+        :return: Predicted class probabilities for each input image (batch_num, classes_num).
+        """
+        base_output = self.vit(X)
+        main_output = self.elu(self.fc_main(base_output))
+        branch_output = self.elu(self.fc_branch(base_output))
+
+        return main_output, branch_output
+
+
+class DINOV2FineTunerLTN(FineTuner):
+    """
+    This class inherits from `FineTuner` to provide specific functionalities for
+    fine-tuning vision transformer (ViT) models.
+    """
+
+    def __init__(self,
+                 model_name: str,
+                 num_classes: int):
+        super().__init__(model_name=model_name,
+                         num_classes=num_classes)
+        self.model_size = model_name.split('dinov2_vit')[-1][0]
+        in_features = {'s': 384,
+                       'm': 768,
+                       'l': 1024}[self.model_size]
+
+        self.transformer = torch.hub.load(repo_or_dir='facebookresearch/dinov2',
+                                          model=model_name)
+        # self.classifier = torch.nn.Sequential(
+        #     torch.nn.Linear(in_features=in_features, out_features=256),
+        #     torch.nn.ReLU(),
+        #     torch.nn.Linear(in_features=256, out_features=num_classes))
+        self.elu = torch.nn.ELU()
+        self.fc_main = torch.nn.Linear(in_features=in_features,
+                                       out_features=num_classes)
+        self.fc_branch = torch.nn.Linear(in_features=in_features,
+                                         out_features=1024)
+
+    @classmethod
+    def from_pretrained(cls,
+                        model_name: str,
+                        num_classes: int,
+                        pretrained_path: str,
+                        device: torch.device):
+        """
+        Loads a pre-trained DINO V2 model from a specified path.
+
+        :param model_name: The name of the pre-trained ViT model used during training.
+        :param num_classes: The number of output classes for the loaded model.
+        :param pretrained_path: The path to the saved pre-trained model checkpoint.
+        :param device: The device (CPU or GPU) to load the model onto.
+
+        :return: An instance of VITFineTuner loaded with pre-trained weights.
+        """
+        instance = cls(model_name, num_classes)
+        predefined_weights = torch.load(pretrained_path,
+                                        map_location=device)
+        transformer_weights = {'.'.join(k.split('.')[1:]): v for k, v in predefined_weights.items()
+                               if k.split('.')[0] == 'transformer'}
+        instance.transformer.load_state_dict(transformer_weights)
+
+        fc_main_weights = {'.'.join(k.split('.')[1:]): v for k, v in predefined_weights.items()
+                           if k.split('.')[0] == 'fc_main'}
+        fc_branch_weights = {'.'.join(k.split('.')[1:]): v for k, v in predefined_weights.items()
+                             if k.split('.')[0] == 'fc_branch'}
+
+        instance.fc_main.load_state_dict(fc_main_weights)
+        instance.fc_branch.load_state_dict(fc_branch_weights)
+
+        return instance
+
+    def forward(self,
+                X: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Performs a forward pass through the fine-tuned ViT model for prediction.
+        :param X: Input tensor of image data (batch_num, channels_num, height, width).
+        :return: Predicted class probabilities for each input image (batch_num, classes_num).
+        """
+        base_output = self.transformer.norm(self.transformer(X))
+        main_output = self.elu(self.fc_main(base_output))
+        branch_output = self.elu(self.fc_branch(base_output))
+
+        return main_output, branch_output
+
+
 class TResnetFineTuner(FineTuner):
     """
     This class inherits from `FineTuner` to provide specific functionalities for

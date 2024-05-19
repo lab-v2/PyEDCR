@@ -37,7 +37,7 @@ def evaluate_on_test(data_str: str,
                                                        pretrained_fine_tuner=fine_tuner,
                                                        num_epochs=num_epochs,
                                                        print_results=True,
-                                                       save_files=save_files,
+                                                       save_files=False,
                                                        additional_info=f'{additional_info}_for_plotting')
 
     print('#' * 100)
@@ -59,7 +59,8 @@ class EDCR_LTN_experiment(EDCR):
                  binary_l_strs: typing.List[str] = [],
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
-                 binary_model_name: str = None):
+                 binary_model_name: str = None,
+                 model_with_LTN: bool = False):
 
         super().__init__(data_str=data_str,
                          main_model_name=main_model_name,
@@ -80,6 +81,9 @@ class EDCR_LTN_experiment(EDCR):
 
         print(utils.blue_text(f'EDCR has {config.use_binary_model} flag for using binary model '
                               f'and {config.use_secondary_model} flag for using secondary model'))
+        if model_with_LTN:
+            print(utils.blue_text(f'New method is applied! The model will return both output for prediction'
+                                  f'and feature use for ltn'))
 
         self.batch_size = config.batch_size
         self.scheduler_gamma = config.scheduler_gamma
@@ -87,12 +91,13 @@ class EDCR_LTN_experiment(EDCR):
         self.scheduler_step_size = config.scheduler_step_size
         self.beta = config.beta
         self.ltn_loss = config.ltn_loss
+        self.model_with_LTN = model_with_LTN
 
         self.preprocessor, self.fine_tuners, self.loaders, self.devices = backbone_pipeline.initiate(
             data_str=self.data_str,
             preprocessor=self.preprocessor,
             lr=self.lr,
-            model_name=main_model_name,
+            model_name=f'{main_model_name}_LTN' if model_with_LTN else main_model_name,
             train_eval_split=0.8
         )
 
@@ -121,6 +126,7 @@ class EDCR_LTN_experiment(EDCR):
         evaluate_on_test_between_epochs = True
         loaders = self.loaders
         early_stopping = True
+        X_feature = None
 
         fine_tuner.to(device)
         fine_tuner.train()
@@ -130,7 +136,10 @@ class EDCR_LTN_experiment(EDCR):
         optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
                                      lr=lr)
 
-        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
+        total_number_fine_coarse_class = (self.preprocessor.num_fine_grain_classes +
+                                          self.preprocessor.num_coarse_grain_classes)
+        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device) if not self.model_with_LTN \
+            else ltn.Predicate(ltn_support.LogitsToPredicateWithFeature(total_number_fine_coarse_class).to(ltn.device))
 
         early_stopping_value_list = []
         ltn_loss_per_epoch_list = []
@@ -200,7 +209,10 @@ class EDCR_LTN_experiment(EDCR):
 
                         # currently we have many option to get prediction, depend on whether fine_tuner predict
                         # fine / coarse or both
-                        Y_pred = fine_tuner(X)
+                        if not self.model_with_LTN:
+                            Y_pred = fine_tuner(X)
+                        else:
+                            Y_pred, X_feature = fine_tuner(X)
 
                         Y_pred_fine_grain = Y_pred[:, :len(preprocessor.fine_grain_classes_str)]
                         Y_pred_coarse_grain = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
@@ -211,21 +223,39 @@ class EDCR_LTN_experiment(EDCR):
                         if "LTN_soft_marginal" in loss:
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
-                        sat_agg = ltn_support.compute_sat_normally(
-                            preprocessor=preprocessor,
-                            logits_to_predicate=logits_to_predicate,
-                            train_pred_fine_batch=Y_pred_fine_grain,
-                            train_pred_coarse_batch=Y_pred_coarse_grain,
-                            train_true_fine_batch=Y_true_fine,
-                            train_true_coarse_batch=Y_true_coarse,
-                            original_train_pred_fine_batch=original_pred_fine_batch,
-                            original_train_pred_coarse_batch=original_pred_coarse_batch,
-                            secondary_train_pred_fine_batch=secondary_pred_fine_batch,
-                            secondary_train_pred_coarse_batch=secondary_pred_coarse_batch,
-                            binary_pred=binary_pred,
-                            error_detection_rules=self.error_detection_rules,
-                            device=device
-                        )
+                        if not self.model_with_LTN:
+                            sat_agg = ltn_support.compute_sat_normally(
+                                preprocessor=preprocessor,
+                                logits_to_predicate=logits_to_predicate,
+                                train_pred_fine_batch=Y_pred_fine_grain,
+                                train_pred_coarse_batch=Y_pred_coarse_grain,
+                                train_true_fine_batch=Y_true_fine,
+                                train_true_coarse_batch=Y_true_coarse,
+                                original_train_pred_fine_batch=original_pred_fine_batch,
+                                original_train_pred_coarse_batch=original_pred_coarse_batch,
+                                secondary_train_pred_fine_batch=secondary_pred_fine_batch,
+                                secondary_train_pred_coarse_batch=secondary_pred_coarse_batch,
+                                binary_pred=binary_pred,
+                                error_detection_rules=self.error_detection_rules,
+                                device=device
+                            )
+                        else:
+                            sat_agg = ltn_support.compute_sat_with_features(
+                                preprocessor=preprocessor,
+                                logits_to_predicate=logits_to_predicate,
+                                train_pred_batch_feature=X_feature,
+                                train_pred_fine_batch=Y_pred_fine_grain,
+                                train_pred_coarse_batch=Y_pred_coarse_grain,
+                                train_true_fine_batch=Y_true_fine,
+                                train_true_coarse_batch=Y_true_coarse,
+                                original_train_pred_fine_batch=original_pred_fine_batch,
+                                original_train_pred_coarse_batch=original_pred_coarse_batch,
+                                secondary_train_pred_fine_batch=secondary_pred_fine_batch,
+                                secondary_train_pred_coarse_batch=secondary_pred_coarse_batch,
+                                binary_pred=binary_pred,
+                                error_detection_rules=self.error_detection_rules,
+                                device=device
+                            )
 
                         if batch_num % 80 == 0:
                             print(1. - sat_agg)
@@ -367,6 +397,10 @@ class EDCR_LTN_experiment(EDCR):
 
         torch.save(best_fine_tuner.state_dict() if early_stopping else fine_tuner.state_dict(),
                    f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.pth")
+        if self.model_with_LTN:
+            torch.save(logits_to_predicate.state_dict(),
+                       f"models/logits_to_predicate/"
+                       f"{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.pth")
 
         ltn_loss_per_epoch_list = [loss.detach().to('cpu') for loss in ltn_loss_per_epoch_list]
         bce_loss_per_epoch_list = [loss.detach().to('cpu') for loss in bce_loss_per_epoch_list]
@@ -416,35 +450,35 @@ class EDCR_LTN_experiment(EDCR):
 
 
 if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # epsilon = 0.1
-    #
-    # main_model_name = 'vit_b_16'
-    # main_lr = secondary_lr = 0.0001
-    # original_num_epochs = 20
-    #
-    # secondary_model_name = 'vit_l_16'
-    # secondary_model_loss = 'BCE'
-    # secondary_num_epochs = 20
-    #
-    # binary_num_epochs = 10
-    # binary_lr = 0.0001
-    # binary_model_name = 'vit_b_16'
-
-    data_str = 'imagenet'
+    data_str = 'military_vehicles'
     epsilon = 0.1
 
-    main_model_name = 'dinov2_vits14'
-    main_lr = secondary_lr = 0.000001
-    original_num_epochs = 8
+    main_model_name = 'vit_b_16'
+    main_lr = secondary_lr = 0.0001
+    original_num_epochs = 20
 
-    secondary_model_name = 'dinov2_vitl14'
+    secondary_model_name = 'vit_l_16'
     secondary_model_loss = 'BCE'
-    secondary_num_epochs = 2
+    secondary_num_epochs = 20
 
-    binary_num_epochs = 5
-    binary_lr = 0.000001
-    binary_model_name = 'dinov2_vits14'
+    binary_num_epochs = 10
+    binary_lr = 0.0001
+    binary_model_name = 'vit_b_16'
+
+    # data_str = 'imagenet'
+    # epsilon = 0.1
+    #
+    # main_model_name = 'dinov2_vits14'
+    # main_lr = secondary_lr = 0.000001
+    # original_num_epochs = 8
+    #
+    # secondary_model_name = 'dinov2_vitl14'
+    # secondary_model_loss = 'BCE'
+    # secondary_num_epochs = 2
+    #
+    # binary_num_epochs = 5
+    # binary_lr = 0.000001
+    # binary_model_name = 'dinov2_vits14'
 
     # data_str = 'openimage'
     # epsilon = 0.1
@@ -467,6 +501,8 @@ if __name__ == '__main__':
                           if f.startswith(f'{data_str}_{main_model_name}')
                           })
 
+    model_with_LTN = False
+
     edcr = EDCR_LTN_experiment(data_str=data_str,
                                epsilon=epsilon,
                                main_model_name=main_model_name,
@@ -481,7 +517,8 @@ if __name__ == '__main__':
                                binary_l_strs=binary_l_strs,
                                binary_lr=binary_lr,
                                binary_num_epochs=binary_num_epochs,
-                               binary_model_name=binary_model_name)
+                               binary_model_name=binary_model_name,
+                               model_with_LTN=model_with_LTN)
     edcr.run_learning_pipeline()
     edcr.fine_tune_and_evaluate_combined_model(
         additional_info=f"LTN{'_binary' if config.use_binary_model else ''}"

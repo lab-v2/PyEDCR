@@ -289,9 +289,14 @@ def initiate(data_str: str,
     available_models = find_subclasses_in_module(module=models,
                                                  parent_class=models.FineTuner)
 
-    model_class = next(curr_model_class for curr_model_class in available_models
-                       if curr_model_class.__name__.split('FineTuner')[0].lower().
-                       startswith(model_name[:3]))
+    if 'LTN' in model_name:
+        model_class = [curr_model_class for curr_model_class in available_models
+                       if curr_model_class.__name__.split('FineTuner')[0].lower().startswith(model_name[:3])
+                       and curr_model_class.__name__.lower().endswith('ltn')][0]
+    else:
+        model_class = next(curr_model_class for curr_model_class in available_models
+                           if curr_model_class.__name__.split('FineTuner')[0].lower().
+                           startswith(model_name[:3]))
 
     if train_fine_predictions is not None:
         results_path = binary_results_path
