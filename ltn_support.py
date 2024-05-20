@@ -68,15 +68,16 @@ def pred_to_index(examples: torch.tensor,
     return torch.where(mask)[0]
 
 
-def conds_predicate(examples: torch.tensor,
-                    prediction: torch.tensor,
+def conds_predicate(example: torch.tensor,
+                    prediction_batch: torch.tensor,
                     cond_fine_data: torch.tensor,
                     cond_coarse_data: torch.tensor,
                     cond_second_fine_data: torch.tensor,
                     cond_second_coarse_data: torch.tensor,
                     binary_pred: typing.Dict[data_preprocessing.Label, np.array],
                     conds: set[conditions.Condition],
-                    device: torch.device):
+                    device: torch.device,
+                    ):
     any_condition_satisfied = torch.zeros_like(cond_fine_data).detach().to('cpu')
     for cond in conds:
         any_condition_satisfied |= torch.tensor(
@@ -87,8 +88,7 @@ def conds_predicate(examples: torch.tensor,
                  secondary_coarse_data=cond_second_coarse_data.detach().to(
                      'cpu').numpy() if cond_second_coarse_data is not None else None,
                  binary_data=binary_pred if binary_pred is not None else None))
-    index = int(torch.all(prediction == examples.unsqueeze(0), dim=1))
-    return any_condition_satisfied[index].to(device)
+    return any_condition_satisfied.to(device)
 
 
 def true_predicate(examples: torch.tensor,
@@ -96,9 +96,8 @@ def true_predicate(examples: torch.tensor,
                    device: torch.device):
     # Ensure shapes are compatible
     assert examples.shape[0] == true_data.shape[0], "Prediction and true_data must have the same shape."
-
     # Get the indices of the maximum values
-    pred_indices = examples.argmax(dim=1)
+    pred_indices = torch.reshape(examples.argmax(dim=1), true_data.shape)
 
     # Compare the predicted indices with the true labels, resulting in a boolean tensor
     # Convert booleans to 1.0 and 0.0 using torch.float for consistency
@@ -145,9 +144,9 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
     Conds_predicate = {}
     for l in (list(preprocessor.fine_grain_labels.values()) +
               list(preprocessor.coarse_grain_labels.values())):
-        Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction: conds_predicate(
-            examples=x,
-            prediction=prediction,
+        Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction_batch: conds_predicate(
+            example=x,
+            prediction_batch=prediction_batch,
             cond_fine_data=original_train_pred_fine_batch,
             cond_coarse_data=original_train_pred_coarse_batch,
             cond_second_fine_data=secondary_train_pred_fine_batch,
@@ -163,8 +162,8 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
                                    )
 
     # Define constant
-    pred_fine_data = ltn.Variable("pred_fine_data", train_pred_fine_batch)
-    pred_coarse_data = ltn.Variable("pred_coarse_data", train_pred_coarse_batch)
+    pred_fine_data = ltn.Constant(train_pred_fine_batch)
+    pred_coarse_data = ltn.Constant(train_pred_coarse_batch)
     true_fine_data = ltn.Variable("true_fine_data", train_true_fine_batch)
     true_coarse_data = ltn.Variable("true_coarse_data", train_true_coarse_batch)
     label_one_hot = {}
@@ -196,9 +195,8 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
     # error_i(w) = pred_i(w) and not(true_i(w))
 
     for l in preprocessor.fine_grain_labels.values():
-        x_fine, true_fine_data = ltn.diag(x_fine, true_fine_data)
         confidence_score = (
-            Forall([x_fine, true_fine_data],
+            Forall(ltn.diag(x_fine, true_fine_data),
                    Implies(
                        And(logits_to_predicate(x_fine, label_one_hot[l]),
                            Conds_predicate[l](x_fine, pred_fine_data)),
@@ -210,9 +208,8 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
         sat_agg_list.append(confidence_score)
 
     for l in preprocessor.coarse_grain_labels.values():
-        x_coarse, true_coarse_data = ltn.diag(x_coarse, true_coarse_data)
         confidence_score = (
-            Forall([x_coarse, true_coarse_data],
+            Forall(ltn.diag(x_coarse, true_coarse_data),
                    Implies(
                        And(logits_to_predicate(x_coarse, label_one_hot[l]),
                            Conds_predicate[l](x_coarse, pred_coarse_data)),
@@ -261,8 +258,8 @@ def compute_sat_with_features(preprocessor: data_preprocessing.DataPreprocessor,
     for l in (list(preprocessor.fine_grain_labels.values()) +
               list(preprocessor.coarse_grain_labels.values())):
         Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction: conds_predicate(
-            examples=x,
-            prediction=prediction,
+            example=x,
+            prediction_batch=prediction,
             cond_fine_data=original_train_pred_fine_batch,
             cond_coarse_data=original_train_pred_coarse_batch,
             cond_second_fine_data=secondary_train_pred_fine_batch,
