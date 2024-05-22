@@ -392,10 +392,11 @@ def run_combined_fine_tuning_pipeline(data_str: str,
 
 
 if __name__ == '__main__':
-    run_combined_fine_tuning_pipeline(data_str='military_vehicles',
+    run_combined_fine_tuning_pipeline(data_str='openimage',
                                       model_name='vit_b_16',
                                       lr=0.0001,
                                       num_epochs=50,
                                       loss='BCE',
                                       additional_info='additional',
-                                      evaluate_on_test_between_epochs=False)
+                                      evaluate_on_test_between_epochs=False,
+                                      evaluate_train_eval=False)

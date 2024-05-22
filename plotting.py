@@ -114,13 +114,16 @@ def plot_3d_metrics(x_values: np.array,
 def plot_2d_metrics(data_str: str,
                     model_name: str,
                     x_values,
-                    metrics: typing.Dict):
+                    metrics: typing.Dict,
+                    style_dict,
+                    fontsize: int):
     # Create the plot
     plt.figure(figsize=(10, 6))
 
     # Plot each metric
-    for metric_name, (metric_values, color) in metrics.items():
-        plt.plot(x_values, metric_values, label=metric_name, color=color)
+    for metric_name, metric_values in metrics.items():
+        color, linestyle = style_dict.get(metric_name, ('k', '-'))  # Default to black solid line if not specified
+        plt.plot(x_values, metric_values, label=metric_name, color=color, linestyle=linestyle, linewidth=3)
 
     # Add labels and title
     models_dict = {'vit_b_16': 'VIT_b_16',
@@ -133,14 +136,19 @@ def plot_2d_metrics(data_str: str,
                  'openimage': 'OpenImage',
                  'coco': 'COCO'}
 
-    plt.xlabel("Noise ratio")
-    plt.ylabel("Percentage (%)")
-    plt.title(f"Noise ratio experiments for {models_dict[model_name]} on {data_dict[data_str]} "
-              f"with binary and secondary conditions")
+    plt.xlabel("Noise ratio", fontsize=fontsize)
+    # plt.ylabel("Percentage (%)")
+    # plt.title(f"Noise ratio experiments for {models_dict[model_name]} on {data_dict[data_str]} "
+    #           f"with binary and secondary conditions")
+
+    plt.xticks(np.arange(0.0, 1.1, 0.1), fontsize=fontsize)
+    plt.yticks(np.arange(0, 101, 10), fontsize=fontsize)
 
     # Add legend
-    plt.legend()
+    plt.legend(fontsize=fontsize)
 
     # Show the plot
     plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f'{data_str}_noise.png', format='png', dpi=600)
     plt.show()
