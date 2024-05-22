@@ -29,6 +29,33 @@ class LogitsToPredicate(torch.nn.Module):
         return out
 
 
+class LogitsToPredicateWithFeature(torch.nn.Module):
+    """
+    This model has inside a logits model, that is a model which compute logits for the classes given an input example x.
+    The idea of this model is to keep logits and probabilities separated. The logits model returns the logits for an example,
+    while this model returns the probabilities given the logits model.
+
+    In particular, it takes as input an example x and a class label d. It applies the logits model to x to get the logits.
+    Then, it applies a softmax function to get the probabilities per classes. Finally, it returns only the probability related
+    to the given class d.
+    """
+
+    def __init__(self,
+                 num_classes: int):
+        super(LogitsToPredicateWithFeature, self).__init__()
+        self.elu = torch.nn.ELU()
+        self.sigmoid = torch.nn.Sigmoid()
+        self.fc_1 = torch.nn.Linear(in_features=1024, out_features=1024)
+        self.fc_2 = torch.nn.Linear(in_features=1024, out_features=num_classes)
+
+    def forward(self, x, d):
+        x = self.elu(self.fc_1(x))
+        x = self.elu(self.fc_2(x))
+        probs = self.sigmoid(x)
+        out = torch.sum(probs * d, dim=1)
+        return out
+
+
 def pred_to_index(examples: torch.tensor,
                   prediction: torch.tensor):
     if examples.shape[0] != prediction.shape[0]:
@@ -41,15 +68,16 @@ def pred_to_index(examples: torch.tensor,
     return torch.where(mask)[0]
 
 
-def conds_predicate(examples: torch.tensor,
-                    prediction: torch.tensor,
+def conds_predicate(example: torch.tensor,
+                    prediction_batch: torch.tensor,
                     cond_fine_data: torch.tensor,
                     cond_coarse_data: torch.tensor,
                     cond_second_fine_data: torch.tensor,
                     cond_second_coarse_data: torch.tensor,
                     binary_pred: typing.Dict[data_preprocessing.Label, np.array],
                     conds: set[conditions.Condition],
-                    device: torch.device):
+                    device: torch.device,
+                    ):
     any_condition_satisfied = torch.zeros_like(cond_fine_data).detach().to('cpu')
     for cond in conds:
         any_condition_satisfied |= torch.tensor(
@@ -67,14 +95,13 @@ def true_predicate(examples: torch.tensor,
                    true_data: torch.tensor,
                    device: torch.device):
     # Ensure shapes are compatible
-    assert examples.shape[0] == true_data.shape[0], "Prediction and true_data must have the same batch size."
-
-    # Get the indices of the maximum values along the second dimension (num_labels)
-    pred_indices = examples.argmax(dim=1)
+    assert examples.shape[0] == true_data.shape[0], "Prediction and true_data must have the same shape."
+    # Get the indices of the maximum values
+    pred_indices = torch.reshape(examples.argmax(dim=1), true_data.shape)
 
     # Compare the predicted indices with the true labels, resulting in a boolean tensor
     # Convert booleans to 1.0 and 0.0 using torch.float for consistency
-    return torch.where(pred_indices == true_data[0], 1., 0.).to(device)
+    return torch.where(pred_indices == true_data, 1., 0.).to(device)
 
 
 def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
@@ -117,9 +144,9 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
     Conds_predicate = {}
     for l in (list(preprocessor.fine_grain_labels.values()) +
               list(preprocessor.coarse_grain_labels.values())):
-        Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction: conds_predicate(
-            examples=x,
-            prediction=prediction,
+        Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction_batch: conds_predicate(
+            example=x,
+            prediction_batch=prediction_batch,
             cond_fine_data=original_train_pred_fine_batch,
             cond_coarse_data=original_train_pred_coarse_batch,
             cond_second_fine_data=secondary_train_pred_fine_batch,
@@ -134,11 +161,11 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
         device=device)
                                    )
 
-    # Define constant: already done in data_preprocessing.py
+    # Define constant
     pred_fine_data = ltn.Constant(train_pred_fine_batch)
     pred_coarse_data = ltn.Constant(train_pred_coarse_batch)
-    true_fine_data = ltn.Constant(train_true_fine_batch)
-    true_coarse_data = ltn.Constant(train_true_coarse_batch)
+    true_fine_data = ltn.Variable("true_fine_data", train_true_fine_batch)
+    true_coarse_data = ltn.Variable("true_coarse_data", train_true_coarse_batch)
     label_one_hot = {}
     for l in preprocessor.fine_grain_labels.values():
         one_hot = torch.zeros(len(preprocessor.fine_grain_classes_str))
@@ -151,16 +178,16 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
         label_one_hot[l] = ltn.Constant(one_hot.to(device))
 
     # Define variables
-    x_variables = {}
     x_fine = ltn.Variable("x_fine", train_pred_fine_batch)
     x_coarse = ltn.Variable("x_coarse", train_pred_coarse_batch)
 
-    for l in preprocessor.fine_grain_labels.values():
-        x_variables[l] = ltn.Variable(
-            str(l), train_pred_fine_batch[train_pred_fine_batch == l.index])
-    for l in preprocessor.coarse_grain_labels.values():
-        x_variables[l] = ltn.Variable(
-            str(l), train_pred_coarse_batch[train_pred_coarse_batch == l.index])
+    # x_variables = {}
+    # for l in preprocessor.fine_grain_labels.values():
+    #     x_variables[l] = ltn.Variable(
+    #         str(l), train_pred_fine_batch[train_pred_fine_batch == l.index])
+    # for l in preprocessor.coarse_grain_labels.values():
+    #     x_variables[l] = ltn.Variable(
+    #         str(l), train_pred_coarse_batch[train_pred_coarse_batch == l.index])
 
     sat_agg_list = []
 
@@ -169,7 +196,7 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
 
     for l in preprocessor.fine_grain_labels.values():
         confidence_score = (
-            Forall(x_fine,
+            Forall(ltn.diag(x_fine, true_fine_data),
                    Implies(
                        And(logits_to_predicate(x_fine, label_one_hot[l]),
                            Conds_predicate[l](x_fine, pred_fine_data)),
@@ -182,13 +209,125 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
 
     for l in preprocessor.coarse_grain_labels.values():
         confidence_score = (
-            Forall(x_coarse,
+            Forall(ltn.diag(x_coarse, true_coarse_data),
                    Implies(
                        And(logits_to_predicate(x_coarse, label_one_hot[l]),
                            Conds_predicate[l](x_coarse, pred_coarse_data)),
                        And(
                            Not(True_predicate(x_coarse, true_coarse_data)),
                            logits_to_predicate(x_coarse, label_one_hot[l]))
+                   )
+                   ))
+        sat_agg_list.append(confidence_score)
+
+    sat_agg = SatAgg(
+        *sat_agg_list
+    )
+
+    return sat_agg
+
+
+def compute_sat_with_features(preprocessor: data_preprocessing.DataPreprocessor,
+                              logits_to_predicate: torch.nn.Module,
+                              train_pred_batch_feature: torch.tensor,
+                              train_pred_fine_batch: torch.tensor,
+                              train_pred_coarse_batch: torch.tensor,
+                              train_true_fine_batch: torch.tensor,
+                              train_true_coarse_batch: torch.tensor,
+                              original_train_pred_fine_batch: torch.tensor,
+                              original_train_pred_coarse_batch: torch.tensor,
+                              secondary_train_pred_fine_batch: torch.tensor,
+                              secondary_train_pred_coarse_batch: torch.tensor,
+                              binary_pred: typing.Dict[data_preprocessing.Label, np.array],
+                              error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule],
+                              device: torch.device):
+    g_fine = preprocessor.granularities['fine']
+    g_coarse = preprocessor.granularities['coarse']
+
+    # Define predicate
+    Not = ltn.Connective(ltn.fuzzy_ops.NotStandard())
+    And = ltn.Connective(ltn.fuzzy_ops.AndProd())
+    Or = ltn.Connective(ltn.fuzzy_ops.OrProbSum())
+    Implies = ltn.Connective(ltn.fuzzy_ops.ImpliesReichenbach())
+    Forall = ltn.Quantifier(
+        ltn.fuzzy_ops.AggregPMeanError(p=4), quantifier="f")
+    SatAgg = ltn.fuzzy_ops.SatAgg()
+
+    # Cond predicate l: 1 if example satisfy any cond in DC_l and 0 otherwise]
+    Conds_predicate = {}
+    for l in (list(preprocessor.fine_grain_labels.values()) +
+              list(preprocessor.coarse_grain_labels.values())):
+        Conds_predicate[l] = ltn.Predicate(func=lambda x, prediction: conds_predicate(
+            example=x,
+            prediction_batch=prediction,
+            cond_fine_data=original_train_pred_fine_batch,
+            cond_coarse_data=original_train_pred_coarse_batch,
+            cond_second_fine_data=secondary_train_pred_fine_batch,
+            cond_second_coarse_data=secondary_train_pred_coarse_batch,
+            binary_pred=binary_pred,
+            conds=error_detection_rules[l].C_l,
+            device=device))
+
+    True_predicate = ltn.Predicate(func=lambda x, train_true_batch: true_predicate(
+        examples=x,
+        true_data=train_true_batch,
+        device=device)
+                                   )
+
+    # Define constant
+    pred_fine_data = ltn.Constant(train_pred_fine_batch)
+    pred_coarse_data = ltn.Constant(train_pred_coarse_batch)
+    true_fine_data = ltn.Constant(train_true_fine_batch)
+    true_coarse_data = ltn.Constant(train_true_coarse_batch)
+    label_one_hot = {}
+
+    for l in preprocessor.fine_grain_labels.values():
+        one_hot = torch.zeros(len(preprocessor.fine_grain_classes_str))
+        one_hot[l.index] = 1.0
+        label_one_hot[l] = ltn.Constant(one_hot.to(device))
+
+    for l in preprocessor.coarse_grain_labels.values():
+        one_hot = torch.zeros(len(preprocessor.coarse_grain_classes_str))
+        one_hot[l.index] = 1.0
+        label_one_hot[l] = ltn.Constant(one_hot.to(device))
+
+    # Define variables
+    x_fine = ltn.Variable("x_fine", train_pred_fine_batch.item())
+    x_coarse = ltn.Variable("x_coarse", train_pred_coarse_batch.item())
+    x_fine_coarse_feature = ltn.Variable("x_fine_coarse_feature", train_pred_batch_feature)
+
+    sat_agg_list = []
+
+    # Detection Rule: pred_i(w) and not(true_i(w)) <- pred_i(w) and disjunction DC_i(cond_j(w))
+    # error_i(w) = pred_i(w) and not(true_i(w))
+
+    for l in preprocessor.fine_grain_labels.values():
+        true_l = ltn.Variable(f'{str(l)}_batch', True_predicate[l][train_pred_fine_batch == l.index],
+                              add_batch_dim=False)
+        cond_l = ltn.Variable(f'{str(l)}_batch', Conds_predicate[l][train_pred_fine_batch == l.index],
+                              add_batch_dim=False)
+
+        confidence_score = (
+            Forall(x_fine_coarse_feature,
+                   Implies(
+                       And(logits_to_predicate(x_fine_coarse_feature, label_one_hot[l]),
+                           Conds_predicate[l](x_fine_coarse_feature, pred_fine_data)),
+                       And(
+                           Not(True_predicate(x_fine, true_fine_data)),
+                           logits_to_predicate(x_fine_coarse_feature, label_one_hot[l]))
+                   )
+                   ))
+        sat_agg_list.append(confidence_score)
+
+    for l in preprocessor.coarse_grain_labels.values():
+        confidence_score = (
+            Forall(x_fine_coarse_feature,
+                   Implies(
+                       And(logits_to_predicate(x_fine_coarse_feature, label_one_hot[l]),
+                           Conds_predicate[l](x_fine_coarse_feature, pred_coarse_data)),
+                       And(
+                           Not(True_predicate(x_coarse, true_coarse_data)),
+                           logits_to_predicate(x_fine_coarse_feature, label_one_hot[l]))
                    )
                    ))
         sat_agg_list.append(confidence_score)
