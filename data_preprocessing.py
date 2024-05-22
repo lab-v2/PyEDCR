@@ -821,10 +821,10 @@ def get_datasets(preprocessor: DataPreprocessor,
 
     for train_or_test in ['train', 'test']:
         if preprocessor.data_str == 'openimage':
-            full_data_dir = f'scratch/ngocbach/OpenImage/{train_or_test}_fine' if not config.running_on_sol \
-                else f'/scratch/ngocbach/OpenImage/{train_or_test}_fine'
+            full_data_dir = f'../../scratch/ngocbach/OpenImage/{train_or_test}_fine' if not config.running_on_sol \
+                else f'../../scratch/ngocbach/OpenImage/{train_or_test}_fine'
         elif preprocessor.data_str == 'coco':
-            full_data_dir = f'scratch/ngocbach/COCO/{train_or_test}_fine'
+            full_data_dir = f'../../scratch/ngocbach/COCO/{train_or_test}_fine'
         else:
             data_dir_name = f'ImageNet100/{train_or_test}_fine' if preprocessor.data_str == 'imagenet' \
                 else f'{train_or_test}_fine'
