@@ -141,8 +141,8 @@ def plot_2d_metrics(data_str: str,
     # plt.title(f"Noise ratio experiments for {models_dict[model_name]} on {data_dict[data_str]} "
     #           f"with binary and secondary conditions")
 
-    plt.xticks(np.arange(0.0, 1.1, 0.1), fontsize=fontsize)
-    plt.yticks(np.arange(0, 101, 10), fontsize=fontsize)
+    plt.xticks(np.arange(0.0, max(x_values) + 0.1, 0.1), fontsize=fontsize)
+    plt.yticks(np.arange(0.0, 101, 10), fontsize=fontsize)
 
     # Add legend
     plt.legend(fontsize=fontsize)

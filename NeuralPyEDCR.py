@@ -44,7 +44,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  binary_lr: typing.Union[str, float] = None,
                  num_train_images_per_class: int = None,
                  maximize_ratio: bool = True,
-                 train_labels_noise_ratio: float = None,
                  indices_of_fine_labels_to_take_out: typing.List[int] = [],
                  negated_conditions: bool = False):
         super().__init__(data_str=data_str,
@@ -69,7 +68,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                          secondary_lr=secondary_lr,
                          num_train_images_per_class=num_train_images_per_class,
                          maximize_ratio=maximize_ratio,
-                         train_labels_noise_ratio=train_labels_noise_ratio,
                          indices_of_fine_labels_to_take_out=indices_of_fine_labels_to_take_out,
                          negated_conditions=negated_conditions)
         self.EDCR_num_epochs = EDCR_num_epochs
@@ -281,7 +279,6 @@ def work_on_value(args):
      num_train_images_per_class,
      maximize_ratio,
      multi_processing,
-     train_labels_noise_ratio,
      fine_labels_to_take_out,
      negated_conditions
      ) = args
@@ -309,7 +306,6 @@ def work_on_value(args):
                         neural_num_epochs=1,
                         # num_train_images_per_class=num_train_images_per_class
                         maximize_ratio=maximize_ratio,
-                        train_labels_noise_ratio=train_labels_noise_ratio,
                         indices_of_fine_labels_to_take_out=fine_labels_to_take_out,
                         negated_conditions=negated_conditions
                         )
@@ -338,28 +334,27 @@ def simulate_for_values(total_number_of_points: int = 10,
                         num_train_images_per_class: typing.Sequence[int] = None,
                         only_from_missing_values: bool = False,
                         maximize_ratio: bool = True,
-                        train_labels_noise_ratios: typing.Sequence[float] = None,
                         lists_of_fine_labels_to_take_out: typing.List[typing.List[int]] = [],
                         negated_conditions: bool = False):
-    all_values = {i: element for i, element
-                  in enumerate(itertools.product(train_labels_noise_ratios,
-                                                 lists_of_fine_labels_to_take_out
-                                                 # np.linspace(start=min_value,
-                                                 #             stop=max_value,
-                                                 #             num=total_number_of_points)
-                                                 ))
-                  }
+    # all_values = {i: element for i, element
+    #               in enumerate(itertools.product(train_labels_noise_ratios,
+    #                                              lists_of_fine_labels_to_take_out
+    #                                              # np.linspace(start=min_value,
+    #                                              #             stop=max_value,
+    #                                              #             num=total_number_of_points)
+    #                                              ))
+    #               }
 
-    if only_from_missing_values:
-        first_values, second_values = google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-                                                                                column_letters=['A', 'B'])
-        if len(first_values) and len(second_values):
-            last_first_value = first_values[-1]
-            last_epsilon = second_values[-1]
-            all_values = {i: (first_value, second_value) for i, (first_value, second_value) in
-                          all_values.items()
-                          if ((first_value == last_first_value and second_value > last_epsilon)
-                              or (first_value > last_first_value))}
+    # if only_from_missing_values:
+    #     first_values, second_values = google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+    #                                                                             column_letters=['A', 'B'])
+    #     if len(first_values) and len(second_values):
+    #         last_first_value = first_values[-1]
+    #         last_epsilon = second_values[-1]
+    #         all_values = {i: (first_value, second_value) for i, (first_value, second_value) in
+    #                       all_values.items()
+    #                       if ((first_value == last_first_value and second_value > last_epsilon)
+    #                           or (first_value > last_first_value))}
 
     datas = [(i,
               None if maximize_ratio else 0.1,
@@ -378,10 +373,9 @@ def simulate_for_values(total_number_of_points: int = 10,
               None,
               maximize_ratio,
               multi_processing,
-              noise_value,
               fine_labels_to_take_out,
               negated_conditions
-              ) for i, (noise_value, fine_labels_to_take_out) in all_values.items()]
+              ) for i, fine_labels_to_take_out in enumerate(lists_of_fine_labels_to_take_out)]
 
     if not utils.is_debug_mode():
         processes_num = min([len(datas), 10 if utils.is_local() else 100])
@@ -394,25 +388,25 @@ def simulate_for_values(total_number_of_points: int = 10,
 
 
 if __name__ == '__main__':
-    data_str = 'military_vehicles'
-    main_model_name = binary_model_name = 'vit_b_16'
-    secondary_model_name = 'vit_l_16'
-    main_lr = secondary_lr = binary_lr = 0.0001
-    original_num_epochs = 10
-    secondary_num_epochs = 20
-    binary_num_epochs = 10
-    number_of_fine_classes = 24
+    # data_str = 'military_vehicles'
+    # main_model_name = binary_model_name = 'vit_b_16'
+    # secondary_model_name = 'vit_l_16'
+    # main_lr = secondary_lr = binary_lr = 0.0001
+    # original_num_epochs = 10
+    # secondary_num_epochs = 20
+    # binary_num_epochs = 10
+    # number_of_fine_classes = 24
 
-    # data_str = 'imagenet'
-    # main_model_name = binary_model_name = 'dinov2_vits14'
-    # secondary_model_name = 'dinov2_vitl14'
+    data_str = 'imagenet'
+    main_model_name = binary_model_name = 'dinov2_vits14'
+    secondary_model_name = 'dinov2_vitl14'
     # main_lr = 0.00001
-    # secondary_lr = binary_lr = 0.000001
-    # original_num_epochs = 8
-    # secondary_num_epochs = 2
-    # binary_num_epochs = 5
-    # number_of_fine_classes = 42
-    #
+    main_lr = secondary_lr = binary_lr = 0.000001
+    original_num_epochs = 8
+    secondary_num_epochs = 2
+    binary_num_epochs = 5
+    number_of_fine_classes = 42
+
     # data_str = 'openimage'
     # main_model_name = 'vit_b_16'
     # secondary_model_name = binary_model_name = 'dinov2_vits14'
@@ -433,7 +427,7 @@ if __name__ == '__main__':
     sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
                                                           data_str=data_str,
                                                           secondary_model_name=secondary_model_name,
-                                                          # binary=len(binary_l_strs) > 0
+                                                          binary=len(binary_l_strs) > 0
                                                           )
     number_of_ratios = 10
 
@@ -441,36 +435,36 @@ if __name__ == '__main__':
     # lists_of_fine_labels_to_take_out = [[]]
     # lists_of_fine_labels_to_take_out = [list(range(number_of_fine_classes-1))]
 
-    # for (curr_secondary_model_name, curr_secondary_model_loss, curr_secondary_num_epochs, curr_secondary_lr) in \
-    #         [(secondary_model_name, 'BCE', secondary_num_epochs, secondary_lr),
-    #          # [None] * 4
-    #          ]:
-    #     for (curr_binary_l_strs, curr_binary_lr, curr_binary_num_epochs) in \
-    #             [(binary_l_strs, binary_lr, binary_num_epochs),
-    #              # ([], None, None)
-    #              ]:
-    #         for (lists_of_fine_labels_to_take_out, maximize_ratio, multi_processing) in \
-    #                 [([[]], False, True),
-    #                  # ([list(range(i)) for i in range(number_of_fine_classes)], True)
-    #                  ]:
-    #             simulate_for_values(
-    #                 total_number_of_points=1,
-    #                 min_value=0.1,
-    #                 max_value=0.1,
-    #                 binary_l_strs=curr_binary_l_strs,
-    #                 binary_lr=curr_binary_lr,
-    #                 binary_num_epochs=curr_binary_num_epochs,
-    #                 multi_processing=multi_processing,
-    #                 secondary_model_name=curr_secondary_model_name,
-    #                 secondary_model_loss=curr_secondary_model_loss,
-    #                 secondary_num_epochs=curr_secondary_num_epochs,
-    #                 secondary_lr=curr_secondary_lr,
-    #                 # only_from_missing_values=True
-    #                 maximize_ratio=maximize_ratio,
-    #                 train_labels_noise_ratios=[0],
-    #                 lists_of_fine_labels_to_take_out=lists_of_fine_labels_to_take_out,
-    #                 negated_conditions=False
-    #             )
+    for (curr_secondary_model_name, curr_secondary_model_loss, curr_secondary_num_epochs, curr_secondary_lr) in \
+            [(secondary_model_name, 'BCE', secondary_num_epochs, secondary_lr),
+             # [None] * 4
+             ]:
+        for (curr_binary_l_strs, curr_binary_lr, curr_binary_num_epochs) in \
+                [(binary_l_strs, binary_lr, binary_num_epochs),
+                 # ([], None, None)
+                 ]:
+            for (lists_of_fine_labels_to_take_out, maximize_ratio, multi_processing) in \
+                    [
+                        # ([[]], True, True),
+                     ([list(range(i)) for i in range(int(number_of_fine_classes / 2) + 1)], True, True)
+                     ]:
+                simulate_for_values(
+                    total_number_of_points=1,
+                    min_value=0.1,
+                    max_value=0.1,
+                    binary_l_strs=curr_binary_l_strs,
+                    binary_lr=curr_binary_lr,
+                    binary_num_epochs=curr_binary_num_epochs,
+                    multi_processing=multi_processing,
+                    secondary_model_name=curr_secondary_model_name,
+                    secondary_model_loss=curr_secondary_model_loss,
+                    secondary_num_epochs=curr_secondary_num_epochs,
+                    secondary_lr=curr_secondary_lr,
+                    # only_from_missing_values=True
+                    maximize_ratio=maximize_ratio,
+                    lists_of_fine_labels_to_take_out=lists_of_fine_labels_to_take_out,
+                    negated_conditions=False
+                )
 
     # (x_values, y_values, error_accuracies, error_f1s, error_MMCs, error_acc_f1s) = (
     #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
@@ -484,13 +478,25 @@ if __name__ == '__main__':
         google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
                                                   column_letters=['B', 'D', 'G', 'J']))
 
+    if data_str == 'military_vehicles':
+        # Find the first occurrence where a > 0.5
+        first_greater = np.argmax(x_values > 0.5)  # This gives the index of the first True in the condition
+
+        x_values[first_greater] = 0.5
+
+    # Create a mask for values <= 0.5
+    mask = x_values <= 0.5
+
+    x_values, balance_error_accuracies, error_f1s, constraint_f1s = \
+        [a[mask] for a in [x_values, balance_error_accuracies, error_f1s, constraint_f1s]]
+
+
     plotting.plot_2d_metrics(data_str=data_str,
                              model_name=main_model_name,
-                             x_values=x_values[2:],
-                             metrics={'Balanced Error Accuracy':balance_error_accuracies[2:],
-                                      'Error F1-Score': np.array([error_f1s[i]
-                                                                  for i in range(len(error_f1s)) if i not in [0, 1]]),
-                                      'Constraints F1-Score':constraint_f1s[2:]},
+                             x_values=x_values[1:],
+                             metrics={'Balanced Error Accuracy': balance_error_accuracies[1:],
+                                      'Error F1-Score': error_f1s[1:],
+                                      'Constraints F1-Score': constraint_f1s[1:]},
                              style_dict={
                                  'Balanced Error Accuracy': ('k', '-'),  # Black solid line
                                  'Error F1-Score': ('k', ':'),  # Gray solid line

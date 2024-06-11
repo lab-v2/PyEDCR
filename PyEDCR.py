@@ -58,7 +58,6 @@ class EDCR:
                  binary_lr: typing.Union[str, float] = None,
                  num_train_images_per_class: int = None,
                  maximize_ratio: bool = True,
-                 train_labels_noise_ratio: float = None,
                  indices_of_fine_labels_to_take_out: typing.List[int] = [],
                  use_google_api: bool = True,
                  negated_conditions: bool = False):
@@ -82,7 +81,6 @@ class EDCR:
         self.binary_lr = binary_lr
         self.num_train_images_per_class = num_train_images_per_class
         self.maximize_ratio = maximize_ratio
-        self.train_labels_noise_ratio = train_labels_noise_ratio
         self.indices_of_fine_labels_to_take_out = indices_of_fine_labels_to_take_out
         self.indices_of_coarse_labels_to_take_out = []
         self.negated_conditions = negated_conditions
@@ -224,6 +222,7 @@ class EDCR:
 
         self.recovered_constraints_recall = 0
         self.recovered_constraints_precision = 0
+        self.all_possible_consistency_constraints = self.get_num_all_possible_constraint_can_recover_in_train()
 
     def set_pred_conditions(self):
         for g in data_preprocessing.DataPreprocessor.granularities.values():
@@ -258,16 +257,19 @@ class EDCR:
                  for test_or_train in ['test', 'train']}
 
             for g in data_preprocessing.DataPreprocessor.granularities.values():
+                fine = g.g_str == 'fine'
                 for l in self.preprocessor.get_labels(g).values():
-                    conditions_to_add = {conditions.PredCondition(l=l,
-                                                                  secondary_model_name=self.secondary_model_name)}
-                    if self.negated_conditions:
-                        conditions_to_add = (
-                            conditions_to_add.union({
-                                conditions.PredCondition(l=l,
-                                                         secondary_model_name=self.secondary_model_name,
-                                                         negated=True)}))
-                    self.condition_datas[g] = self.condition_datas[g].union(conditions_to_add)
+                    if not ((fine and l.index in self.indices_of_fine_labels_to_take_out)
+                            or (not fine and l.index in self.indices_of_coarse_labels_to_take_out)):
+                        conditions_to_add = {conditions.PredCondition(l=l,
+                                                                      secondary_model_name=self.secondary_model_name)}
+                        if self.negated_conditions:
+                            conditions_to_add = (
+                                conditions_to_add.union({
+                                    conditions.PredCondition(l=l,
+                                                             secondary_model_name=self.secondary_model_name,
+                                                             negated=True)}))
+                        self.condition_datas[g] = self.condition_datas[g].union(conditions_to_add)
 
     def set_lower_prediction_conditions(self):
         for lower_prediction_index in self.lower_predictions_indices:
@@ -946,12 +948,16 @@ class EDCR:
             # print(f'Curvature for {l} is: {self.get_numerator_curvature(l=l)}')
             i = 0
             # 1. sorting the conditions by their 1/f1 value from least to greatest
-            DC_star = sorted([cond for cond in self.all_conditions
-                              if not (isinstance(cond, conditions.PredCondition) and cond.l == l
-                                      and cond.secondary_model_name is None)],
-                             key=lambda cond: self.get_minimization_ratio(l=l,
-                                                                          DC_l_i={cond},
-                                                                          init_value=init_value))
+            DC_star = (
+                sorted(
+                    [cond for cond in self.all_conditions
+                     if not ((isinstance(cond, conditions.PredCondition) and (cond.l == l)
+                              and (cond.secondary_model_name is None)))]
+                    , key=lambda cond: self.get_minimization_ratio(l=l,
+                                                                   DC_l_i={cond},
+                                                                   init_value=init_value)
+                )
+            )
 
             while DC_star:
                 DC_l_i = DC_ls[i]
@@ -980,14 +986,19 @@ class EDCR:
 
                 # 4. updating the set of conditions based on the algorithm and also again sorting like in step 1
                 # from least to greatest
-                DC_star = sorted([cond for cond in DC_star
-                                  if init_value > self.get_f_margin(f=self.get_minimization_denominator,
-                                                                    l=l,
-                                                                    DC_l_i=DC_l_i,
-                                                                    cond=cond) > 0],
-                                 key=lambda cond: self.get_minimization_ratio(l=l,
-                                                                              DC_l_i={cond},
-                                                                              init_value=init_value))
+                DC_star = (
+                    sorted(
+                        [cond for cond in DC_star
+                         if init_value > self.get_f_margin(f=self.get_minimization_denominator,
+                                                           l=l,
+                                                           DC_l_i=DC_l_i,
+                                                           cond=cond) > 0]
+                        ,
+                        key=lambda cond: self.get_minimization_ratio(l=l,
+                                                                     DC_l_i={cond},
+                                                                     init_value=init_value)
+                    )
+                )
 
                 i += 1
 
@@ -1109,14 +1120,15 @@ class EDCR:
                 recovered_constraints_true_positives, recovered_constraints_positives = (
                     self.get_constraints_true_positives_and_total_positives())
                 # inconsistencies_from_original_test_data = self.original_test_inconsistencies[1]
-                all_possible_consistency_constraints = self.get_num_all_possible_constraint_can_recover_in_train()
+                # all_possible_consistency_constraints = (self.preprocessor.num_fine_grain_classes *
+                #                                         (self.preprocessor.num_coarse_grain_classes - 1))
 
                 # print(f'Total unique recoverable constraints from the {test_str} predictions: '
                 #       f'{utils.red_text(inconsistencies_from_original_test_data)}\n'
                 #       f'Recovered constraints: {recovered_constraints_str}')
 
                 self.recovered_constraints_recall = min(recovered_constraints_true_positives /
-                                                        all_possible_consistency_constraints, 1)
+                                                        self.all_possible_consistency_constraints, 1)
 
                 self.recovered_constraints_precision = min(recovered_constraints_true_positives /
                                                            recovered_constraints_positives, 1) \
@@ -1211,35 +1223,39 @@ class EDCR:
 
             for cond in error_detection_rule.C_l:
                 if ((isinstance(cond, conditions.PredCondition)) and (cond.secondary_model_name is None)
-                    and (not cond.binary)) and (cond.lower_prediction_index is None):
-                    if cond.l.g != l.g:
-                        if cond.l.g.g_str == 'fine':
-                            fine_index = cond.l.index
-                            coarse_index = l.index
+                    and (not cond.binary)) and (cond.lower_prediction_index is None) and (cond.l.g != l.g):
+                    if cond.l.g.g_str == 'fine':
+                        fine_index = cond.l.index
+                        coarse_index = l.index
+                    else:
+                        fine_index = l.index
+                        coarse_index = cond.l.index
+
+                    fine_label_str = self.preprocessor.fine_grain_classes_str[fine_index]
+                    coarse_label_str = self.preprocessor.coarse_grain_classes_str[coarse_index]
+
+                    if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
+                        if fine_label_str not in true_recovered_constraints:
+                            true_recovered_constraints[fine_label_str] = {coarse_label_str}
                         else:
-                            fine_index = l.index
-                            coarse_index = cond.l.index
+                            true_recovered_constraints[fine_label_str] = (
+                                true_recovered_constraints[fine_label_str].union({coarse_label_str}))
 
-                        fine_label_str = self.preprocessor.fine_grain_classes_str[fine_index]
-                        coarse_label_str = self.preprocessor.coarse_grain_classes_str[coarse_index]
-
-                        if self.preprocessor.fine_to_course_idx[fine_index] != coarse_index:
-                            if fine_label_str not in true_recovered_constraints:
-                                true_recovered_constraints[fine_label_str] = {coarse_label_str}
-                            else:
-                                true_recovered_constraints[fine_label_str] = (
-                                    true_recovered_constraints[fine_label_str].union({coarse_label_str}))
-
-                        if fine_label_str not in recovered_constraints:
-                            recovered_constraints[fine_label_str] = {coarse_label_str}
-                        else:
-                            recovered_constraints[fine_label_str] = (
-                                recovered_constraints[fine_label_str].union({coarse_label_str}))
+                    if fine_label_str not in recovered_constraints:
+                        recovered_constraints[fine_label_str] = {coarse_label_str}
+                    else:
+                        recovered_constraints[fine_label_str] = (
+                            recovered_constraints[fine_label_str].union({coarse_label_str}))
 
         assert all(self.preprocessor.fine_to_coarse[fine_label_str] not in coarse_dict
                    for fine_label_str, coarse_dict in true_recovered_constraints.items())
 
         num_true_recovered_constraints = sum(len(coarse_dict) for coarse_dict in true_recovered_constraints.values())
+
+        assert (num_true_recovered_constraints <=
+                (self.preprocessor.num_fine_grain_classes - len(self.indices_of_fine_labels_to_take_out)) *
+                (self.preprocessor.num_coarse_grain_classes - len(self.indices_of_coarse_labels_to_take_out) - 1))
+
         num_recovered_constraints = sum(len(coarse_dict) for coarse_dict in recovered_constraints.values())
 
         return num_true_recovered_constraints, num_recovered_constraints

@@ -7,52 +7,49 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 - [What is this?](#what-is-this)
-- [Local Installation](#local-installation)
-- [Tutorial](#tutorial)
-- [Acknowledgments](#acknowledgments)
+- [Example](#example)
 
 # What is this?
 
-[`PyEDCR`](https://github.com/lab-v2/metacognitive_error_detection_and_correction_v2/tree/master) is a Python implementation of Error Detection and Correction Rules. The goal of PyEDCR is to use a set of conditions to learn when a machine learning model makes an incorrect prediction and to fix it to the correct prediction. The rules used in this package were constructed in this article:
+[`PyEDCR`](https://github.com/lab-v2/metacognitive_error_detection_and_correction_v2/tree/master) is a Python implementation of the f-EDR (Focused Error Detection Rules) paradigm. The goal of EDR is to use a set of conditions to learn when a machine learning model makes an incorrect prediction, as first introduced in:
 
 - https://arxiv.org/pdf/2308.14250.pdf
 
-# Installation
+The package was tested for Python >= 3.9, along with the listed packages versions in [`requirements.txt`](https://github.com/lab-v2/metacognitive_error_detection_and_correction_v2/blob/maintain_github/requirements.txt)
 
-To install this package run this from the command prompt:
+# Example
 
-```
-pip install PyEDCR
-```
-
-The package was tested for Python >= 3.10, along with the listed packages versions in [`requirements.txt`](https://github.com/lab-v2/metacognitive_error_detection_and_correction_v2/blob/maintain_github/requirements.txt)
-
-# Tutorial
-
-To demonstrate the use of the package, we provide running examples. The main function of this package is run_EDCR_pipeline from the EDCR_pipeline module.
+To demonstrate the use of the package, consider the following running example using the 'simulate_for_values' function from NeuralPyEDCR.py
 
 ```python
-from PyEDCR.EDCR_pipeline import run_EDCR_pipeline
+import os
+from NeuralPyEDCR import simulate_for_values
 
-combined = False
-conditions_from_main = True
-print(utils.red_text(f'\nconditions_from_secondary={not conditions_from_main}, '
-                     f'conditions_from_main={conditions_from_main}\n' +
-                     f'combined={combined}\n' + '#' * 100 + '\n'))
+data_str = 'military_vehicles'
+main_model_name = binary_model_name = 'vit_b_16'
+secondary_model_name = 'vit_l_16'
+main_lr = secondary_lr = binary_lr = 0.0001
+original_num_epochs = 10
+secondary_num_epochs = 20
+binary_num_epochs = 10
+number_of_fine_classes = 24
 
-run_EDCR_pipeline(main_lr=0.0001,
-                  combined=combined,
-                  loss='soft_marginal',
-                  conditions_from_secondary=not conditions_from_main,
-                  conditions_from_main=conditions_from_main,
-                  consistency_constraints=True,
-                  multiprocessing=True)
+binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
+                          for f in os.listdir('binary_results')
+                          if f.startswith(f'{data_str}_{binary_model_name}')})
+
+simulate_for_values(total_number_of_points=1,
+                    min_value=0.1,
+                    max_value=0.1,
+                    binary_l_strs=binary_l_strs,
+                    binary_lr=binary_lr,
+                    binary_num_epochs=binary_num_epochs,
+                    multi_processing=True,
+                    secondary_model_name=secondary_model_name,
+                    secondary_model_loss='BCE',
+                    secondary_num_epochs=secondary_num_epochs,
+                    secondary_lr=secondary_lr,
+                    maximize_ratio=True,
+                    lists_of_fine_labels_to_take_out=[[]],
+                    negated_conditions=False)
 ```
-
-Here, 'main_lr' refers to the learning rate of the model in question. 'combined' is a flag for individual vs combined models. Combined models predict both fine and coarse grain while individual predicts one or the other. 'loss' refers to the specified loss. In our development, we used soft_marginal and BCE. 'conditions_from_main' specifies where the conditions for EDCR come from. If 'conditions_from_main' is true, a combined model will use it's own predictions as conditions for EDCR. If false, conditions will be from another model. 'consistency_constraints' is a flag to print the information for the recovered constraints and the mean constraints among all fine and coarse classes. 'multiprocessing' is used to enable multiprocessing.
-
-# Acknowledgments
-
-This research was supported in part by ...
-
-This research was also supported by ...
