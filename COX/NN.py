@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from IPython.display import display, clear_output
+from tqdm import tqdm
 
 
 # Define the neural network
@@ -17,9 +17,9 @@ class SimpleNN(nn.Module):
                  input_size: int,
                  output_size: int):
         super(SimpleNN, self).__init__()
-        self.fc1 = nn.Linear(in_features=input_size, out_features=64)
-        self.fc2 = nn.Linear(in_features=64, out_features=128)
-        self.fc3 = nn.Linear(in_features=128, out_features=2 * output_size)
+        self.fc1 = nn.Linear(in_features=input_size, out_features=128)
+        self.fc2 = nn.Linear(in_features=128, out_features=256)
+        self.fc3 = nn.Linear(in_features=256, out_features=2 * output_size)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
@@ -47,11 +47,11 @@ def plot_metrics_dynamic(losses: typing.List[float],
     plt.plot(range(1, len(train_accuracies) + 1),
              [ta[0] for ta in train_accuracies], label='Train GT Accuracy', color='green')
     plt.plot(range(1, len(train_accuracies) + 1),
-             [ta[1] for ta in train_accuracies], label='Train Pred Accuracy', color='green')
+             [ta[1] for ta in train_accuracies], label='Train Pred Accuracy', color='lime')
     plt.plot(range(1, len(test_accuracies) + 1),
              [va[0] for va in test_accuracies], label='Validation GT Accuracy', color='red')
     plt.plot(range(1, len(test_accuracies) + 1),
-             [va[1] for va in test_accuracies], label='Validation Pred Accuracy', color='red')
+             [va[1] for va in test_accuracies], label='Validation Pred Accuracy', color='orange')
 
     plt.yticks(np.arange(0, 1.1, 0.1))
 
@@ -63,8 +63,6 @@ def plot_metrics_dynamic(losses: typing.List[float],
     plt.tight_layout()
     plt.grid()
     plt.show()
-    clear_output(wait=True)
-    display(plt.gcf())
 
 
 def calculate_accuracy(model,
@@ -83,11 +81,8 @@ def calculate_accuracy(model,
         accuracy_gt = correct_gt / targets.size(0)
         accuracy_pred = correct_pred / targets.size(0)
 
-        # print(f'Accuracy for gt: {accuracy_gt:.4f}')
-        # print(f'Accuracy for pred: {accuracy_pred:.4f}')
-
     model.train()
-    return accuracy_gt, accuracy_pred, predicted_gt.numpy(), predicted_pred.numpy()
+    return accuracy_gt, accuracy_pred
 
 
 def train_confuse_NN(num_epochs: int):
@@ -111,13 +106,21 @@ def train_confuse_NN(num_epochs: int):
 
     model = SimpleNN(input_size=X_train.shape[1], output_size=num_classes)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    # Using SGD with momentum
+    optimizer = optim.SGD(params=model.parameters(),
+                          lr=0.5,
+                          momentum=0.9)
+
+    # Using ReduceLROnPlateau scheduler
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer,
+                                                     mode='min',
+                                                     factor=0.1,
+                                                     patience=10)
 
     losses = []
     train_accuracies = []
     test_accuracies = []
-    final_train_predictions = []
-    final_test_predictions = []
 
     for epoch in range(1, num_epochs + 1):
         inputs = torch.tensor(X_train, dtype=torch.float32)
@@ -125,44 +128,40 @@ def train_confuse_NN(num_epochs: int):
 
         optimizer.zero_grad()
         outputs = model(inputs)
-        loss = criterion(outputs.view(-1, num_classes), targets.view(-1))
+        loss_gt = criterion(outputs[:, :num_classes], targets[:, 0])
+        loss_pred = criterion(outputs[:, num_classes:], targets[:, 1])
+        ratio = (loss_gt / loss_pred).item()
+        loss = loss_gt * 2 + loss_pred  # Adjust the weight of GT loss
         loss.backward()
+
+        # Gradient clipping
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
         optimizer.step()
+        scheduler.step(loss)
 
         losses.append(loss.item())
 
         # Calculate accuracies
-        train_accuracy_gt, train_accuracy_pred, train_pred_gt, train_pred_pred = calculate_accuracy(
+        train_accuracy_gt, train_accuracy_pred = calculate_accuracy(
             model, torch.tensor(X_train, dtype=torch.float32), torch.tensor(Y_train, dtype=torch.long), num_classes)
-        test_accuracy_gt, test_accuracy_pred, test_pred_gt, test_pred_pred = calculate_accuracy(
+        test_accuracy_gt, test_accuracy_pred = calculate_accuracy(
             model, torch.tensor(X_test, dtype=torch.float32), torch.tensor(Y_test, dtype=torch.long), num_classes)
-
-        if epoch == num_epochs:
-            final_train_predictions = ['{:02}{:02}'.format(gt, pred)
-                                       for gt, pred in zip(train_pred_gt, train_pred_pred)]
-            final_test_predictions = ['{:02}{:02}'.format(gt, pred)
-                                      for gt, pred in zip(test_pred_gt, test_pred_pred)]
-
 
         train_accuracy = [train_accuracy_gt, train_accuracy_pred]
         test_accuracy = [test_accuracy_gt, test_accuracy_pred]
         train_accuracies.append(train_accuracy)
         test_accuracies.append(test_accuracy)
 
-        if epoch % 100 == 0:  # Update plot every 100 epochs
+        if epoch % 100 == 0 or epoch == num_epochs:  # Update plot every 100 epochs or at the end
             print(
                 f'Epoch [{epoch}/{num_epochs}], Loss: {loss.item():.4f}, '
-                f'Train Accuracy: {train_accuracy}, '
-                f'Test Accuracy: {test_accuracy}')
+                f'Train Accuracy (GT, Pred): ({train_accuracy_gt:.4f}, {train_accuracy_pred:.4f}), '
+                f'Test Accuracy (GT, Pred): ({test_accuracy_gt:.4f}, {test_accuracy_pred:.4f})')
             plot_metrics_dynamic(losses, train_accuracies, test_accuracies)
-
-    # Final plot
-    plot_metrics_dynamic(losses, train_accuracies, test_accuracies)
-
-    # Save predictions
-    np.save('train_predictions.npy', np.array(final_train_predictions, dtype=int))
-    np.save('test_predictions.npy', np.array(final_test_predictions, dtype=int))
 
 
 if __name__ == "__main__":
-    train_confuse_NN(num_epochs=1000)
+    print("Starting training...")
+    train_confuse_NN(num_epochs=5000)
+    print("Training complete.")
