@@ -9,6 +9,7 @@ import models
 import utils
 import data_preprocessing
 import config
+import label
 
 # Use the configuration variables:
 batch_size = config.batch_size
@@ -33,14 +34,13 @@ def save_prediction_files(data_str: str,
                           coarse_prediction: np.array,
                           epoch: int = None,
                           loss: str = 'BCE',
-                          fine_ground_truths: np.array = None,
-                          coarse_ground_truths: np.array = None,
                           fine_lower_predictions: typing.Dict[int, list] = {},
                           coarse_lower_predictions: typing.Dict[int, list] = {},
                           additional_info: str = None):
     """
     Saves prediction files and optional ground truth files.
 
+    :param additional_info:
     :param data_str:
     :param coarse_lower_predictions:
     :param fine_lower_predictions:
@@ -53,8 +53,6 @@ def save_prediction_files(data_str: str,
     :param coarse_prediction: NumPy array of coarse-grained predictions.
     :param epoch: The epoch number (optional).
     :param loss: The loss function used during training (optional).
-    :param fine_ground_truths: NumPy array of true fine-grained labels (optional).
-    :param coarse_ground_truths: NumPy array of true coarse-grained labels (optional).
     """
     epoch_str = f'_e{epoch}' if epoch is not None else ''
     test_str = 'test' if test else 'train'
@@ -128,7 +126,7 @@ def save_binary_prediction_files(data_str: str,
                                  fine_tuner: typing.Union[models.FineTuner, typing.Dict[str, models.FineTuner]],
                                  lr: typing.Union[str, float],
                                  predictions: np.array,
-                                 l: data_preprocessing.Label,
+                                 l: label.Label,
                                  epoch: int = None,
                                  loss: str = 'BCE',
                                  ground_truths: np.array = None,
@@ -220,13 +218,13 @@ def initiate(data_str: str,
              model_name: str = 'vit_b_16',
              weights: str = 'DEFAULT',
              combined: bool = True,
-             l: data_preprocessing.Label = None,
+             l: label.Label = None,
              pretrained_path: str = None,
              debug: bool = False,
              error_indices: typing.Sequence = None,
              evaluation: bool = False,
              train_eval_split: float = None,
-             get_fraction_of_example_with_label: typing.Dict[data_preprocessing.Label, float] = None,
+             get_fraction_of_example_with_label: typing.Dict[label.Label, float] = None,
              train_fine_predictions: np.array = None,
              train_coarse_predictions: np.array = None,
              test_fine_predictions: np.array = None,

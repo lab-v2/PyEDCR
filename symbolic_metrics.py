@@ -2,11 +2,12 @@ import numpy as np
 
 import data_preprocessing
 import utils
+import label
 
 
 def get_l_detection_rule_support(edcr,
                                  test: bool,
-                                 l: data_preprocessing.Label) -> float:
+                                 l: data_preprocessing.label) -> float:
     if l not in edcr.error_detection_rules:
         return 0
 
@@ -28,7 +29,7 @@ def get_l_detection_rule_support(edcr,
 
 def get_l_detection_rule_confidence(edcr,
                                     test: bool,
-                                    l: data_preprocessing.Label) -> float:
+                                    l: label.Label) -> float:
     if l not in edcr.error_detection_rules:
         return 0
 
@@ -53,7 +54,7 @@ def get_l_detection_rule_confidence(edcr,
 
 def get_l_detection_rule_theoretical_precision_increase(edcr,
                                                         test: bool,
-                                                        l: data_preprocessing.Label) -> float:
+                                                        l: label.Label) -> float:
     s_l = edcr.get_l_detection_rule_support(test=test, l=l)
 
     if s_l == 0:
@@ -75,7 +76,7 @@ def get_g_detection_rule_theoretical_precision_increase(edcr,
 
 def get_l_detection_rule_theoretical_recall_decrease(edcr,
                                                      test: bool,
-                                                     l: data_preprocessing.Label) -> float:
+                                                     l: label.Label) -> float:
     c_l = edcr.get_l_detection_rule_confidence(test=test, l=l)
     s_l = edcr.get_l_detection_rule_support(test=test, l=l)
     p_l, r_l = edcr.get_l_precision_and_recall(l=l, test=test, stage='original')
@@ -93,7 +94,7 @@ def get_g_detection_rule_theoretical_recall_decrease(edcr,
 
 def get_l_correction_rule_confidence(edcr,
                                      test: bool,
-                                     l: data_preprocessing.Label,
+                                     l: label.Label,
                                      pred_fine_data: np.array = None,
                                      pred_coarse_data: np.array = None
                                      ) -> float:
@@ -123,7 +124,7 @@ def get_l_correction_rule_confidence(edcr,
 
 def get_l_correction_rule_support(edcr,
                                   test: bool,
-                                  l: data_preprocessing.Label,
+                                  l: label.Label,
                                   pred_fine_data: np.array = None,
                                   pred_coarse_data: np.array = None
                                   ) -> float:
@@ -156,7 +157,7 @@ def get_l_correction_rule_support(edcr,
 
 def get_l_correction_rule_theoretical_precision_increase(edcr,
                                                          test: bool,
-                                                         l: data_preprocessing.Label) -> float:
+                                                         l: label.Label) -> float:
     c_l = edcr.get_l_correction_rule_confidence(test=test, l=l)
     s_l = edcr.get_l_correction_rule_support(test=test, l=l)
     p_l_prior_correction = edcr.get_l_precision_and_recall(l=l,

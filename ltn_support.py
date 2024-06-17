@@ -3,8 +3,8 @@ import ltn
 import numpy as np
 import torch
 import data_preprocessing
-import conditions
-import rules
+import condition
+import rule
 import typing
 
 
@@ -74,7 +74,7 @@ def conds_predicate(example: torch.tensor,
                     cond_coarse_data: torch.tensor,
                     cond_second_fine_data: torch.tensor,
                     cond_second_coarse_data: torch.tensor,
-                    binary_pred: typing.Dict[data_preprocessing.Label, np.array],
+                    binary_pred: typing.Dict[data_preprocessing.label, np.array],
                     conds: set[conditions.Condition],
                     device: torch.device,
                     ):
@@ -114,8 +114,8 @@ def compute_sat_normally(preprocessor: data_preprocessing.FineCoarseDataPreproce
                          original_train_pred_coarse_batch: torch.tensor,
                          secondary_train_pred_fine_batch: torch.tensor,
                          secondary_train_pred_coarse_batch: torch.tensor,
-                         binary_pred: typing.Dict[data_preprocessing.Label, np.array],
-                         error_detection_rules: dict[data_preprocessing.Label, rules.ErrorDetectionRule],
+                         binary_pred: typing.Dict[data_preprocessing.label, np.array],
+                         error_detection_rules: dict[data_preprocessing.label, rules.ErrorDetectionRule],
                          device: torch.device):
     """
     compute satagg function for rules

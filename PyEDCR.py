@@ -12,8 +12,9 @@ import utils
 import data_preprocessing
 import neural_metrics
 import symbolic_metrics
-import conditions
-import rules
+import condition
+import rule
+import label
 import google_sheets_api
 
 
@@ -40,9 +41,9 @@ class EDCR:
             for l in self.preprocessor.get_labels(g).values():
                 if not ((fine and l.index in self.indices_of_fine_labels_to_take_out)
                         or (not fine and l.index in self.indices_of_coarse_labels_to_take_out)):
-                    conditions_to_add = {conditions.PredCondition(l=l)}
+                    conditions_to_add = {condition.PredCondition(l=l)}
                     if self.negated_conditions:
-                        conditions_to_add = conditions_to_add.union({conditions.PredCondition(l=l, negated=True)})
+                        conditions_to_add = conditions_to_add.union({condition.PredCondition(l=l, negated=True)})
                     self.condition_datas[g] = self.condition_datas[g].union(conditions_to_add)
 
     def __init__(self,
@@ -173,11 +174,10 @@ class EDCR:
         if include_inconsistency_constraint:
             for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
-                    {conditions.InconsistencyCondition(preprocessor=self.preprocessor)})
+                    {condition.InconsistencyCondition(preprocessor=self.preprocessor)})
 
-        self.all_conditions = sorted(set().union(*[self.condition_datas[g]
-                                                   for g in
-                                                   data_preprocessing.FineCoarseDataPreprocessor.granularities.values()])
+        self.all_conditions = sorted(set().union(*[
+            self.condition_datas[g] for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values()])
                                      , key=lambda cond: str(cond))
         self.CC_all = {g: set() for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values()}
 
@@ -205,8 +205,8 @@ class EDCR:
         #
         # self.actual_examples_with_errors = np.array(list(actual_test_examples_with_errors))
 
-        self.error_detection_rules: typing.Dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
-        self.error_correction_rules: typing.Dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
+        self.error_detection_rules: typing.Dict[label.Label, rule.ErrorDetectionRule] = {}
+        self.error_correction_rules: typing.Dict[label.Label, rule.ErrorCorrectionRule] = {}
         self.predicted_test_errors = np.zeros_like(self.pred_data['test']['original'][
                                                        self.preprocessor.granularities['fine']])
         self.test_error_ground_truths = np.zeros_like(self.predicted_test_errors)
@@ -245,7 +245,8 @@ class EDCR:
         if self.secondary_model_name is not None:
             self.pred_paths['secondary_model'] = {
                 'test' if test else 'train': {g_str: data_preprocessing.get_filepath(data_str=self.data_str,
-                                                                                     model_name=self.secondary_model_name,
+                                                                                     model_name=
+                                                                                     self.secondary_model_name,
                                                                                      combined=self.combined,
                                                                                      test=test,
                                                                                      granularity=g_str,
@@ -267,14 +268,14 @@ class EDCR:
                 for l in self.preprocessor.get_labels(g).values():
                     if not ((fine and l.index in self.indices_of_fine_labels_to_take_out)
                             or (not fine and l.index in self.indices_of_coarse_labels_to_take_out)):
-                        conditions_to_add = {conditions.PredCondition(l=l,
-                                                                      secondary_model_name=self.secondary_model_name)}
+                        conditions_to_add = {condition.PredCondition(l=l,
+                                                                     secondary_model_name=self.secondary_model_name)}
                         if self.negated_conditions:
                             conditions_to_add = (
                                 conditions_to_add.union({
-                                    conditions.PredCondition(l=l,
-                                                             secondary_model_name=self.secondary_model_name,
-                                                             negated=True)}))
+                                    condition.PredCondition(l=l,
+                                                            secondary_model_name=self.secondary_model_name,
+                                                            negated=True)}))
                         self.condition_datas[g] = self.condition_datas[g].union(conditions_to_add)
 
     def set_lower_prediction_conditions(self):
@@ -303,7 +304,7 @@ class EDCR:
 
             for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
                 self.condition_datas[g] = self.condition_datas[g].union(
-                    {conditions.PredCondition(l=l, lower_prediction_index=lower_prediction_index)
+                    {condition.PredCondition(l=l, lower_prediction_index=lower_prediction_index)
                      for l in self.preprocessor.get_labels(g).values()})
 
     def set_binary_conditions(self):
@@ -326,10 +327,10 @@ class EDCR:
                 {test_or_train: np.load(self.pred_paths[l][test_or_train])
                  for test_or_train in ['test', 'train']}
 
-            binary_conditions = {conditions.PredCondition(l=l, binary=True)}
+            binary_conditions = {condition.PredCondition(l=l, binary=True)}
 
             if self.negated_conditions:
-                binary_conditions = binary_conditions.union({conditions.PredCondition(l=l, binary=True, negated=False)})
+                binary_conditions = binary_conditions.union({condition.PredCondition(l=l, binary=True, negated=False)})
 
             for g in self.preprocessor.granularities.values():
                 if g in self.condition_datas:
@@ -398,7 +399,7 @@ class EDCR:
                 print(f'Removed classes {indices_of_labels_to_take_out} from {g_str} grain')
 
     def set_error_detection_rules(self,
-                                  input_rules: typing.Dict[data_preprocessing.Label, {conditions.Condition}]):
+                                  input_rules: typing.Dict[label.Label, {condition.Condition}]):
         """
         Manually sets the error detection rule dictionary.
 
@@ -406,13 +407,13 @@ class EDCR:
         """
         error_detection_rules = {}
         for label, DC_l in input_rules.items():
-            error_detection_rules[label] = rules.ErrorDetectionRule(l=label,
-                                                                    DC_l=DC_l,
-                                                                    preprocessor=self.preprocessor)
+            error_detection_rules[label] = rule.ErrorDetectionRule(l=label,
+                                                                   DC_l=DC_l,
+                                                                   preprocessor=self.preprocessor)
         self.error_detection_rules = error_detection_rules
 
     @staticmethod
-    def get_C_str(CC: set[conditions.Condition]) -> str:
+    def get_C_str(CC: set[condition.Condition]) -> str:
         return '{' + ', '.join(str(obj) for obj in CC) + '}'
 
     def get_predictions(self,
@@ -463,7 +464,7 @@ class EDCR:
     def get_where_label_is_l(self,
                              pred: bool,
                              test: bool,
-                             l: data_preprocessing.Label,
+                             l: label.Label,
                              stage: str = 'original',
                              secondary: bool = False) -> np.array:
         """ Retrieves indices of instances where the specified label is present.
@@ -480,7 +481,7 @@ class EDCR:
         return np.where(data == l.index, 1, 0)
 
     @staticmethod
-    def get_where_label_is_l_in_data(l: data_preprocessing.Label,
+    def get_where_label_is_l_in_data(l: label.Label,
                                      test_pred_fine_data: np.array,
                                      test_pred_coarse_data: np.array) -> np.array:
         """ Retrieves indices of instances where the specified label is present.
@@ -647,7 +648,7 @@ class EDCR:
 
     def get_where_tp_l(self,
                        test: bool,
-                       l: data_preprocessing.Label,
+                       l: label.Label,
                        stage: str = 'original', ) -> np.array:
         """ Retrieves indices of training instances where the true label is l and the model correctly predicted l.
 
@@ -660,7 +661,7 @@ class EDCR:
                 self.get_where_predicted_correct(test=test, g=l.g, stage=stage))
 
     def get_where_tp_l_in_data(self,
-                               l: data_preprocessing.Label,
+                               l: label.Label,
                                test_pred_fine_data: np.array,
                                test_pred_coarse_data: np.array) -> np.array:
         """ Retrieves indices of training instances where the true label is l and the model correctly predicted l.
@@ -679,7 +680,7 @@ class EDCR:
 
     def get_where_fp_l(self,
                        test: bool,
-                       l: data_preprocessing.Label,
+                       l: label.Label,
                        stage: str = 'original') -> np.array:
         """ Retrieves indices of instances where the predicted label is l and the ground truth is not l.
 
@@ -692,7 +693,7 @@ class EDCR:
                 self.get_where_predicted_incorrect(test=test, g=l.g, stage=stage))
 
     def get_where_fp_l_in_data(self,
-                               l: data_preprocessing.Label,
+                               l: label.Label,
                                test_pred_fine_data: np.array,
                                test_pred_coarse_data: np.array) -> np.array:
         """ Retrieves indices of instances where the predicted label is l and the ground truth is not l.
@@ -711,7 +712,7 @@ class EDCR:
 
     def get_l_precision_and_recall(self,
                                    test: bool,
-                                   l: data_preprocessing.Label,
+                                   l: label.Label,
                                    stage: str = 'original'):
         t_p_l = np.sum(self.get_where_tp_l(test=test, l=l, stage=stage))
         f_p_l = np.sum(self.get_where_fp_l(test=test, l=l, stage=stage))
@@ -728,8 +729,8 @@ class EDCR:
                                    stage: str = 'original',
                                    test_pred_fine_data: np.array = None,
                                    test_pred_coarse_data: np.array = None) -> (
-            typing.Dict[data_preprocessing.Label, float],
-            typing.Dict[data_preprocessing.Label, float]):
+            typing.Dict[label.Label, float],
+            typing.Dict[label.Label, float]):
         p_g = {}
         r_g = {}
 
@@ -754,15 +755,15 @@ class EDCR:
         return p_g, r_g
 
     def get_NEG_l_C(self,
-                    l: data_preprocessing.Label,
-                    C: set[conditions.Condition],
+                    l: label.Label,
+                    C: set[condition.Condition],
                     stage: str = 'original') -> int:
         """Calculate the number of train samples that satisfy any of the conditions and are true positive.
 
         :param stage:
         :param C: A set of `Condition` objects.
         :param l: The label of interest.
-        :return: The number of instances that is true negative and satisfying all conditions.
+        :return: The number of instances that is true negative and satisfying all condition.
         """
 
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
@@ -775,28 +776,28 @@ class EDCR:
         binary_data = self.get_predictions(test=False, binary=True) if len(self.binary_l_strs) else None
 
         where_any_conditions_satisfied_on_train = (
-            rules.Rule.get_where_any_conditions_satisfied(C=C,
-                                                          fine_data=train_pred_fine_data,
-                                                          coarse_data=train_pred_coarse_data,
-                                                          secondary_fine_data=secondary_train_pred_fine_data,
-                                                          secondary_coarse_data=secondary_train_pred_coarse_data,
-                                                          lower_predictions_fine_data=lower_train_pred_fine_data,
-                                                          lower_predictions_coarse_data=lower_train_pred_coarse_data,
-                                                          binary_data=binary_data))
+            rule.Rule.get_where_any_conditions_satisfied(C=C,
+                                                         fine_data=train_pred_fine_data,
+                                                         coarse_data=train_pred_coarse_data,
+                                                         secondary_fine_data=secondary_train_pred_fine_data,
+                                                         secondary_coarse_data=secondary_train_pred_coarse_data,
+                                                         lower_predictions_fine_data=lower_train_pred_fine_data,
+                                                         lower_predictions_coarse_data=lower_train_pred_coarse_data,
+                                                         binary_data=binary_data))
         where_train_tp_l = self.get_where_tp_l(test=False, l=l, stage=stage)
         NEG_l = np.sum(where_train_tp_l * where_any_conditions_satisfied_on_train)
 
         return NEG_l
 
     def get_BOD_l_C(self,
-                    l: data_preprocessing.Label,
-                    C: set[conditions.Condition]) -> int:
+                    l: label.Label,
+                    C: set[condition.Condition]) -> int:
         """Calculate the number of train samples that satisfy any conditions for some set of conditions and
         are positives
 
         :param l:
         :param C: A set of `Condition` objects.
-        :return: The number of instances that are false negative and satisfying some conditions.
+        :return: The number of instances that are false negative and satisfying some condition.
         """
         where_predicted_l = self.get_where_label_is_l(pred=True, test=False, l=l)
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False)
@@ -808,22 +809,22 @@ class EDCR:
         binary_data = self.get_predictions(test=False, binary=True) if len(self.binary_l_strs) else None
 
         where_any_conditions_satisfied_on_train = (
-            rules.Rule.get_where_any_conditions_satisfied(C=C,
-                                                          fine_data=train_pred_fine_data,
-                                                          coarse_data=train_pred_coarse_data,
-                                                          secondary_fine_data=secondary_train_pred_fine_data,
-                                                          secondary_coarse_data=secondary_train_pred_coarse_data,
-                                                          lower_predictions_fine_data=lower_train_pred_fine_data,
-                                                          lower_predictions_coarse_data=lower_train_pred_coarse_data,
-                                                          binary_data=binary_data
-                                                          ))
+            rule.Rule.get_where_any_conditions_satisfied(C=C,
+                                                         fine_data=train_pred_fine_data,
+                                                         coarse_data=train_pred_coarse_data,
+                                                         secondary_fine_data=secondary_train_pred_fine_data,
+                                                         secondary_coarse_data=secondary_train_pred_coarse_data,
+                                                         lower_predictions_fine_data=lower_train_pred_fine_data,
+                                                         lower_predictions_coarse_data=lower_train_pred_coarse_data,
+                                                         binary_data=binary_data
+                                                         ))
         BOD_l = np.sum(where_any_conditions_satisfied_on_train * where_predicted_l)
 
         return BOD_l
 
     def get_POS_l_C(self,
-                    l: data_preprocessing.Label,
-                    C: set[conditions.Condition],
+                    l: label.Label,
+                    C: set[condition.Condition],
                     stage: str = 'original') -> int:
         """Calculate the number of train samples that satisfy any conditions for some set of conditions
         and are false positive.
@@ -831,7 +832,7 @@ class EDCR:
         :param stage:
         :param C: A set of `Condition` objects.
         :param l: The label of interest.
-        :return: The number of instances that are false negative and satisfying some conditions.
+        :return: The number of instances that are false negative and satisfying some condition.
         """
         where_fp_l = self.get_where_fp_l(test=False, l=l, stage=stage)
         train_pred_fine_data, train_pred_coarse_data = self.get_predictions(test=False, stage=stage)
@@ -843,25 +844,25 @@ class EDCR:
         binary_data = self.get_predictions(test=False, binary=True) if len(self.binary_l_strs) else None
 
         where_any_conditions_satisfied_on_train = (
-            rules.Rule.get_where_any_conditions_satisfied(C=C,
-                                                          fine_data=train_pred_fine_data,
-                                                          coarse_data=train_pred_coarse_data,
-                                                          secondary_fine_data=secondary_train_pred_fine_data,
-                                                          secondary_coarse_data=secondary_train_pred_coarse_data,
-                                                          lower_predictions_fine_data=lower_train_pred_fine_data,
-                                                          lower_predictions_coarse_data=lower_train_pred_coarse_data,
-                                                          binary_data=binary_data))
+            rule.Rule.get_where_any_conditions_satisfied(C=C,
+                                                         fine_data=train_pred_fine_data,
+                                                         coarse_data=train_pred_coarse_data,
+                                                         secondary_fine_data=secondary_train_pred_fine_data,
+                                                         secondary_coarse_data=secondary_train_pred_coarse_data,
+                                                         lower_predictions_fine_data=lower_train_pred_fine_data,
+                                                         lower_predictions_coarse_data=lower_train_pred_coarse_data,
+                                                         binary_data=binary_data))
         POS_l = np.sum(where_fp_l * where_any_conditions_satisfied_on_train)
 
         return POS_l
 
     def DetRuleLearn(self,
-                     l: data_preprocessing.Label) -> set[conditions.Condition]:
+                     l: label.Label) -> set[condition.Condition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
         that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
 
         :param l: The label of interest.
-        :return: A set of `Condition` representing the learned error detection rules.
+        :return: A set of `Condition` representing the learned error detection rule.
         """
         DC_l = set()
         stage = 'original' if self.correction_model is None else 'post_detection'
@@ -874,7 +875,7 @@ class EDCR:
             DC_star = [cond for cond in self.all_conditions if self.get_NEG_l_C(l=l,
                                                                                 C={cond},
                                                                                 stage=stage) <= q_l
-                       and not (isinstance(cond, conditions.PredCondition) and cond.l == l
+                       and not (isinstance(cond, condition.PredCondition) and cond.l == l
                                 and cond.secondary_model_name is None)]
 
             while DC_star:
@@ -885,7 +886,7 @@ class EDCR:
                 DC_star = sorted([cond for cond in
                                   set(self.all_conditions).difference(DC_l)
                                   if self.get_NEG_l_C(l=l, C=DC_l.union({cond}), stage=stage) <= q_l
-                                  and not (isinstance(cond, conditions.PredCondition) and cond.l == l
+                                  and not (isinstance(cond, condition.PredCondition) and cond.l == l
                                            and cond.secondary_model_name is None)
                                   ],
                                  key=lambda cond: str(cond))
@@ -893,28 +894,28 @@ class EDCR:
         return DC_l
 
     def get_minimization_denominator(self,
-                                     l: data_preprocessing.Label,
-                                     C: set[conditions.Condition],
+                                     l: label.Label,
+                                     C: set[condition.Condition],
                                      stage: str = 'original'):
         POS = 2 * self.get_POS_l_C(l=l, C=C, stage=stage)
         return POS
 
     @staticmethod
     def get_f_margin(f: typing.Callable,
-                     l: data_preprocessing.Label,
-                     DC_l_i: set[conditions.Condition],
-                     cond: conditions.Condition):
+                     l: label.Label,
+                     DC_l_i: set[condition.Condition],
+                     cond: condition.Condition):
         return f(l=l, C=DC_l_i.union({cond})) - f(l=l, C=DC_l_i)
 
     def get_minimization_numerator(self,
-                                   l: data_preprocessing.Label,
-                                   C: set[conditions.Condition]):
+                                   l: label.Label,
+                                   C: set[condition.Condition]):
         return self.get_BOD_l_C(l=l, C=C) + np.sum(self.get_where_fp_l(l=l, test=False))
 
     def get_ratio_of_margins(self,
-                             l: data_preprocessing.Label,
-                             DC_l_i: set[conditions.Condition],
-                             cond: conditions.Condition,
+                             l: label.Label,
+                             DC_l_i: set[condition.Condition],
+                             cond: condition.Condition,
                              init_value: float) -> float:
         minimization_numerator_margin = self.get_f_margin(f=self.get_minimization_numerator,
                                                           l=l,
@@ -929,8 +930,8 @@ class EDCR:
             if (minimization_denominator_margin > 0) else init_value
 
     def get_minimization_ratio(self,
-                               l: data_preprocessing.Label,
-                               DC_l_i: set[conditions.Condition],
+                               l: label.Label,
+                               DC_l_i: set[condition.Condition],
                                init_value: float) -> float:
         minimization_numerator = self.get_minimization_numerator(l=l, C=DC_l_i)
         minimization_denominator = self.get_minimization_denominator(l=l, C=DC_l_i)
@@ -938,12 +939,12 @@ class EDCR:
         return (minimization_numerator / minimization_denominator) if (minimization_denominator > 0) else init_value
 
     def RatioDetRuleLearn(self,
-                          l: data_preprocessing.Label) -> set[conditions.Condition]:
+                          l: label.Label) -> set[condition.Condition]:
         """Learns error detection rules for a specific label and granularity. These rules capture conditions
         that, when satisfied, indicate a higher likelihood of prediction errors for a given label.
 
         :param l: The label of interest.
-        :return: A set of `Condition` representing the learned error detection rules.
+        :return: A set of `Condition` representing the learned error detection rule.
         """
         stage = 'original' if self.correction_model is None else 'post_detection'
         N_l = np.sum(self.get_where_label_is_l(pred=True, test=False, l=l, stage=stage))
@@ -958,7 +959,7 @@ class EDCR:
             DC_star = (
                 sorted(
                     [cond for cond in self.all_conditions
-                     if not ((isinstance(cond, conditions.PredCondition) and (cond.l == l)
+                     if not ((isinstance(cond, condition.PredCondition) and (cond.l == l)
                               and (cond.secondary_model_name is None)))]
                     , key=lambda cond: self.get_minimization_ratio(l=l,
                                                                    DC_l_i={cond},
@@ -1020,8 +1021,8 @@ class EDCR:
         return best_set
 
     def get_curvature_term(self,
-                           l: data_preprocessing.Label,
-                           cond: conditions.Condition,
+                           l: label.Label,
+                           cond: condition.Condition,
                            ):
         return self.get_f_margin(f=self.get_minimization_numerator,
                                  l=l,
@@ -1029,7 +1030,7 @@ class EDCR:
                                  cond=cond) / self.get_minimization_numerator(l=l, C={cond})
 
     def get_numerator_curvature(self,
-                                l: data_preprocessing.Label,
+                                l: label.Label,
                                 ):
         min_value = sorted([self.get_curvature_term(l=l, cond=cond) for cond in self.all_conditions])[0]
         return 1 - min_value
@@ -1041,7 +1042,7 @@ class EDCR:
         granularity_labels = list(self.preprocessor.get_labels(g).values())
         processes_num = min(len(granularity_labels), mp.cpu_count())
 
-        print(f'\nLearning {g}-grain error detection rules...')
+        print(f'\nLearning {g}-grain error detection rule...')
 
         maximizer: typing.Callable = self.RatioDetRuleLearn if self.maximize_ratio else self.DetRuleLearn
         mapper = process_map if multi_processing else thread_map
@@ -1053,12 +1054,12 @@ class EDCR:
 
         for l, DC_l in zip(granularity_labels, DC_ls):
             if len(DC_l):
-                self.error_detection_rules[l] = rules.ErrorDetectionRule(l=l,
-                                                                         DC_l=DC_l,
-                                                                         preprocessor=self.preprocessor)
+                self.error_detection_rules[l] = rule.ErrorDetectionRule(l=l,
+                                                                        DC_l=DC_l,
+                                                                        preprocessor=self.preprocessor)
 
             # for cond_l in DC_l:
-            #     if not (isinstance(cond_l, conditions.PredCondition) and (not cond_l.secondary_model)
+            #     if not (isinstance(cond_l, condition.PredCondition) and (not cond_l.secondary_model)
             #             and (cond_l.lower_prediction_index is None) and (cond_l.l == l)):
             #         self.CC_all[g] = self.CC_all[g].union({(cond_l, l)})
 
@@ -1226,10 +1227,10 @@ class EDCR:
         recovered_constraints: dict[str, set[str]] = {}
 
         for l, error_detection_rule in self.error_detection_rules.items():
-            error_detection_rule: rules.ErrorDetectionRule
+            error_detection_rule: rule.ErrorDetectionRule
 
             for cond in error_detection_rule.C_l:
-                if ((isinstance(cond, conditions.PredCondition)) and (cond.secondary_model_name is None)
+                if ((isinstance(cond, condition.PredCondition)) and (cond.secondary_model_name is None)
                     and (not cond.binary)) and (cond.lower_prediction_index is None) and (cond.l.g != l.g):
                     if cond.l.g.g_str == 'fine':
                         fine_index = cond.l.index

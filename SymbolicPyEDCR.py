@@ -8,8 +8,8 @@ import tqdm
 
 import data_preprocessing
 import PyEDCR
-import rules
-import conditions
+import rule
+import condition
 import utils
 import symbolic_metrics
 
@@ -18,7 +18,7 @@ randomized: bool = False
 
 class SymbolicPyEDCR(PyEDCR.EDCR):
     @staticmethod
-    def get_CC_str(CC: set[(conditions.Condition, data_preprocessing.Label)]) -> str:
+    def get_CC_str(CC: set[(conditions.Condition, data_preprocessing.label)]) -> str:
         return ('{' + ', '.join(['(' + ', '.join(item_repr) + ')' for item_repr in
                                  [[str(obj) for obj in item] for item in CC]]) + '}')
 

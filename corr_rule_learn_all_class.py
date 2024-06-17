@@ -1,8 +1,8 @@
 from PyEDCR import EDCR
 import data_preprocessing
 import utils
-import conditions
-import rules
+import condition
+import rule
 import numpy as np
 from sklearn.metrics import accuracy_score
 from tqdm import tqdm
@@ -34,7 +34,7 @@ class EDCR_experiment(EDCR):
                          include_inconsistency_constraint=include_inconsistency_constraint,
                          secondary_model_name=secondary_model_name)
 
-        self.error_correction_rules: dict[data_preprocessing.Label, rules.ErrorCorrectionRule2] = {}
+        self.error_correction_rules: dict[data_preprocessing.label, rules.ErrorCorrectionRule2] = {}
 
     def get_accuracy(self,
                      prediction: np.array,
@@ -45,8 +45,8 @@ class EDCR_experiment(EDCR):
                               y_pred=prediction)
 
     def new_objective_function(self,
-                               l: data_preprocessing.Label,
-                               CC: set[(set[conditions.Condition], data_preprocessing.Label)],
+                               l: data_preprocessing.label,
+                               CC: set[(set[conditions.Condition], data_preprocessing.label)],
                                g: data_preprocessing.Granularity):
         Rule_CC_l = rules.ErrorCorrectionRule2(l=l, CC_l=CC)
         prediction_after_apply_rule_mask = Rule_CC_l(
@@ -62,7 +62,7 @@ class EDCR_experiment(EDCR):
         return num_example_satisfy_body, self.get_accuracy(prediction=prediction_after_apply_rule, g=g)
 
     def get_label_maximize_ground_truth_from_condition(self,
-                                                       CC: set[(set[conditions.Condition], data_preprocessing.Label)],
+                                                       CC: set[(set[conditions.Condition], data_preprocessing.label)],
                                                        g: data_preprocessing.Granularity):
         max_label = None
         dummy_l = list(data_preprocessing.get_labels(g).values())[0]

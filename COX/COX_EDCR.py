@@ -2,15 +2,15 @@ import typing
 import numpy as np
 
 import models
-import rules
-import conditions
+import rule
+import condition
 import utils
 import data_preprocessing
 
 
 class COX_EDCR:
     def set_pred_conditions(self):
-        self.condition_datas = {conditions.PredCondition(l=l) for l in self.preprocessor.get_labels()}
+        self.condition_datas = {condition.PredCondition(l=l) for l in self.preprocessor.get_labels()}
 
     def __init__(self,
                  secondary_model_name: str = None,
@@ -70,8 +70,8 @@ class COX_EDCR:
                                                                                           l=l,
                                                                                           stage='original'))
 
-        self.error_detection_rules: typing.Dict[data_preprocessing.Label, rules.ErrorDetectionRule] = {}
-        self.error_correction_rules: typing.Dict[data_preprocessing.Label, rules.ErrorCorrectionRule] = {}
+        self.error_detection_rules: typing.Dict[data_preprocessing.Label, rule.ErrorDetectionRule] = {}
+        self.error_correction_rules: typing.Dict[data_preprocessing.Label, rule.ErrorCorrectionRule] = {}
         self.predicted_test_errors = np.zeros_like(self.pred_data['test']['original'][
                                                        self.preprocessor.granularities['fine']])
         self.test_error_ground_truths = np.zeros_like(self.predicted_test_errors)

@@ -11,6 +11,7 @@ import random
 
 import config
 import utils
+import label
 
 random.seed(42)
 np.random.seed(42)
@@ -34,65 +35,6 @@ class Granularity(typing.Hashable):
         return self.__hash__() == other.__hash__()
 
 
-class Label(typing.Hashable, abc.ABC):
-    def __init__(self,
-                 l_str: str,
-                 index: int):
-        self.l_str = l_str
-        self.index = index
-        self.g = None
-
-    def __str__(self):
-        return self.l_str
-
-    def __hash__(self):
-        return hash(f'{self.g}_{self.l_str}')
-
-    def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
-
-
-class FineGrainLabel(Label):
-    def __init__(self,
-                 l_str: str,
-                 fine_grain_classes_str: typing.List[str]):
-        super().__init__(l_str=l_str,
-                         index=fine_grain_classes_str.index(l_str))
-        assert l_str in fine_grain_classes_str
-
-        self.g = FineCoarseDataPreprocessor.granularities['fine']
-
-    @classmethod
-    def with_index(cls,
-                   fine_grain_classes_str: typing.List[str],
-                   l_index: int):
-        l = fine_grain_classes_str[l_index]
-        instance = cls(l_str=l,
-                       fine_grain_classes_str=fine_grain_classes_str)
-
-        return instance
-
-
-class CoarseGrainLabel(Label):
-    def __init__(self,
-                 l_str: str,
-                 coarse_grain_classes_str: typing.List[str]):
-        super().__init__(l_str=l_str,
-                         index=coarse_grain_classes_str.index(l_str))
-        assert l_str in coarse_grain_classes_str
-        self.g = FineCoarseDataPreprocessor.granularities['coarse']
-
-    @classmethod
-    def with_index(cls,
-                   i_l: int,
-                   coarse_grain_classes_str: typing.List[str]):
-        l = coarse_grain_classes_str[i_l]
-        instance = cls(l_str=l,
-                       coarse_grain_classes_str=coarse_grain_classes_str)
-
-        return instance
-
-
 def get_filepath(data_str: str,
                  model_name,
                  test: bool,
@@ -100,7 +42,7 @@ def get_filepath(data_str: str,
                  loss: str = None,
                  lr: typing.Union[str, float] = None,
                  combined: bool = True,
-                 l: Label = None,
+                 l: label.Label = None,
                  epoch: int = None,
                  granularity: str = None,
                  lower_prediction_index: int = None,
@@ -154,7 +96,7 @@ class DataPreprocessor(abc.ABC):
     @abc.abstractmethod
     def get_labels(self,
                    *args,
-                   **kwargs) -> typing.Dict[str, Label]:
+                   **kwargs) -> typing.Dict[str, label.Label]:
         pass
 
 
@@ -167,7 +109,7 @@ class OneLevelDataPreprocessor(DataPreprocessor):
         Y_gt, _ = pd.factorize(data_with_gt['gt'])
         Y_pred, _ = pd.factorize(data_with_gt['pred'])
 
-        self.labels = {l_str: FineGrainLabel(l_str, fine_grain_classes_str=self.fine_grain_classes_str)
+        self.labels = {l_str: label.FineGrainLabel(l_str, fine_grain_classes_str=self.fine_grain_classes_str)
                        for l_str in data_with_gt['gt'].unique()}
         self.num_classes = data_with_gt['gt'].nunique()
 
@@ -443,9 +385,11 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
             self.fine_data_counts = dict(zip(self.fine_unique, self.fine_counts))
             self.coarse_data_counts = dict(zip(self.coarse_unique, self.coarse_counts))
 
-            self.fine_grain_labels = {l: FineGrainLabel(l, fine_grain_classes_str=self.fine_grain_classes_str)
+            self.fine_grain_labels = {l: label.FineGrainLabel(l, fine_grain_classes_str=self.fine_grain_classes_str)
                                       for l in self.fine_grain_classes_str}
-            self.coarse_grain_labels = {l: CoarseGrainLabel(l, coarse_grain_classes_str=self.coarse_grain_classes_str)
+            self.coarse_grain_labels = {l: label.CoarseGrainLabel(l,
+                                                                  coarse_grain_classes_str=
+                                                                  self.coarse_grain_classes_str)
                                         for l in self.coarse_grain_classes_str}
 
             assert (self.get_num_inconsistencies(fine_labels=self.train_true_fine_data,
@@ -500,13 +444,13 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
         return inconsistencies, unique_inconsistencies_num
 
     def get_labels(self,
-                   g: Granularity) -> typing.Dict[str, Label]:
+                   g: Granularity) -> typing.Dict[str, label.Label]:
         return self.fine_grain_labels if str(g) == 'fine' else self.coarse_grain_labels
 
     def get_subset_indices_for_train_and_train_eval(self,
                                                     train_eval_split: float,
                                                     get_fraction_of_example_with_label: typing.Dict[
-                                                        Label, float] = None, ):
+                                                        label.Label, float] = None, ):
         """
             Splits indices into train and train_eval sets, respecting train_eval_split
             and removing examples from train based on get_fraction_of_example_with_label.
@@ -553,7 +497,7 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
         return train_indices, train_eval_indices
 
     def get_imbalance_weight(self,
-                             l: Label,
+                             l: label.Label,
                              train_images_num: int,
                              evaluation: bool = False) -> typing.List[float]:
         g_ground_truth = self.train_true_fine_data if l.g.g_str == 'fine' else self.train_true_coarse_data
@@ -810,7 +754,7 @@ class BinaryImageFolder(EDCRImageFolder):
     def __init__(self,
                  root: str,
                  preprocessor: FineCoarseDataPreprocessor,
-                 l: Label,
+                 l: label.Label,
                  transform: typing.Optional[typing.Callable] = None,
                  evaluation: bool = False, ):
         self.evaluation = evaluation
@@ -885,7 +829,7 @@ def get_datasets(preprocessor: FineCoarseDataPreprocessor,
                  weights: str = 'DEFAULT',
                  cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
                  combined: bool = True,
-                 binary_label: Label = None,
+                 binary_label: label.Label = None,
                  evaluation: bool = False,
                  error_fixing: bool = False,
                  train_fine_predictions: np.array = None,
@@ -969,8 +913,8 @@ def get_loaders(preprocessor: FineCoarseDataPreprocessor,
                 subset_indices: typing.Sequence = None,
                 evaluation: bool = None,
                 train_eval_split: float = None,
-                label: Label = None,
-                get_fraction_of_example_with_label: typing.Dict[Label, float] = None,
+                label: label.Label = None,
+                get_fraction_of_example_with_label: typing.Dict[label.Label, float] = None,
                 debug: bool = False,
                 binary_error_model: bool = False
                 ) -> typing.Dict[str, torch.utils.data.DataLoader]:

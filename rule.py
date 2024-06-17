@@ -3,7 +3,7 @@ import abc
 import numpy as np
 
 import data_preprocessing
-import conditions
+import condition
 
 
 class Rule(typing.Callable, typing.Sized, abc.ABC):
@@ -14,7 +14,7 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
     """
 
     def __init__(self,
-                 l: data_preprocessing.Label,
+                 l: data_preprocessing.label,
                  C_l: typing.Set[typing.Union[
                      conditions.Condition, typing.Tuple[conditions.Condition, data_preprocessing.Label]]],
                  preprocessor: data_preprocessing.FineCoarseDataPreprocessor):
