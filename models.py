@@ -1,6 +1,5 @@
 import abc
 import torchvision
-import typing
 import argparse
 import torch
 import torch.nn.parallel
@@ -153,7 +152,7 @@ class ErrorDetector(FineTuner):
     def __init__(self,
                  model_name: str,
                  num_classes: int,
-                 preprocessor: data_preprocessing.DataPreprocessor,
+                 preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                  pretrained_path: str = None,
                  device=None):
         super().__init__(model_name=model_name, num_classes=num_classes)
@@ -179,7 +178,7 @@ class ErrorDetector(FineTuner):
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device,
-                        preprocessor: data_preprocessing.DataPreprocessor = None):
+                        preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None):
         """
         Loads a pre-trained DINO V2 model from a specified path.
 
@@ -448,7 +447,7 @@ class TResnetFineTuner(FineTuner):
                  tresnet_model_name: str,
                  num_classes: int,
                  weights: str = 'DEFAULT',
-                 preprocessor: data_preprocessing.DataPreprocessor = None):
+                 preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None):
         """
         Initializes the TResnetFineTuner with a pre-trained TResnet model and number of classes.
 
@@ -466,7 +465,7 @@ class TResnetFineTuner(FineTuner):
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device,
-                        preprocessor: data_preprocessing.DataPreprocessor = None,
+                        preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None,
                         ):
         """
         Loads a pre-trained TResnetFineTuner model from a specified path.
@@ -540,45 +539,3 @@ class TResnetFineTuner(FineTuner):
         return torch.squeeze(torch.tensor(fine_and_coarse_output))
 
 
-def get_filepath(data_str: str,
-                 model_name: typing.Union[str, FineTuner],
-                 test: bool,
-                 loss: str,
-                 lr: typing.Union[str, float],
-                 pred: bool,
-                 combined: bool = True,
-                 l: data_preprocessing.Label = None,
-                 epoch: int = None,
-                 granularity: str = None,
-                 lower_prediction_index: int = None,
-                 additional_info: str = None) -> str:
-    """
-    Constructs the file path to the model output / ground truth data.
-
-    :param additional_info:
-    :param data_str:
-    :param l:
-    :param lower_prediction_index:
-    :param model_name: The name of the model or `FineTuner` object.
-    :param combined: Whether the model are individual or combine one.
-    :param test: Whether the data is getting from testing or training set.
-    :param granularity: The granularity level.
-    :param loss: The loss function used during training.
-    :param lr: The learning rate used during training.
-    :param pred: Whether the data is a prediction from neural or ground truth
-    :param epoch: The epoch number (optional, only for training data).
-    :return: The generated file path.
-    """
-    epoch_str = f'_e{epoch - 1}' if epoch is not None else ''
-    granularity_str = f'_{granularity}' if granularity is not None else ''
-    test_str = 'test' if test else 'train'
-    pred_str = 'pred' if pred else 'true'
-    folder_str = 'binary' if l is not None else ('combined' if combined else 'individual')
-    lower_prediction_index_str = f'_lower_{lower_prediction_index}' if lower_prediction_index is not None else ''
-    lower_prediction_folder_str = 'lower_prediction/' if lower_prediction_index is not None else ''
-    l_str = f'_{l}' if l is not None else ''
-    additional_str = f'_{additional_info}' if additional_info is not None else ''
-
-    return (f"{folder_str}_results/{lower_prediction_folder_str}"
-            f"{data_str}_{model_name}_{test_str}{granularity_str}_{pred_str}_{loss}_lr{lr}{epoch_str}"
-            f"{lower_prediction_index_str}{l_str}{additional_str}.npy")

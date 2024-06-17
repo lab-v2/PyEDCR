@@ -104,7 +104,7 @@ def true_predicate(examples: torch.tensor,
     return torch.where(pred_indices == true_data, 1., 0.).to(device)
 
 
-def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
+def compute_sat_normally(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                          logits_to_predicate: torch.nn.Module,
                          train_pred_fine_batch: torch.tensor,
                          train_pred_coarse_batch: torch.tensor,
@@ -227,7 +227,7 @@ def compute_sat_normally(preprocessor: data_preprocessing.DataPreprocessor,
     return sat_agg
 
 
-def compute_sat_with_features(preprocessor: data_preprocessing.DataPreprocessor,
+def compute_sat_with_features(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                               logits_to_predicate: torch.nn.Module,
                               train_pred_batch_feature: torch.tensor,
                               train_pred_fine_batch: torch.tensor,

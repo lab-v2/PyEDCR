@@ -16,7 +16,7 @@ import backbone_pipeline
 import config
 
 
-def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor,
+def evaluate_individual_models(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                                fine_tuners: typing.List[models.FineTuner],
                                loaders: typing.Dict[str, torch.utils.data.DataLoader],
                                devices: typing.List[torch.device],
@@ -82,7 +82,7 @@ def evaluate_individual_models(preprocessor: data_preprocessing.DataPreprocessor
             fine_accuracy, coarse_accuracy)
 
 
-def evaluate_combined_model(preprocessor: data_preprocessing.DataPreprocessor,
+def evaluate_combined_model(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                             fine_tuner: models.FineTuner,
                             loaders: typing.Dict[str, torch.utils.data.DataLoader],
                             loss: str,
@@ -182,7 +182,7 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
                           split: str,
                           l: data_preprocessing.Label = None,
                           print_results: bool = True,
-                          preprocessor: data_preprocessing.DataPreprocessor = None,
+                          preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None,
                           error_fine_prediction: np.array = None,
                           error_coarse_prediction: np.array = None, ) -> \
         (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
@@ -372,7 +372,7 @@ def evaluate_binary_models_from_files(data_str: str,
                                       l: data_preprocessing.Label,
                                       model_name: str = 'vit_b_16',
                                       loss: str = 'BCE'):
-    preprocessor = data_preprocessing.DataPreprocessor(data_str)
+    preprocessor = data_preprocessing.FineCoarseDataPreprocessor(data_str)
     if not test:
         g_ground_truth = preprocessor.train_true_fine_data if g_str == 'fine' \
             else preprocessor.train_true_coarse_data
@@ -381,14 +381,14 @@ def evaluate_binary_models_from_files(data_str: str,
             else preprocessor.test_true_coarse_data
     print(f'gt shape : {g_ground_truth.shape}')
 
-    l_file = models.get_filepath(data_str=data_str,
-                                 model_name=model_name,
-                                 l=l,
-                                 test=test,
-                                 loss=loss,
-                                 lr=lr,
-                                 pred=True,
-                                 epoch=num_epochs)
+    l_file = data_preprocessing.get_filepath(data_str=data_str,
+                                             model_name=model_name,
+                                             l=l,
+                                             test=test,
+                                             loss=loss,
+                                             lr=lr,
+                                             pred=True,
+                                             epoch=num_epochs)
     if os.path.exists(l_file):
         predictions = np.load(l_file)
         print(f'l_pred shape : {predictions.shape}')

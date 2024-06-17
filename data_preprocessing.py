@@ -5,10 +5,10 @@ import torchvision
 import pandas as pd
 import torch.utils.data
 import pathlib
-
 import typing
 import abc
 import random
+
 import config
 import utils
 
@@ -60,7 +60,7 @@ class FineGrainLabel(Label):
                          index=fine_grain_classes_str.index(l_str))
         assert l_str in fine_grain_classes_str
 
-        self.g = DataPreprocessor.granularities['fine']
+        self.g = FineCoarseDataPreprocessor.granularities['fine']
 
     @classmethod
     def with_index(cls,
@@ -80,7 +80,7 @@ class CoarseGrainLabel(Label):
         super().__init__(l_str=l_str,
                          index=coarse_grain_classes_str.index(l_str))
         assert l_str in coarse_grain_classes_str
-        self.g = DataPreprocessor.granularities['coarse']
+        self.g = FineCoarseDataPreprocessor.granularities['coarse']
 
     @classmethod
     def with_index(cls,
@@ -93,13 +93,109 @@ class CoarseGrainLabel(Label):
         return instance
 
 
-class DataPreprocessor:
+def get_filepath(data_str: str,
+                 model_name,
+                 test: bool,
+                 pred: bool,
+                 loss: str = None,
+                 lr: typing.Union[str, float] = None,
+                 combined: bool = True,
+                 l: Label = None,
+                 epoch: int = None,
+                 granularity: str = None,
+                 lower_prediction_index: int = None,
+                 additional_info: str = None) -> str:
+    """
+    Constructs the file path to the model output / ground truth data.
+
+    :param additional_info:
+    :param data_str:
+    :param l:
+    :param lower_prediction_index:
+    :param model_name: The name of the model or `FineTuner` object.
+    :param combined: Whether the model are individual or combine one.
+    :param test: Whether the data is getting from testing or training set.
+    :param granularity: The granularity level.
+    :param loss: The loss function used during training.
+    :param lr: The learning rate used during training.
+    :param pred: Whether the data is a prediction from neural or ground truth
+    :param epoch: The epoch number (optional, only for training data).
+    :return: The generated file path.
+    """
+    epoch_str = f'_e{epoch - 1}' if epoch is not None else ''
+    granularity_str = f'_{granularity}' if granularity is not None else ''
+    test_str = 'test' if test else 'train'
+    pred_str = 'pred' if pred else 'true'
+    folder_str = ('binary' if l is not None else ('combined' if combined else 'individual') + '_results') \
+        if data_str != 'COX' else 'COX'
+    lower_prediction_index_str = f'_lower_{lower_prediction_index}' if lower_prediction_index is not None else ''
+    lower_prediction_folder_str = 'lower_prediction/' if lower_prediction_index is not None else ''
+    l_str = f'_{l}' if l is not None else ''
+    additional_str = f'_{additional_info}' if additional_info is not None else ''
+    loss_str = f'_{loss}' if loss is not None else ''
+    lr_str = f'_{lr}' if lr is not None else ''
+
+    return (f"{folder_str}/{lower_prediction_folder_str}"
+            f"{data_str}_{model_name}_{test_str}{granularity_str}_{pred_str}{loss_str}{lr_str}{epoch_str}"
+            f"{lower_prediction_index_str}{l_str}{additional_str}.npy")
+
+
+class DataPreprocessor(abc.ABC):
+    def __init__(self,
+                 data_str: str):
+        self.data_str = data_str
+
+    @abc.abstractmethod
+    def get_ground_truths(self,
+                          *args,
+                          **kwargs):
+        pass
+
+    @abc.abstractmethod
+    def get_labels(self,
+                   *args,
+                   **kwargs) -> typing.Dict[str, Label]:
+        pass
+
+
+class OneLevelDataPreprocessor(DataPreprocessor):
+    def __init__(self,
+                 data_str: str):
+        super().__init__(data_str=data_str)
+        df = pd.read_csv('COX/dataset_may_2024.csv')
+        data_with_gt = df[df['gt'].notna()]
+        Y_gt, _ = pd.factorize(data_with_gt['gt'])
+        Y_pred, _ = pd.factorize(data_with_gt['pred'])
+
+        self.labels = {l_str: FineGrainLabel(l_str, fine_grain_classes_str=self.fine_grain_classes_str)
+                       for l_str in data_with_gt['gt'].unique()}
+        self.num_classes = data_with_gt['gt'].nunique()
+
+        self.main_model_name = 'main_model'
+        self.train_true_data = np.load(get_filepath(data_str=data_str,
+                                                    model_name=self.main_model_name,
+                                                    test=False,
+                                                    pred=False))
+        self.test_true_data = np.load(get_filepath(data_str=data_str,
+                                                   model_name=self.main_model_name,
+                                                   test=True,
+                                                   pred=False))
+
+    def get_ground_truths(self,
+                          test: bool) -> np.array:
+        return self.test_true_data if test else self.train_true_data
+
+    def get_labels(self):
+        return self.labels
+
+
+class FineCoarseDataPreprocessor(DataPreprocessor):
     granularities_str = ['fine', 'coarse']
     granularities = {g_str: Granularity(g_str=g_str) for g_str in granularities_str}
 
     def __init__(self,
                  data_str: str):
-        self.data_str = data_str
+        super().__init__(data_str=data_str)
         self.fine_to_course_idx = {}
 
         if data_str == 'imagenet':
@@ -361,7 +457,6 @@ class DataPreprocessor:
                           test: bool,
                           K: typing.List[int] = None,
                           g: typing.Union[Granularity, str] = None,
-                          # noisy: bool = False
                           ) -> np.array:
         if test:
             true_fine_data = self.test_true_fine_data
@@ -593,7 +688,7 @@ class CombinedImageFolderWithName(EDCRImageFolder):
 
     def __init__(self,
                  root: str,
-                 preprocessor: DataPreprocessor,
+                 preprocessor: FineCoarseDataPreprocessor,
                  transform=None,
                  target_transform=None):
         self.preprocessor = preprocessor
@@ -639,7 +734,7 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
 
     def __init__(self,
                  root: str,
-                 preprocessor: DataPreprocessor,
+                 preprocessor: FineCoarseDataPreprocessor,
                  fine_predictions: np.array,
                  coarse_predictions: np.array,
                  transform=None,
@@ -714,7 +809,7 @@ class ErrorDetectorImageFolder(EDCRImageFolder):
 class BinaryImageFolder(EDCRImageFolder):
     def __init__(self,
                  root: str,
-                 preprocessor: DataPreprocessor,
+                 preprocessor: FineCoarseDataPreprocessor,
                  l: Label,
                  transform: typing.Optional[typing.Callable] = None,
                  evaluation: bool = False, ):
@@ -785,7 +880,7 @@ class IndividualImageFolderWithName(EDCRImageFolder):
         return x, y, x_identifier
 
 
-def get_datasets(preprocessor: DataPreprocessor,
+def get_datasets(preprocessor: FineCoarseDataPreprocessor,
                  model_name: str,
                  weights: str = 'DEFAULT',
                  cwd: typing.Union[str, pathlib.Path] = os.getcwd(),
@@ -804,8 +899,10 @@ def get_datasets(preprocessor: DataPreprocessor,
 
     Parameters
     ----------
-        :param coarse_predictions:
-        :param fine_predictions:
+        :param test_coarse_predictions:
+        :param test_fine_predictions:
+        :param train_coarse_predictions:
+        :param train_fine_predictions:
         :param preprocessor:
         :param weights:
         :param model_name:
@@ -866,7 +963,7 @@ def get_datasets(preprocessor: DataPreprocessor,
     return datasets
 
 
-def get_loaders(preprocessor: DataPreprocessor,
+def get_loaders(preprocessor: FineCoarseDataPreprocessor,
                 datasets: typing.Dict[str, torchvision.datasets.ImageFolder],
                 batch_size: int,
                 subset_indices: typing.Sequence = None,
@@ -882,6 +979,8 @@ def get_loaders(preprocessor: DataPreprocessor,
 
     Parameters
     ----------
+        :param binary_error_model:
+        :param label:
         :param debug:
         :param preprocessor:
         :param get_fraction_of_example_with_label:

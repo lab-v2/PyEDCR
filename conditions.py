@@ -101,7 +101,7 @@ class PredCondition(Condition):
 
 class InconsistencyCondition(Condition):
     def __init__(self,
-                 preprocessor: data_preprocessing.DataPreprocessor):
+                 preprocessor: data_preprocessing.FineCoarseDataPreprocessor):
         super().__init__()
         self.preprocessor = preprocessor
 

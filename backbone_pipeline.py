@@ -1,5 +1,3 @@
-import os.path
-
 import numpy as np
 import torch.utils.data
 import typing
@@ -72,34 +70,34 @@ def save_prediction_files(data_str: str,
         data_path_str = 'data/'
 
     if combined:
-        for g_str in data_preprocessing.DataPreprocessor.granularities_str:
+        for g_str in data_preprocessing.FineCoarseDataPreprocessor.granularities_str:
             if config.get_ground_truth:
                 break
             prediction = fine_prediction if g_str == 'fine' else coarse_prediction
-            np.save(models.get_filepath(data_str=data_str,
-                                        model_name=fine_tuners,
-                                        combined=True,
-                                        test=test,
-                                        granularity=g_str,
-                                        loss=loss,
-                                        lr=lrs,
-                                        pred=True,
-                                        epoch=epoch,
-                                        additional_info=additional_info),
+            np.save(data_preprocessing.get_filepath(data_str=data_str,
+                                                    model_name=fine_tuners,
+                                                    combined=True,
+                                                    test=test,
+                                                    granularity=g_str,
+                                                    loss=loss,
+                                                    lr=lrs,
+                                                    pred=True,
+                                                    epoch=epoch,
+                                                    additional_info=additional_info),
                     prediction)
 
             lower_predictions = fine_lower_predictions if g_str == 'fine' else coarse_lower_predictions
             for lower_prediction_index, lower_prediction_values in lower_predictions.items():
-                np.save(models.get_filepath(data_str=data_str,
-                                            model_name=fine_tuners,
-                                            combined=True,
-                                            test=test,
-                                            granularity=g_str,
-                                            loss=loss,
-                                            lr=lrs,
-                                            pred=True,
-                                            epoch=epoch,
-                                            lower_prediction_index=lower_prediction_index),
+                np.save(data_preprocessing.get_filepath(data_str=data_str,
+                                                        model_name=fine_tuners,
+                                                        combined=True,
+                                                        test=test,
+                                                        granularity=g_str,
+                                                        loss=loss,
+                                                        lr=lrs,
+                                                        pred=True,
+                                                        epoch=epoch,
+                                                        lower_prediction_index=lower_prediction_index),
                         lower_prediction_values)
 
             # disable saving ground truth for now
@@ -151,18 +149,18 @@ def save_binary_prediction_files(data_str: str,
     """
     test_str = 'test' if test else 'train'
 
-    np.save(models.get_filepath(model_name=fine_tuner,
-                                l=l,
-                                test=test,
-                                loss=loss,
-                                lr=lr,
-                                pred=True,
-                                epoch=epoch,
-                                data_str=data_str),
+    np.save(data_preprocessing.get_filepath(model_name=fine_tuner,
+                                            l=l,
+                                            test=test,
+                                            loss=loss,
+                                            lr=lr,
+                                            pred=True,
+                                            epoch=epoch,
+                                            data_str=data_str),
             predictions)
     try:
         if data_str == 'imagenet':
-            preprocessor = data_preprocessing.DataPreprocessor(data_str)
+            preprocessor = data_preprocessing.FineCoarseDataPreprocessor(data_str)
             for id, label_str in preprocessor.fine_grain_mapping_dict.items():
                 if label_str == l.l_str:
                     np.save(f"data/ImageNet100/{test_str}_{l.g.g_str}/{id}/binary_true.npy",
@@ -218,7 +216,7 @@ def find_subclasses_in_module(module, parent_class):
 
 def initiate(data_str: str,
              lr: typing.Union[str, float],
-             preprocessor: data_preprocessing.DataPreprocessor = None,
+             preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None,
              model_name: str = 'vit_b_16',
              weights: str = 'DEFAULT',
              combined: bool = True,
@@ -264,7 +262,7 @@ def initiate(data_str: str,
     print(f'Model: {model_name}\nLearning rate: {lr}')
 
     if preprocessor is None:
-        preprocessor = data_preprocessing.DataPreprocessor(data_str=data_str)
+        preprocessor = data_preprocessing.FineCoarseDataPreprocessor(data_str=data_str)
 
     datasets = data_preprocessing.get_datasets(
         preprocessor=preprocessor,

@@ -1,5 +1,4 @@
 import typing
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -8,23 +7,26 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+
+import data_preprocessing
 
 
 # Define the neural network
-class SimpleNN(nn.Module):
+class MLP(nn.Module):
     def __init__(self,
                  input_size: int,
                  output_size: int):
-        super(SimpleNN, self).__init__()
+        super(MLP, self).__init__()
         self.fc1 = nn.Linear(in_features=input_size, out_features=128)
         self.fc2 = nn.Linear(in_features=128, out_features=256)
         self.fc3 = nn.Linear(in_features=256, out_features=2 * output_size)
 
-    def forward(self, x):
+    def forward(self,
+                x: torch.Tensor) -> torch.Tensor:
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         x = self.fc3(x)
+
         return x
 
 
@@ -65,10 +67,10 @@ def plot_metrics_dynamic(losses: typing.List[float],
     plt.show()
 
 
-def calculate_accuracy(model,
-                       data,
-                       targets,
-                       num_classes):
+def calculate_accuracy_and_predictions(model,
+                                       data,
+                                       targets,
+                                       num_classes):
     model.eval()
     with torch.no_grad():
         outputs = model(data)
@@ -82,11 +84,13 @@ def calculate_accuracy(model,
         accuracy_pred = correct_pred / targets.size(0)
 
     model.train()
-    return accuracy_gt, accuracy_pred
+    return accuracy_gt, accuracy_pred, predicted_gt, predicted_pred
 
 
 def train_confuse_NN(num_epochs: int):
-    df = pd.read_csv('dataset_may_2024.csv')
+    data_str = 'COX'
+    main_model_name = 'main_model'
+    df = pd.read_csv('COX/dataset_may_2024.csv')
     data_with_gt = df[df['gt'].notna()]
     num_classes = data_with_gt['gt'].nunique()
 
@@ -99,17 +103,58 @@ def train_confuse_NN(num_epochs: int):
     Y = np.stack((Y_gt, Y_pred), axis=1)
 
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
+    #
+    # assert np.all(Y_train[:, 0] == np.load(models.get_filepath(data_str=data_str,
+    #                                                            model_name=main_model_name,
+    #                                                            test=False,
+    #                                                            pred=False)))
+    # assert np.all(Y_train[:, 1] == np.load(models.get_filepath(data_str=data_str,
+    #                                                            model_name=main_model_name,
+    #                                                            test=False,
+    #                                                            pred=True)))
+    # assert np.all(Y_test[:, 0] == np.load(models.get_filepath(data_str=data_str,
+    #                                                           model_name=main_model_name,
+    #                                                           test=True,
+    #                                                           pred=False)))
+    # assert np.all(Y_test[:, 1] == np.load(models.get_filepath(data_str=data_str,
+    #                                                           model_name=main_model_name,
+    #                                                           test=True,
+    #                                                           pred=True)))
+
+    # np.save(models.get_filepath(data_str=data_str,
+    #                             model_name=main_model_name,
+    #                             test=False,
+    #                             pred=False),
+    #         Y_train[:, 0])
+    # np.save(models.get_filepath(data_str=data_str,
+    #                             model_name=main_model_name,
+    #                             test=False,
+    #                             pred=True),
+    #         Y_train[:, 1])
+    #
+    # np.save(models.get_filepath(data_str=data_str,
+    #                             model_name=main_model_name,
+    #                             test=True,
+    #                             pred=False),
+    #         Y_test[:, 0])
+    # np.save(models.get_filepath(data_str=data_str,
+    #                             model_name=main_model_name,
+    #                             test=True,
+    #                             pred=True),
+    #         Y_test[:, 1])
 
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
-    model = SimpleNN(input_size=X_train.shape[1], output_size=num_classes)
+    model = MLP(input_size=X_train.shape[1],
+                output_size=num_classes)
     criterion = nn.CrossEntropyLoss()
 
+    lr = 0.5
     # Using SGD with momentum
     optimizer = optim.SGD(params=model.parameters(),
-                          lr=0.5,
+                          lr=lr,
                           momentum=0.9)
 
     # Using ReduceLROnPlateau scheduler
@@ -122,15 +167,16 @@ def train_confuse_NN(num_epochs: int):
     train_accuracies = []
     test_accuracies = []
 
-    for epoch in range(1, num_epochs + 1):
-        inputs = torch.tensor(X_train, dtype=torch.float32)
-        targets = torch.tensor(Y_train, dtype=torch.long)
+    print("Starting training...")
 
+    inputs = torch.tensor(X_train, dtype=torch.float32)
+    targets = torch.tensor(Y_train, dtype=torch.long)
+
+    for epoch in range(1, num_epochs + 1):
         optimizer.zero_grad()
         outputs = model(inputs)
         loss_gt = criterion(outputs[:, :num_classes], targets[:, 0])
         loss_pred = criterion(outputs[:, num_classes:], targets[:, 1])
-        ratio = (loss_gt / loss_pred).item()
         loss = loss_gt * 2 + loss_pred  # Adjust the weight of GT loss
         loss.backward()
 
@@ -143,10 +189,10 @@ def train_confuse_NN(num_epochs: int):
         losses.append(loss.item())
 
         # Calculate accuracies
-        train_accuracy_gt, train_accuracy_pred = calculate_accuracy(
-            model, torch.tensor(X_train, dtype=torch.float32), torch.tensor(Y_train, dtype=torch.long), num_classes)
-        test_accuracy_gt, test_accuracy_pred = calculate_accuracy(
-            model, torch.tensor(X_test, dtype=torch.float32), torch.tensor(Y_test, dtype=torch.long), num_classes)
+        train_accuracy_gt, train_accuracy_pred = calculate_accuracy_and_predictions(
+            model, torch.tensor(X_train, dtype=torch.float32), torch.tensor(Y_train, dtype=torch.long), num_classes)[:2]
+        test_accuracy_gt, test_accuracy_pred = calculate_accuracy_and_predictions(
+            model, torch.tensor(X_test, dtype=torch.float32), torch.tensor(Y_test, dtype=torch.long), num_classes)[:2]
 
         train_accuracy = [train_accuracy_gt, train_accuracy_pred]
         test_accuracy = [test_accuracy_gt, test_accuracy_pred]
@@ -160,8 +206,33 @@ def train_confuse_NN(num_epochs: int):
                 f'Test Accuracy (GT, Pred): ({test_accuracy_gt:.4f}, {test_accuracy_pred:.4f})')
             plot_metrics_dynamic(losses, train_accuracies, test_accuracies)
 
+    # Save final predictions
+    train_accuracy_gt, train_accuracy_pred, train_pred_gt, train_pred_pred = calculate_accuracy_and_predictions(
+        model, torch.tensor(X_train, dtype=torch.float32), torch.tensor(Y_train, dtype=torch.long), num_classes)
+    test_accuracy_gt, test_accuracy_pred, test_pred_gt, test_pred_pred = calculate_accuracy_and_predictions(
+        model, torch.tensor(X_test, dtype=torch.float32), torch.tensor(Y_test, dtype=torch.long), num_classes)
+
+    train_predictions = ['{:02}{:02}'.format(gt, pred)
+                         for gt, pred in zip(train_pred_gt.numpy(), train_pred_pred.numpy())]
+    test_predictions = ['{:02}{:02}'.format(gt, pred)
+                        for gt, pred in zip(test_pred_gt.numpy(), test_pred_pred.numpy())]
+
+    np.save(data_preprocessing.get_filepath(data_str='COX',
+                                            model_name='MLP',
+                                            test=False,
+                                            loss='CE',
+                                            lr=lr,
+                                            pred=True,
+                                            epoch=num_epochs + 1), np.array(train_predictions))
+    np.save(data_preprocessing.get_filepath(data_str='COX',
+                                            model_name='MLP',
+                                            test=True,
+                                            loss='CE',
+                                            lr=lr,
+                                            pred=True,
+                                            epoch=num_epochs + 1), np.array(test_predictions))
+    print("Training complete.")
+
 
 if __name__ == "__main__":
-    print("Starting training...")
-    train_confuse_NN(num_epochs=5000)
-    print("Training complete.")
+    train_confuse_NN(num_epochs=500)

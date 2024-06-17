@@ -11,7 +11,7 @@ def get_change_str(change: typing.Union[float, str]):
                                     else utils.green_text(f'(+{round(change, 2)}%)'))
 
 
-def print_num_inconsistencies(preprocessor: data_preprocessing.DataPreprocessor,
+def print_num_inconsistencies(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                               pred_fine_data: np.array,
                               pred_coarse_data: np.array,
                               current_num_test_inconsistencies=None,
@@ -75,7 +75,7 @@ def get_individual_metrics(pred_data: np.array,
     return accuracy, balanced_accuracy, f1, precision, recall
 
 
-def get_metrics(preprocessor: data_preprocessing.DataPreprocessor,
+def get_metrics(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                 pred_fine_data: np.array,
                 pred_coarse_data: np.array,
                 true_fine_data: np.array,
@@ -141,7 +141,7 @@ def get_and_print_binary_metrics(pred_data: np.array,
     return accuracy, f1, precision, recall
 
 
-def get_and_print_metrics(preprocessor: data_preprocessing.DataPreprocessor,
+def get_and_print_metrics(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                           pred_fine_data: np.array,
                           pred_coarse_data: np.array,
                           loss: str,
@@ -262,7 +262,7 @@ def get_and_print_post_epoch_binary_metrics(epoch: int,
     return accuracy, f1
 
 
-def get_and_print_post_metrics(preprocessor: data_preprocessing.DataPreprocessor,
+def get_and_print_post_metrics(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                                train_fine_ground_truth: np.array,
                                train_fine_prediction: np.array,
                                train_coarse_ground_truth: np.array,

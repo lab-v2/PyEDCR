@@ -23,7 +23,7 @@ import neural_fine_tuning
 
 def evaluate_on_test(data_str: str,
                      model_name: str,
-                     preprocessor: data_preprocessing.DataPreprocessor,
+                     preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                      lr: typing.Union[str, float],
                      fine_tuner: models.FineTuner,
                      device: torch.device,
@@ -57,7 +57,7 @@ def evaluate_on_test(data_str: str,
 
 def fine_tune_combined_model(data_str: str,
                              model_name: str,
-                             preprocessor: data_preprocessing.DataPreprocessor,
+                             preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                              lr: typing.Union[str, float],
                              fine_tuner: models.FineTuner,
                              device: torch.device,

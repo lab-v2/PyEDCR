@@ -105,7 +105,7 @@ class EDCR_LTN_experiment(EDCR):
                               multi_processing: bool = True):
         print('Started learning pipeline...\n')
 
-        for g in data_preprocessing.DataPreprocessor.granularities.values():
+        for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
             self.learn_detection_rules(g=g,
                                        multi_processing=multi_processing)
 

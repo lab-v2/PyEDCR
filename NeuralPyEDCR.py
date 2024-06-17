@@ -21,11 +21,11 @@ import plotting
 class NeuralPyEDCR(PyEDCR.EDCR):
     def __init__(self,
                  data_str: str,
-                 main_model_name: str,
-                 combined: bool,
-                 loss: str,
-                 lr: typing.Union[str, float],
-                 original_num_epochs: int,
+                 main_model_name: str = None,
+                 combined: bool = None,
+                 loss: str = None,
+                 lr: typing.Union[str, float] = None,
+                 original_num_epochs: int = None,
                  epsilon: typing.Union[str, float] = None,
                  EDCR_num_epochs: int = 1,
                  neural_num_epochs: int = 1,
@@ -73,7 +73,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         self.EDCR_num_epochs = EDCR_num_epochs
         self.neural_num_epochs = neural_num_epochs
 
-        relevant_predicted_indices = None
+        # relevant_predicted_indices = None
 
         # if 'correct' in experiment_name:
         #     train_pred_correct_mask = np.ones_like(self.pred_data['train']['original'][
@@ -107,7 +107,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                                new_lr: float):
 
         perceived_examples_with_errors = set()
-        for g in data_preprocessing.DataPreprocessor.granularities.values():
+        for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
             perceived_examples_with_errors = perceived_examples_with_errors.union(set(
                 np.where(self.get_predictions(test=False, g=g, stage='post_detection') == -1)[0]))
 
@@ -140,8 +140,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             save_files=False,
             evaluate_on_test_between_epochs=False,
             num_epochs=self.neural_num_epochs,
-            data_str=data_str,
-            model_name=main_model_name
+            data_str=preprocessor.data_str,
+            model_name=self.main_model_name
             # debug=True
         )
         print('#' * 100)
@@ -167,9 +167,9 @@ class NeuralPyEDCR(PyEDCR.EDCR):
 
         new_fine_predictions, new_coarse_predictions = evaluation_return_values[2], evaluation_return_values[3]
 
-        self.pred_data['train']['post_detection'][data_preprocessing.DataPreprocessor.granularities['fine']][
+        self.pred_data['train']['post_detection'][data_preprocessing.FineCoarseDataPreprocessor.granularities['fine']][
             perceived_examples_with_errors] = new_fine_predictions
-        self.pred_data['train']['post_detection'][data_preprocessing.DataPreprocessor.granularities['coarse']][
+        self.pred_data['train']['post_detection'][data_preprocessing.FineCoarseDataPreprocessor.granularities['coarse']][
             perceived_examples_with_errors] = new_coarse_predictions
 
     def apply_new_model_on_test(self,
@@ -185,7 +185,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                                                                save_files=False,
                                                                print_results=False))
 
-        for g in data_preprocessing.DataPreprocessor.granularities.values():
+        for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
             old_test_g_predictions = self.get_predictions(test=True, g=g, stage='post_detection')
             new_test_g_predictions = new_fine_predictions if g.g_str == 'fine' else new_coarse_predictions
 
@@ -196,7 +196,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             self.print_metrics(split='test', prior=False, stage='post_detection')
 
             where_fixed_initial_error = set()
-            for g in data_preprocessing.DataPreprocessor.granularities.values():
+            for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
                 where_fixed_initial_error = where_fixed_initial_error.union(set(
                     np.where(self.get_where_predicted_correct(test=True, g=g, stage='post_detection') == 1)[0]
                 ).intersection(set(np.where(self.get_where_predicted_incorrect(test=True, g=g) == 1)[0])))
@@ -209,7 +209,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         # self.print_metrics(test=False, prior=True)
 
         for EDCR_epoch in range(self.EDCR_num_epochs):
-            for g in data_preprocessing.DataPreprocessor.granularities.values():
+            for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
                 self.learn_detection_rules(g=g,
                                            multi_processing=multi_processing)
                 # self.apply_detection_rules(test=False,
@@ -256,8 +256,8 @@ class NeuralPyEDCR(PyEDCR.EDCR):
             save_files=False,
             evaluate_on_test_between_epochs=False,
             num_epochs=2,
-            data_str=data_str,
-            model_name=main_model_name
+            data_str=preprocessor.data_str,
+            model_name=self.main_model_name
         )
 
 
@@ -320,7 +320,12 @@ def work_on_value(args):
     # edcr.apply_new_model_on_test()
 
 
-def simulate_for_values(total_number_of_points: int = 10,
+def simulate_for_values(data_str: str,
+                        main_model_name: str,
+                        main_lr: typing.Union[float, str],
+                        original_num_epochs: int,
+                        binary_model_name: str,
+                        total_number_of_points: int = 10,
                         min_value: float = 0.1,
                         max_value: float = 0.3,
                         multi_processing: bool = True,
@@ -387,25 +392,25 @@ def simulate_for_values(total_number_of_points: int = 10,
             work_on_value(data)
 
 
-if __name__ == '__main__':
-    # data_str = 'military_vehicles'
-    # main_model_name = binary_model_name = 'vit_b_16'
-    # secondary_model_name = 'vit_l_16'
-    # main_lr = secondary_lr = binary_lr = 0.0001
-    # original_num_epochs = 10
-    # secondary_num_epochs = 20
-    # binary_num_epochs = 10
-    # number_of_fine_classes = 24
+def cikm_main():
+    data_str = 'military_vehicles'
+    main_model_name = binary_model_name = 'vit_b_16'
+    secondary_model_name = 'vit_l_16'
+    main_lr = secondary_lr = binary_lr = 0.0001
+    original_num_epochs = 10
+    secondary_num_epochs = 20
+    binary_num_epochs = 10
+    number_of_fine_classes = 24
 
-    data_str = 'imagenet'
-    main_model_name = binary_model_name = 'dinov2_vits14'
-    secondary_model_name = 'dinov2_vitl14'
-    # main_lr = 0.00001
-    main_lr = secondary_lr = binary_lr = 0.000001
-    original_num_epochs = 8
-    secondary_num_epochs = 2
-    binary_num_epochs = 5
-    number_of_fine_classes = 42
+    # data_str = 'imagenet'
+    # main_model_name = binary_model_name = 'dinov2_vits14'
+    # secondary_model_name = 'dinov2_vitl14'
+    # # main_lr = 0.00001
+    # main_lr = secondary_lr = binary_lr = 0.000001
+    # original_num_epochs = 8
+    # secondary_num_epochs = 2
+    # binary_num_epochs = 5
+    # number_of_fine_classes = 42
 
     # data_str = 'openimage'
     # main_model_name = 'vit_b_16'
@@ -446,9 +451,14 @@ if __name__ == '__main__':
             for (lists_of_fine_labels_to_take_out, maximize_ratio, multi_processing) in \
                     [
                         # ([[]], True, True),
-                     ([list(range(i)) for i in range(int(number_of_fine_classes / 2) + 1)], True, True)
-                     ]:
+                        ([list(range(i)) for i in range(int(number_of_fine_classes / 2) + 1)], True, True)
+                    ]:
                 simulate_for_values(
+                    data_str=data_str,
+                    main_model_name=main_model_name,
+                    main_lr=main_lr,
+                    original_num_epochs=original_num_epochs,
+                    binary_model_name=binary_model_name,
                     total_number_of_points=1,
                     min_value=0.1,
                     max_value=0.1,
@@ -490,7 +500,6 @@ if __name__ == '__main__':
     x_values, balance_error_accuracies, error_f1s, constraint_f1s = \
         [a[mask] for a in [x_values, balance_error_accuracies, error_f1s, constraint_f1s]]
 
-
     plotting.plot_2d_metrics(data_str=data_str,
                              model_name=main_model_name,
                              x_values=x_values[1:],
@@ -503,3 +512,31 @@ if __name__ == '__main__':
                                  'Constraints F1-Score': ('k', '--')  # Black dotted line
                              },
                              fontsize=24)
+
+
+def cox_main():
+    data_str = 'COX'
+    main_model_name = 'main_model'
+    secondary_model_name = 'MLP'
+    secondary_model_loss = 'CE'
+    secondary_num_epochs = 500
+    secondary_lr = 0.5
+    number_of_fine_classes = 42
+
+    edcr = NeuralPyEDCR(data_str=data_str,
+                        main_model_name=main_model_name,
+                        secondary_model_name=secondary_model_name,
+                        secondary_model_loss=secondary_model_loss,
+                        secondary_num_epochs=secondary_num_epochs,
+                        secondary_lr=secondary_lr)
+
+    edcr.print_metrics(split='test',
+                       prior=True)
+    edcr.run_learning_pipeline()
+    edcr.run_error_detection_application_pipeline(test=True,
+                                                  print_results=False,
+                                                  save_to_google_sheets=True)
+
+
+if __name__ == '__main__':
+    cox_main()

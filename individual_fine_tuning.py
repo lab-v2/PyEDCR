@@ -14,7 +14,7 @@ import backbone_pipeline
 import neural_fine_tuning
 
 
-def fine_tune_individual_models(preprocessor: data_preprocessing.DataPreprocessor,
+def fine_tune_individual_models(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                                 fine_tuners: list[models.FineTuner],
                                 devices: list[torch.device],
                                 loaders: dict[str, torch.utils.data.DataLoader],
@@ -186,7 +186,7 @@ def fine_tune_individual_models(preprocessor: data_preprocessing.DataPreprocesso
         np.save(f"{backbone_pipeline.individual_results_path}test_true_coarse_individual.npy", test_true_coarse_data)
 
 
-def run_individual_fine_tuning_pipeline(preprocessor: data_preprocessing.DataPreprocessor,
+def run_individual_fine_tuning_pipeline(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
                                         vit_model_names: list[str],
                                         lrs: list[typing.Union[str, float]],
                                         num_epochs: int,

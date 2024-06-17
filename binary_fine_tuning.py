@@ -255,7 +255,7 @@ if __name__ == '__main__':
     loss = 'BCE'
     train_eval_split_in_main = 0.8
 
-    preprocessor_in_main = data_preprocessing.DataPreprocessor(data_str_in_main)
+    preprocessor_in_main = data_preprocessing.FineCoarseDataPreprocessor(data_str_in_main)
 
     download_path = []
     g_str = None
@@ -282,7 +282,7 @@ if __name__ == '__main__':
                 print(f'get prediction from train set)')
                 save_label_with_good_f1_score(l=l_in_main)
 
-                test_save_path = models.get_filepath(model_name=model_name_in_main,
+                test_save_path = data_preprocessing.get_filepath(model_name=model_name_in_main,
                                                      l=l_in_main,
                                                      test=True,
                                                      loss=loss,
@@ -291,7 +291,7 @@ if __name__ == '__main__':
                                                      epoch=num_epochs_in_main,
                                                      data_str=data_str_in_main)
 
-                train_save_path = models.get_filepath(model_name=model_name_in_main,
+                train_save_path = data_preprocessing.get_filepath(model_name=model_name_in_main,
                                                       l=l_in_main,
                                                       test=False,
                                                       loss=loss,
