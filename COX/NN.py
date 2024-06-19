@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -98,50 +99,51 @@ def train_confuse_NN(num_epochs: int):
     features = [f'p{i}' for i in range(32)]
     X = data_with_gt[features].values
 
-    Y_gt, _ = pd.factorize(data_with_gt['gt'])
-    Y_pred, _ = pd.factorize(data_with_gt['pred'])
+    Y_gt, gt_labels = pd.factorize(data_with_gt['gt'])
+    Y_pred, pred_labels = pd.factorize(data_with_gt['pred'])
+
     Y = np.stack((Y_gt, Y_pred), axis=1)
 
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
-    #
-    # assert np.all(Y_train[:, 0] == np.load(models.get_filepath(data_str=data_str,
-    #                                                            model_name=main_model_name,
-    #                                                            test=False,
-    #                                                            pred=False)))
-    # assert np.all(Y_train[:, 1] == np.load(models.get_filepath(data_str=data_str,
-    #                                                            model_name=main_model_name,
-    #                                                            test=False,
-    #                                                            pred=True)))
-    # assert np.all(Y_test[:, 0] == np.load(models.get_filepath(data_str=data_str,
-    #                                                           model_name=main_model_name,
-    #                                                           test=True,
-    #                                                           pred=False)))
-    # assert np.all(Y_test[:, 1] == np.load(models.get_filepath(data_str=data_str,
-    #                                                           model_name=main_model_name,
-    #                                                           test=True,
-    #                                                           pred=True)))
 
-    # np.save(models.get_filepath(data_str=data_str,
-    #                             model_name=main_model_name,
-    #                             test=False,
-    #                             pred=False),
-    #         Y_train[:, 0])
-    # np.save(models.get_filepath(data_str=data_str,
-    #                             model_name=main_model_name,
-    #                             test=False,
-    #                             pred=True),
-    #         Y_train[:, 1])
-    #
-    # np.save(models.get_filepath(data_str=data_str,
-    #                             model_name=main_model_name,
-    #                             test=True,
-    #                             pred=False),
-    #         Y_test[:, 0])
-    # np.save(models.get_filepath(data_str=data_str,
-    #                             model_name=main_model_name,
-    #                             test=True,
-    #                             pred=True),
-    #         Y_test[:, 1])
+    assert np.all(Y_train[:, 0] == np.load(data_preprocessing.get_filepath(data_str=data_str,
+                                                                           model_name=main_model_name,
+                                                                           test=False,
+                                                                           pred=False)))
+    assert np.all(Y_train[:, 1] == np.load(data_preprocessing.get_filepath(data_str=data_str,
+                                                                           model_name=main_model_name,
+                                                                           test=False,
+                                                                           pred=True)))
+    assert np.all(Y_test[:, 0] == np.load(data_preprocessing.get_filepath(data_str=data_str,
+                                                                          model_name=main_model_name,
+                                                                          test=True,
+                                                                          pred=False)))
+    assert np.all(Y_test[:, 1] == np.load(data_preprocessing.get_filepath(data_str=data_str,
+                                                                          model_name=main_model_name,
+                                                                          test=True,
+                                                                          pred=True)))
+
+    np.save(data_preprocessing.get_filepath(data_str=data_str,
+                                            model_name=main_model_name,
+                                            test=False,
+                                            pred=False),
+            Y_train[:, 0])
+    np.save(data_preprocessing.get_filepath(data_str=data_str,
+                                            model_name=main_model_name,
+                                            test=False,
+                                            pred=True),
+            Y_train[:, 1])
+
+    np.save(data_preprocessing.get_filepath(data_str=data_str,
+                                            model_name=main_model_name,
+                                            test=True,
+                                            pred=False),
+            Y_test[:, 0])
+    np.save(data_preprocessing.get_filepath(data_str=data_str,
+                                            model_name=main_model_name,
+                                            test=True,
+                                            pred=True),
+            Y_test[:, 1])
 
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
@@ -223,14 +225,14 @@ def train_confuse_NN(num_epochs: int):
                                             loss='CE',
                                             lr=lr,
                                             pred=True,
-                                            epoch=num_epochs + 1), np.array(train_predictions))
+                                            epoch=num_epochs), np.array(train_predictions))
     np.save(data_preprocessing.get_filepath(data_str='COX',
                                             model_name='MLP',
                                             test=True,
                                             loss='CE',
                                             lr=lr,
                                             pred=True,
-                                            epoch=num_epochs + 1), np.array(test_predictions))
+                                            epoch=num_epochs), np.array(test_predictions))
     print("Training complete.")
 
 

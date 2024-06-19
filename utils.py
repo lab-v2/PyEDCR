@@ -92,5 +92,3 @@ def format_integer(n):
         return f"{sign}{a}"
     else:
         return f"{sign}{a} * 10^{b}"
-
-

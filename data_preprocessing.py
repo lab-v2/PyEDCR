@@ -12,27 +12,13 @@ import random
 import config
 import utils
 import label
+import granularity
 
 random.seed(42)
 np.random.seed(42)
 
 current_file_location = pathlib.Path(__file__).parent.resolve()
 os.chdir(current_file_location)
-
-
-class Granularity(typing.Hashable):
-    def __init__(self,
-                 g_str: str):
-        self.g_str = g_str
-
-    def __str__(self):
-        return self.g_str
-
-    def __hash__(self):
-        return hash(self.g_str)
-
-    def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
 
 
 def get_filepath(data_str: str,
@@ -75,7 +61,7 @@ def get_filepath(data_str: str,
     l_str = f'_{l}' if l is not None else ''
     additional_str = f'_{additional_info}' if additional_info is not None else ''
     loss_str = f'_{loss}' if loss is not None else ''
-    lr_str = f'_{lr}' if lr is not None else ''
+    lr_str = f'_lr_{lr}' if lr is not None else ''
 
     return (f"{folder_str}/{lower_prediction_folder_str}"
             f"{data_str}_{model_name}_{test_str}{granularity_str}_{pred_str}{loss_str}{lr_str}{epoch_str}"
@@ -104,14 +90,23 @@ class OneLevelDataPreprocessor(DataPreprocessor):
     def __init__(self,
                  data_str: str):
         super().__init__(data_str=data_str)
-        df = pd.read_csv('COX/dataset_may_2024.csv')
-        data_with_gt = df[df['gt'].notna()]
-        Y_gt, _ = pd.factorize(data_with_gt['gt'])
-        Y_pred, _ = pd.factorize(data_with_gt['pred'])
+        self.df = pd.read_csv('COX/dataset_may_2024.csv')
+        self.data_with_gt = self.df[self.df['gt'].notna()]
+        self.Y_gt_transformed, self.gt_labels = pd.factorize(self.data_with_gt['gt'])
+        self.Y_pred_transformed, self.pred_labels = pd.factorize(self.data_with_gt['pred'])
 
-        self.labels = {l_str: label.FineGrainLabel(l_str, fine_grain_classes_str=self.fine_grain_classes_str)
-                       for l_str in data_with_gt['gt'].unique()}
-        self.num_classes = data_with_gt['gt'].nunique()
+        assert np.all(
+            [self.data_with_gt['gt'].iloc[i] == self.gt_labels[self.Y_gt_transformed[i]]
+             for i in range(self.data_with_gt.shape[0])])
+        assert np.all(
+            [self.data_with_gt['pred'].iloc[i] == self.pred_labels[self.Y_pred_transformed[i]]
+             for i in range(self.data_with_gt.shape[0])])
+        assert set(self.gt_labels).intersection(set(self.pred_labels)) == set(self.pred_labels)
+
+        self.labels = {str(int(l_original)): label.Label(l_str=str(int(l_original)),
+                                                         index=l_index)
+                       for l_index, l_original in enumerate(self.gt_labels)}
+        self.num_classes = self.data_with_gt['gt'].nunique()
 
         self.main_model_name = 'main_model'
         self.train_true_data = np.load(get_filepath(data_str=data_str,
@@ -127,13 +122,13 @@ class OneLevelDataPreprocessor(DataPreprocessor):
                           test: bool) -> np.array:
         return self.test_true_data if test else self.train_true_data
 
-    def get_labels(self):
+    def get_labels(self) -> typing.Dict[str, label.Label]:
         return self.labels
 
 
 class FineCoarseDataPreprocessor(DataPreprocessor):
     granularities_str = ['fine', 'coarse']
-    granularities = {g_str: Granularity(g_str=g_str) for g_str in granularities_str}
+    granularities = {g_str: granularity.Granularity(g_str=g_str) for g_str in granularities_str}
 
     def __init__(self,
                  data_str: str):
@@ -400,7 +395,7 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
     def get_ground_truths(self,
                           test: bool,
                           K: typing.List[int] = None,
-                          g: typing.Union[Granularity, str] = None,
+                          g: typing.Union[granularity.Granularity, str] = None,
                           ) -> np.array:
         if test:
             true_fine_data = self.test_true_fine_data
@@ -444,7 +439,7 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
         return inconsistencies, unique_inconsistencies_num
 
     def get_labels(self,
-                   g: Granularity) -> typing.Dict[str, label.Label]:
+                   g: granularity.Granularity) -> typing.Dict[str, label.Label]:
         return self.fine_grain_labels if str(g) == 'fine' else self.coarse_grain_labels
 
     def get_subset_indices_for_train_and_train_eval(self,

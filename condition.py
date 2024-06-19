@@ -3,6 +3,7 @@ import typing
 import numpy as np
 
 import data_preprocessing
+import label
 
 
 class Condition(typing.Hashable, typing.Callable, abc.ABC):
@@ -37,7 +38,7 @@ class PredCondition(Condition):
     """
 
     def __init__(self,
-                 l: data_preprocessing.Label,
+                 l: label.Label,
                  secondary_model_name: str = None,
                  lower_prediction_index: int = None,
                  binary: bool = False,
@@ -60,7 +61,7 @@ class PredCondition(Condition):
                  secondary_coarse_data: np.array = None,
                  lower_predictions_fine_data: dict = None,
                  lower_predictions_coarse_data: dict = None,
-                 binary_data: typing.Dict[data_preprocessing.Label, np.array] = None) -> np.array:
+                 binary_data: typing.Dict[label.Label, np.array] = None) -> np.array:
         fine = self.l.g.g_str == 'fine'
 
         if self.secondary_model_name is not None:
@@ -89,8 +90,9 @@ class PredCondition(Condition):
             if self.lower_prediction_index is not None else ''
         binary_str = '_binary' if self.binary else ''
         negated_str = '_negated' if self.negated else ''
+        g_str = f'_{self.l.g}' if self.l.g is not None else ''
 
-        return f'pred_{self.l.g}_{self.l}{secondary_str}{lower_prediction_index_str}{binary_str}{negated_str}'
+        return f'pred{g_str}_{self.l}{secondary_str}{lower_prediction_index_str}{binary_str}{negated_str}'
 
     def __hash__(self):
         return hash(self.__str__())

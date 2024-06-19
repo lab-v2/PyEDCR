@@ -2,7 +2,7 @@ import typing
 import abc
 
 
-class Label(typing.Hashable, abc.ABC):
+class Label(typing.Hashable):
     def __init__(self,
                  l_str: str,
                  index: int):

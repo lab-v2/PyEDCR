@@ -14,12 +14,13 @@ import neural_metrics
 import backbone_pipeline
 import neural_fine_tuning
 import utils
+import label
 
 # All the label having sufficient result is saved in the file":
 best_f1_label_file_name = 'best_f1_label_file_name.txt'
 
 
-def save_label_with_good_f1_score(l: data_preprocessing.Label):
+def save_label_with_good_f1_score(l: label.Label):
     # Check if file exists (optional)
     if os.path.exists(best_f1_label_file_name):
         # Open the file in read mode ("r")
@@ -39,7 +40,7 @@ def save_label_with_good_f1_score(l: data_preprocessing.Label):
 
 
 def fine_tune_binary_model(data_str: str,
-                           l: data_preprocessing.Label,
+                           l: label.Label,
                            lr: float,
                            fine_tuner: models.FineTuner,
                            device: torch.device,
@@ -67,8 +68,7 @@ def fine_tune_binary_model(data_str: str,
         fine_tuner=fine_tuner,
         num_epochs=num_epochs,
         lr=lr,
-        device=device,
-        experiment_name=f'{l.l_str} with {"train_eval" if train_eval_split is not None else ""}')
+        device=device)
 
     slicing_window = [0, 0]
     best_fine_tuner = copy.deepcopy(fine_tuner)
@@ -94,9 +94,9 @@ def fine_tune_binary_model(data_str: str,
 
                     batch_total_loss = criterion(Y_pred, Y_one_hot)
 
-                    neural_metrics.print_post_batch_metrics(batch_num=batch_num,
-                                                            num_batches=num_batches,
-                                                            batch_total_loss=batch_total_loss.item())
+                    # neural_metrics.print_post_batch_metrics(batch_num=batch_num,
+                    #                                         num_batches=num_batches,
+                    #                                         batch_total_loss=batch_total_loss.item())
 
                     batch_total_loss.backward()
                     optimizer.step()
@@ -184,7 +184,7 @@ def fine_tune_binary_model(data_str: str,
 
 def run_l_binary_fine_tuning_pipeline(data_str: str,
                                       model_name: str,
-                                      l: data_preprocessing.Label,
+                                      l: label.Label,
                                       lr: float,
                                       num_epochs: int,
                                       train_eval_split: float = None,
@@ -214,7 +214,7 @@ def run_l_binary_fine_tuning_pipeline(data_str: str,
 
 def run_l_binary_evaluating_pipeline_from_train(data_str: str,
                                                 model_name: str,
-                                                l: data_preprocessing.Label,
+                                                l: label.Label,
                                                 lr: float,
                                                 num_epochs: int):
     pretrained_path = f"models/binary_models/binary_{l}_{model_name}_lr{lr}_loss_{loss}_e{num_epochs}.pth"
@@ -283,22 +283,22 @@ if __name__ == '__main__':
                 save_label_with_good_f1_score(l=l_in_main)
 
                 test_save_path = data_preprocessing.get_filepath(model_name=model_name_in_main,
-                                                     l=l_in_main,
-                                                     test=True,
-                                                     loss=loss,
-                                                     lr=lr_in_main,
-                                                     pred=True,
-                                                     epoch=num_epochs_in_main,
-                                                     data_str=data_str_in_main)
+                                                                 l=l_in_main,
+                                                                 test=True,
+                                                                 loss=loss,
+                                                                 lr=lr_in_main,
+                                                                 pred=True,
+                                                                 epoch=num_epochs_in_main,
+                                                                 data_str=data_str_in_main)
 
                 train_save_path = data_preprocessing.get_filepath(model_name=model_name_in_main,
-                                                      l=l_in_main,
-                                                      test=False,
-                                                      loss=loss,
-                                                      lr=lr_in_main,
-                                                      pred=True,
-                                                      epoch=num_epochs_in_main,
-                                                      data_str=data_str_in_main)
+                                                                  l=l_in_main,
+                                                                  test=False,
+                                                                  loss=loss,
+                                                                  lr=lr_in_main,
+                                                                  pred=True,
+                                                                  epoch=num_epochs_in_main,
+                                                                  data_str=data_str_in_main)
                 if os.path.exists(train_save_path):
                     print(utils.green_text(f'file {train_save_path} already exist, train prediction is checkout'))
                     download_path.append(train_save_path)

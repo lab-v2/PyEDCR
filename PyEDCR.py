@@ -16,6 +16,7 @@ import condition
 import rule
 import label
 import google_sheets_api
+import granularity
 
 
 class EDCR:
@@ -418,7 +419,7 @@ class EDCR:
 
     def get_predictions(self,
                         test: bool,
-                        g: data_preprocessing.Granularity = None,
+                        g: granularity.Granularity = None,
                         stage: str = 'original',
                         secondary: bool = False,
                         lower_predictions: bool = False,
@@ -574,7 +575,7 @@ class EDCR:
 
     def get_where_predicted_correct(self,
                                     test: bool,
-                                    g: data_preprocessing.Granularity,
+                                    g: granularity.Granularity,
                                     stage: str = 'original') -> np.array:
         """Calculates true positive mask for given granularity and label.
 
@@ -590,7 +591,7 @@ class EDCR:
         return where_predicted_correct
 
     def get_where_predicted_correct_in_data(self,
-                                            g: data_preprocessing.Granularity,
+                                            g: granularity.Granularity,
                                             test_pred_fine_data: np.array,
                                             test_pred_coarse_data: np.array) -> np.array:
         """Calculates true positive mask for given granularity and label.
@@ -607,7 +608,7 @@ class EDCR:
 
     def get_where_predicted_incorrect(self,
                                       test: bool,
-                                      g: data_preprocessing.Granularity,
+                                      g: granularity.Granularity,
                                       stage: str = 'original') -> np.array:
         """Calculates false positive mask for given granularity and label.
 
@@ -632,7 +633,7 @@ class EDCR:
         return np.where(predicted_derived_coarse != predicted_coarse, 1, 0)
 
     def get_where_predicted_incorrect_in_data(self,
-                                              g: data_preprocessing.Granularity,
+                                              g: granularity.Granularity,
                                               test_pred_fine_data: np.array,
                                               test_pred_coarse_data: np.array) -> np.array:
         """Calculates false positive mask for given granularity and label.
@@ -725,7 +726,7 @@ class EDCR:
 
     def get_g_precision_and_recall(self,
                                    test: bool,
-                                   g: data_preprocessing.Granularity,
+                                   g: granularity.Granularity,
                                    stage: str = 'original',
                                    test_pred_fine_data: np.array = None,
                                    test_pred_coarse_data: np.array = None) -> (
@@ -1036,7 +1037,7 @@ class EDCR:
         return 1 - min_value
 
     def learn_detection_rules(self,
-                              g: data_preprocessing.Granularity,
+                              g: granularity.Granularity,
                               multi_processing: bool = True):
         # self.CC_all[g] = set()  # in this use case where the conditions are fine and coarse predictions
         granularity_labels = list(self.preprocessor.get_labels(g).values())
@@ -1077,7 +1078,7 @@ class EDCR:
 
     def apply_detection_rules(self,
                               test: bool,
-                              g: data_preprocessing.Granularity,
+                              g: granularity.Granularity,
                               stage: str):
         """Applies error detection rules to test predictions for a given granularity. If a rule is satisfied for
         a particular label, the prediction data for that label is modified with a value of -1,
@@ -1154,7 +1155,7 @@ class EDCR:
 
     def print_how_many_not_assigned(self,
                                     test: bool,
-                                    g: data_preprocessing.Granularity,
+                                    g: granularity.Granularity,
                                     stage: str,
                                     ):
         test_or_train = 'test' if test else 'train'

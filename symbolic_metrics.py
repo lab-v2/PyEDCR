@@ -3,6 +3,7 @@ import numpy as np
 import data_preprocessing
 import utils
 import label
+import granularity
 
 
 def get_l_detection_rule_support(edcr,
@@ -68,7 +69,7 @@ def get_l_detection_rule_theoretical_precision_increase(edcr,
 
 def get_g_detection_rule_theoretical_precision_increase(edcr,
                                                         test: bool,
-                                                        g: data_preprocessing.Granularity):
+                                                        g: granularity.Granularity):
     precision_increases = [edcr.get_l_detection_rule_theoretical_precision_increase(test=test, l=l)
                            for l in edcr.preprocessor.get_labels(g).values()]
     return np.mean(precision_increases)
@@ -86,7 +87,7 @@ def get_l_detection_rule_theoretical_recall_decrease(edcr,
 
 def get_g_detection_rule_theoretical_recall_decrease(edcr,
                                                      test: bool,
-                                                     g: data_preprocessing.Granularity):
+                                                     g: granularity.Granularity):
     recall_decreases = [edcr.get_l_detection_rule_theoretical_recall_decrease(test=test, l=l)
                         for l in edcr.preprocessor.get_labels(g).values()]
     return np.mean(recall_decreases)
@@ -169,7 +170,7 @@ def get_l_correction_rule_theoretical_precision_increase(edcr,
 
 def get_g_correction_rule_theoretical_precision_increase(edcr,
                                                          test: bool,
-                                                         g: data_preprocessing.Granularity):
+                                                         g: granularity.Granularity):
     precision_increases = [edcr.get_l_correction_rule_theoretical_precision_increase(test=test, l=l)
                            for l in edcr.preprocessor.get_labels(g).values()]
     return np.mean(precision_increases)
@@ -177,7 +178,7 @@ def get_g_correction_rule_theoretical_precision_increase(edcr,
 
 def evaluate_and_print_g_detection_rule_precision_increase(edcr,
                                                            test: bool,
-                                                           g: data_preprocessing.Granularity,
+                                                           g: granularity.Granularity,
                                                            threshold: float = 1e-5):
     original_g_precisions = edcr.get_g_precision_and_recall(g=g, test=test, stage='original')[0]
     post_detection_g_precisions = edcr.get_g_precision_and_recall(g=g, test=test, stage='post_detection')[0]
@@ -204,7 +205,7 @@ def evaluate_and_print_g_detection_rule_precision_increase(edcr,
 
 def evaluate_and_print_g_detection_rule_recall_decrease(edcr,
                                                         test: bool,
-                                                        g: data_preprocessing.Granularity,
+                                                        g: granularity.Granularity,
                                                         threshold: float = 1e-5):
     original_g_recalls = edcr.get_g_precision_and_recall(g=g, test=test, stage='original')[1]
     post_detection_recalls = edcr.get_g_precision_and_recall(g=g, test=test, stage='post_detection')[1]

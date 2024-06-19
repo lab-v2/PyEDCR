@@ -8,6 +8,7 @@ import ltn
 import ltn_support
 import numpy as np
 import copy
+import matplotlib.pyplot as plt
 
 import utils
 from PyEDCR import EDCR
@@ -19,9 +20,6 @@ import neural_evaluation
 import neural_fine_tuning
 import neural_metrics
 
-import torch
-import torch.nn as nn
-
 
 def evaluate_on_test(data_str: str,
                      model_name: str,
@@ -29,7 +27,8 @@ def evaluate_on_test(data_str: str,
                      fine_tuner: models.FineTuner,
                      loss: str,
                      num_epochs: int,
-                     save_files: bool = False):
+                     save_files: bool = False,
+                     additional_info: str = None):
     neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
                                                        model_name=model_name,
                                                        split='test',
@@ -38,7 +37,8 @@ def evaluate_on_test(data_str: str,
                                                        pretrained_fine_tuner=fine_tuner,
                                                        num_epochs=num_epochs,
                                                        print_results=True,
-                                                       save_files=save_files)
+                                                       save_files=False,
+                                                       additional_info=f'{additional_info}_for_plotting')
 
     print('#' * 100)
 
@@ -55,10 +55,12 @@ class EDCR_LTN_experiment(EDCR):
                  secondary_model_name: str = None,
                  secondary_model_loss: str = None,
                  secondary_num_epochs: int = None,
+                 secondary_lr: float = None,
                  binary_l_strs: typing.List[str] = [],
                  binary_num_epochs: int = None,
                  binary_lr: typing.Union[str, float] = None,
-                 binary_model_name: str = None):
+                 binary_model_name: str = None,
+                 model_with_LTN: bool = False):
 
         super().__init__(data_str=data_str,
                          main_model_name=main_model_name,
@@ -70,6 +72,7 @@ class EDCR_LTN_experiment(EDCR):
                          secondary_model_name=secondary_model_name if config.use_secondary_model else None,
                          secondary_model_loss=secondary_model_loss if config.use_secondary_model else None,
                          secondary_num_epochs=secondary_num_epochs if config.use_secondary_model else None,
+                         secondary_lr=secondary_lr,
                          binary_l_strs=binary_l_strs if config.use_binary_model else [],
                          binary_num_epochs=binary_num_epochs if config.use_binary_model else None,
                          binary_lr=binary_lr if config.use_binary_model else None,
@@ -78,6 +81,9 @@ class EDCR_LTN_experiment(EDCR):
 
         print(utils.blue_text(f'EDCR has {config.use_binary_model} flag for using binary model '
                               f'and {config.use_secondary_model} flag for using secondary model'))
+        if model_with_LTN:
+            print(utils.blue_text(f'New method is applied! The model will return both output for prediction'
+                                  f'and feature use for ltn'))
 
         self.batch_size = config.batch_size
         self.scheduler_gamma = config.scheduler_gamma
@@ -85,31 +91,30 @@ class EDCR_LTN_experiment(EDCR):
         self.scheduler_step_size = config.scheduler_step_size
         self.beta = config.beta
         self.ltn_loss = config.ltn_loss
-        self.beta_learn = config.beta_learn
-        self.noise_learn_log = config.noise_learn_log
-        self.dynamic_weight_averaging = config.dynamic_weight
+        self.model_with_LTN = model_with_LTN
 
         self.preprocessor, self.fine_tuners, self.loaders, self.devices = backbone_pipeline.initiate(
             data_str=self.data_str,
             preprocessor=self.preprocessor,
             lr=self.lr,
-            model_name=main_model_name,
+            model_name=f'{main_model_name}_LTN' if model_with_LTN else main_model_name,
             train_eval_split=0.8
         )
 
     def run_learning_pipeline(self,
-                              multi_threading: bool = True):
+                              multi_processing: bool = True):
         print('Started learning pipeline...\n')
 
         for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
             self.learn_detection_rules(g=g,
-                                       multi_threading=multi_threading)
+                                       multi_processing=multi_processing)
 
         print('\nRule learning completed\n')
 
     def fine_tune_and_evaluate_combined_model(self,
                                               print_rules: bool = False,
                                               additional_info: str = None):
+
         fine_tuner = self.fine_tuners[0]
         device = self.devices[0]
         preprocessor = self.preprocessor
@@ -120,57 +125,26 @@ class EDCR_LTN_experiment(EDCR):
         lr = self.lr
         evaluate_on_test_between_epochs = True
         loaders = self.loaders
-        early_stopping = False
+        early_stopping = True
+        X_feature = None
 
         fine_tuner.to(device)
         fine_tuner.train()
         train_loader = loaders['train']
         num_batches = len(train_loader)
 
-        # initialise learnable parameters
-        # initialise beta,sigma1,sigma2
+        optimizer = torch.optim.Adam(params=fine_tuner.parameters(),
+                                     lr=lr)
 
-        # initialise using torch.normal_ and limit the numbers using torch.clamp
-
-        # Learnable Beta is an added beta parameter between 1e2 and 1e4 to weigh LTN loss only
-        # Noise optimisation is based on Multi Task learning paper which optimizes sigma parameters
-
-        temperature = None
-        beta_param = None
-        sigma_1 = None
-        sigma_2 = None
-
-        if self.beta_learn is True:
-            shape = (1,)
-            mean = 100
-            std = 10
-
-            beta_param = nn.Parameter(torch.empty(*shape, dtype=torch.float).normal_(mean, std).to(device))
-
-            model_parameters = list(fine_tuner.parameters()) + [beta_param]
-
-            optimizer = torch.optim.Adam(params=model_parameters, lr=self.lr)
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,
-                                                        step_size=config.scheduler_step_size,
-                                                        gamma=self.scheduler_gamma)
-
-        elif self.noise_learn_log is True:
-            shape = (1,)
-            sigma_1 = nn.Parameter(torch.empty(*shape, dtype=torch.float).normal_().to(device))
-            sigma_2 = nn.Parameter(torch.empty(*shape, dtype=torch.float).normal_().to(device))
-            model_parameters = list(fine_tuner.parameters()) + [sigma_1, sigma_2]
-            optimizer = torch.optim.Adam(params=model_parameters, lr=self.lr)
-        elif self.dynamic_weight_averaging is True:
-            shape = (1,)
-            temperature = nn.Parameter(torch.empty(*shape, dtype=torch.float).normal_().to(device))
-            model_parameters = list(fine_tuner.parameters()) + [temperature]
-            optimizer = torch.optim.Adam(params=model_parameters, lr=self.lr)
-        else:
-            optimizer = torch.optim.Adam(params=fine_tuner.parameters())
-
-        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device)
+        total_number_fine_coarse_class = (self.preprocessor.num_fine_grain_classes +
+                                          self.preprocessor.num_coarse_grain_classes)
+        logits_to_predicate = ltn.Predicate(ltn_support.LogitsToPredicate()).to(ltn.device) if not self.model_with_LTN \
+            else ltn.Predicate(ltn_support.LogitsToPredicateWithFeature(total_number_fine_coarse_class).to(ltn.device))
 
         early_stopping_value_list = []
+        ltn_loss_per_epoch_list = []
+        bce_loss_per_epoch_list = []
+        ltn_bce_loss_per_epoch_list = []
         best_fine_tuner = copy.deepcopy(fine_tuner)
 
         if print_rules:
@@ -189,15 +163,12 @@ class EDCR_LTN_experiment(EDCR):
 
         consecutive_epochs_with_no_train_eval_loss_decrease_from_the_minimum = 0
 
-        LTN_losses = []
-        NN_losses = []
-        ratios_LTN = []
-        ratios_NN = []
-
         for epoch in range(self.num_ltn_epochs):
 
             with ((context_handlers.TimeWrapper())):
                 total_running_loss = torch.Tensor([0.0]).to(device)
+                total_running_ltn_loss = torch.Tensor([0.0]).to(device)
+                total_running_bce_loss = torch.Tensor([0.0]).to(device)
 
                 total_train_fine_predictions = []
                 total_train_coarse_predictions = []
@@ -225,8 +196,9 @@ class EDCR_LTN_experiment(EDCR):
                         secondary_pred_coarse_batch = None if not config.use_secondary_model else torch.tensor(
                             self.pred_data['secondary_model']['train']['coarse'][indices]).to(device)
 
-                        # binary_pred = {label: torch.tensor(binary_data).to(device)
-                        #                for label, binary_data in self.pred_data['binary'].items()}
+                        binary_pred = {label: torch.tensor(binary_data['train'][indices])
+                                       for label, binary_data in self.pred_data['binary'].items()} \
+                            if self.pred_data is not None else None
 
                         Y_true_fine_one_hot = torch.nn.functional.one_hot(Y_true_fine, num_classes=len(
                             preprocessor.fine_grain_classes_str))
@@ -237,7 +209,10 @@ class EDCR_LTN_experiment(EDCR):
 
                         # currently we have many option to get prediction, depend on whether fine_tuner predict
                         # fine / coarse or both
-                        Y_pred = fine_tuner(X)
+                        if not self.model_with_LTN:
+                            Y_pred = fine_tuner(X)
+                        else:
+                            Y_pred, X_feature = fine_tuner(X)
 
                         Y_pred_fine_grain = Y_pred[:, :len(preprocessor.fine_grain_classes_str)]
                         Y_pred_coarse_grain = Y_pred[:, len(preprocessor.fine_grain_classes_str):]
@@ -248,86 +223,62 @@ class EDCR_LTN_experiment(EDCR):
                         if "LTN_soft_marginal" in loss:
                             criterion = torch.nn.MultiLabelSoftMarginLoss()
 
-                        sat_agg = ltn_support.compute_sat_normally(
-                            preprocessor=preprocessor,
-                            logits_to_predicate=logits_to_predicate,
-                            train_pred_fine_batch=Y_pred_fine_grain,
-                            train_pred_coarse_batch=Y_pred_coarse_grain,
-                            train_true_fine_batch=Y_true_fine,
-                            train_true_coarse_batch=Y_true_coarse,
-                            original_train_pred_fine_batch=original_pred_fine_batch,
-                            original_train_pred_coarse_batch=original_pred_coarse_batch,
-                            secondary_train_pred_fine_batch=secondary_pred_fine_batch,
-                            secondary_train_pred_coarse_batch=secondary_pred_coarse_batch,
-                            binary_pred=self.pred_data['binary'],
-                            error_detection_rules=self.error_detection_rules,
-                            device=device
-                        )
-
-                        # modify the batch loss according to the optimisation used
-                        if self.dynamic_weight_averaging is True:
-                            print("Using dynamic weight allocation")
-                            LTN_losses.append((1. - sat_agg).item())
-                            NN_losses.append((criterion(Y_pred, Y_true_combine)).item())
-
-                            if len(LTN_losses) < 2 and len(NN_losses) < 2:
-                                ratio_LTN = torch.randn(1)
-                                ratio_NN = torch.randn(1)
-                                ratios_LTN.append(ratio_LTN)
-                                ratios_NN.append(ratio_NN)
-
-                            else:
-                                ratio_LTN = (LTN_losses[-1] / LTN_losses[-2])
-                                ratio_NN = (NN_losses[-1] / NN_losses[-2])
-                                ratios_LTN.append(ratio_LTN)
-                                ratios_NN.append(ratio_NN)
-
-                            if len(ratios_LTN) < 1 and len(ratios_NN) < 1:
-                                alpha_1 = torch.randn(1)
-                                alpha_2 = torch.randn(1)
-
-                            else:
-                                ratio_tensor = torch.Tensor([ratio_LTN, ratio_NN])
-
-                                softmax = torch.nn.Softmax(dim=1)
-                                alphas = softmax(ratio_tensor / temperature)
-                                alpha_1 = 2 * alphas[0]
-                                alpha_2 = 2 * alphas[1]
-
-                            batch_total_loss = alpha_1 * (1. - sat_agg) + alpha_2 * criterion(Y_pred, Y_true_combine)
-
-                        if self.beta_learn is True:
-                            print('Using learnable beta')
-                            min_value = 1e1
-                            max_value = 1e4
-                            # Apply torch.clamp to ensure the values fall within the specified range
-                            beta_param.data = torch.clamp(beta_param.data, min_value, max_value)
-
-                            print(beta_param.item())
-
-                            # modified loss to make LTN loss comparable to NN loss
-                            batch_total_loss = beta_param * (1. - sat_agg) + criterion(Y_pred, Y_true_combine)
-
-                        elif self.noise_learn_log is True:
-                            print('Using learnable noise')
-                            # keeping the magnitude more than 1e-6 order
-                            if sigma_1.data < 0:
-                                sigma_1.data = torch.clamp(sigma_1.data, -float('inf'), 1e-3)
-                            else:
-                                sigma_1.data = torch.clamp(sigma_1.data, 1e-3, float('inf'))
-
-                            if sigma_2.data < 0:
-                                sigma_2.data = torch.clamp(sigma_1.data, -float('inf'), 1e-3)
-                            else:
-                                sigma_2.data = torch.clamp(sigma_1.data, 1e-3, float('inf'))
-
-                            # modified loss for multitask learning
-                            # adding 1e-8 to the log term to avoid log(0)
-                            batch_total_loss = (0.5 / sigma_1 ** 2) * (1. - sat_agg) + \
-                                               (1.0 / sigma_2 ** 2) * (criterion(Y_pred, Y_true_combine)) + \
-                                               torch.log(sigma_1 * sigma_2 + 1e-8)
+                        if not self.model_with_LTN:
+                            sat_agg = ltn_support.compute_sat_normally(
+                                preprocessor=preprocessor,
+                                logits_to_predicate=logits_to_predicate,
+                                train_pred_fine_batch=Y_pred_fine_grain,
+                                train_pred_coarse_batch=Y_pred_coarse_grain,
+                                train_true_fine_batch=Y_true_fine,
+                                train_true_coarse_batch=Y_true_coarse,
+                                original_train_pred_fine_batch=original_pred_fine_batch,
+                                original_train_pred_coarse_batch=original_pred_coarse_batch,
+                                secondary_train_pred_fine_batch=secondary_pred_fine_batch,
+                                secondary_train_pred_coarse_batch=secondary_pred_coarse_batch,
+                                binary_pred=binary_pred,
+                                error_detection_rules=self.error_detection_rules,
+                                device=device
+                            )
                         else:
-                            print('using constant beta')
+                            sat_agg = ltn_support.compute_sat_with_features(
+                                preprocessor=preprocessor,
+                                logits_to_predicate=logits_to_predicate,
+                                train_pred_batch_feature=X_feature,
+                                train_pred_fine_batch=Y_pred_fine_grain,
+                                train_pred_coarse_batch=Y_pred_coarse_grain,
+                                train_true_fine_batch=Y_true_fine,
+                                train_true_coarse_batch=Y_true_coarse,
+                                original_train_pred_fine_batch=original_pred_fine_batch,
+                                original_train_pred_coarse_batch=original_pred_coarse_batch,
+                                secondary_train_pred_fine_batch=secondary_pred_fine_batch,
+                                secondary_train_pred_coarse_batch=secondary_pred_coarse_batch,
+                                binary_pred=binary_pred,
+                                error_detection_rules=self.error_detection_rules,
+                                device=device
+                            )
+
+                        if batch_num % 80 == 0:
+                            print(1. - sat_agg)
+                            print(criterion(Y_pred, Y_true_combine))
+
+                        if 'ltn_weight' in loss and epoch != 0:
+                            batch_total_loss = criterion(Y_pred, Y_true_combine) \
+                                               + (1. - sat_agg) * ((1. - sat_agg) - ltn_loss_per_epoch_list[epoch - 1])
+                        elif 'ltn_weight_normalize' in loss and epoch != 0:
+                            batch_total_loss = criterion(Y_pred, Y_true_combine) \
+                                               + (1. - sat_agg) * \
+                                               ((1. - sat_agg) - ltn_loss_per_epoch_list[epoch - 1]) / \
+                                               max(ltn_loss_per_epoch_list[epoch - 1].item(), 1. - sat_agg.item())
+                        elif 'ltn_bce_weight_normalize' in loss and epoch != 0:
+                            bce_loss = criterion(Y_pred, Y_true_combine) * \
+                                       (criterion(Y_pred, Y_true_combine) - bce_loss_per_epoch_list[epoch - 1]) / \
+                                       max(bce_loss_per_epoch_list[epoch - 1].item(),
+                                           criterion(Y_pred, Y_true_combine).item())
+                            ltn_loss = (1. - sat_agg) * ltn_loss_per_epoch_list[epoch - 1] / \
+                                       max(ltn_loss_per_epoch_list[epoch - 1].item(),
+                                           1. - sat_agg.item())
+                            batch_total_loss = bce_loss + ltn_loss
+                        else:
                             batch_total_loss = beta * (1. - sat_agg) + (1 - beta) * criterion(Y_pred, Y_true_combine)
 
                         current_train_fine_predictions = torch.max(Y_pred_fine_grain, 1)[1]
@@ -339,24 +290,34 @@ class EDCR_LTN_experiment(EDCR):
                         total_train_fine_ground_truths += Y_true_fine.tolist()
                         total_train_coarse_ground_truths += Y_true_coarse.tolist()
 
+                        total_running_loss += batch_total_loss.item()
+                        total_running_ltn_loss += 1. - sat_agg.item()
+                        total_running_bce_loss += criterion(Y_pred, Y_true_combine)
+
                         del X, Y_true_fine, Y_true_coarse, Y_pred, Y_pred_fine_grain, Y_pred_coarse_grain
 
-                        total_running_loss += batch_total_loss.item()
-
-                        if batch_num > 4 and batch_num % 5 == 0:
-                            neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
-                                                                      curr_batch_num=batch_num,
-                                                                      total_batch_num=len(batches),
-                                                                      train_fine_ground_truth=np.array(
-                                                                          total_train_fine_ground_truths),
-                                                                      train_fine_prediction=np.array(
-                                                                          total_train_fine_predictions),
-                                                                      train_coarse_ground_truth=np.array(
-                                                                          total_train_coarse_ground_truths),
-                                                                      train_coarse_prediction=np.array(
-                                                                          total_train_coarse_predictions))
+                        # if batch_num > 4 and batch_num % 5 == 0:
+                        #     neural_metrics.get_and_print_post_metrics(preprocessor=preprocessor,
+                        #                                               curr_batch_num=batch_num,
+                        #                                               total_batch_num=len(batches),
+                        #                                               train_fine_ground_truth=np.array(
+                        #                                                   total_train_fine_ground_truths),
+                        #                                               train_fine_prediction=np.array(
+                        #                                                   total_train_fine_predictions),
+                        #                                               train_coarse_ground_truth=np.array(
+                        #                                                   total_train_coarse_ground_truths),
+                        #                                               train_coarse_prediction=np.array(
+                        #                                                   total_train_coarse_predictions))
                         batch_total_loss.backward()
                         optimizer.step()
+
+                # ltn_loss_per_epoch_list.append(total_running_ltn_loss.detach().to('cpu') / batch_num)
+                # bce_loss_per_epoch_list.append(total_running_bce_loss.detach().to('cpu') / batch_num)
+                # ltn_bce_loss_per_epoch_list.append(total_running_loss.detach().to('cpu') / batch_num)
+
+                ltn_loss_per_epoch_list.append(total_running_ltn_loss / batch_num)
+                bce_loss_per_epoch_list.append(total_running_bce_loss / batch_num)
+                ltn_bce_loss_per_epoch_list.append(total_running_loss / batch_num)
 
                 if epoch == 0:
                     print(utils.blue_text(
@@ -384,8 +345,9 @@ class EDCR_LTN_experiment(EDCR):
                                      lr=lr,
                                      fine_tuner=best_fine_tuner,
                                      loss=loss,
-                                     num_epochs=self.num_ltn_epochs,
-                                     save_files=False)
+                                     num_epochs=epoch,
+                                     save_files=True,
+                                     additional_info=additional_info)
 
                 if early_stopping:
                     # You can modify how to perform early stopping by modify the early stopping value. The example here
@@ -428,35 +390,62 @@ class EDCR_LTN_experiment(EDCR):
             evaluate_on_test(data_str=data_str,
                              model_name=model_name,
                              lr=lr,
-                             fine_tuner=best_fine_tuner,
+                             fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
                              loss=loss,
                              num_epochs=self.num_ltn_epochs,
                              save_files=False)
 
-        torch.save(best_fine_tuner.state_dict(),
+        torch.save(best_fine_tuner.state_dict() if early_stopping else fine_tuner.state_dict(),
                    f"models/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.pth")
+        if self.model_with_LTN:
+            torch.save(logits_to_predicate.state_dict(),
+                       f"models/logits_to_predicate/"
+                       f"{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.pth")
+
+        ltn_loss_per_epoch_list = [loss.detach().to('cpu') for loss in ltn_loss_per_epoch_list]
+        bce_loss_per_epoch_list = [loss.detach().to('cpu') for loss in bce_loss_per_epoch_list]
+        ltn_bce_loss_per_epoch_list = [loss.detach().to('cpu') for loss in ltn_bce_loss_per_epoch_list]
+
+        # Plot each list with different colors and labels
+        plt.plot(ltn_loss_per_epoch_list, label='ltn loss', color='blue')
+        plt.plot(bce_loss_per_epoch_list, label='bce loss', color='green')
+        plt.plot(ltn_bce_loss_per_epoch_list, label='total loss', color='red')
+
+        # Add labels and title
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss value')
+        plt.title(f'Loss per epoch for loss {loss}')
+
+        # Add legend
+        plt.legend()
+
+        # Save the plot as an image file (replace 'my_plot.png' with your desired filename)
+        plt.savefig(f'fig/{data_str}_{best_fine_tuner}_lr{lr}_{loss}_e{self.num_ltn_epochs - 1}_beta{beta}.png',
+                    bbox_inches='tight')
 
         # save prediction file
-        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
-                                                           model_name=model_name,
-                                                           split='train',
-                                                           lr=lr,
-                                                           loss=loss,
-                                                           pretrained_fine_tuner=best_fine_tuner,
-                                                           num_epochs=self.num_ltn_epochs,
-                                                           print_results=True,
-                                                           save_files=True,
-                                                           additional_info=additional_info)
-        neural_evaluation.run_combined_evaluating_pipeline(data_str=data_str,
-                                                           model_name=model_name,
-                                                           split='test',
-                                                           lr=lr,
-                                                           loss=loss,
-                                                           pretrained_fine_tuner=best_fine_tuner,
-                                                           num_epochs=self.num_ltn_epochs,
-                                                           print_results=True,
-                                                           save_files=True,
-                                                           additional_info=additional_info)
+        # neural_evaluation.run_combined_evaluating_pipeline(
+        #     data_str=data_str,
+        #     model_name=model_name,
+        #     split='train',
+        #     lr=lr,
+        #     loss=loss,
+        #     pretrained_fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
+        #     num_epochs=self.num_ltn_epochs,
+        #     print_results=True,
+        #     save_files=True,
+        #     additional_info=additional_info)
+        neural_evaluation.run_combined_evaluating_pipeline(
+            data_str=data_str,
+            model_name=model_name,
+            split='test',
+            lr=lr,
+            loss=loss,
+            pretrained_fine_tuner=best_fine_tuner if early_stopping else fine_tuner,
+            num_epochs=self.num_ltn_epochs,
+            print_results=True,
+            save_files=True,
+            additional_info=additional_info)
         print('#' * 100)
 
 
@@ -465,7 +454,7 @@ if __name__ == '__main__':
     epsilon = 0.1
 
     main_model_name = 'vit_b_16'
-    main_lr = 0.0001
+    main_lr = secondary_lr = 0.0001
     original_num_epochs = 20
 
     secondary_model_name = 'vit_l_16'
@@ -480,7 +469,7 @@ if __name__ == '__main__':
     # epsilon = 0.1
     #
     # main_model_name = 'dinov2_vits14'
-    # main_lr = 0.000001
+    # main_lr = secondary_lr = 0.000001
     # original_num_epochs = 8
     #
     # secondary_model_name = 'dinov2_vitl14'
@@ -491,10 +480,28 @@ if __name__ == '__main__':
     # binary_lr = 0.000001
     # binary_model_name = 'dinov2_vits14'
 
+    # data_str = 'openimage'
+    # epsilon = 0.1
+    #
+    # main_model_name = 'vit_b_16'
+    # main_lr = 0.0001
+    # original_num_epochs = 20
+    #
+    # secondary_model_name = 'dinov2_vits14'
+    # secondary_model_loss = 'BCE'
+    # secondary_num_epochs = 20
+    # secondary_lr = 0.000001
+    #
+    # binary_num_epochs = 4
+    # binary_lr = 0.000001
+    # binary_model_name = 'dinov2_vits14'
+
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
-                          for f in os.listdir('binary_results')
+                          for f in os.listdir('../binary_results')
                           if f.startswith(f'{data_str}_{main_model_name}')
                           })
+
+    model_with_LTN = False
 
     edcr = EDCR_LTN_experiment(data_str=data_str,
                                epsilon=epsilon,
@@ -506,11 +513,13 @@ if __name__ == '__main__':
                                secondary_model_name=secondary_model_name,
                                secondary_model_loss=secondary_model_loss,
                                secondary_num_epochs=secondary_num_epochs,
+                               secondary_lr=secondary_lr,
                                binary_l_strs=binary_l_strs,
                                binary_lr=binary_lr,
                                binary_num_epochs=binary_num_epochs,
-                               binary_model_name=binary_model_name)
+                               binary_model_name=binary_model_name,
+                               model_with_LTN=model_with_LTN)
     edcr.run_learning_pipeline()
     edcr.fine_tune_and_evaluate_combined_model(
         additional_info=f"LTN{'_binary' if config.use_binary_model else ''}"
-                        f"{'_secondary' if config.use_secondary_model else ''}")
+                        f"{'_secondary' if config.use_secondary_model else ''}_beta_{config.beta}")
