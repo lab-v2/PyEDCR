@@ -54,14 +54,14 @@ def get_filepath(data_str: str,
     granularity_str = f'_{granularity}' if granularity is not None else ''
     test_str = 'test' if test else 'train'
     pred_str = 'pred' if pred else 'true'
-    folder_str = ('binary' if l is not None else ('combined' if combined else 'individual') + '_results') \
+    folder_str = (('binary' if l is not None else ('combined' if combined else 'individual')) + '_results') \
         if data_str != 'COX' else 'COX'
     lower_prediction_index_str = f'_lower_{lower_prediction_index}' if lower_prediction_index is not None else ''
     lower_prediction_folder_str = 'lower_prediction/' if lower_prediction_index is not None else ''
     l_str = f'_{l}' if l is not None else ''
     additional_str = f'_{additional_info}' if additional_info is not None else ''
     loss_str = f'_{loss}' if loss is not None else ''
-    lr_str = f'_lr_{lr}' if lr is not None else ''
+    lr_str = f'_lr{lr}' if lr is not None else ''
 
     return (f"{folder_str}/{lower_prediction_folder_str}"
             f"{data_str}_{model_name}_{test_str}{granularity_str}_{pred_str}{loss_str}{lr_str}{epoch_str}"

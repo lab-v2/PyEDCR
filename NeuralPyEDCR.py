@@ -14,8 +14,8 @@ import PyEDCR
 import backbone_pipeline
 import combined_fine_tuning
 import neural_evaluation
-import google_sheets_api
-import plotting
+# import google_sheets_api
+# import plotting
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
@@ -393,24 +393,24 @@ def simulate_for_values(data_str: str,
 
 
 def cikm_main():
-    data_str = 'military_vehicles'
-    main_model_name = binary_model_name = 'vit_b_16'
-    secondary_model_name = 'vit_l_16'
-    main_lr = secondary_lr = binary_lr = 0.0001
-    original_num_epochs = 10
-    secondary_num_epochs = 20
-    binary_num_epochs = 10
-    number_of_fine_classes = 24
+    # data_str = 'military_vehicles'
+    # main_model_name = binary_model_name = 'vit_b_16'
+    # secondary_model_name = 'vit_l_16'
+    # main_lr = secondary_lr = binary_lr = 0.0001
+    # original_num_epochs = 10
+    # secondary_num_epochs = 20
+    # binary_num_epochs = 10
+    # number_of_fine_classes = 24
 
-    # data_str = 'imagenet'
-    # main_model_name = binary_model_name = 'dinov2_vits14'
-    # secondary_model_name = 'dinov2_vitl14'
-    # # main_lr = 0.00001
-    # main_lr = secondary_lr = binary_lr = 0.000001
-    # original_num_epochs = 8
-    # secondary_num_epochs = 2
-    # binary_num_epochs = 5
-    # number_of_fine_classes = 42
+    data_str = 'imagenet'
+    main_model_name = binary_model_name = 'dinov2_vits14'
+    secondary_model_name = 'dinov2_vitl14'
+    # main_lr = 0.00001
+    main_lr = secondary_lr = binary_lr = 0.000001
+    original_num_epochs = 8
+    secondary_num_epochs = 2
+    binary_num_epochs = 5
+    number_of_fine_classes = 42
 
     # data_str = 'openimage'
     # main_model_name = 'vit_b_16'
@@ -429,11 +429,11 @@ def cikm_main():
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-                                                          data_str=data_str,
-                                                          secondary_model_name=secondary_model_name,
-                                                          binary=len(binary_l_strs) > 0
-                                                          )
+    # sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+    #                                                       data_str=data_str,
+    #                                                       secondary_model_name=secondary_model_name,
+    #                                                       binary=len(binary_l_strs) > 0
+    #                                                       )
     number_of_ratios = 10
 
     # lists_of_fine_labels_to_take_out = [list(range(i)) for i in range(number_of_fine_classes)]
@@ -484,59 +484,35 @@ def cikm_main():
     #                          y_values=y_values,
     #                          metrics={'Error F1': (error_f1s, 'Greens', 'g')})
 
-    (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
-        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-                                                  column_letters=['B', 'D', 'G', 'J']))
+    # (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
+    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+    #                                               column_letters=['B', 'D', 'G', 'J']))
 
-    if data_str == 'military_vehicles':
-        # Find the first occurrence where a > 0.5
-        first_greater = np.argmax(x_values > 0.5)  # This gives the index of the first True in the condition
-
-        x_values[first_greater] = 0.5
-
-    # Create a mask for values <= 0.5
-    mask = x_values <= 0.5
-
-    x_values, balance_error_accuracies, error_f1s, constraint_f1s = \
-        [a[mask] for a in [x_values, balance_error_accuracies, error_f1s, constraint_f1s]]
-
-    plotting.plot_2d_metrics(data_str=data_str,
-                             model_name=main_model_name,
-                             x_values=x_values[1:],
-                             metrics={'Balanced Error Accuracy': balance_error_accuracies[1:],
-                                      'Error F1-Score': error_f1s[1:],
-                                      'Constraints F1-Score': constraint_f1s[1:]},
-                             style_dict={
-                                 'Balanced Error Accuracy': ('k', '-'),  # Black solid line
-                                 'Error F1-Score': ('k', ':'),  # Gray solid line
-                                 'Constraints F1-Score': ('k', '--')  # Black dotted line
-                             },
-                             fontsize=24)
-
-
-def cox_main():
-    data_str = 'COX'
-    main_model_name = 'main_model'
-    secondary_model_name = 'MLP'
-    secondary_model_loss = 'CE'
-    secondary_num_epochs = 500
-    secondary_lr = 0.5
-    number_of_fine_classes = 42
-
-    edcr = NeuralPyEDCR(data_str=data_str,
-                        main_model_name=main_model_name,
-                        secondary_model_name=secondary_model_name,
-                        secondary_model_loss=secondary_model_loss,
-                        secondary_num_epochs=secondary_num_epochs,
-                        secondary_lr=secondary_lr)
-
-    edcr.print_metrics(split='test',
-                       prior=True)
-    edcr.run_learning_pipeline()
-    edcr.run_error_detection_application_pipeline(test=True,
-                                                  print_results=False,
-                                                  save_to_google_sheets=True)
+    # if data_str == 'military_vehicles':
+    #     # Find the first occurrence where a > 0.5
+    #     first_greater = np.argmax(x_values > 0.5)  # This gives the index of the first True in the condition
+    #
+    #     x_values[first_greater] = 0.5
+    #
+    # # Create a mask for values <= 0.5
+    # mask = x_values <= 0.5
+    #
+    # x_values, balance_error_accuracies, error_f1s, constraint_f1s = \
+    #     [a[mask] for a in [x_values, balance_error_accuracies, error_f1s, constraint_f1s]]
+    #
+    # plotting.plot_2d_metrics(data_str=data_str,
+    #                          model_name=main_model_name,
+    #                          x_values=x_values[1:],
+    #                          metrics={'Balanced Error Accuracy': balance_error_accuracies[1:],
+    #                                   'Error F1-Score': error_f1s[1:],
+    #                                   'Constraints F1-Score': constraint_f1s[1:]},
+    #                          style_dict={
+    #                              'Balanced Error Accuracy': ('k', '-'),  # Black solid line
+    #                              'Error F1-Score': ('k', ':'),  # Gray solid line
+    #                              'Constraints F1-Score': ('k', '--')  # Black dotted line
+    #                          },
+    #                          fontsize=24)
 
 
 if __name__ == '__main__':
-    cox_main()
+    cikm_main()

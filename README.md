@@ -15,7 +15,7 @@
 
 - https://arxiv.org/pdf/2308.14250.pdf
 
-The package was tested for Python >= 3.9, along with the listed packages versions in [`requirements.txt`](https://github.com/lab-v2/metacognitive_error_detection_and_correction_v2/blob/maintain_github/requirements.txt)
+The package was tested for Python >= 3.9.
 
 # Example
 
@@ -25,14 +25,14 @@ To demonstrate the use of the package, consider the following running example us
 import os
 from NeuralPyEDCR import simulate_for_values
 
-data_str = 'military_vehicles'
-main_model_name = binary_model_name = 'vit_b_16'
-secondary_model_name = 'vit_l_16'
-main_lr = secondary_lr = binary_lr = 0.0001
-original_num_epochs = 10
-secondary_num_epochs = 20
-binary_num_epochs = 10
-number_of_fine_classes = 24
+data_str = 'imagenet'
+main_model_name = binary_model_name = 'dinov2_vits14'
+secondary_model_name = 'dinov2_vitl14'
+main_lr = secondary_lr = binary_lr = 0.000001
+original_num_epochs = 8
+secondary_num_epochs = 2
+binary_num_epochs = 5
+number_of_fine_classes = 42
 
 binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')

@@ -15,7 +15,7 @@ import symbolic_metrics
 import condition
 import rule
 import label
-import google_sheets_api
+# import google_sheets_api
 import granularity
 
 
@@ -231,12 +231,12 @@ class EDCR:
             f"Number of coarse conditions: "
             f"{len(self.condition_datas[data_preprocessing.FineCoarseDataPreprocessor.granularities['coarse']])}\n"))
 
-        if use_google_api:
-            self.sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-                                                                       data_str=data_str,
-                                                                       secondary_model_name=secondary_model_name,
-                                                                       binary=len(binary_l_strs) > 0)
-            print(f'\nsheet_tab_name: {self.sheet_tab_name}\n')
+        # if use_google_api:
+        #     self.sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+        #                                                                data_str=data_str,
+        #                                                                secondary_model_name=secondary_model_name,
+        #                                                                binary=len(binary_l_strs) > 0)
+        #     print(f'\nsheet_tab_name: {self.sheet_tab_name}\n')
 
         self.recovered_constraints_recall = 0
         self.recovered_constraints_precision = 0
@@ -1213,9 +1213,9 @@ class EDCR:
 
             print(input_values)
 
-            google_sheets_api.update_sheet(range_=f'{self.sheet_tab_name}!A{self.sheet_index}:'
-                                                  f'{chr(len(input_values) + 64)}{self.sheet_index}',
-                                           body={'values': [input_values]})
+            # google_sheets_api.update_sheet(range_=f'{self.sheet_tab_name}!A{self.sheet_index}:'
+            #                                       f'{chr(len(input_values) + 64)}{self.sheet_index}',
+            #                                body={'values': [input_values]})
 
         if print_results:
             self.print_metrics(split='test' if test else 'train',
