@@ -1,5 +1,4 @@
 import typing
-import abc
 
 
 class Label(typing.Hashable):

@@ -1,10 +1,5 @@
 .DS_Store
-/.idea/vcs.xml
-/.idea/workspace.xml
-/.idea/misc.xml
-/.idea/inspectionProfiles/profiles_settings.xml
-/.idea/inspectionProfiles/Project_Default.xml
-/.idea/PyEDCR.iml
+/.idea/
 src_files/ml_decoder/__pycache__/ml_decoder.cpython-311.pyc
 src_files/models/tresnet/layers/__pycache__/anti_aliasing.cpython-311.pyc
 src_files/models/tresnet/layers/__pycache__/general_layers.cpython-311.pyc
@@ -15,4 +10,7 @@ src_files/models/utils/__pycache__/factory.cpython-311.pyc
 src_files/models/utils/__pycache__/__init__.cpython-311.pyc
 src_files/models/__pycache__/__init__.cpython-311.pyc
 src_files/helper_functions/__pycache__/bn_fusion.cpython-311.pyc
+jupyter/
+test_PYEDCR/
 config.py
+google_sheets_api.py

@@ -253,6 +253,7 @@ def run_combined_evaluating_pipeline(data_str: str,
     """
     Evaluates a pre-trained combined VITFineTuner model on test or validation data.\
 
+    :param additional_info:
     :param data_str:
     :param model_name:
     :param num_epochs:
