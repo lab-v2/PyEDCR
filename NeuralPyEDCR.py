@@ -392,7 +392,7 @@ def simulate_for_values(data_str: str,
             work_on_value(data)
 
 
-def cikm_main():
+def main():
     # data_str = 'military_vehicles'
     # main_model_name = binary_model_name = 'vit_b_16'
     # secondary_model_name = 'vit_l_16'
@@ -515,4 +515,4 @@ def cikm_main():
 
 
 if __name__ == '__main__':
-    cikm_main()
+    main()
