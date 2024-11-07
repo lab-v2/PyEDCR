@@ -382,14 +382,14 @@ def simulate_for_values(data_str: str,
               negated_conditions
               ) for i, fine_labels_to_take_out in enumerate(lists_of_fine_labels_to_take_out)]
 
-    if not utils.is_debug_mode():
-        processes_num = min([len(datas), 10 if utils.is_local() else 100])
-        process_map(work_on_value,
-                    datas,
-                    max_workers=processes_num)
-    else:
-        for data in datas:
-            work_on_value(data)
+    # if not utils.is_debug_mode():
+    #     processes_num = min([len(datas), 10 if utils.is_local() else 100])
+    #     process_map(work_on_value,
+    #                 datas,
+    #                 max_workers=processes_num)
+    # else:
+    for data in datas:
+        work_on_value(data)
 
 
 def main():
@@ -429,11 +429,11 @@ def main():
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
-    sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-                                                          data_str=data_str,
-                                                          secondary_model_name=secondary_model_name,
-                                                          binary=len(binary_l_strs) > 0
-                                                          )
+    # sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
+    #                                                       data_str=data_str,
+    #                                                       secondary_model_name=secondary_model_name,
+    #                                                       binary=len(binary_l_strs) > 0
+    #                                                       )
     # number_of_ratios = 10
 
     # lists_of_fine_labels_to_take_out = [list(range(i)) for i in range(number_of_fine_classes)]
@@ -450,8 +450,8 @@ def main():
                  ]:
             for (lists_of_fine_labels_to_take_out, maximize_ratio, multi_processing) in \
                     [
-                        # ([[]], True, True),
-                        ([list(range(i)) for i in range(int(number_of_fine_classes / 2) + 1)], True, True)
+                        ([[]], True, True),
+                        # ([list(range(i)) for i in range(int(number_of_fine_classes / 2) + 1)], True, True)
                     ]:
                 simulate_for_values(
                     data_str=data_str,
@@ -484,9 +484,9 @@ def main():
     #                          y_values=y_values,
     #                          metrics={'Error F1': (error_f1s, 'Greens', 'g')})
 
-    (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
-        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-                                                  column_letters=['B', 'D', 'G', 'J']))
+    # (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
+    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+    #                                               column_letters=['B', 'D', 'G', 'J']))
 
     # if data_str == 'military_vehicles':
     #     # Find the first occurrence where a > 0.5
@@ -500,18 +500,18 @@ def main():
     # x_values, balance_error_accuracies, error_f1s, constraint_f1s = \
     #     [a[mask] for a in [x_values, balance_error_accuracies, error_f1s, constraint_f1s]]
     #
-    plotting.plot_2d_metrics(data_str=data_str,
-                             model_name=main_model_name,
-                             x_values=x_values[1:],
-                             metrics={'Balanced Error Accuracy': balance_error_accuracies[1:],
-                                      'Error F1-Score': error_f1s[1:],
-                                      'Constraints F1-Score': constraint_f1s[1:]},
-                             style_dict={
-                                 'Balanced Error Accuracy': ('k', '-'),  # Black solid line
-                                 'Error F1-Score': ('k', ':'),  # Gray solid line
-                                 'Constraints F1-Score': ('k', '--')  # Black dotted line
-                             },
-                             fontsize=24)
+    # plotting.plot_2d_metrics(data_str=data_str,
+    #                          model_name=main_model_name,
+    #                          x_values=x_values[1:],
+    #                          metrics={'Balanced Error Accuracy': balance_error_accuracies[1:],
+    #                                   'Error F1-Score': error_f1s[1:],
+    #                                   'Constraints F1-Score': constraint_f1s[1:]},
+    #                          style_dict={
+    #                              'Balanced Error Accuracy': ('k', '-'),  # Black solid line
+    #                              'Error F1-Score': ('k', ':'),  # Gray solid line
+    #                              'Constraints F1-Score': ('k', '--')  # Black dotted line
+    #                          },
+    #                          fontsize=24)
 
 
 if __name__ == '__main__':

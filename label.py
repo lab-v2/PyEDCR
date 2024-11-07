@@ -1,5 +1,7 @@
 import typing
 
+import granularity
+
 
 class Label(typing.Hashable):
     def __init__(self,
@@ -21,40 +23,24 @@ class Label(typing.Hashable):
 
 class FineGrainLabel(Label):
     def __init__(self,
+                 g: granularity.Granularity,
                  l_str: str,
                  fine_grain_classes_str: typing.List[str]):
         super().__init__(l_str=l_str,
                          index=fine_grain_classes_str.index(l_str))
         assert l_str in fine_grain_classes_str
-
         self.g_str = 'fine'
-
-    @classmethod
-    def with_index(cls,
-                   fine_grain_classes_str: typing.List[str],
-                   l_index: int):
-        l = fine_grain_classes_str[l_index]
-        instance = cls(l_str=l,
-                       fine_grain_classes_str=fine_grain_classes_str)
-
-        return instance
+        self.g = g
 
 
 class CoarseGrainLabel(Label):
     def __init__(self,
+                 g: granularity.Granularity,
                  l_str: str,
-                 coarse_grain_classes_str: typing.List[str]):
+                 coarse_grain_classes_str: typing.List[str],
+                 ):
         super().__init__(l_str=l_str,
                          index=coarse_grain_classes_str.index(l_str))
         assert l_str in coarse_grain_classes_str
         self.g_str = 'coarse'
-
-    @classmethod
-    def with_index(cls,
-                   i_l: int,
-                   coarse_grain_classes_str: typing.List[str]):
-        l = coarse_grain_classes_str[i_l]
-        instance = cls(l_str=l,
-                       coarse_grain_classes_str=coarse_grain_classes_str)
-
-        return instance
+        self.g = g

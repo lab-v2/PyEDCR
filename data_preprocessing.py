@@ -54,8 +54,7 @@ def get_filepath(data_str: str,
     granularity_str = f'_{granularity}' if granularity is not None else ''
     test_str = 'test' if test else 'train'
     pred_str = 'pred' if pred else 'true'
-    folder_str = (('binary' if l is not None else ('combined' if combined else 'individual')) + '_results') \
-        if data_str != 'COX' else 'COX'
+    folder_str = (('binary' if l is not None else ('combined' if combined else 'individual')) + '_results')
     lower_prediction_index_str = f'_lower_{lower_prediction_index}' if lower_prediction_index is not None else ''
     lower_prediction_folder_str = 'lower_prediction/' if lower_prediction_index is not None else ''
     l_str = f'_{l}' if l is not None else ''
@@ -315,7 +314,7 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
                 'MT_LB': ['MT_LB']
             }
 
-            data_file_path = rf'data/WEO_Data_Sheet.xlsx'
+            data_file_path = rf'data/Military Vehicles/WEO_Data_Sheet.xlsx'
             dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 
             fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
@@ -358,7 +357,7 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
         elif data_str == 'coco':
             data_path_str = 'scratch/ngocbach/COCO/'
         else:
-            data_path_str = 'data/'
+            data_path_str = 'data/Military Vehicles/'
 
         self.num_fine_grain_classes = len(self.fine_grain_classes_str)
         self.num_coarse_grain_classes = len(self.coarse_grain_classes_str)
@@ -380,12 +379,15 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
             self.fine_data_counts = dict(zip(self.fine_unique, self.fine_counts))
             self.coarse_data_counts = dict(zip(self.coarse_unique, self.coarse_counts))
 
-            self.fine_grain_labels = {l: label.FineGrainLabel(l, fine_grain_classes_str=self.fine_grain_classes_str)
-                                      for l in self.fine_grain_classes_str}
-            self.coarse_grain_labels = {l: label.CoarseGrainLabel(l,
-                                                                  coarse_grain_classes_str=
-                                                                  self.coarse_grain_classes_str)
-                                        for l in self.coarse_grain_classes_str}
+            self.fine_grain_labels = {l_str: label.FineGrainLabel(g=self.granularities['fine'],
+                                                                  l_str=l_str,
+                                                                  fine_grain_classes_str=self.fine_grain_classes_str)
+                                      for l_str in self.fine_grain_classes_str}
+            self.coarse_grain_labels = {l_str: label.CoarseGrainLabel(g=self.granularities['coarse'],
+                                                                      l_str=l_str,
+                                                                      coarse_grain_classes_str=
+                                                                      self.coarse_grain_classes_str)
+                                        for l_str in self.coarse_grain_classes_str}
 
             assert (self.get_num_inconsistencies(fine_labels=self.train_true_fine_data,
                                                  coarse_labels=self.train_true_coarse_data)[0] ==

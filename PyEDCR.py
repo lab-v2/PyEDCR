@@ -35,17 +35,7 @@ class EDCR:
         epsilon: Value using for constraint in getting rules
     """
 
-    def set_pred_conditions(self):
-        for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
-            fine = g.g_str == 'fine'
-            self.condition_datas[g] = set()
-            for l in self.preprocessor.get_labels(g).values():
-                if not ((fine and l.index in self.indices_of_fine_labels_to_take_out)
-                        or (not fine and l.index in self.indices_of_coarse_labels_to_take_out)):
-                    conditions_to_add = {condition.PredCondition(l=l)}
-                    if self.negated_conditions:
-                        conditions_to_add = conditions_to_add.union({condition.PredCondition(l=l, negated=True)})
-                    self.condition_datas[g] = self.condition_datas[g].union(conditions_to_add)
+
 
     def __init__(self,
                  data_str: str,
@@ -241,6 +231,18 @@ class EDCR:
         self.recovered_constraints_recall = 0
         self.recovered_constraints_precision = 0
         self.all_possible_consistency_constraints = self.get_num_all_possible_constraint_can_recover_in_train()
+
+    def set_pred_conditions(self):
+        for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
+            fine = g.g_str == 'fine'
+            self.condition_datas[g] = set()
+            for l in self.preprocessor.get_labels(g).values():
+                if not ((fine and l.index in self.indices_of_fine_labels_to_take_out)
+                        or (not fine and l.index in self.indices_of_coarse_labels_to_take_out)):
+                    conditions_to_add = {condition.PredCondition(l=l)}
+                    if self.negated_conditions:
+                        conditions_to_add = conditions_to_add.union({condition.PredCondition(l=l, negated=True)})
+                    self.condition_datas[g] = self.condition_datas[g].union(conditions_to_add)
 
     def set_secondary_conditions(self):
         if self.secondary_model_name is not None:
@@ -477,9 +479,10 @@ class EDCR:
         :param l: The label to search for.
         :return: A boolean array indicating which instances have the given label.
         """
-        data = self.get_predictions(test=test, g=l.g, stage=stage, secondary=secondary) if pred else (
-            self.preprocessor.get_ground_truths(test=test, K=self.K_test if test else self.K_train, g=l.g))
-        return np.where(data == l.index, 1, 0)
+        data = self.get_predictions(test=test, g=l.g, stage=stage, secondary=secondary) if pred \
+            else self.preprocessor.get_ground_truths(test=test, K=self.K_test if test else self.K_train, g=l.g)
+        ret = np.where(data == l.index, 1, 0)
+        return ret
 
     @staticmethod
     def get_where_label_is_l_in_data(l: label.Label,
@@ -1052,6 +1055,7 @@ class EDCR:
                        granularity_labels,
                        max_workers=processes_num) if (not utils.is_debug_mode()) else \
             [maximizer(l=l) for l in granularity_labels]
+        # DC_ls = [maximizer(l=l) for l in granularity_labels]
 
         for l, DC_l in zip(granularity_labels, DC_ls):
             if len(DC_l):
