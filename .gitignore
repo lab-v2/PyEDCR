@@ -14,3 +14,5 @@ jupyter/
 test_PYEDCR/
 config.py
 google_sheets_api.py
+data/ImageNet100
+data/OpenImage
