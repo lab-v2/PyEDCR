@@ -7,6 +7,20 @@ import typing
 
 
 def format_seconds(seconds: int):
+    """
+    Formats a given number of seconds into a human-readable string indicating the largest
+    unit of time (hours, minutes, or seconds) and the corresponding value. This function
+    utilizes a `datetime.timedelta` object for precise time arithmetic and makes use of
+    Python's built-in methods for conversion to readable format.
+
+    This function helps in converting raw time durations into user-friendly textual
+    representations, such as "2 hours", "45 minutes", or "30 seconds", depending on the
+    input duration.
+
+    :param seconds: The time duration in seconds to format
+    :return: A string representation of the time duration in a human-readable form, such as
+             "x hours", "x minutes", or "x seconds"
+    """
     # Create a timedelta object with the given seconds
     time_delta = datetime.timedelta(seconds=seconds)
 
@@ -26,21 +40,10 @@ def format_seconds(seconds: int):
         return f"{math.floor(seconds)} second{'s' if seconds > 1 else ''}"
 
 
-# Function to create a directory if it doesn't exist
 def create_directory(directory: str):
     if not os.path.exists(directory):
         os.makedirs(directory)
         print(f'Created {directory}')
-
-
-def is_running_in_colab() -> bool:
-    """
-    Check if the code is running in Google Colab.
-    Returns:
-        True if running in Google Colab, False otherwise.
-    """
-
-    return 'google.colab' in sys.modules
 
 
 def is_local() -> bool:
@@ -73,6 +76,15 @@ def blue_text(s: typing.Union[str, float]) -> str:
 
 
 def format_integer(n):
+    """
+    Formats an integer into a string representation including its sign and scientific
+    notation (if necessary). The function handles positive, negative, and zero values
+    appropriately before determining the base (`a`) and exponent (`b`) for numbers
+    greater than or equal to 10.
+
+    :param n: Integer to be formatted
+    :return: The formatted string representation of the integer
+    """
     if n == 0:
         return "0"
 
@@ -92,3 +104,20 @@ def format_integer(n):
         return f"{sign}{a}"
     else:
         return f"{sign}{a} * 10^{b}"
+
+
+def expand_ranges(tuples: list[tuple[int, int]]) -> list[int]:
+    """
+    Expands a list of tuples of integers into a list containing all numbers within the ranges.
+    :param tuples: A list of tuples of integers representing ranges (start, end).
+    :returns: A list containing all numbers within the specified ranges.
+    """
+
+    result = []
+    for start, end in tuples:
+        # Ensure start is less than or equal to end
+        if start > end:
+            start, end = end, start
+        # Add all numbers from start (inclusive) to end (exclusive)
+        result.extend(range(start, end + 1))
+    return result

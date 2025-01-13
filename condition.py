@@ -2,7 +2,6 @@ import abc
 import typing
 import numpy as np
 
-import data_preprocessing
 import label
 
 
@@ -96,29 +95,6 @@ class PredCondition(Condition):
 
     def __hash__(self):
         return hash(self.__str__())
-
-    def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
-
-
-class InconsistencyCondition(Condition):
-    def __init__(self,
-                 preprocessor: data_preprocessing.FineCoarseDataPreprocessor):
-        super().__init__()
-        self.preprocessor = preprocessor
-
-    def __call__(self,
-                 fine_data: np.array,
-                 coarse_data: np.array) -> np.array:
-        values = []
-        for fine_prediction_index, coarse_prediction_index in zip(fine_data, coarse_data):
-            values += [int(self.preprocessor.fine_to_course_idx[fine_prediction_index]
-                           != coarse_prediction_index)]
-
-        return np.array(values)
-
-    def __hash__(self):
-        return hash('ConsistencyCondition')
 
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()

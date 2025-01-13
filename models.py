@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError:
     pass
 
-import data_preprocessing
+import datasets
 
 
 class FineTuner(torch.nn.Module, abc.ABC):

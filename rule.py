@@ -2,7 +2,7 @@ import typing
 import abc
 import numpy as np
 
-import data_preprocessing
+import data_preprocessor
 import condition
 import label
 
@@ -15,10 +15,10 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
     """
 
     def __init__(self,
-                 l: data_preprocessing.label,
+                 l: data_preprocessor.label,
                  C_l: typing.Set[typing.Union[
                      condition.Condition, typing.Tuple[condition.Condition, label.Label]]],
-                 preprocessor: data_preprocessing.DataPreprocessor):
+                 preprocessor: data_preprocessor.DataPreprocessor):
         self.l = l
         self.C_l = C_l
         self.preprocessor = preprocessor
@@ -96,7 +96,7 @@ class ErrorDetectionRule(Rule):
     def __init__(self,
                  l: label.Label,
                  DC_l: typing.Set[condition.Condition],
-                 preprocessor: data_preprocessing.DataPreprocessor):
+                 preprocessor: data_preprocessor.DataPreprocessor):
         """Construct a detection rule for evaluating predictions based on conditions and labels.
 
         :param l: The label associated with the rule.
@@ -114,7 +114,7 @@ class ErrorDetectionRule(Rule):
         pred_condition_from_main_model_and_other_g = {cond for cond in pred_and_binary_conditions
                                                       if self.l.g != cond.l.g}
 
-        if isinstance(self.preprocessor, data_preprocessing.FineCoarseDataPreprocessor):
+        if isinstance(self.preprocessor, data_preprocessor.FineCoarseDataPreprocessor):
             assert all((self.preprocessor.fine_to_coarse[self.l.l_str] != cond.l) if self.l.g.g_str == 'fine'
                        else (self.l != self.preprocessor.fine_to_coarse[cond.l.l_str])
                        for cond in pred_condition_from_main_model_and_other_g), \
@@ -168,7 +168,7 @@ class ErrorDetectionRule(Rule):
                                              lower_predictions_coarse_data=lower_predictions_coarse_data,
                                              binary_data=binary_data))
         test_pred_granularity_data = pred_fine_data \
-            if self.l.g == data_preprocessing.FineCoarseDataPreprocessor.granularities['fine'] else pred_coarse_data
+            if self.l.g == data_preprocessor.FineCoarseDataPreprocessor.granularities['fine'] else pred_coarse_data
         altered_pred_data = np.where(where_predicted_l_and_any_conditions_satisfied == 1,
                                      -1,
                                      test_pred_granularity_data)
@@ -184,16 +184,15 @@ class ErrorCorrectionRule(Rule):
     def __init__(self,
                  l: label.Label,
                  CC_l: typing.Set[typing.Tuple[condition.Condition, label.Label]],
-                 preprocessor: data_preprocessing.FineCoarseDataPreprocessor):
+                 preprocessor: data_preprocessor.FineCoarseDataPreprocessor):
         """Construct a detection rule for evaluating predictions based on conditions and labels.
 
         :param l: The label associated with the rule.
         :param CC_l: The set of condition-class pair that define the rule.
         """
-        C_l = {(cond, l_prime) for cond, l_prime in CC_l if (isinstance(cond, condition.InconsistencyCondition)
-                                                             or (isinstance(cond, condition.PredCondition) and
-                                                                 (cond.l.g != l_prime.g
-                                                                  or cond.secondary_model_name is not None))
+        C_l = {(cond, l_prime) for cond, l_prime in CC_l if ((isinstance(cond, condition.PredCondition) and
+                                                              (cond.l.g != l_prime.g
+                                                               or cond.secondary_model_name is not None))
                                                              and l_prime != l)}
 
         super().__init__(l=l,
@@ -209,7 +208,7 @@ class ErrorCorrectionRule(Rule):
                                     lower_predictions_coarse_data: dict,
                                     binary_data: dict) -> np.array:
         test_pred_granularity_data = pred_fine_data \
-            if self.l.g == data_preprocessing.FineCoarseDataPreprocessor.granularities['fine'] else pred_coarse_data
+            if self.l.g == data_preprocessor.FineCoarseDataPreprocessor.granularities['fine'] else pred_coarse_data
 
         where_any_pair_satisfied = np.zeros_like(test_pred_granularity_data)
 

@@ -6,13 +6,10 @@ if utils.is_local():
 
 import numpy as np
 import typing
-# from tqdm.contrib.concurrent import process_map
-# import itertools
 
-import data_preprocessing
+import experiment_config
+import data_preprocessor
 import PyEDCR
-# import google_sheets_api
-# import plotting
 
 
 class NeuralPyEDCR(PyEDCR.EDCR):
@@ -29,7 +26,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                  sheet_index: int = None,
                  K_train: typing.Union[typing.List[typing.Tuple[int]], np.ndarray] = None,
                  K_test: typing.List[typing.Tuple[int]] = None,
-                 include_inconsistency_constraint: bool = False,
                  secondary_model_name: str = None,
                  secondary_model_loss: str = None,
                  secondary_num_epochs: int = None,
@@ -52,7 +48,6 @@ class NeuralPyEDCR(PyEDCR.EDCR):
                          sheet_index=sheet_index,
                          K_train=K_train,
                          K_test=K_test,
-                         include_inconsistency_constraint=include_inconsistency_constraint,
                          secondary_model_name=secondary_model_name,
                          secondary_model_loss=secondary_model_loss,
                          secondary_num_epochs=secondary_num_epochs,
@@ -79,7 +74,7 @@ class NeuralPyEDCR(PyEDCR.EDCR):
         # self.print_metrics(test=False, prior=True)
 
         for EDCR_epoch in range(self.EDCR_num_epochs):
-            for g in data_preprocessing.FineCoarseDataPreprocessor.granularities.values():
+            for g in data_preprocessor.FineCoarseDataPreprocessor.granularities.values():
                 self.learn_detection_rules(g=g,
                                            multi_processing=multi_processing)
                 # self.apply_detection_rules(test=False,
@@ -131,7 +126,6 @@ def work_on_value(args):
                         loss='BCE',
                         lr=main_lr,
                         original_num_epochs=original_num_epochs,
-                        include_inconsistency_constraint=False,
                         secondary_model_name=secondary_model_name,
                         secondary_model_loss=secondary_model_loss,
                         secondary_num_epochs=secondary_num_epochs,
@@ -205,37 +199,10 @@ def simulate_for_values(data_str: str,
         work_on_value(data)
 
 
-def main():
-    data_str = 'military_vehicles'
-    main_model_name = binary_model_name = 'vit_b_16'
-    secondary_model_name = 'vit_l_16'
-    main_lr = secondary_lr = binary_lr = 0.0001
-    original_num_epochs = 10
-    secondary_num_epochs = 20
-    binary_num_epochs = 10
-
-    # data_str = 'imagenet'
-    # main_model_name = binary_model_name = 'dinov2_vits14'
-    # secondary_model_name = 'dinov2_vitl14'
-    # # main_lr = 0.00001
-    # main_lr = secondary_lr = binary_lr = 0.000001
-    # original_num_epochs = 8
-    # secondary_num_epochs = 2
-    # binary_num_epochs = 5
-
-    # data_str = 'openimage'
-    # main_model_name = 'vit_b_16'
-    # secondary_model_name = binary_model_name = 'dinov2_vits14'
-    # main_lr = 0.0001
-    # binary_lr = 0.000001
-    # secondary_lr = 0.000001
-    # original_num_epochs = 20
-    # secondary_num_epochs = 20
-    # binary_num_epochs = 4
-
-    binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
+def run_experiment(config: experiment_config.ExperimentConfig):
+    binary_l_strs = list({f.split(f'e{config.binary_num_epochs - 1}_')[-1].replace('.npy', '')
                           for f in os.listdir('binary_results')
-                          if f.startswith(f'{data_str}_{binary_model_name}')})
+                          if f.startswith(f'{config.data_str}_{config.binary_model_name}')})
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
 
@@ -251,11 +218,11 @@ def main():
     # lists_of_fine_labels_to_take_out = [list(range(number_of_fine_classes-1))]
 
     for (curr_secondary_model_name, curr_secondary_model_loss, curr_secondary_num_epochs, curr_secondary_lr) in \
-            [(secondary_model_name, 'BCE', secondary_num_epochs, secondary_lr),
+            [(config.secondary_model_name, 'BCE', config.secondary_num_epochs, config.secondary_lr),
              # [None] * 4
              ]:
         for (curr_binary_l_strs, curr_binary_lr, curr_binary_num_epochs) in \
-                [(binary_l_strs, binary_lr, binary_num_epochs),
+                [(binary_l_strs, config.binary_lr, config.binary_num_epochs),
                  # ([], None, None)
                  ]:
             for (lists_of_fine_labels_to_take_out, maximize_ratio, multi_processing) in \
@@ -264,11 +231,11 @@ def main():
                         # ([list(range(i)) for i in range(int(number_of_fine_classes / 2) + 1)], True, True)
                     ]:
                 simulate_for_values(
-                    data_str=data_str,
-                    main_model_name=main_model_name,
-                    main_lr=main_lr,
-                    original_num_epochs=original_num_epochs,
-                    binary_model_name=binary_model_name,
+                    data_str=config.data_str,
+                    main_model_name=config.main_model_name,
+                    main_lr=config.main_lr,
+                    original_num_epochs=config.original_num_epochs,
+                    binary_model_name=config.binary_model_name,
                     binary_l_strs=curr_binary_l_strs,
                     binary_lr=curr_binary_lr,
                     binary_num_epochs=curr_binary_num_epochs,
@@ -318,6 +285,49 @@ def main():
     #                              'Constraints F1-Score': ('k', '--')  # Black dotted line
     #                          },
     #                          fontsize=24)
+
+
+def main():
+    military_vehicles_config = experiment_config.ExperimentConfig(
+        data_str='military_vehicles',
+        main_model_name='vit_b_16',
+        secondary_model_name='vit_l_16',
+        main_lr=0.0001,
+        secondary_lr=0.0001,
+        binary_lr=0.0001,
+        original_num_epochs=10,
+        secondary_num_epochs=20,
+        binary_num_epochs=10
+    )
+
+    # imagenet_config = data_preprocessing.ExperimentConfig(
+    #     data_str='imagenet',
+    #     main_model_name='dinov2_vits14',
+    #     secondary_model_name='dinov2_vitl14',
+    #     main_lr=0.000001,
+    #     secondary_lr=0.000001,
+    #     binary_lr=0.000001,
+    #     original_num_epochs=8,
+    #     secondary_num_epochs=2,
+    #     binary_num_epochs=5
+    # )
+    #
+    # openimage_config = data_preprocessing.ExperimentConfig(
+    #     data_str='openimage',
+    #     main_model_name='vit_b_16',
+    #     secondary_model_name='dinov2_vits14',
+    #     main_lr=0.0001,
+    #     secondary_lr=0.000001,
+    #     binary_lr=0.000001,
+    #     original_num_epochs=20,
+    #     secondary_num_epochs=20,
+    #     binary_num_epochs=4
+    # )
+
+    run_experiment(config=military_vehicles_config)
+
+
+
 
 
 if __name__ == '__main__':
