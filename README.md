@@ -40,13 +40,13 @@ series = {CIKM '24}
 
 # Example
 
-To demonstrate the use of the package, we consider a dataset with two levels of hierarchy, such that each image has a fine-grain and coarse-grain label. For example, consider the following example from our curated Military Vehicle (which can be found [here](https://huggingface.co/datasets/skricheli2/military_vehicles)):
+To demonstrate the use of the package, we consider a dataset with two levels of hierarchy, such that each image has a fine-grain and coarse-grain label. For example, consider the following example from our curated Military Vehicle (which can be found [here](https://huggingface.co/datasets/lab-v2/military_vehicles)):
 
 <p align="center">
     <img alt="ImageNet100" src="figs/spa_tank_diagram.PNG" width="600" height="250"/>
 </p>
 
-We further consider a pretrained 'main' model, for example one which employed the small version of [Meta's _DINO_V2_ architecture](https://dinov2.metademolab.com/) and was fine-tuned on ImageNet50 - a subset of the [ImageNet1K dataset](https://www.image-net.org/index.php) with 50 classes (which can be found [here](https://huggingface.co/datasets/skricheli2/ImageNet50)), which we want to analyze its ability to classify both levels of the hierarchy. An instance of such model (which can be found [here](https://huggingface.co/skricheli2/dinov2_vits14_imagenet_lr1e-06_BCE)) has the following performance:
+We further consider a pretrained 'main' model, for example one which employed the small version of [Meta's _DINO_V2_ architecture](https://dinov2.metademolab.com/) and was fine-tuned on ImageNet50 - a subset of the [ImageNet1K dataset](https://www.image-net.org/index.php) with 50 classes (which can be found [here](https://huggingface.co/datasets/lab-v2/ImageNet50)), which we want to analyze its ability to classify both levels of the hierarchy. An instance of such model (which can be found [here](https://huggingface.co/lab-v2/dinov2_vits14_imagenet_lr1e-06_BCE)) has the following performance:
 
 Fine-grain prior combined accuracy: <span style="color:green">76.57</span>% , fine-grain prior combined macro f1: <span style="color:green">76.1</span>%\
 Fine-grain prior combined macro precision: <span style="color:green">76.96</span>% , fine-grain prior combined macro recall: <span style="color:green">76.57</span>%
@@ -56,7 +56,7 @@ Coarse-grain prior combined macro precision: <span style="color:green">87.36</sp
 
 Total prior inconsistencies <span style="color:red">133/2100</span> (<span style="color:red">6.33</span>%)
 
-We also consider a 'secondary' model (which can be found [here](https://huggingface.co/skricheli2/dinov2_vitl14_imagenet_lr1e-06_BCE)), which employed the large version of the DINO_V2 architecture and was also fine-tuned on the ImageNet50 dataset, along with binary models which were trained on each class of the dataest.
+We also consider a 'secondary' model (which can be found [here](https://huggingface.co/lab-v2/dinov2_vitl14_imagenet_lr1e-06_BCE)), which employed the large version of the DINO_V2 architecture and was also fine-tuned on the ImageNet50 dataset, along with binary models which were trained on each class of the dataset.
 Consider the following code snippet to run the `run_experiment` function from PyEDCR.py:
 
 ```python
