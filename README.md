@@ -40,13 +40,13 @@ series = {CIKM '24}
 
 # Example
 
-To demonstrate the use of the package, we consider ImageNet50 - a subset of the [ImageNet1K dataset](https://www.image-net.org/index.php) with 50 classes (which can be found [here](https://huggingface.co/datasets/skricheli2/ImageNet50)), in which every image has two labels - one fine grain and one coarse grain, as described in the following image:
+To demonstrate the use of the package, we consider a dataset with two levels of hierarchy, such that each image has a fine-grain and coarse-grain label. For example, consider the following example from our curated Military Vehicle (which can be found [here](https://huggingface.co/datasets/skricheli2/military_vehicles)):
 
 <p align="center">
     <img alt="ImageNet100" src="figs/spa_tank_diagram.PNG" width="600" height="250"/>
 </p>
 
-We further consider an example of a pretrained 'main' model, which employed the small version of [Meta's _DINO_V2_ architecture](https://dinov2.metademolab.com/) and was fine-tuned on ImageNet50, which we want to analyze its results. An instance of such model (which can be found [here](https://huggingface.co/skricheli2/dinov2_vits14_imagenet_lr1e-06_BCE)) has the following performance:
+We further consider a pretrained 'main' model, for example one which employed the small version of [Meta's _DINO_V2_ architecture](https://dinov2.metademolab.com/) and was fine-tuned on ImageNet50 - a subset of the [ImageNet1K dataset](https://www.image-net.org/index.php) with 50 classes (which can be found [here](https://huggingface.co/datasets/skricheli2/ImageNet50)), which we want to analyze its ability to classify both levels of the hierarchy. An instance of such model (which can be found [here](https://huggingface.co/skricheli2/dinov2_vits14_imagenet_lr1e-06_BCE)) has the following performance:
 
 Fine-grain prior combined accuracy: <span style="color:green">76.57</span>% , fine-grain prior combined macro f1: <span style="color:green">76.1</span>%\
 Fine-grain prior combined macro precision: <span style="color:green">76.96</span>% , fine-grain prior combined macro recall: <span style="color:green">76.57</span>%
