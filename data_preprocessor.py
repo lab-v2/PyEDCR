@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import pathlib
 import random
+import shutil
+import tqdm
 import abc
 
 import torch
@@ -422,22 +424,22 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
                 self.coarse_to_fine[coarse_class].append(fine_class)
 
         if data_str == 'imagenet':
-            data_path_str = 'data/ImageNet100/'
+            self.data_path_str = 'data/ImageNet50/'
         elif data_str == 'openimage':
-            data_path_str = (f'../../ngocbach/' if not utils.is_local() else 'data/') + 'OpenImage/'
+            self.data_path_str = (f'../../ngocbach/' if not utils.is_local() else 'data/') + 'OpenImage/'
         elif data_str == 'coco':
-            data_path_str = 'scratch/ngocbach/COCO/'
+            self.data_path_str = 'scratch/ngocbach/COCO/'
         else:
-            data_path_str = 'data/Military Vehicles/'
+            self.data_path_str = 'data/Military Vehicles/'
 
         self.num_fine_grain_classes = len(self.fine_grain_classes_str)
         self.num_coarse_grain_classes = len(self.coarse_grain_classes_str)
 
-        self.test_true_fine_data = np.load(rf'{data_path_str}test_fine/test_true_fine.npy')
-        self.test_true_coarse_data = np.load(rf'{data_path_str}test_coarse/test_true_coarse.npy')
+        self.test_true_fine_data = np.load(rf'{self.data_path_str}test_fine/test_true_fine.npy')
+        self.test_true_coarse_data = np.load(rf'{self.data_path_str}test_coarse/test_true_coarse.npy')
 
-        self.train_true_fine_data = np.load(rf'{data_path_str}train_fine/train_true_fine.npy')
-        self.train_true_coarse_data = np.load(rf'{data_path_str}train_coarse/train_true_coarse.npy')
+        self.train_true_fine_data = np.load(rf'{self.data_path_str}train_fine/train_true_fine.npy')
+        self.train_true_coarse_data = np.load(rf'{self.data_path_str}train_coarse/train_true_coarse.npy')
 
         # self.noisy_train_true_fine_data = self.train_true_fine_data.copy()
         # self.noisy_train_true_coarse_data = self.train_true_coarse_data.copy()
@@ -575,3 +577,45 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
             train_indices = np.array(filtered_train_indices)
 
         return train_indices, train_eval_indices
+
+    def copy_subset_files(self, destination_folder: str):
+        """
+        Copies the subset of image files defined by the class into a designated folder.
+
+        :param destination_folder: The folder where the image files will be copied.
+        """
+        if not os.path.exists(destination_folder):
+            os.makedirs(destination_folder)
+
+        for dataset_type in ['train', 'test']:
+            for granularity in ['fine', 'coarse']:
+                data_path = rf"{self.data_path_str}{dataset_type}_{granularity}/"
+                dataset_destination_folder = os.path.join(destination_folder, f"{dataset_type}_{granularity}")
+
+                if not os.path.exists(dataset_destination_folder):
+                    os.makedirs(dataset_destination_folder)
+
+                if granularity == 'fine':
+                    for identifier, class_name in tqdm.tqdm(self.fine_grain_mapping_dict.items(),
+                                                            desc=f'Copying {dataset_type} {granularity} files'):
+                        class_folder = os.path.join(data_path, identifier)
+                        if os.path.exists(class_folder):
+                            destination_class_folder = os.path.join(dataset_destination_folder, identifier)
+                            if not os.path.exists(destination_class_folder):
+                                os.makedirs(destination_class_folder)
+                            for file in os.listdir(class_folder):
+                                file_path = os.path.join(class_folder, file)
+                                shutil.copy(file_path, destination_class_folder)
+
+                # Copy ground truth .npy file
+                ground_truth_file = os.path.join(self.data_path_str, f"{dataset_type}_{granularity}",
+                                                 f"{dataset_type}_true_{granularity}.npy")
+                if os.path.exists(ground_truth_file):
+                    shutil.copy(ground_truth_file, dataset_destination_folder)
+
+
+
+if __name__ == '__main__':
+    preprocessor = FineCoarseDataPreprocessor(data_str='imagenet')
+    # print(preprocessor.train_true_fine_data.shape)
+    preprocessor.copy_subset_files('data/ImageNet100/subset')

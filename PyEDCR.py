@@ -1108,20 +1108,26 @@ class EDCR:
                     binary=True)]
 
             # set values
-            input_values = [round(self.epsilon, 3) if self.epsilon is not None else '',
-                            self.noise_ratio,
-                            error_accuracy,
-                            error_balanced_accuracy,
-                            error_precision,
-                            error_recall,
-                            error_f1,
-                            self.recovered_constraints_precision,
-                            self.recovered_constraints_recall,
-                            2 / ((1 / self.recovered_constraints_precision) + (1 / self.recovered_constraints_recall))
-                            if self.recovered_constraints_precision and self.recovered_constraints_recall else 0
-                            ]
+            input_values = {
+                'epsilon': round(self.epsilon, 3) if self.epsilon is not None else '',
+                'noise_ratio': self.noise_ratio,
+                'error_accuracy': error_accuracy,
+                'error_balanced_accuracy': error_balanced_accuracy,
+                'error_precision': error_precision,
+                'error_recall': error_recall,
+                'error_f1': error_f1,
+                'recovered_constraints_precision': str(round(100 * self.recovered_constraints_precision, 2)) + '%',
+                'recovered_constraints_recall': str(round(100 * self.recovered_constraints_recall, 2)) + '%',
+                'recovered_constraints_f1_score':
+                    str(round(100 * (2 / ((1 / self.recovered_constraints_precision) +
+                                          (1 / self.recovered_constraints_recall))
+                                     if self.recovered_constraints_precision and self.recovered_constraints_recall
+                                     else 0),
+                              2)) + '%'
+            }
 
-            print(input_values)
+            for key, value in input_values.items():
+                print(f'{key}: {value}')
 
         if print_results:
             self.print_metrics(split='test' if test else 'train',
@@ -1392,31 +1398,31 @@ def run_experiment(config: experiment_config.ExperimentConfig):
 
 
 def main():
-    military_vehicles_config = experiment_config.ExperimentConfig(
-        data_str='military_vehicles',
-        main_model_name='vit_b_16',
-        secondary_model_name='vit_l_16',
-        main_lr=0.0001,
-        secondary_lr=0.0001,
-        binary_lr=0.0001,
-        original_num_epochs=10,
-        secondary_num_epochs=20,
-        binary_num_epochs=10
+    # military_vehicles_config = experiment_config.ExperimentConfig(
+    #     data_str='military_vehicles',
+    #     main_model_name='vit_b_16',
+    #     secondary_model_name='vit_l_16',
+    #     main_lr=0.0001,
+    #     secondary_lr=0.0001,
+    #     binary_lr=0.0001,
+    #     original_num_epochs=10,
+    #     secondary_num_epochs=20,
+    #     binary_num_epochs=10
+    # )
+
+    imagenet_config = experiment_config.ExperimentConfig(
+        data_str='imagenet',
+        main_model_name='dinov2_vits14',
+        secondary_model_name='dinov2_vitl14',
+        main_lr=1e-6,
+        secondary_lr=0.000001,
+        binary_lr=0.000001,
+        original_num_epochs=8,
+        secondary_num_epochs=2,
+        binary_num_epochs=5
     )
 
-    # imagenet_config = data_preprocessing.ExperimentConfig(
-    #     data_str='imagenet',
-    #     main_model_name='dinov2_vits14',
-    #     secondary_model_name='dinov2_vitl14',
-    #     main_lr=0.000001,
-    #     secondary_lr=0.000001,
-    #     binary_lr=0.000001,
-    #     original_num_epochs=8,
-    #     secondary_num_epochs=2,
-    #     binary_num_epochs=5
-    # )
-    #
-    # openimage_config = data_preprocessing.ExperimentConfig(
+    # openimage_config = experiment_config.ExperimentConfig(
     #     data_str='openimage',
     #     main_model_name='vit_b_16',
     #     secondary_model_name='dinov2_vits14',
@@ -1428,7 +1434,7 @@ def main():
     #     binary_num_epochs=4
     # )
 
-    run_experiment(config=military_vehicles_config)
+    run_experiment(config=imagenet_config)
 
 
 if __name__ == '__main__':
