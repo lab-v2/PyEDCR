@@ -6,10 +6,10 @@ import torch.utils.data
 from tqdm import tqdm
 import numpy as np
 
-import datasets
+import data_loading
 import models
 import context_handlers
-import neural_evaluation
+import evaluation
 import neural_metrics
 import backbone_pipeline
 import neural_fine_tuning

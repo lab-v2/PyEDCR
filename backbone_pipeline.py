@@ -5,9 +5,10 @@ import inspect
 import importlib.util
 import sys
 
+import data_loading
 import models
 import utils
-import datasets
+import data_preprocessor
 import config
 import label
 
@@ -68,34 +69,34 @@ def save_prediction_files(data_str: str,
         data_path_str = 'data/'
 
     if combined:
-        for g_str in data_preprocessing.FineCoarseDataPreprocessor.granularities_str:
+        for g_str in data_preprocessor.FineCoarseDataPreprocessor.granularities_str:
             if config.get_ground_truth:
                 break
             prediction = fine_prediction if g_str == 'fine' else coarse_prediction
-            np.save(data_preprocessing.get_filepath(data_str=data_str,
-                                                    model_name=fine_tuners,
-                                                    combined=True,
-                                                    test=test,
-                                                    granularity=g_str,
-                                                    loss=loss,
-                                                    lr=lrs,
-                                                    pred=True,
-                                                    epoch=epoch,
-                                                    additional_info=additional_info),
+            np.save(data_preprocessor.get_filepath(data_str=data_str,
+                                                   model_name=fine_tuners,
+                                                   combined=True,
+                                                   test=test,
+                                                   granularity=g_str,
+                                                   loss=loss,
+                                                   lr=lrs,
+                                                   pred=True,
+                                                   epoch=epoch,
+                                                   additional_info=additional_info),
                     prediction)
 
             lower_predictions = fine_lower_predictions if g_str == 'fine' else coarse_lower_predictions
             for lower_prediction_index, lower_prediction_values in lower_predictions.items():
-                np.save(data_preprocessing.get_filepath(data_str=data_str,
-                                                        model_name=fine_tuners,
-                                                        combined=True,
-                                                        test=test,
-                                                        granularity=g_str,
-                                                        loss=loss,
-                                                        lr=lrs,
-                                                        pred=True,
-                                                        epoch=epoch,
-                                                        lower_prediction_index=lower_prediction_index),
+                np.save(data_preprocessor.get_filepath(data_str=data_str,
+                                                       model_name=fine_tuners,
+                                                       combined=True,
+                                                       test=test,
+                                                       granularity=g_str,
+                                                       loss=loss,
+                                                       lr=lrs,
+                                                       pred=True,
+                                                       epoch=epoch,
+                                                       lower_prediction_index=lower_prediction_index),
                         lower_prediction_values)
 
             # disable saving ground truth for now
@@ -147,18 +148,18 @@ def save_binary_prediction_files(data_str: str,
     """
     test_str = 'test' if test else 'train'
 
-    np.save(data_preprocessing.get_filepath(model_name=fine_tuner,
-                                            l=l,
-                                            test=test,
-                                            loss=loss,
-                                            lr=lr,
-                                            pred=True,
-                                            epoch=epoch,
-                                            data_str=data_str),
+    np.save(data_preprocessor.get_filepath(model_name=fine_tuner,
+                                           l=l,
+                                           test=test,
+                                           loss=loss,
+                                           lr=lr,
+                                           pred=True,
+                                           epoch=epoch,
+                                           data_str=data_str),
             predictions)
     try:
         if data_str == 'imagenet':
-            preprocessor = data_preprocessing.FineCoarseDataPreprocessor(data_str)
+            preprocessor = data_preprocessor.FineCoarseDataPreprocessor(data_str)
             for id, label_str in preprocessor.fine_grain_mapping_dict.items():
                 if label_str == l.l_str:
                     np.save(f"data/ImageNet100/{test_str}_{l.g.g_str}/{id}/binary_true.npy",
@@ -214,7 +215,7 @@ def find_subclasses_in_module(module, parent_class):
 
 def initiate(data_str: str,
              lr: typing.Union[str, float],
-             preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None,
+             preprocessor: data_preprocessor.FineCoarseDataPreprocessor = None,
              model_name: str = 'vit_b_16',
              weights: str = 'DEFAULT',
              combined: bool = True,
@@ -260,9 +261,9 @@ def initiate(data_str: str,
     print(f'Model: {model_name}\nLearning rate: {lr}')
 
     if preprocessor is None:
-        preprocessor = data_preprocessing.FineCoarseDataPreprocessor(data_str=data_str)
+        preprocessor = data_preprocessor.FineCoarseDataPreprocessor(data_str=data_str)
 
-    datasets = data_preprocessing.get_datasets(
+    datasets = data_loading.get_datasets(
         preprocessor=preprocessor,
         combined=combined,
         binary_label=l,
@@ -347,15 +348,15 @@ def initiate(data_str: str,
                                                 num_classes=preprocessor.num_coarse_grain_classes)])
 
     utils.create_directory(results_path)
-    loaders = data_preprocessing.get_loaders(preprocessor=preprocessor,
-                                             datasets=datasets,
-                                             batch_size=batch_size,
-                                             evaluation=evaluation,
-                                             subset_indices=error_indices,
-                                             train_eval_split=train_eval_split,
-                                             label=l,
-                                             get_fraction_of_example_with_label=get_fraction_of_example_with_label,
-                                             debug=debug)
+    loaders = data_loading.get_loaders(preprocessor=preprocessor,
+                                       datasets=datasets,
+                                       batch_size=batch_size,
+                                       evaluation=evaluation,
+                                       subset_indices=error_indices,
+                                       train_eval_split=train_eval_split,
+                                       label=l,
+                                       get_fraction_of_example_with_label=get_fraction_of_example_with_label,
+                                       debug=debug)
 
     print(f"Total number of train images: {len(loaders['train'].dataset)}\n"
           f"Total number of eval images: {len(loaders['train_eval'].dataset) if train_eval_split else 0}\n"

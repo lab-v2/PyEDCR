@@ -11,11 +11,11 @@ import copy
 
 import utils
 from PyEDCR import EDCR
-import datasets
+import data_loading
 import backbone_pipeline
 import typing
 import config
-import neural_evaluation
+import evaluation
 import neural_fine_tuning
 import neural_metrics
 

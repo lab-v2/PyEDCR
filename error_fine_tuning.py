@@ -2,7 +2,7 @@ import os
 
 import backbone_pipeline
 import combined_fine_tuning
-import neural_evaluation
+import evaluation
 import utils
 
 if utils.is_local():
@@ -12,7 +12,7 @@ import numpy as np
 import typing
 from tqdm.contrib.concurrent import process_map
 
-import datasets
+import data_loading
 import PyEDCR
 
 

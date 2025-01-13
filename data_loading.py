@@ -3,7 +3,6 @@ import numpy as np
 import pathlib
 import typing
 import abc
-import random
 
 import torch
 import torch.utils.data
@@ -12,13 +11,6 @@ import torchvision
 import data_preprocessor
 import config
 import label
-
-
-random.seed(42)
-np.random.seed(42)
-
-current_file_location = pathlib.Path(__file__).parent.resolve()
-os.chdir(current_file_location)
 
 
 

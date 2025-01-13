@@ -9,14 +9,15 @@ import torch.utils.data
 import numpy as np
 import typing
 
-import datasets
+import data_preprocessor
 import models
-import neural_metrics
+import metrics
 import backbone_pipeline
 import config
+import label
 
 
-def evaluate_individual_models(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
+def evaluate_individual_models(preprocessor: data_preprocessor.FineCoarseDataPreprocessor,
                                fine_tuners: typing.List[models.FineTuner],
                                loaders: typing.Dict[str, torch.utils.data.DataLoader],
                                devices: typing.List[torch.device],
@@ -69,20 +70,20 @@ def evaluate_individual_models(preprocessor: data_preprocessing.FineCoarseDataPr
             name_list += batch_names
 
     fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = (
-        neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
-                                             pred_fine_data=fine_prediction,
-                                             pred_coarse_data=coarse_prediction,
-                                             loss='Cross Entropy',
-                                             true_fine_data=true_fine_data,
-                                             true_coarse_data=true_coarse_data,
-                                             combined=False,
-                                             split=split))
+        metrics.get_and_print_metrics(preprocessor=preprocessor,
+                                      pred_fine_data=fine_prediction,
+                                      pred_coarse_data=coarse_prediction,
+                                      loss='Cross Entropy',
+                                      true_fine_data=true_fine_data,
+                                      true_coarse_data=true_coarse_data,
+                                      combined=False,
+                                      split=split))
 
     return (true_fine_data, true_coarse_data, fine_prediction, coarse_prediction,
             fine_accuracy, coarse_accuracy)
 
 
-def evaluate_combined_model(preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
+def evaluate_combined_model(preprocessor: data_preprocessor.FineCoarseDataPreprocessor,
                             fine_tuner: models.FineTuner,
                             loaders: typing.Dict[str, torch.utils.data.DataLoader],
                             loss: str,
@@ -162,13 +163,13 @@ def evaluate_combined_model(preprocessor: data_preprocessing.FineCoarseDataPrepr
 
     if print_results:
         fine_accuracy, coarse_accuracy, fine_f1, coarse_f1 = (
-            neural_metrics.get_and_print_metrics(preprocessor=preprocessor,
-                                                 pred_fine_data=fine_predictions,
-                                                 pred_coarse_data=coarse_predictions,
-                                                 loss=loss,
-                                                 true_fine_data=fine_ground_truths,
-                                                 true_coarse_data=coarse_ground_truths,
-                                                 split=split))
+            metrics.get_and_print_metrics(preprocessor=preprocessor,
+                                          pred_fine_data=fine_predictions,
+                                          pred_coarse_data=coarse_predictions,
+                                          loss=loss,
+                                          true_fine_data=fine_ground_truths,
+                                          true_coarse_data=coarse_ground_truths,
+                                          split=split))
 
     return (fine_ground_truths, coarse_ground_truths, fine_predictions, coarse_predictions,
             fine_lower_predictions, coarse_lower_predictions, fine_accuracy, coarse_accuracy, fine_f1, coarse_f1,
@@ -180,9 +181,9 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
                           loss: str,
                           device: torch.device,
                           split: str,
-                          l: data_preprocessing.label = None,
+                          l: data_preprocessor.label = None,
                           print_results: bool = True,
-                          preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None,
+                          preprocessor: data_preprocessor.FineCoarseDataPreprocessor = None,
                           error_fine_prediction: np.array = None,
                           error_coarse_prediction: np.array = None, ) -> \
         (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
@@ -230,8 +231,8 @@ def evaluate_binary_model(fine_tuner: models.FineTuner,
                     predictions += E_pred.tolist()
 
     if print_results:
-        accuracy, f1, precision, recall = neural_metrics.get_individual_metrics(pred_data=predictions,
-                                                                                true_data=ground_truths)
+        accuracy, f1, precision, recall = metrics.get_individual_metrics(pred_data=predictions,
+                                                                         true_data=ground_truths)
 
     return ground_truths, predictions, accuracy, f1
 
@@ -319,7 +320,7 @@ def run_combined_evaluating_pipeline(data_str: str,
 
 def run_binary_evaluating_pipeline(data_str: str,
                                    model_name: str,
-                                   l: data_preprocessing.label,
+                                   l: label.Label,
                                    split: str,
                                    lr: typing.Union[str, float],
                                    loss: str,
@@ -370,10 +371,10 @@ def evaluate_binary_models_from_files(data_str: str,
                                       test: bool,
                                       lr: typing.Union[str, float],
                                       num_epochs: int,
-                                      l: data_preprocessing.label,
+                                      l: label.Label,
                                       model_name: str = 'vit_b_16',
                                       loss: str = 'BCE'):
-    preprocessor = data_preprocessing.FineCoarseDataPreprocessor(data_str)
+    preprocessor = data_preprocessor.FineCoarseDataPreprocessor(data_str)
     if not test:
         g_ground_truth = preprocessor.train_true_fine_data if g_str == 'fine' \
             else preprocessor.train_true_coarse_data
@@ -382,22 +383,22 @@ def evaluate_binary_models_from_files(data_str: str,
             else preprocessor.test_true_coarse_data
     print(f'gt shape : {g_ground_truth.shape}')
 
-    l_file = data_preprocessing.get_filepath(data_str=data_str,
-                                             model_name=model_name,
-                                             l=l,
-                                             test=test,
-                                             loss=loss,
-                                             lr=lr,
-                                             pred=True,
-                                             epoch=num_epochs)
+    l_file = data_preprocessor.get_filepath(data_str=data_str,
+                                            model_name=model_name,
+                                            l=l,
+                                            test=test,
+                                            loss=loss,
+                                            lr=lr,
+                                            pred=True,
+                                            epoch=num_epochs)
     if os.path.exists(l_file):
         predictions = np.load(l_file)
         print(f'l_pred shape : {predictions.shape}')
         ground_truths = np.where(g_ground_truth == l.index, 1, 0)
-        accuracy, f1, precision, recall = neural_metrics.get_and_print_binary_metrics(pred_data=predictions,
-                                                                                      loss=loss,
-                                                                                      true_data=ground_truths,
-                                                                                      test=test)
+        accuracy, f1, precision, recall = metrics.get_and_print_binary_metrics(pred_data=predictions,
+                                                                               loss=loss,
+                                                                               true_data=ground_truths,
+                                                                               test=test)
         return accuracy, f1, precision, recall
 
     else:
@@ -472,7 +473,7 @@ def get_error_metric(data_str: str,
                 X, Y_pred_fine, Y_pred_coarse, E_true = [b.to(device) for b in data]
                 error_ground_truth += E_true.tolist()
 
-        accuracy, f1, precision, recall = neural_metrics.get_individual_metrics(pred_data=error_prediction,
+        accuracy, f1, precision, recall = metrics.get_individual_metrics(pred_data=error_prediction,
                                                                                 true_data=np.array(error_ground_truth))
 
         print(

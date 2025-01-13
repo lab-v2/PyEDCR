@@ -1,13 +1,22 @@
-import abc
+import os
 import typing
 import numpy as np
 import pandas as pd
+import pathlib
+import random
+import abc
 
 import torch
 
 import granularity
 import label
 import utils
+
+random.seed(42)
+np.random.seed(42)
+
+current_file_location = pathlib.Path(__file__).parent.resolve()
+os.chdir(current_file_location)
 
 
 def get_filepath(data_str: str,

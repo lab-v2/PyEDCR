@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches
 import scipy
 import numpy as np
-import datasets
+import data_loading
 
 
 def plot_per_class(epsilons,

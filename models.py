@@ -1,11 +1,10 @@
-import abc
 import torchvision
 import argparse
 import torch
-import torch.nn.parallel
-import torch.optim
-import torch.utils.data.distributed
 import numpy as np
+import abc
+
+import torch.optim
 
 try:
     from src_files.helper_functions.bn_fusion import fuse_bn_recursively
@@ -14,7 +13,7 @@ try:
 except ModuleNotFoundError:
     pass
 
-import datasets
+import data_preprocessor
 
 
 class FineTuner(torch.nn.Module, abc.ABC):
@@ -152,7 +151,7 @@ class ErrorDetector(FineTuner):
     def __init__(self,
                  model_name: str,
                  num_classes: int,
-                 preprocessor: data_preprocessing.FineCoarseDataPreprocessor,
+                 preprocessor: data_preprocessor.FineCoarseDataPreprocessor,
                  pretrained_path: str = None,
                  device=None):
         super().__init__(model_name=model_name, num_classes=num_classes)
@@ -178,7 +177,7 @@ class ErrorDetector(FineTuner):
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device,
-                        preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None):
+                        preprocessor: data_preprocessor.FineCoarseDataPreprocessor = None):
         """
         Loads a pre-trained DINO V2 model from a specified path.
 
@@ -447,7 +446,7 @@ class TResnetFineTuner(FineTuner):
                  tresnet_model_name: str,
                  num_classes: int,
                  weights: str = 'DEFAULT',
-                 preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None):
+                 preprocessor: data_preprocessor.FineCoarseDataPreprocessor = None):
         """
         Initializes the TResnetFineTuner with a pre-trained TResnet model and number of classes.
 
@@ -465,7 +464,7 @@ class TResnetFineTuner(FineTuner):
                         num_classes: int,
                         pretrained_path: str,
                         device: torch.device,
-                        preprocessor: data_preprocessing.FineCoarseDataPreprocessor = None,
+                        preprocessor: data_preprocessor.FineCoarseDataPreprocessor = None,
                         ):
         """
         Loads a pre-trained TResnetFineTuner model from a specified path.
