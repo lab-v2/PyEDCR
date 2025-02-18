@@ -10,9 +10,9 @@ import abc
 
 import torch
 
-import granularity
-import label
-import utils
+from src.PyEDCR.classes import granularity, label
+from src.PyEDCR.utils import utils
+from src.PyEDCR.utils import paths as paths
 
 random.seed(42)
 np.random.seed(42)
@@ -54,7 +54,7 @@ def get_filepath(data_str: str,
     granularity_str = f'_{granularity}' if granularity is not None else ''
     test_str = 'test' if test else 'train'
     pred_str = 'pred' if pred else 'true'
-    folder_str = (('binary' if l is not None else ('combined' if combined else 'individual')) + '_results')
+    folder_str = (('BINARY' if l is not None else ('COMBINED' if combined else 'INDIVIDUAL')) + '_RESULTS')
     lower_prediction_index_str = f'_lower_{lower_prediction_index}' if lower_prediction_index is not None else ''
     lower_prediction_folder_str = 'lower_prediction/' if lower_prediction_index is not None else ''
     l_str = f'_{l}' if l is not None else ''
@@ -62,7 +62,7 @@ def get_filepath(data_str: str,
     loss_str = f'_{loss}' if loss is not None else ''
     lr_str = f'_lr{lr}' if lr is not None else ''
 
-    return (f"{folder_str}/{lower_prediction_folder_str}"
+    return (f"{paths.ROOT_PATH}/{folder_str}/{lower_prediction_folder_str}"
             f"{data_str}_{model_name}_{test_str}{granularity_str}_{pred_str}{loss_str}{lr_str}{epoch_str}"
             f"{lower_prediction_index_str}{l_str}{additional_str}.npy")
 
@@ -387,7 +387,7 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
                 'MT_LB': ['MT_LB']
             }
 
-            data_file_path = rf'data/Military Vehicles/WEO_Data_Sheet.xlsx'
+            data_file_path = rf'../../../data/Military Vehicles/WEO_Data_Sheet.xlsx'
             dataframes_by_sheet = pd.read_excel(data_file_path, sheet_name=None)
 
             fine_grain_results_df = dataframes_by_sheet['Fine-Grain Results']
@@ -424,13 +424,13 @@ class FineCoarseDataPreprocessor(DataPreprocessor):
                 self.coarse_to_fine[coarse_class].append(fine_class)
 
         if data_str == 'imagenet':
-            self.data_path_str = 'data/ImageNet50/'
+            self.data_path_str = '../../../data/ImageNet50/'
         elif data_str == 'openimage':
             self.data_path_str = (f'../../ngocbach/' if not utils.is_local() else 'data/') + 'OpenImage/'
         elif data_str == 'coco':
             self.data_path_str = 'scratch/ngocbach/COCO/'
         else:
-            self.data_path_str = 'data/Military Vehicles/'
+            self.data_path_str = '../../../data/Military Vehicles/'
 
         self.num_fine_grain_classes = len(self.fine_grain_classes_str)
         self.num_coarse_grain_classes = len(self.coarse_grain_classes_str)

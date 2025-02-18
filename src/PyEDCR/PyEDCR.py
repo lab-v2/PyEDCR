@@ -9,14 +9,10 @@ from tqdm.contrib.concurrent import thread_map, process_map
 
 warnings.filterwarnings('ignore')
 
-import data_preprocessor
-import utils
-import metrics
-import condition
-import rule
-import label
-import granularity
-import experiment_config
+from src.PyEDCR.data_processing import data_preprocessor
+from src.PyEDCR.utils import utils, paths, argument_parser
+from src.PyEDCR.evaluation import metrics
+from src.PyEDCR.classes import condition, granularity, rule, label, experiment_config
 
 
 class EDCR:
@@ -59,7 +55,7 @@ class EDCR:
                  num_train_images_per_class: int = None,
                  maximize_ratio: bool = True,
                  indices_of_fine_labels_to_take_out: typing.List[int] = [],
-                 use_google_api: bool = True,
+                 use_google_api: bool = False,
                  negated_conditions: bool = False):
         self.data_str = data_str
         self.preprocessor = data_preprocessor.FineCoarseDataPreprocessor(data_str=data_str)
@@ -148,9 +144,6 @@ class EDCR:
 
         # conditions data
         self.condition_datas = {}
-
-        # if self.maximize_ratio:
-
         self.set_pred_conditions()
         self.set_binary_conditions()
 
@@ -158,8 +151,8 @@ class EDCR:
         self.set_lower_prediction_conditions()
 
         self.all_conditions = sorted(set().union(*[
-            self.condition_datas[g] for g in data_preprocessor.FineCoarseDataPreprocessor.granularities.values()])
-                                     , key=lambda cond: str(cond))
+            self.condition_datas[g] for g in data_preprocessor.FineCoarseDataPreprocessor.granularities.values()]),
+                                     key=lambda cond: str(cond))
         self.CC_all = {g: set() for g in data_preprocessor.FineCoarseDataPreprocessor.granularities.values()}
 
         self.num_predicted_l = {'original': {g: {}
@@ -471,19 +464,17 @@ class EDCR:
                       split: str,
                       prior: bool = True,
                       print_inconsistencies: bool = True,
-                      stage: str = 'original',
-                      print_actual_errors_num: bool = False):
+                      stage: str = 'original'):
 
         """Prints performance metrics for given test/train data.
 
         Calculates and prints various metrics (accuracy, precision, recall, etc.)
         using appropriate true labels and prediction data based on the specified mode.
 
-        :param split:
-        :param print_actual_errors_num:
-        :param stage:
-        :param print_inconsistencies: whether to print the inconsistencies metric or not
         :param prior:
+        :param split: The test/train split to evaluate.
+        :param stage: The stage of the model to evaluate.
+        :param print_inconsistencies: whether to print the inconsistencies metric or not
         """
 
         original_pred_fine_data, original_pred_coarse_data = None, None
@@ -508,9 +499,6 @@ class EDCR:
                                       model_name=self.main_model_name,
                                       lr=self.lr,
                                       print_inconsistencies=print_inconsistencies,
-                                      current_num_test_inconsistencies=
-                                      self.get_constraints_true_positives_and_total_positives()[0],
-                                      original_test_inconsistencies=self.original_test_inconsistencies,
                                       original_pred_fine_data=original_pred_fine_data,
                                       original_pred_coarse_data=original_pred_coarse_data)
 
@@ -901,10 +889,10 @@ class EDCR:
                 sorted(
                     [cond for cond in self.all_conditions
                      if not ((isinstance(cond, condition.PredCondition) and (cond.l == l)
-                              and (cond.secondary_model_name is None)))]
-                    , key=lambda cond: self.get_minimization_ratio(l=l,
-                                                                   DC_l_i={cond},
-                                                                   init_value=init_value)
+                              and (cond.secondary_model_name is None)))],
+                    key=lambda cond: self.get_minimization_ratio(l=l,
+                                                                 DC_l_i={cond},
+                                                                 init_value=init_value)
                 )
             )
 
@@ -935,8 +923,7 @@ class EDCR:
                          if init_value > self.get_f_margin(f=self.get_minimization_denominator,
                                                            l=l,
                                                            DC_l_i=DC_l_i,
-                                                           cond=cond) > 0]
-                        ,
+                                                           cond=cond) > 0],
                         key=lambda cond: self.get_minimization_ratio(l=l,
                                                                      DC_l_i={cond},
                                                                      init_value=init_value)
@@ -1129,6 +1116,10 @@ class EDCR:
             for key, value in input_values.items():
                 print(f'{key}: {value}')
 
+            # google_sheets_api.update_sheet(range_=f'{self.sheet_tab_name}!A{self.sheet_index}:'
+            #                                       f'{chr(len(input_values) + 64)}{self.sheet_index}',
+            #                                body={'values': [input_values]})
+
         if print_results:
             self.print_metrics(split='test' if test else 'train',
                                prior=False,
@@ -1143,8 +1134,8 @@ class EDCR:
             error_detection_rule: rule.ErrorDetectionRule
 
             for cond in error_detection_rule.C_l:
-                if ((isinstance(cond, condition.PredCondition)) and (cond.secondary_model_name is None)
-                    and (not cond.binary)) and (cond.lower_prediction_index is None) and (cond.l.g != l.g):
+                if ((isinstance(cond, condition.PredCondition)) and (cond.secondary_model_name is None) and
+                    (not cond.binary)) and (cond.lower_prediction_index is None) and (cond.l.g != l.g):
                     if cond.l.g.g_str == 'fine':
                         fine_index = cond.l.index
                         coarse_index = l.index
@@ -1311,7 +1302,7 @@ def simulate_for_values(data_str: str,
 
 def run_experiment(config: experiment_config.ExperimentConfig):
     binary_l_strs = list({f.split(f'e{config.binary_num_epochs - 1}_')[-1].replace('.npy', '')
-                          for f in os.listdir('binary_results')
+                          for f in os.listdir(rf'{paths.BINARY_RESULTS_FOLDER}')
                           if f.startswith(f'{config.data_str}_{config.binary_model_name}')})
 
     # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
@@ -1398,17 +1389,19 @@ def run_experiment(config: experiment_config.ExperimentConfig):
 
 
 def main():
-    # military_vehicles_config = experiment_config.ExperimentConfig(
-    #     data_str='military_vehicles',
-    #     main_model_name='vit_b_16',
-    #     secondary_model_name='vit_l_16',
-    #     main_lr=0.0001,
-    #     secondary_lr=0.0001,
-    #     binary_lr=0.0001,
-    #     original_num_epochs=10,
-    #     secondary_num_epochs=20,
-    #     binary_num_epochs=10
-    # )
+    args = argument_parser.parse_arguments()
+
+    military_vehicles_config = experiment_config.ExperimentConfig(
+        data_str='military_vehicles',
+        main_model_name='vit_b_16',
+        secondary_model_name='vit_l_16',
+        main_lr=0.0001,
+        secondary_lr=0.0001,
+        binary_lr=0.0001,
+        original_num_epochs=10,
+        secondary_num_epochs=20,
+        binary_num_epochs=10
+    )
 
     imagenet_config = experiment_config.ExperimentConfig(
         data_str='imagenet',
@@ -1422,17 +1415,17 @@ def main():
         binary_num_epochs=5
     )
 
-    # openimage_config = experiment_config.ExperimentConfig(
-    #     data_str='openimage',
-    #     main_model_name='vit_b_16',
-    #     secondary_model_name='dinov2_vits14',
-    #     main_lr=0.0001,
-    #     secondary_lr=0.000001,
-    #     binary_lr=0.000001,
-    #     original_num_epochs=20,
-    #     secondary_num_epochs=20,
-    #     binary_num_epochs=4
-    # )
+    openimage_config = experiment_config.ExperimentConfig(
+        data_str='openimage',
+        main_model_name='vit_b_16',
+        secondary_model_name='dinov2_vits14',
+        main_lr=0.0001,
+        secondary_lr=0.000001,
+        binary_lr=0.000001,
+        original_num_epochs=20,
+        secondary_num_epochs=20,
+        binary_num_epochs=4
+    )
 
     run_experiment(config=imagenet_config)
 

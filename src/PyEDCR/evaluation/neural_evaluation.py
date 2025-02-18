@@ -1,5 +1,5 @@
 import os
-import utils
+from src.PyEDCR.utils import utils
 
 if utils.is_local():
     os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
@@ -9,12 +9,12 @@ import torch.utils.data
 import numpy as np
 import typing
 
-import data_preprocessor
-import models
+from src.PyEDCR.data_processing import data_preprocessor
+import src.PyEDCR.neural_fine_tuning.models as models
 import metrics
-import backbone_pipeline
-import config
-import label
+from src.PyEDCR.neural_fine_tuning import backbone_pipeline
+from src.PyEDCR import config
+from src.PyEDCR.classes import label
 
 
 def evaluate_individual_models(preprocessor: data_preprocessor.FineCoarseDataPreprocessor,
@@ -178,12 +178,10 @@ def evaluate_combined_model(preprocessor: data_preprocessor.FineCoarseDataPrepro
 
 def evaluate_binary_model(fine_tuner: models.FineTuner,
                           loaders: typing.Dict[str, torch.utils.data.DataLoader],
-                          loss: str,
                           device: torch.device,
                           split: str,
-                          l: data_preprocessor.label = None,
+                          l: label = None,
                           print_results: bool = True,
-                          preprocessor: data_preprocessor.FineCoarseDataPreprocessor = None,
                           error_fine_prediction: np.array = None,
                           error_coarse_prediction: np.array = None, ) -> \
         (typing.List[int], typing.List[int], typing.List[int], typing.List[int], float, float):
@@ -308,8 +306,6 @@ def run_combined_evaluating_pipeline(data_str: str,
                                                 loss=loss,
                                                 fine_prediction=fine_predictions,
                                                 coarse_prediction=coarse_predictions,
-                                                fine_ground_truths=fine_ground_truths,
-                                                coarse_ground_truths=coarse_ground_truths,
                                                 epoch=num_epochs,
                                                 fine_lower_predictions=fine_lower_predictions,
                                                 coarse_lower_predictions=coarse_lower_predictions,
@@ -323,7 +319,6 @@ def run_binary_evaluating_pipeline(data_str: str,
                                    l: label.Label,
                                    split: str,
                                    lr: typing.Union[str, float],
-                                   loss: str,
                                    num_epochs: int,
                                    pretrained_path: str = None,
                                    pretrained_fine_tuner: models.FineTuner = None,
@@ -347,7 +342,6 @@ def run_binary_evaluating_pipeline(data_str: str,
     ground_truths, predictions, accuracy, f1 = evaluate_binary_model(l=l,
                                                                      fine_tuner=fine_tuner,
                                                                      loaders=loaders,
-                                                                     loss=loss,
                                                                      device=devices[0],
                                                                      split=split,
                                                                      print_results=print_results)
@@ -454,12 +448,10 @@ def get_error_metric(data_str: str,
         # Get error from main and additional (a.k.a model use to derive error) model
         error_fine_prediction = np.where(main_train_fine_prediction == additional_train_fine_prediction
                                          if split == 'train'
-                                         else main_test_fine_prediction == additional_test_fine_prediction
-                                         , 0, 1)
+                                         else main_test_fine_prediction == additional_test_fine_prediction, 0, 1)
         error_coarse_prediction = np.where(main_train_coarse_prediction == additional_train_coarse_prediction
                                            if split == 'train'
-                                           else main_test_coarse_prediction == additional_test_coarse_prediction
-                                           , 0, 1)
+                                           else main_test_coarse_prediction == additional_test_coarse_prediction, 0, 1)
         error_prediction = np.where((error_fine_prediction == 1) | (error_coarse_prediction == 1), 1, 0)
 
         error_ground_truth = []
@@ -474,7 +466,7 @@ def get_error_metric(data_str: str,
                 error_ground_truth += E_true.tolist()
 
         accuracy, f1, precision, recall = metrics.get_individual_metrics(pred_data=error_prediction,
-                                                                                true_data=np.array(error_ground_truth))
+                                                                         true_data=np.array(error_ground_truth))
 
         print(
             utils.blue_text(

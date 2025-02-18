@@ -12,7 +12,9 @@ src_files/models/__pycache__/__init__.cpython-311.pyc
 src_files/helper_functions/__pycache__/bn_fusion.cpython-311.pyc
 jupyter/
 test_PYEDCR/
-config.py
-google_sheets_api.py
+src/PyEDCR/config.py
+src/PyEDCR/google_sheets_api.py
 data/ImageNet100
 data/OpenImage
+combined_results/
+binary_results/

@@ -2,9 +2,8 @@ import typing
 import abc
 import numpy as np
 
-import data_preprocessor
-import condition
-import label
+from src.PyEDCR.PyEDCR import data_preprocessor
+from src.PyEDCR.classes import label, condition
 
 
 class Rule(typing.Callable, typing.Sized, abc.ABC):
@@ -15,7 +14,7 @@ class Rule(typing.Callable, typing.Sized, abc.ABC):
     """
 
     def __init__(self,
-                 l: data_preprocessor.label,
+                 l: label,
                  C_l: typing.Set[typing.Union[
                      condition.Condition, typing.Tuple[condition.Condition, label.Label]]],
                  preprocessor: data_preprocessor.DataPreprocessor):

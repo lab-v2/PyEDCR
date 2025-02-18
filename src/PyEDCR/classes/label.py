@@ -1,6 +1,6 @@
 import typing
 
-import granularity
+from src.PyEDCR.classes import granularity
 
 
 class Label(typing.Hashable):

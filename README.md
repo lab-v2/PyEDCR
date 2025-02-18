@@ -43,7 +43,7 @@ series = {CIKM '24}
 To demonstrate the use of the package, we consider a dataset with two levels of hierarchy, such that each image has a fine-grain and coarse-grain label. For example, consider the following example from our curated Military Vehicle (which can be found [here](https://huggingface.co/datasets/lab-v2/military_vehicles)):
 
 <p align="center">
-    <img alt="ImageNet100" src="figs/spa_tank_diagram.PNG" width="600" height="250"/>
+    <img alt="ImageNet100" src="images/spa_tank_diagram.PNG" width="600" height="250"/>
 </p>
 
 We further consider a pretrained 'main' model, for example one which employed the small version of [Meta's _DINO_V2_ architecture](https://dinov2.metademolab.com/) and was fine-tuned on ImageNet50 - a subset of the [ImageNet1K dataset](https://www.image-net.org/index.php) with 50 classes (which can be found [here](https://huggingface.co/datasets/lab-v2/ImageNet50)), which we want to analyze its ability to classify both levels of the hierarchy. An instance of such model (which can be found [here](https://huggingface.co/lab-v2/dinov2_vits14_imagenet_lr1e-06_BCE)) has the following performance:
@@ -60,20 +60,21 @@ We also consider a 'secondary' model (which can be found [here](https://huggingf
 Consider the following code snippet to run the `run_experiment` function from PyEDCR.py:
 
 ```python
-import experiment_config
-from PyEDCR import run_experiment
+
+from PyEDCR.classes import experiment_config
+from PyEDCR.PyEDCR import run_experiment
 
 imagenet_config = experiment_config.ExperimentConfig(
-        data_str='imagenet',
-        main_model_name='dinov2_vits14',
-        secondary_model_name='dinov2_vitl14',
-        main_lr=1e-6,
-        secondary_lr=0.000001,
-        binary_lr=0.000001,
-        original_num_epochs=8,
-        secondary_num_epochs=2,
-        binary_num_epochs=5
-    )
+    data_str='imagenet',
+    main_model_name='dinov2_vits14',
+    secondary_model_name='dinov2_vitl14',
+    main_lr=1e-6,
+    secondary_lr=0.000001,
+    binary_lr=0.000001,
+    original_num_epochs=8,
+    secondary_num_epochs=2,
+    binary_num_epochs=5
+)
 
 run_experiment(config=imagenet_config)
 ```

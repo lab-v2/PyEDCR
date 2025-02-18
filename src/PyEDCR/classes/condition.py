@@ -2,7 +2,7 @@ import abc
 import typing
 import numpy as np
 
-import label
+from src.PyEDCR.classes import label
 
 
 class Condition(typing.Hashable, typing.Callable, abc.ABC):

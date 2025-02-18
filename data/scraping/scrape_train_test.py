@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import torchvision
 import torch.utils.data
 
-from utils import create_directory
+from PyEDCR.PyEDCR import create_directory
 
 train_images_path = 'train/'
 test_images_path = 'test/'

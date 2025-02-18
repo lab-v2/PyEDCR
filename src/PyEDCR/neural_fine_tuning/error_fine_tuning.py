@@ -1,19 +1,16 @@
 import os
 
-import backbone_pipeline
-import combined_fine_tuning
-import evaluation
-import utils
+from PyEDCR.evaluation import neural_evaluation
+from PyEDCR.neural_fine_tuning import backbone_pipeline, combined_fine_tuning
+from PyEDCR.utils import utils
 
 if utils.is_local():
     os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 
 import numpy as np
 import typing
-from tqdm.contrib.concurrent import process_map
 
-import data_loading
-import PyEDCR
+from PyEDCR import PyEDCR
 
 
 class Error_detection_model(PyEDCR.EDCR):
@@ -84,10 +81,8 @@ class Error_detection_model(PyEDCR.EDCR):
         neural_evaluation.evaluate_binary_model(
             fine_tuner=fine_tuners[0],
             loaders=loaders,
-            loss='BCE',
             device=devices[0],
             split='test',
-            preprocessor=preprocessor,
             error_fine_prediction=error_fine_prediction,
             error_coarse_prediction=error_coarse_prediction
         )

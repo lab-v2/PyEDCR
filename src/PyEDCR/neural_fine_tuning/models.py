@@ -13,7 +13,7 @@ try:
 except ModuleNotFoundError:
     pass
 
-import data_preprocessor
+from PyEDCR.PyEDCR import data_preprocessor
 
 
 class FineTuner(torch.nn.Module, abc.ABC):

@@ -9,9 +9,8 @@ import torch.utils.data
 import torchvision
 
 import data_preprocessor
-import config
-import label
-
+from src.PyEDCR import config
+from src.PyEDCR.classes import label
 
 
 def get_dataset_transforms(data: str,
@@ -420,7 +419,7 @@ def get_datasets(preprocessor: data_preprocessor.FineCoarseDataPreprocessor,
         :param combined:
     """
 
-    data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), 'data')
+    data_dir = pathlib.Path.joinpath(pathlib.Path(cwd), '../../../data')
     datasets = {}
 
     for train_or_test in ['train', 'test']:

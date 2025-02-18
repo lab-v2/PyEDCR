@@ -2,7 +2,7 @@ import abc
 import torch
 import matplotlib.pyplot as plt
 import time
-import utils
+from PyEDCR.PyEDCR import utils
 
 if utils.is_local():
     if torch.backends.mps.is_available():

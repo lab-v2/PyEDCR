@@ -2,15 +2,12 @@ import numpy as np
 import torch.utils.data
 import typing
 import inspect
-import importlib.util
-import sys
 
-import data_loading
-import models
-import utils
-import data_preprocessor
-import config
-import label
+from src.PyEDCR.data_processing import data_preprocessor, data_loading
+from src.PyEDCR.neural_fine_tuning import models
+from src.PyEDCR.utils import utils
+from src.PyEDCR import config
+from src.PyEDCR.classes import label
 
 # Use the configuration variables:
 batch_size = config.batch_size
@@ -59,14 +56,14 @@ def save_prediction_files(data_str: str,
     test_str = 'test' if test else 'train'
 
     if data_str == 'imagenet':
-        data_path_str = 'data/ImageNet100/'
+        data_path_str = '../../../data/ImageNet100/'
     elif data_str == 'openimage':
         data_path_str = 'scratch/ngocbach/OpenImage/' if not config.running_on_sol \
             else '/scratch/ngocbach/OpenImage/'
     elif data_str == 'coco':
         data_path_str = 'scratch/ngocbach/COCO/'
     else:
-        data_path_str = 'data/'
+        data_path_str = '../../../data/'
 
     if combined:
         for g_str in data_preprocessor.FineCoarseDataPreprocessor.granularities_str:
@@ -99,7 +96,6 @@ def save_prediction_files(data_str: str,
                                                        lower_prediction_index=lower_prediction_index),
                         lower_prediction_values)
 
-            # disable saving ground truth for now
             # ground_truth_filename = f"{data_path_str}{test_str}_fine/{test_str}_true_{g_str}.npy"
             # ground_truth_data = {'fine': fine_ground_truths,
             #                      'coarse': coarse_ground_truths}[g_str]
@@ -160,9 +156,9 @@ def save_binary_prediction_files(data_str: str,
     try:
         if data_str == 'imagenet':
             preprocessor = data_preprocessor.FineCoarseDataPreprocessor(data_str)
-            for id, label_str in preprocessor.fine_grain_mapping_dict.items():
+            for label_id, label_str in preprocessor.fine_grain_mapping_dict.items():
                 if label_str == l.l_str:
-                    np.save(f"data/ImageNet100/{test_str}_{l.g.g_str}/{id}/binary_true.npy",
+                    np.save(f"data/ImageNet100/{test_str}_{l.g.g_str}/{label_id}/binary_true.npy",
                             ground_truths)
                     break
 
@@ -178,24 +174,6 @@ def save_binary_prediction_files(data_str: str,
     if not evaluation:
         torch.save(fine_tuner.state_dict(),
                    f"models/binary_models/binary_{l}_{fine_tuner}_lr{lr}_loss_{loss}_e{epoch}.pth")
-
-
-def load_module_from_file(module_name, filepath):
-    """
-    Dynamically loads a module from the specified file path.
-
-    Args:
-    - module_name (str): The name of the module.
-    - filepath (str): The path to the .py file to load.
-
-    Returns:
-    - module: The loaded module.
-    """
-    spec = importlib.util.spec_from_file_location(module_name, filepath)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
 
 
 def find_subclasses_in_module(module, parent_class):

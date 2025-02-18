@@ -2,10 +2,9 @@ import numpy as np
 import typing
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, balanced_accuracy_score
 
-import data_preprocessor
-import utils
-import label
-import granularity
+from src.PyEDCR.data_processing import data_preprocessor
+from src.PyEDCR.utils import utils
+from src.PyEDCR.classes import granularity, label
 
 
 def get_l_detection_rule_support(edcr,
@@ -232,14 +231,10 @@ def get_change_str(change: typing.Union[float, str]):
 def print_num_inconsistencies(preprocessor: data_preprocessor.FineCoarseDataPreprocessor,
                               pred_fine_data: np.array,
                               pred_coarse_data: np.array,
-                              current_num_test_inconsistencies=None,
-                              original_test_inconsistencies=None,
                               prior: bool = True):
     """
     Prints the number of inconsistencies between fine and coarse predictions.
 
-    :param current_num_test_inconsistencies:
-    :param original_test_inconsistencies:
     :param preprocessor:
     :param pred_fine_data: NumPy array of predictions at the fine granularity.
     :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
@@ -371,26 +366,22 @@ def get_and_print_metrics(preprocessor: data_preprocessor.FineCoarseDataPreproce
                           model_name: str = '',
                           lr: typing.Union[str, float] = '',
                           print_inconsistencies: bool = True,
-                          current_num_test_inconsistencies=None,
-                          original_test_inconsistencies=None,
                           original_pred_fine_data: np.array = None,
                           original_pred_coarse_data: np.array = None):
     """
     Calculates, prints, and returns accuracy metrics for fine and coarse granularities.
 
-    :param split:
-    :param current_num_test_inconsistencies:
-    :param original_test_inconsistencies:
-    :param preprocessor:
-    :param original_pred_coarse_data:
-    :param original_pred_fine_data:
-    :param print_inconsistencies:
+    :param split: The dataset split (e.g., 'test', 'train').
+    :param preprocessor: The preprocessor object.
+    :param original_pred_coarse_data: The original predictions at the coarse granularity.
+    :param original_pred_fine_data: The original predictions at the fine granularity.
+    :param print_inconsistencies: Whether to print the number of inconsistencies.
     :param pred_fine_data: NumPy array of predictions at the fine granularity.
     :param pred_coarse_data: NumPy array of predictions at the coarse granularity.
     :param loss: The loss function used during training.
     :param true_fine_data: NumPy array of true labels at the fine granularity.
     :param true_coarse_data: NumPy array of true labels at the coarse granularity.
-    :param prior:
+    :param prior: Whether the model is prior or post.
     :param combined: Whether the model are individual or combine one.
     :param model_name: The name of the model (optional).
     :param lr: The learning rate used during training (optional).
@@ -456,8 +447,6 @@ def get_and_print_metrics(preprocessor: data_preprocessor.FineCoarseDataPreproce
         print_num_inconsistencies(preprocessor=preprocessor,
                                   pred_fine_data=pred_fine_data,
                                   pred_coarse_data=pred_coarse_data,
-                                  current_num_test_inconsistencies=current_num_test_inconsistencies,
-                                  original_test_inconsistencies=original_test_inconsistencies,
                                   prior=prior)
 
     return fine_accuracy, coarse_accuracy, fine_f1, coarse_f1

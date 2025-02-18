@@ -2,21 +2,15 @@ import os
 import torch.utils.data
 from tqdm import tqdm
 
-import context_handlers
-import models
 import ltn
 import ltn_support
 import numpy as np
 import copy
 
-import utils
-from PyEDCR import EDCR
-import data_loading
-import backbone_pipeline
+from PyEDCR.PyEDCR import utils, context_handlers
+from PyEDCR.PyEDCR import EDCR, config
+from PyEDCR.PyEDCR import neural_fine_tuning, backbone_pipeline, models
 import typing
-import config
-import evaluation
-import neural_fine_tuning
 import neural_metrics
 
 import torch
@@ -492,7 +486,7 @@ if __name__ == '__main__':
     # binary_model_name = 'dinov2_vits14'
 
     binary_l_strs = list({f.split(f'e{binary_num_epochs - 1}_')[-1].replace('.npy', '')
-                          for f in os.listdir('../binary_results')
+                          for f in os.listdir('../../binary_results')
                           if f.startswith(f'{data_str}_{main_model_name}')
                           })
 

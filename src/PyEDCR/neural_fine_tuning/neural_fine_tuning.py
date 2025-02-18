@@ -1,7 +1,7 @@
 import torch.utils.data
 
-import models
-import utils
+from src.PyEDCR.neural_fine_tuning import models
+from src.PyEDCR.utils import utils
 
 
 def print_fine_tuning_initialization(fine_tuner: models.FineTuner,
