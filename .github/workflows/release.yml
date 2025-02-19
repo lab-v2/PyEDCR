@@ -44,7 +44,6 @@ steps:
       echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
     shell: bash
 
-  # 5. (Optional) Re-fetch tags so that the local environment sees the newly pushed tag
   - name: Fetch tags
     run: git fetch --tags
 
