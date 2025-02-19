@@ -17,26 +17,14 @@ The EDCR method was first introduced in '_Rule-Based Error Detection and Correct
 
 The package was tested for Python >= 3.9.
 
-If you use this work, please cite our paper:
+# Installation
+
+To install the package, you can use the following command:
+
+```bash
+pip install PyEDCR
 ```
-@inproceedings{10.1145/3627673.3679918,
-author = {Kricheli, Joshua Shay and Vo, Khoa and Datta, Aniruddha and Ozgur, Spencer and Shakarian, Paulo},
-title = {Error Detection and Constraint Recovery in Hierarchical Multi-Label Classification without Prior Knowledge},
-year = {2024},
-isbn = {9798400704369},
-publisher = {Association for Computing Machinery},
-address = {New York, NY, USA},
-url = {https://doi.org/10.1145/3627673.3679918},
-doi = {10.1145/3627673.3679918},
-abstract = {Recent advances in Hierarchical Multi-label Classification (HMC), particularly neurosymbolic-based approaches, have demonstrated improved consistency and accuracy by enforcing constraints on a neural model during training. However, such work assumes the existence of such constraints a-priori. In this paper, we relax this strong assumption and present an approach based on Error Detection Rules (EDR) that allow for learning explainable rules about the failure modes of machine learning models. We show that these rules are not only effective in detecting when a machine learning classifier has made an error but also can be leveraged as constraints for HMC, thereby allowing the recovery of explainable constraints even if they are not provided. We show that our approach is effective in detecting machine learning errors and recovering constraints, is noise tolerant, and can function as a source of knowledge for neurosymbolic models on multiple datasets, including a newly introduced military vehicle recognition dataset.},
-booktitle = {Proceedings of the 33rd ACM International Conference on Information and Knowledge Management},
-pages = {3842–3846},
-numpages = {5},
-keywords = {hierarchical multi-label classification, learning with constraints, metacognitive ai, neurosymbolic ai, rule learning},
-location = {Boise, ID, USA},
-series = {CIKM '24}
-}
-```
+
 
 # Example
 
@@ -93,6 +81,29 @@ recovered_constraints_f1_score: 74.5
 ```
 
 For further details about the rule learning algorithm, and noise tolerance experiments, please refer to the [paper](https://arxiv.org/abs/2407.15192).
+
+# Authors
+
+If you use this work, please cite our paper:
+```
+@inproceedings{10.1145/3627673.3679918,
+author = {Kricheli, Joshua Shay and Vo, Khoa and Datta, Aniruddha and Ozgur, Spencer and Shakarian, Paulo},
+title = {Error Detection and Constraint Recovery in Hierarchical Multi-Label Classification without Prior Knowledge},
+year = {2024},
+isbn = {9798400704369},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3627673.3679918},
+doi = {10.1145/3627673.3679918},
+abstract = {Recent advances in Hierarchical Multi-label Classification (HMC), particularly neurosymbolic-based approaches, have demonstrated improved consistency and accuracy by enforcing constraints on a neural model during training. However, such work assumes the existence of such constraints a-priori. In this paper, we relax this strong assumption and present an approach based on Error Detection Rules (EDR) that allow for learning explainable rules about the failure modes of machine learning models. We show that these rules are not only effective in detecting when a machine learning classifier has made an error but also can be leveraged as constraints for HMC, thereby allowing the recovery of explainable constraints even if they are not provided. We show that our approach is effective in detecting machine learning errors and recovering constraints, is noise tolerant, and can function as a source of knowledge for neurosymbolic models on multiple datasets, including a newly introduced military vehicle recognition dataset.},
+booktitle = {Proceedings of the 33rd ACM International Conference on Information and Knowledge Management},
+pages = {3842–3846},
+numpages = {5},
+keywords = {hierarchical multi-label classification, learning with constraints, metacognitive ai, neurosymbolic ai, rule learning},
+location = {Boise, ID, USA},
+series = {CIKM '24}
+}
+```
 
 # Acknowledgments
 

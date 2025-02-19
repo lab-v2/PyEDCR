@@ -3,16 +3,18 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pyedcr"
-version = "1.1.1"
-description = "A metacognitive error detection and correction framework"
+name = "PyEDCR"
+version = "1.1.2"
+description = "PyEDCR is a metacognitive neuro-symbolic method for learning error detection and correction rules in deployed ML models using combinatorial sub-modular set optimization"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [
     { name = "Lab V2", email = "pshak02@asu.edu" }
 ]
-keywords = ["machine learning", "error detection", "metacognition"]
+keywords = ["machine learning", "error detection", 'neurosymbolic AI', "metacognition", 'error correction', 'rule learning',
+    'artificial intelligence', 'data science', 'data mining', 'data analysis']
+
 dependencies = [
     "torch>=2.0.0",
     "numpy>=1.20.0",
