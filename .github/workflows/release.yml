@@ -1,33 +1,65 @@
-name: Publish Python Package
+steps:
+  # 1. Check out the repository with full history (to have all tags)
+  - name: Checkout repository
+    uses: actions/checkout@v3
+    with:
+      fetch-depth: 0
 
-on:
-  push:
-    # This trigger runs when you push a new tag starting with "v"
-    tags:
-      - 'v*'
+  # 2. Set up Git user info so that pushing tags works
+  - name: Configure Git
+    run: |
+      git config user.name "GitHub Actions"
+      git config user.email "actions@github.com"
 
-jobs:
-  build-and-publish:
-    runs-on: ubuntu-latest
+  # 3. Set up Python environment
+  - name: Set up Python
+    uses: actions/setup-python@v3
+    with:
+      python-version: '3.x'
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+  # 4. Bump version and create a new tag
+  - name: Bump version and create tag
+    id: bump
+    run: |
+      # Get the latest tag matching the pattern, or use a default value if none exist.
+      LATEST_TAG=$(git tag --sort=-v:refname | grep '^v' | head -n 1)
+      if [ -z "$LATEST_TAG" ]; then
+        LATEST_TAG="v0.0.0"
+      fi
+      echo "Latest tag: $LATEST_TAG"
 
-      - name: Set up Python
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.9'
+      # Remove the leading "v" and split the semantic version X.Y.Z into parts.
+      VERSION=${LATEST_TAG#v}
+      IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+      PATCH=${PATCH:-0}  # default patch to 0 if not set
+      NEW_PATCH=$((PATCH + 1))
+      NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+      echo "New tag: $NEW_TAG"
 
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip build
+      # Create and push the new tag. (The GITHUB_TOKEN provided by Actions will be used.)
+      git tag "$NEW_TAG"
+      git push origin "$NEW_TAG"
 
-      - name: Build distributions
-        run: python -m build
+      # (Optional) export the new tag as an output variable for later steps if needed.
+      echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+    shell: bash
 
-      - name: Publish distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.5.2
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+  # 5. (Optional) Re-fetch tags so that the local environment sees the newly pushed tag
+  - name: Fetch tags
+    run: git fetch --tags
+
+  # 6. Install build tools
+  - name: Install build tools
+    run: |
+      python -m pip install --upgrade pip build
+
+  # 7. Build distributions (wheel and sdist)
+  - name: Build distributions
+    run: python -m build
+
+  # 8. Publish the distribution(s) to PyPI using your API token
+  - name: Publish distributions to PyPI
+    uses: pypa/gh-action-pypi-publish@v1.5.2
+    with:
+      user: __token__
+      password: ${{ secrets.PYPI_API_TOKEN }}
