@@ -1,10 +1,10 @@
 <p align="center">
-    <img alt="Logo" src="images/logo-transparent-png.png" width="440" height="500"/>
+    <img alt="Logo" src="https://github.com/lab-v2/PyEDCR/raw/master/images/logo-transparent-png.png" width="440" height="500"/>
 </p>
 
 <!-- [![pages-build-deployment](https://github.com/krichelj/PyDiffGame/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/krichelj/PyDiffGame/actions/workflows/pages/pages-build-deployment) -->
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Upload Python Package](https://github.com/lab-v2/PyEDCR/actions/workflows/python-publish.yml/badge.svg)](https://github.com/lab-v2/PyEDCR/actions/workflows/python-publish.yml) [![GitHub Pages Deployment](https://github.com/lab-v2/PyEDCR/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/lab-v2/PyEDCR/actions/workflows/pages/pages-build-deployment)
 
 - [What is this?](#what-is-this)
 - [Example](#example)
@@ -43,7 +43,7 @@ series = {CIKM '24}
 To demonstrate the use of the package, we consider a dataset with two levels of hierarchy, such that each image has a fine-grain and coarse-grain label. For example, consider the following example from our curated Military Vehicle (which can be found [here](https://huggingface.co/datasets/lab-v2/military_vehicles)):
 
 <p align="center">
-    <img alt="ImageNet100" src="images/spa_tank_diagram.PNG" width="600" height="250"/>
+    <img alt="ImageNet100" src="https://github.com/lab-v2/PyEDCR/raw/master/images/spa_tank_diagram.PNG" width="600" height="250"/>
 </p>
 
 We further consider a pretrained 'main' model, for example one which employed the small version of [Meta's _DINO_V2_ architecture](https://dinov2.metademolab.com/) and was fine-tuned on ImageNet50 - a subset of the [ImageNet1K dataset](https://www.image-net.org/index.php) with 50 classes (which can be found [here](https://huggingface.co/datasets/lab-v2/ImageNet50)), which we want to analyze its ability to classify both levels of the hierarchy. An instance of such model (which can be found [here](https://huggingface.co/lab-v2/dinov2_vits14_imagenet_lr1e-06_BCE)) has the following performance:
