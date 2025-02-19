@@ -98,6 +98,7 @@ For further details about the rule learning algorithm, and noise tolerance exper
 
 This research was funded by ARO grant W911NF-24-1-0007.
 
+
 <p align="center">
 <a href="https://scai.engineering.asu.edu/">
 <img src="https://cdn.shopify.com/s/files/1/1095/6418/files/ASU-sun-devils-new-logo.jpg?v=1481918145" height="150"  alt=""/>
