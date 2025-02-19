@@ -6,7 +6,8 @@ import torch.utils.data
 from tqdm import tqdm
 import numpy as np
 
-from src.PyEDCR.neural_fine_tuning import backbone_pipeline, models, neural_fine_tuning
+from src.PyEDCR.neural_fine_tuning import backbone_pipeline, neural_fine_tuning
+from src.PyEDCR.neural_fine_tuning.models import models
 from src.PyEDCR.utils import utils, context_handlers
 from src.PyEDCR.PyEDCR import label
 from src.PyEDCR.evaluation import neural_evaluation, metrics

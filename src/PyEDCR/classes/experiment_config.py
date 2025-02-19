@@ -9,7 +9,9 @@ class ExperimentConfig:
                  secondary_lr: float = None,
                  binary_model_name: str = None,
                  binary_num_epochs: int = None,
-                 binary_lr: float = None):
+                 binary_lr: float = None,
+                 plot_2d: bool = False,
+                 plot_3d: bool = False):
         self.data_str = data_str
         self.main_model_name = main_model_name
         self.main_lr = main_lr
@@ -20,3 +22,5 @@ class ExperimentConfig:
         self.binary_model_name = binary_model_name
         self.binary_lr = binary_lr
         self.binary_num_epochs = binary_num_epochs
+        self.plot_2d = plot_2d
+        self.plot_3d = plot_3d

@@ -11,8 +11,9 @@ warnings.filterwarnings('ignore')
 
 from src.PyEDCR.data_processing import data_preprocessor
 from src.PyEDCR.utils import utils, paths, argument_parser
-from src.PyEDCR.evaluation import metrics
+from src.PyEDCR.evaluation import metrics, plotting
 from src.PyEDCR.classes import condition, granularity, rule, label, experiment_config
+from src.PyEDCR.utils import google_sheets_api
 
 
 class EDCR:
@@ -55,7 +56,7 @@ class EDCR:
                  num_train_images_per_class: int = None,
                  maximize_ratio: bool = True,
                  indices_of_fine_labels_to_take_out: typing.List[int] = [],
-                 use_google_api: bool = False,
+                 # use_google_api: bool = False,
                  negated_conditions: bool = False):
         self.data_str = data_str
         self.preprocessor = data_preprocessor.FineCoarseDataPreprocessor(data_str=data_str)
@@ -1184,8 +1185,6 @@ class EDCR:
                 # self.apply_detection_rules(test=False,
                 #                            g=g)
 
-            # self.run_training_correction_model_pipeline(new_model_name=new_model_name,
-            #                                             new_lr=new_lr)
             # self.print_metrics(test=False, prior=False, stage='post_detection')
 
             edcr_epoch_str = f'Finished EDCR epoch {EDCR_epoch + 1}/{self.EDCR_num_epochs}'
@@ -1195,10 +1194,7 @@ class EDCR:
                                   '#' * (100 - int((100 - len(edcr_epoch_str)) / 2) - len(edcr_epoch_str)) +
                                   '\n' + '#' * 100 + '\n'))
 
-        # self.learn_correction_rules(g=g)
-        # self.learn_correction_rules_alt(g=g)
-
-        print('\nRule learning completed\n')
+        print('\nDetection rules learning completed\n')
 
 
 def work_on_value(args):
@@ -1290,14 +1286,14 @@ def simulate_for_values(data_str: str,
               negated_conditions
               ) for i, fine_labels_to_take_out in enumerate(lists_of_fine_labels_to_take_out)]
 
-    # if not utils.is_debug_mode():
-    #     processes_num = min([len(datas), 10 if utils.is_local() else 100])
-    #     process_map(work_on_value,
-    #                 datas,
-    #                 max_workers=processes_num)
-    # else:
-    for data in datas:
-        work_on_value(data)
+    if not utils.is_debug_mode():
+        processes_num = min([len(datas), 10 if utils.is_local() else 100])
+        process_map(work_on_value,
+                    datas,
+                    max_workers=processes_num)
+    else:
+        for data in datas:
+            work_on_value(data)
 
 
 def run_experiment(config: experiment_config.ExperimentConfig):
@@ -1305,13 +1301,6 @@ def run_experiment(config: experiment_config.ExperimentConfig):
                           for f in os.listdir(rf'{paths.BINARY_RESULTS_FOLDER}')
                           if f.startswith(f'{config.data_str}_{config.binary_model_name}')})
 
-    # print(google_sheets_api.get_maximal_epsilon(tab_name=sheet_tab))
-
-    # sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=main_model_name,
-    #                                                       data_str=data_str,
-    #                                                       secondary_model_name=secondary_model_name,
-    #                                                       binary=len(binary_l_strs) > 0
-    #                                                       )
     # number_of_ratios = 10
 
     # lists_of_fine_labels_to_take_out = [list(range(i)) for i in range(number_of_fine_classes)]
@@ -1350,58 +1339,62 @@ def run_experiment(config: experiment_config.ExperimentConfig):
                     negated_conditions=False
                 )
 
-    # (x_values, y_values, error_accuracies, error_f1s, error_MMCs, error_acc_f1s) = (
-    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-    #                                               column_letters=['A', 'B', 'C', 'D', 'E', 'F']))
-    #
-    # plotting.plot_3d_metrics(x_values=x_values,
-    #                          y_values=y_values,
-    #                          metrics={'Error F1': (error_f1s, 'Greens', 'g')})
+    sheet_tab_name = google_sheets_api.get_sheet_tab_name(main_model_name=config.main_model_name,
+                                                          data_str=config.data_str,
+                                                          secondary_model_name=config.secondary_model_name,
+                                                          binary=len(binary_l_strs) > 0)
 
-    # (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
-    #     google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
-    #                                               column_letters=['B', 'D', 'G', 'J']))
+    (x_values, y_values, error_accuracies, error_f1s, error_MMCs, error_acc_f1s) = (
+        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+                                                  column_letters=['A', 'B', 'C', 'D', 'E', 'F']))
 
-    # if data_str == 'military_vehicles':
-    #     # Find the first occurrence where a > 0.5
-    #     first_greater = np.argmax(x_values > 0.5)  # This gives the index of the first True in the condition
-    #
-    #     x_values[first_greater] = 0.5
-    #
-    # # Create a mask for values <= 0.5
-    # mask = x_values <= 0.5
-    #
-    # x_values, balance_error_accuracies, error_f1s, constraint_f1s = \
-    #     [a[mask] for a in [x_values, balance_error_accuracies, error_f1s, constraint_f1s]]
-    #
-    # plotting.plot_2d_metrics(data_str=data_str,
-    #                          model_name=main_model_name,
-    #                          x_values=x_values[1:],
-    #                          metrics={'Balanced Error Accuracy': balance_error_accuracies[1:],
-    #                                   'Error F1-Score': error_f1s[1:],
-    #                                   'Constraints F1-Score': constraint_f1s[1:]},
-    #                          style_dict={
-    #                              'Balanced Error Accuracy': ('k', '-'),  # Black solid line
-    #                              'Error F1-Score': ('k', ':'),  # Gray solid line
-    #                              'Constraints F1-Score': ('k', '--')  # Black dotted line
-    #                          },
-    #                          fontsize=24)
+    plotting.plot_3d_metrics(x_values=x_values,
+                             y_values=y_values,
+                             metrics={'Error F1': (error_f1s, 'Greens', 'g')})
+
+    (x_values, balance_error_accuracies, error_f1s, constraint_f1s) = (
+        google_sheets_api.get_values_from_columns(sheet_tab_name=sheet_tab_name,
+                                                  column_letters=['B', 'D', 'G', 'J']))
+
+    if config.data_str == 'military_vehicles':
+        # Find the first occurrence where a > 0.5
+        first_greater = np.argmax(x_values > 0.5)  # This gives the index of the first True in the condition
+
+        x_values[first_greater] = 0.5
+
+    # Create a mask for values <= 0.5
+    mask = x_values <= 0.5
+
+    x_values, balance_error_accuracies, error_f1s, constraint_f1s = \
+        [a[mask] for a in [x_values, balance_error_accuracies, error_f1s, constraint_f1s]]
+
+    plotting.plot_2d_metrics(data_str=config.data_str,
+                             x_values=x_values[1:],
+                             metrics={'Balanced Error Accuracy': balance_error_accuracies[1:],
+                                      'Error F1-Score': error_f1s[1:],
+                                      'Constraints F1-Score': constraint_f1s[1:]},
+                             style_dict={
+                                 'Balanced Error Accuracy': ('k', '-'),  # Black solid line
+                                 'Error F1-Score': ('k', ':'),  # Gray solid line
+                                 'Constraints F1-Score': ('k', '--')  # Black dotted line
+                             },
+                             fontsize=24)
 
 
 def main():
     args = argument_parser.parse_arguments()
 
-    military_vehicles_config = experiment_config.ExperimentConfig(
-        data_str='military_vehicles',
-        main_model_name='vit_b_16',
-        secondary_model_name='vit_l_16',
-        main_lr=0.0001,
-        secondary_lr=0.0001,
-        binary_lr=0.0001,
-        original_num_epochs=10,
-        secondary_num_epochs=20,
-        binary_num_epochs=10
-    )
+    # military_vehicles_config = experiment_config.ExperimentConfig(
+    #     data_str='military_vehicles',
+    #     main_model_name='vit_b_16',
+    #     secondary_model_name='vit_l_16',
+    #     main_lr=0.0001,
+    #     secondary_lr=0.0001,
+    #     binary_lr=0.0001,
+    #     original_num_epochs=10,
+    #     secondary_num_epochs=20,
+    #     binary_num_epochs=10
+    # )
 
     imagenet_config = experiment_config.ExperimentConfig(
         data_str='imagenet',
@@ -1415,17 +1408,17 @@ def main():
         binary_num_epochs=5
     )
 
-    openimage_config = experiment_config.ExperimentConfig(
-        data_str='openimage',
-        main_model_name='vit_b_16',
-        secondary_model_name='dinov2_vits14',
-        main_lr=0.0001,
-        secondary_lr=0.000001,
-        binary_lr=0.000001,
-        original_num_epochs=20,
-        secondary_num_epochs=20,
-        binary_num_epochs=4
-    )
+    # openimage_config = experiment_config.ExperimentConfig(
+    #     data_str='openimage',
+    #     main_model_name='vit_b_16',
+    #     secondary_model_name='dinov2_vits14',
+    #     main_lr=0.0001,
+    #     secondary_lr=0.000001,
+    #     binary_lr=0.000001,
+    #     original_num_epochs=20,
+    #     secondary_num_epochs=20,
+    #     binary_num_epochs=4
+    # )
 
     run_experiment(config=imagenet_config)
 

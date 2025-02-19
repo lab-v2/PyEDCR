@@ -4,7 +4,7 @@ import typing
 import inspect
 
 from src.PyEDCR.data_processing import data_preprocessor, data_loading
-from src.PyEDCR.neural_fine_tuning import models
+from src.PyEDCR.neural_fine_tuning.models import models
 from src.PyEDCR.utils import utils
 from src.PyEDCR import config
 from src.PyEDCR.classes import label

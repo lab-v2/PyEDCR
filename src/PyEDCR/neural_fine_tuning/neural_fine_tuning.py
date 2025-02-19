@@ -1,6 +1,6 @@
 import torch.utils.data
 
-from src.PyEDCR.neural_fine_tuning import models
+from src.PyEDCR.neural_fine_tuning.models import models
 from src.PyEDCR.utils import utils
 
 

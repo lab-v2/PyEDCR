@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from PyEDCR.PyEDCR import data_preprocessor
 from PyEDCR.evaluation import metrics, neural_evaluation
-from PyEDCR.neural_fine_tuning import models
+from PyEDCR.neural_fine_tuning.models import models
 import backbone_pipeline
 import neural_fine_tuning
 

@@ -10,7 +10,7 @@ import numpy as np
 import typing
 
 from src.PyEDCR.data_processing import data_preprocessor
-import src.PyEDCR.neural_fine_tuning.models as models
+from src.PyEDCR.neural_fine_tuning.models import models
 import metrics
 from src.PyEDCR.neural_fine_tuning import backbone_pipeline
 from src.PyEDCR import config
