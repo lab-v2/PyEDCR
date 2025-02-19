@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyedcr"
-version = "1.1.0"
+version = "1.1.1"
 description = "A metacognitive error detection and correction framework"
 readme = "README.md"
 requires-python = ">=3.9"
