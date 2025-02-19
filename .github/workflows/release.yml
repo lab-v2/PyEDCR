@@ -1,0 +1,33 @@
+name: Publish Python Package
+
+on:
+  push:
+    # This trigger runs when you push a new tag starting with "v"
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip build
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.5.2
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
