@@ -48,13 +48,13 @@ To demonstrate the use of the package, we consider a dataset with two levels of 
 
 We further consider a pretrained 'main' model, for example one which employed the small version of [Meta's _DINO_V2_ architecture](https://dinov2.metademolab.com/) and was fine-tuned on ImageNet50 - a subset of the [ImageNet1K dataset](https://www.image-net.org/index.php) with 50 classes (which can be found [here](https://huggingface.co/datasets/lab-v2/ImageNet50)), which we want to analyze its ability to classify both levels of the hierarchy. An instance of such model (which can be found [here](https://huggingface.co/lab-v2/dinov2_vits14_imagenet_lr1e-06_BCE)) has the following performance:
 
-Fine-grain prior combined accuracy: <span style="color:green">76.57</span>% , fine-grain prior combined macro f1: <span style="color:green">76.1</span>%\
-Fine-grain prior combined macro precision: <span style="color:green">76.96</span>% , fine-grain prior combined macro recall: <span style="color:green">76.57</span>%
+Fine-grain prior combined accuracy: <code style="color:green">76.57%</code> , fine-grain prior combined macro f1: <code style="color:green">76.1%</code>\
+Fine-grain prior combined macro precision: <code style="color:green">76.96%</code> , fine-grain prior combined macro recall: <code style="color:green">76.57%</code>
 
-Coarse-grain prior combined accuracy: <span style="color:green">87.14</span>%, coarse-grain prior combined macro f1: <span style="color:green">85.77</span>%\
-Coarse-grain prior combined macro precision: <span style="color:green">87.36</span>%, coarse-grain prior combined macro recall: <span style="color:green">84.64</span>%
+Coarse-grain prior combined accuracy: <code style="color:green">87.14%</code>, coarse-grain prior combined macro f1: <code style="color:green">85.77%</code>\
+Coarse-grain prior combined macro precision: <code style="color:green">87.36%</code>, coarse-grain prior combined macro recall: <code style="color:green">84.64%</code>
 
-Total prior inconsistencies <span style="color:red">133/2100</span> (<span style="color:red">6.33</span>%)
+Total prior inconsistencies <code style="color:red">133/2100</code> (<code style="color:red">6.33%</code>)
 
 We also consider a 'secondary' model (which can be found [here](https://huggingface.co/lab-v2/dinov2_vitl14_imagenet_lr1e-06_BCE)), which employed the large version of the DINO_V2 architecture and was also fine-tuned on the ImageNet50 dataset, along with binary models which were trained on each class of the dataset.
 Consider the following code snippet to run the `run_experiment` function from PyEDCR.py:
@@ -81,15 +81,15 @@ run_experiment(config=imagenet_config)
 
 The code will initiate the rule learning pipeline, use the rules learned to mark errors in the predictions of the main model, and print out the performance metrics of the algorithm on the error class after running the f-EDR algorithm, which in this case will be:
 
-```
-error_accuracy: 89.0%
-error_balanced_accuracy: 84.23%
-error_precision: 81.65%
-error_recall: 74.31%
-error_f1: 77.81%
-recovered_constraints_precision: 100.0%
-recovered_constraints_recall: 59.36%
-recovered_constraints_f1_score: 74.5%
+```python
+error_accuracy: 89.0
+error_balanced_accuracy: 84.23
+error_precision: 81.65
+error_recall: 74.31
+error_f1: 77.81
+recovered_constraints_precision: 100.0
+recovered_constraints_recall: 59.36
+recovered_constraints_f1_score: 74.5
 ```
 
 For further details about the rule learning algorithm, and noise tolerance experiments, please refer to the [paper](https://arxiv.org/abs/2407.15192).
@@ -99,7 +99,7 @@ For further details about the rule learning algorithm, and noise tolerance exper
 This research was funded by ARO grant W911NF-24-1-0007.
 
 <p align="center">
-<a href="https://arl.devcom.army.mil/who-we-are/aro/">
+<a href="https://scai.engineering.asu.edu/">
 <img src="https://cdn.shopify.com/s/files/1/1095/6418/files/ASU-sun-devils-new-logo.jpg?v=1481918145" height="150"  alt=""/>
 </a>
 &emsp;

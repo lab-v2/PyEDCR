@@ -1,7 +1,5 @@
 import pathlib
 
-from google.auth.environment_vars import CREDENTIALS
-
 ROOT_PATH = pathlib.Path(__file__).parent.parent.parent.parent
 DATA_FOLDER = rf'{ROOT_PATH}/data'
 RESULTS_FOLDER = rf'{ROOT_PATH}/results'
