@@ -7,7 +7,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Upload Python Package](https://github.com/lab-v2/PyEDCR/actions/workflows/python-publish.yml/badge.svg)](https://github.com/lab-v2/PyEDCR/actions/workflows/python-publish.yml) [![GitHub Pages Deployment](https://github.com/lab-v2/PyEDCR/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/lab-v2/PyEDCR/actions/workflows/pages/pages-build-deployment)
 
 - [What is this?](#what-is-this)
+- [Installation](#installation)
 - [Example](#example)
+- [Authors](#authors)
+- [Acknowledgments](#acknowledgments)
 
 # What is this?
 
